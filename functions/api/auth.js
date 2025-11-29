@@ -1,0 +1,121 @@
+import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders } from '../utils.js';
+export async function onRequestPost({ request, env }) {
+  try {
+    const body = await request.json();
+    const { action, email, password } = body;
+    if (!env.DB) {
+      return new Response(JSON.stringify({ success: false, error: 'Database not configured' }), { status: 500, headers: addCorsHeaders() });
+    }
+    if (action === 'send-code') {
+      if (!email || !email.endsWith('@whut.edu.cn')) {
+        return new Response(JSON.stringify({ success: false, error: 'Only @whut.edu.cn emails are allowed.' }), { status: 400, headers: addCorsHeaders() });
+      }
+      
+      const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+      if (existing) {
+        return new Response(JSON.stringify({ success: false, error: 'User already exists.' }), { status: 400, headers: addCorsHeaders() });
+      }
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+      await env.DB.prepare('INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)')
+        .bind(email, code, expiresAt)
+        .run();
+
+      const resendRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: '生科树洞 <noreply@mails.zygame1314.site>', 
+          to: email,
+          subject: '生科树洞 - 注册验证码',
+          html: `<p>您的验证码是: <strong>${code}</strong></p><p>该验证码10分钟内有效。</p>`
+        })
+      });
+
+      if (!resendRes.ok) {
+          const errorText = await resendRes.text();
+          console.error('Resend Error:', errorText);
+          return new Response(JSON.stringify({ success: false, error: 'Failed to send verification email.' }), { status: 500, headers: addCorsHeaders() });
+      }
+
+      return new Response(JSON.stringify({ success: true, message: 'Verification code sent.' }), { status: 200, headers: addCorsHeaders() });
+    }
+
+    if (action === 'register') {
+      if (!email || !email.endsWith('@whut.edu.cn')) {
+        return new Response(JSON.stringify({ success: false, error: 'Only @whut.edu.cn emails are allowed.' }), { status: 400, headers: addCorsHeaders() });
+      }
+      if (!password || password.length < 6) {
+        return new Response(JSON.stringify({ success: false, error: 'Password must be at least 6 characters.' }), { status: 400, headers: addCorsHeaders() });
+      }
+
+      const { code } = body;
+      if (!code) {
+          return new Response(JSON.stringify({ success: false, error: 'Verification code is required.' }), { status: 400, headers: addCorsHeaders() });
+      }
+
+      const validCode = await env.DB.prepare('SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1')
+        .bind(email, code, new Date().toISOString())
+        .first();
+
+      if (!validCode) {
+          return new Response(JSON.stringify({ success: false, error: 'Invalid or expired verification code.' }), { status: 400, headers: addCorsHeaders() });
+      }
+
+      const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+      if (existing) {
+        return new Response(JSON.stringify({ success: false, error: 'User already exists.' }), { status: 400, headers: addCorsHeaders() });
+      }
+      const passwordHash = await hashPassword(password, env.SALT);
+      const role = 'user'; 
+      await env.DB.prepare('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)')
+        .bind(email, passwordHash, role)
+        .run();
+      
+      await env.DB.prepare('DELETE FROM verification_codes WHERE email = ?').bind(email).run();
+
+      return new Response(JSON.stringify({ success: true, message: 'Registration successful. Please login.' }), { status: 200, headers: addCorsHeaders() });
+    }
+    if (action === 'login') {
+      const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+      if (!user) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid credentials.' }), { status: 401, headers: addCorsHeaders() });
+      }
+      const isValid = await verifyPasswordHash(password, user.password_hash, env.SALT);
+      if (!isValid) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid credentials.' }), { status: 401, headers: addCorsHeaders() });
+      }
+      const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
+      const quota_remaining = user.quota_limit - user.quota_used;
+      return new Response(JSON.stringify({ success: true, token, user: { email: user.email, role: user.role, quota_limit: user.quota_limit, quota_used: user.quota_used, quota_remaining } }), { status: 200, headers: addCorsHeaders() });
+    }
+    return new Response(JSON.stringify({ success: false, error: 'Invalid action' }), { status: 400, headers: addCorsHeaders() });
+  } catch (e) {
+    console.error("Auth Error:", e);
+    return new Response(JSON.stringify({ success: false, error: e.message, stack: e.stack }), { status: 500, headers: addCorsHeaders() });
+  }
+}
+export async function onRequestGet({ request, env }) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders() });
+  }
+  const token = authHeader.substring(7);
+  const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+  if (!payload) {
+    return new Response(JSON.stringify({ success: false, error: 'Invalid token' }), { status: 401, headers: addCorsHeaders() });
+  }
+  const user = await env.DB.prepare('SELECT email, role, quota_limit, quota_used FROM users WHERE id = ?').bind(payload.id).first();
+  if (user) {
+      user.quota_remaining = user.quota_limit - user.quota_used;
+  }
+  return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: addCorsHeaders() });
+}
+export async function onRequestOptions() {
+  return new Response(null, { status: 204, headers: addCorsHeaders() });
+}

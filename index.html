@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生科树洞 | 学习资料共享平台</title>
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/pages.css">
+    <link rel="stylesheet" href="https://cdn.jsdmirror.com/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/css/shepherd.css"/>
+</head>
+
+<body>
+    <div id="particles-background"></div>
+
+    <nav class="top-nav">
+        <div class="nav-container">
+            <div class="logo-section">
+                <button id="mobile-sidebar-toggle" class="icon-btn mobile-only-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="logo-icon">
+                    <i class="fas fa-tree"></i>
+                </div>
+                <div class="logo-text">
+                    <span class="main-title">生科树洞</span>
+                    <span class="sub-title">知识传承</span>
+                </div>
+            </div>
+            <div class="nav-actions-container">
+                <div class="nav-actions">
+                    <div class="nav-icon-buttons">
+                        <button id="tutorial-btn" class="icon-btn" title="开始教程">
+                            <i class="fas fa-question-circle"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-btn" title="切换主题">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </div>
+                    <div id="auth-section">
+                        <button id="login-button" class="primary-btn">
+                            <i class="fas fa-user"></i>
+                            <span>口令验证</span>
+                        </button>
+                        <button id="admin-login-button" class="primary-btn" style="display: none;">
+                            <i class="fas fa-user-shield"></i>
+                            <span>管理员验证</span>
+                        </button>
+                    </div>
+                </div>
+                <button id="mobile-menu-toggle" class="icon-btn">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero-section">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1 class="main-heading">
+                    <span class="text-gradient">学习资料共享平台</span>
+                </h1>
+                <p class="hero-description">
+                    承载着"生科树洞"的精神，让知识在这里延续传承
+                </p>
+                <div class="memory-badge">
+                    <i class="fas fa-heart"></i>
+                    <span>纪念那些美好的时光</span>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="floating-elements">
+                    <div class="element element-1"><i class="fas fa-dna"></i></div>
+                    <div class="element element-2"><i class="fas fa-microscope"></i></div>
+                    <div class="element element-3"><i class="fas fa-leaf"></i></div>
+                    <div class="element element-4"><i class="fas fa-atom"></i></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="explorer-container">
+                <aside id="folder-tree-container" class="folder-tree-container">
+                    <h3 class="section-title">
+                        <i class="fas fa-sitemap"></i> 文件夹导航
+                    </h3>
+                    <div id="folder-tree">
+                        <div class="loading-spinner" style="margin-top: 20px;"></div>
+                    </div>
+                    <div class="sidebar-divider"></div>
+                    <h3 class="section-title">
+                        <i class="fas fa-fire"></i> 热门文件夹
+                    </h3>
+                    <div id="hot-folders-list">
+                        <div class="loading-spinner" style="margin-top: 20px;"></div>
+                    </div>
+                </aside>
+                <section id="file-explorer" class="file-explorer">
+                    <div class="explorer-header">
+                        <div class="header-left">
+                            <h2 class="section-title">
+                                <i class="fas fa-folder-open"></i>
+                                文件资源库
+                            </h2>
+                            <div class="file-stats">
+                                <span id="file-count">正在加载...</span>
+                                <span class="stat-divider"
+                                    style="margin: 0 0.5em; color: var(--text-color-secondary); display: none;">|</span>
+                                <span id="total-size"></span>
+                                <div class="size-progress-container" title="存储空间使用情况 (总上限10GB)">
+                                    <div class="progress-bar">
+                                        <div id="size-progress-bar" class="progress-bar-inner"></div>
+                                    </div>
+                                    <span id="size-progress-text" class="progress-text"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="header-actions">
+                            <div class="view-options">
+                                <button class="view-btn active" data-view="list" title="列表视图">
+                                    <i class="fas fa-list"></i>
+                                </button>
+                                <button class="view-btn" data-view="grid" title="网格视图">
+                                    <i class="fas fa-th"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="search-container">
+                        <div class="search-box">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="search" id="search-input" placeholder="搜索文件、文档、资料...">
+                            <button id="search-button" class="search-btn">
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                        <div class="search-filters">
+                            <button class="filter-btn active" data-filter="all">全部</button>
+                            <button class="filter-btn" data-filter="pdf">PDF</button>
+                            <button class="filter-btn" data-filter="doc">文档</button>
+                            <button class="filter-btn" data-filter="image">图片</button>
+                            <button class="filter-btn" data-filter="video">视频</button>
+                        </div>
+                    </div>
+
+                    <section id="recent-uploads-section" class="recent-uploads-section">
+                        <div class="recent-uploads-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-clock-rotate-left"></i>
+                                最近上传
+                            </h3>
+                            <button id="refresh-recent-uploads" class="icon-btn" title="刷新最近上传">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <ul id="recent-uploads-list" class="recent-uploads-list">
+                            <li class="loading-item">
+                                <div class="loading-spinner"></div>
+                                <span>请先完成验证以查看最近上传</span>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <nav id="breadcrumb-nav" class="breadcrumb-nav" aria-label="breadcrumb">
+                        <div class="breadcrumb-container">
+                            <i class="fas fa-home breadcrumb-home"></i>
+                            <ol id="breadcrumb-list" class="breadcrumb-list">
+                            </ol>
+                        </div>
+                        <div id="list-actions" class="list-actions">
+                            <button id="selection-mode-btn" class="primary-btn">
+                                <i class="fas fa-check-square"></i>
+                                <span>批量选择</span>
+                            </button>
+                            <button id="select-all-btn" class="primary-btn" style="display: none;">
+                                <i class="fas fa-check-double"></i>
+                                <span>全选</span>
+                            </button>
+                        </div>
+                    </nav>
+
+                    <div class="file-list-container">
+                        <ul id="file-list" class="file-list">
+                            <li class="loading-item">
+                                <div class="loading-spinner"></div>
+                                <span>正在加载文件列表...</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div id="pagination-controls" class="pagination-controls"
+                        style="display: flex; justify-content: center; align-items: center; padding: 1rem;">
+                    </div>
+                    <div id="selection-toolbar" class="selection-toolbar">
+                        <div class="selection-info">
+                            <span id="selection-count">已选择 0 项</span>
+                        </div>
+                        <div class="selection-actions">
+                            <button id="batch-download-btn" class="primary-btn">
+                                <i class="fas fa-download"></i>
+                                <span>批量下载</span>
+                            </button>
+                            <button id="batch-move-btn" class="secondary-btn">
+                               <i class="fas fa-folder-tree"></i>
+                               <span>移动到...</span>
+                            </button>
+                            <button id="batch-delete-btn" class="danger-btn">
+                                <i class="fas fa-trash"></i>
+                                <span>批量删除</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="upload-section">
+                        <a href="upload.html" id="upload-btn-link" class="upload-btn" style="display: none;">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>上传资料</span>
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>关于生科树洞</h3>
+                <p>一个充满回忆的学习社区，人会各奔东西，但知识永恒传承。</p>
+            </div>
+            <div class="footer-section">
+                <h3>使用指南</h3>
+                <ul>
+                    <li><a href="how_to_upload.html">如何上传文件</a></li>
+                    <li><a href="sharing_rules.html">分享规范</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>联系站长</h3>
+                <div class="social-links">
+                    <a href="https://blog.zygame1314.site" class="social-link"><i class="fas fa-home"></i></a>
+                    <a href="mailto:zygame1314@gmail.com" class="social-link"><i class="fas fa-envelope"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-section support-us-section">
+            <h3>支持我们</h3>
+            <p>本站所有文件均托管于 Cloudflare R2 存储，目前所有成本由站长独自承担。如果“生科树洞”曾带给你帮助或温暖，欢迎访问<a href="https://blog.zygame1314.site"
+                    target="_blank" rel="noopener noreferrer">站长主页</a>进行打赏，你的小小支持是项目长久运营的莫大动力！</p>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 生科树洞学习资料共享平台 | 知识传承，永不止步</p>
+        </div>
+    </footer>
+
+    <div id="preview-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="preview-title" class="modal-title">文件预览</h3>
+                <button id="close-preview" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-loader">
+                    <div class="loading-spinner"></div>
+                    <span>正在加载预览...</span>
+                </div>
+                <iframe id="preview-iframe" src="" frameborder="0"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/js/shepherd.min.js"></script>
+    <script src="tutorial.js"></script>
+    <script src="script.js"></script>
+    <script src="auth.js"></script>
+</body>
+
+</html>
