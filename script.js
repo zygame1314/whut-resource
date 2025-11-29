@@ -1,3 +1,15 @@
+console.log(`%c
+                                          ____________  ____   _____  
+___________.__. _________    _____   ____/_   \_____  \/_   | /  |  | 
+\___   <   |  |/ ___\__  \  /     \_/ __ \|   | _(__  < |   |/   |  |_
+ /    / \___  / /_/  > __ \|  Y Y  \  ___/|   |/       \|   /    ^   /
+/_____ \/ ____\___  (____  /__|_|  /\___  >___/______  /|___\____   | 
+      \/\/   /_____/     \/      \/     \/           \/          |__| 
+      Developed by zygame1314
+既然你发现了这里，说明你也是个爱折腾的人。
+愿代码与你同在！
+`, "font-family:monospace; color: #007BFF; font-weight: bold;");
+
 const fileListElement = document.getElementById('file-list');
 const breadcrumbListElement = document.getElementById('breadcrumb-list');
 const searchInput = document.getElementById('search-input');

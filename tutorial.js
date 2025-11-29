@@ -31,7 +31,7 @@ function startTutorial() {
 
     steps.push({
         id: 'intro',
-        title: '欢迎来到武理资源共享平台！(づ｡◕‿‿◕｡)づ',
+        title: '欢迎来到武理资源共享平台！',
         text: '这是一个互动教程，将引导你了解平台的主要功能。你可以随时点击右上角的 <i class="fas fa-question-circle"></i> 图标重新开始哦。',
         attachTo: {
             element: '.hero-section',

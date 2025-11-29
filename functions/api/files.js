@@ -24,7 +24,6 @@ export async function onRequestGet({ request, env }) {
   const action = url.searchParams.get('action');
   try {
     if (action === 'stats') {
-      // 使用优化后的统计表查询，避免全表扫描
       const stmt = DB.prepare('SELECT total_files as fileCount, total_size as totalSize FROM system_stats WHERE id = 1');
       const stats = await stmt.first();
       return new Response(JSON.stringify({

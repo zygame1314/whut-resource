@@ -9,7 +9,19 @@ export async function onRequest(context) {
   let key;
   let isSignedUrl = false;
   let signature, expires;
-  if (Array.isArray(path) && path.length >= 3) {
+  if (Array.isArray(path) && path.length >= 5 && path[0] === 'o') {
+      const potentialExpires = parseInt(path[2]);
+      if (!isNaN(potentialExpires) && potentialExpires > 1577836800000) {
+          signature = path[1];
+          expires = potentialExpires;
+          const userIdParam = path[3];
+          url.searchParams.set('user', userIdParam);
+          const keySegments = path.slice(4);
+          key = decodeURIComponent(keySegments.join('/'));
+          isSignedUrl = true;
+      }
+  }
+  if (!isSignedUrl && Array.isArray(path) && path.length >= 3) {
       const potentialExpires = parseInt(path[1]);
       if (!isNaN(potentialExpires) && potentialExpires > 1577836800000) {
           signature = path[0];
@@ -42,7 +54,6 @@ export async function onRequest(context) {
       } else {
           tokenPayload = `${key}:${expires}`;
       }
-
       const encoder = new TextEncoder();
       const keyData = encoder.encode(secret);
       const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -57,49 +68,40 @@ export async function onRequest(context) {
       if (Date.now() > expires) {
           return new Response(JSON.stringify({ success: false, error: '链接已过期。' }), { status: 410, headers: addCorsHeaders() });
       }
-
         if (userId) {
           const user = await env.DB.prepare('SELECT id, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(userId).first();
           if (!user) {
             return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders() });
           }
-
           const today = new Date().toISOString().split('T')[0];
-          if (user.last_download_date !== today) {
-              user.quota_used = 0;
-          }
-
-          // 短时间窗口内去重（例如 30 秒），防止 IDM 多次并发/重试导致重复计数
           const recentDuplicate = await env.DB.prepare(
           `SELECT id FROM downloads
            WHERE user_id = ? AND file_key = ?
              AND downloaded_at > DATETIME('now', '-30 seconds')`
           ).bind(user.id, key).first();
-
           const shouldCountThisDownload = !recentDuplicate;
-
-          if (shouldCountThisDownload && user.quota_used >= user.quota_limit) {
-            return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders() });
+          if (shouldCountThisDownload) {
+              let quotaUpdated = false;
+              if (user.last_download_date !== today) {
+                  await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
+                  quotaUpdated = true;
+              } else {
+                  const result = await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ? AND quota_used < quota_limit').bind(user.id).run();
+                  if (result.success && result.meta.changes > 0) {
+                      quotaUpdated = true;
+                  }
+              }
+              if (!quotaUpdated) {
+                  return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders() });
+              }
           }
-
-          if (user.quota_used >= user.quota_limit) {
-              return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders() });
-          }
-
           const fileInfo = await env.DB.prepare('SELECT size FROM files WHERE key = ?').bind(key).first();
           const fileSize = fileInfo ? fileInfo.size : 0;
-
           context.waitUntil((async () => {
             try {
             if (shouldCountThisDownload) {
-              if (user.last_download_date !== today) {
-                await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
-              } else {
-                await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ?').bind(user.id).run();
-              }
               await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
             }
-
                 const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
                 await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
                     .bind(user.id, key, ip, fileSize)
@@ -128,12 +130,7 @@ export async function onRequest(context) {
       if (!user) {
         return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders() });
       }
-
       const today = new Date().toISOString().split('T')[0];
-      if (user.last_download_date !== today) {
-          user.quota_used = 0;
-      }
-
       if (Array.isArray(path)) {
           key = decodeURIComponent(path.join('/'));
       } else {
@@ -146,16 +143,21 @@ export async function onRequest(context) {
       if (!fileInfo) {
           return new Response(JSON.stringify({ success: false, error: '索引中未找到文件。' }), { status: 404, headers: addCorsHeaders() });
       }
-      if (user.quota_used >= user.quota_limit) {
+      let quotaUpdated = false;
+      if (user.last_download_date !== today) {
+          await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
+          quotaUpdated = true;
+      } else {
+          const result = await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ? AND quota_used < quota_limit').bind(user.id).run();
+          if (result.success && result.meta.changes > 0) {
+              quotaUpdated = true;
+          }
+      }
+      if (!quotaUpdated) {
           return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders() });
       }
       context.waitUntil((async () => {
         try {
-            if (user.last_download_date !== today) {
-                await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
-            } else {
-                await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ?').bind(user.id).run();
-            }
             await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
             const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
             await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')

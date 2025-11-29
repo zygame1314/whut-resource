@@ -66,6 +66,35 @@ export async function onRequest(context) {
       });
     }
     if (previewType === 'text') {
+      const userInfo = await env.DB.prepare('SELECT id, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(user.id).first();
+      if (!userInfo) {
+          return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+      }
+      const today = new Date().toISOString().split('T')[0];
+      let quotaUpdated = false;
+      if (userInfo.last_download_date !== today) {
+          await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
+          quotaUpdated = true;
+      } else {
+          const result = await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ? AND quota_used < quota_limit').bind(user.id).run();
+          if (result.success && result.meta.changes > 0) {
+              quotaUpdated = true;
+          }
+      }
+      if (!quotaUpdated) {
+          return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+      }
+      context.waitUntil((async () => {
+          try {
+              await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
+              const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+              await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
+                  .bind(user.id, key, ip, object.size)
+                  .run();
+          } catch (e) {
+              console.error("更新统计信息时出错:", e);
+          }
+      })());
       const textContent = await object.text();
       return new Response(JSON.stringify({
         success: true,
@@ -79,17 +108,7 @@ export async function onRequest(context) {
     }
     const expiresIn = url.searchParams.get('expiresIn') ? parseInt(url.searchParams.get('expiresIn')) : 300;
     const expires = Date.now() + expiresIn * 1000;
-    
-    // 根据预览类型构建 payload
-    // 如果是 Office 预览，保持旧格式（不包含 userId），不计入下载次数
-    // 如果是普通下载/预览，包含 userId，以便计入下载次数
-    let tokenPayload;
-    if (isOfficePreview) {
-        tokenPayload = `${key}:${expires}`;
-    } else {
-        tokenPayload = `${key}:${expires}:${user.id}`;
-    }
-
+    const tokenPayload = `${key}:${expires}:${user.id}`;
     const secret = env.PREVIEW_SECRET || 'default-secret';
     const encoder = new TextEncoder();
     const keyData = encoder.encode(secret);
@@ -100,7 +119,7 @@ export async function onRequest(context) {
     const baseUrl = customDomain ? `https://${customDomain}` : new URL(request.url).origin;
     let previewUrl;
     if (isOfficePreview) {
-      previewUrl = `${baseUrl}/api/download/${signature}/${expires}/${encodeURIComponent(key)}`;
+      previewUrl = `${baseUrl}/api/download/o/${signature}/${expires}/${user.id}/${encodeURIComponent(key)}`;
     } else {
       previewUrl = `${baseUrl}/api/download/${encodeURIComponent(key)}?token=${signature}&expires=${expires}&user=${user.id}`;
       if (isInline) {
