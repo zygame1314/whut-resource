@@ -24,13 +24,14 @@ export async function onRequestGet({ request, env }) {
   const action = url.searchParams.get('action');
   try {
     if (action === 'stats') {
-      const stmt = DB.prepare('SELECT COUNT(*) as fileCount, SUM(size) as totalSize FROM files');
+      // 使用优化后的统计表查询，避免全表扫描
+      const stmt = DB.prepare('SELECT total_files as fileCount, total_size as totalSize FROM system_stats WHERE id = 1');
       const stats = await stmt.first();
       return new Response(JSON.stringify({
         success: true,
         stats: {
-          fileCount: stats.fileCount || 0,
-          totalSize: stats.totalSize || 0,
+          fileCount: stats?.fileCount || 0,
+          totalSize: stats?.totalSize || 0,
         }
       }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
