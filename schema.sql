@@ -4,8 +4,9 @@ CREATE TABLE users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT DEFAULT 'user',
-    quota_limit INTEGER DEFAULT 1073741824,
+    quota_limit INTEGER DEFAULT 50,
     quota_used INTEGER DEFAULT 0,
+    last_download_date TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

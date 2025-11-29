@@ -65,10 +65,16 @@ export async function onRequest(context) {
       if (!userPayload) {
         return new Response(JSON.stringify({ success: false, error: '未授权：令牌无效。' }), { status: 401, headers: addCorsHeaders() });
       }
-      const user = await env.DB.prepare('SELECT id, quota_limit, quota_used FROM users WHERE id = ?').bind(userPayload.id).first();
+      const user = await env.DB.prepare('SELECT id, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(userPayload.id).first();
       if (!user) {
         return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders() });
       }
+
+      const today = new Date().toISOString().split('T')[0];
+      if (user.last_download_date !== today) {
+          user.quota_used = 0;
+      }
+
       if (Array.isArray(path)) {
           key = decodeURIComponent(path.join('/'));
       } else {
@@ -81,12 +87,16 @@ export async function onRequest(context) {
       if (!fileInfo) {
           return new Response(JSON.stringify({ success: false, error: '索引中未找到文件。' }), { status: 404, headers: addCorsHeaders() });
       }
-      if (user.quota_used + fileInfo.size > user.quota_limit) {
-          return new Response(JSON.stringify({ success: false, error: '下载配额已超。' }), { status: 403, headers: addCorsHeaders() });
+      if (user.quota_used >= user.quota_limit) {
+          return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders() });
       }
       context.waitUntil((async () => {
         try {
-            await env.DB.prepare('UPDATE users SET quota_used = quota_used + ? WHERE id = ?').bind(fileInfo.size, user.id).run();
+            if (user.last_download_date !== today) {
+                await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
+            } else {
+                await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ?').bind(user.id).run();
+            }
             await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
             const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
             await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')

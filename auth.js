@@ -49,7 +49,7 @@ function updateAuthUI() {
             authSection.innerHTML = `
                 <span class="user-info">
                     <i class="fas fa-user"></i> ${currentUser.email}
-                    <span class="quota">(${formatSize(currentUser.quota_used || 0)} / ${formatSize(currentUser.quota_limit || 0)})</span>
+                    <span class="quota">(${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次)</span>
                 </span>
                 ${currentUser.role === 'admin' ? '<button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>' : ''}
                 <button id="logout-btn" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>

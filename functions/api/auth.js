@@ -91,6 +91,12 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({ success: false, error: '凭据无效。' }), { status: 401, headers: addCorsHeaders() });
       }
       const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
+      
+      const today = new Date().toISOString().split('T')[0];
+      if (user.last_download_date !== today) {
+          user.quota_used = 0;
+      }
+
       const quota_remaining = user.quota_limit - user.quota_used;
       return new Response(JSON.stringify({ success: true, token, user: { email: user.email, role: user.role, quota_limit: user.quota_limit, quota_used: user.quota_used, quota_remaining } }), { status: 200, headers: addCorsHeaders() });
     }
@@ -110,8 +116,12 @@ export async function onRequestGet({ request, env }) {
   if (!payload) {
     return new Response(JSON.stringify({ success: false, error: '令牌无效' }), { status: 401, headers: addCorsHeaders() });
   }
-  const user = await env.DB.prepare('SELECT email, role, quota_limit, quota_used FROM users WHERE id = ?').bind(payload.id).first();
+  const user = await env.DB.prepare('SELECT email, role, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(payload.id).first();
   if (user) {
+      const today = new Date().toISOString().split('T')[0];
+      if (user.last_download_date !== today) {
+          user.quota_used = 0;
+      }
       user.quota_remaining = user.quota_limit - user.quota_used;
   }
   return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: addCorsHeaders() });
