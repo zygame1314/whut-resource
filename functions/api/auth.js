@@ -30,9 +30,9 @@ export async function onRequestPost({ request, env }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: '生科树洞 <noreply@mails.zygame1314.site>', 
+          from: '武理资源共享平台 <noreply@mails.zygame1314.site>', 
           to: email,
-          subject: '生科树洞 - 注册验证码',
+          subject: '武理资源共享平台 - 注册验证码',
           html: `<p>您的验证码是: <strong>${code}</strong></p><p>该验证码10分钟内有效。</p>`
         })
       });

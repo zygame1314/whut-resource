@@ -1,8 +1,8 @@
 :root {
-    --primary-color: #2E8B57;
-    --primary-light: #3CB371;
-    --primary-dark: #228B22;
-    --primary-gradient: linear-gradient(135deg, #2E8B57 0%, #3CB371 100%);
+    --primary-color: #007BFF;
+    --primary-light: #4DA3FF;
+    --primary-dark: #0056b3;
+    --primary-gradient: linear-gradient(135deg, #007BFF 0%, #4DA3FF 100%);
 
     --secondary-color: #4A90E2;
     --accent-color: #FF6B6B;
@@ -92,9 +92,9 @@ button,
     right: 0;
     bottom: 0;
     background-image:
-        radial-gradient(circle at 20% 20%, rgba(46, 139, 87, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(60, 179, 113, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(34, 139, 34, 0.05) 0%, transparent 50%);
+        radial-gradient(circle at 20% 20%, rgba(0, 123, 255, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(77, 163, 255, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 40% 60%, rgba(0, 86, 179, 0.05) 0%, transparent 50%);
     animation: float 6s ease-in-out infinite;
 }
 

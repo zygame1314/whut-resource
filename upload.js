@@ -686,55 +686,6 @@ style.textContent = `
         background: #c0392b;
         transform: scale(1.1);
     }
-    .form-group {
-        margin-bottom: 2rem;
-    }
-    .form-label {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.8rem;
-        font-weight: 500;
-        color: var(--text-primary);
-    }
-    .password-input-container {
-        position: relative;
-    }
-    .form-input {
-        width: 100%;
-        padding: 1rem;
-        border: 2px solid var(--border-color);
-        border-radius: 12px;
-        font-size: 1rem;
-        background: var(--background);
-        color: var(--text-primary);
-        transition: all 0.3s ease;
-        box-sizing: border-box;
-    }
-    .form-input:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.1);
-    }
-    .password-toggle {
-        position: absolute;
-        right: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        background: none;
-        border: none;
-        color: var(--text-secondary);
-        cursor: pointer;
-        padding: 0.5rem;
-    }
-    .form-hint {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-    }
     .upload-progress {
         margin-bottom: 2rem;
         padding: 1.5rem;

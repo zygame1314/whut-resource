@@ -87,7 +87,9 @@ function showAuthModal(mode = 'login') {
     
     modal.innerHTML = `
         <div class="auth-box">
-            <button id="close-modal" class="close-modal-btn">&times;</button>
+            <button id="close-modal" class="close-modal-btn">
+                <i class="fas fa-times"></i>
+            </button>
             <h2 class="auth-title">${title}</h2>
             <form id="auth-form">
                 <div class="form-group">

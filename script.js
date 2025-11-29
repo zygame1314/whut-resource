@@ -20,12 +20,12 @@ const recentUploadsSection = document.getElementById('recent-uploads-section');
 const recentUploadsListElement = document.getElementById('recent-uploads-list');
 const refreshRecentUploadsBtn = document.getElementById('refresh-recent-uploads');
 async function fetchAndRenderHotFolders() {
-    const password = localStorage.getItem('authToken');
-    if (!password || !hotFoldersListElement) return;
+    const token = localStorage.getItem('authToken');
+    if (!token || !hotFoldersListElement) return;
     hotFoldersListElement.innerHTML = '<div class="loading-spinner" style="margin: 20px auto;"></div>';
     try {
         const response = await fetch(`${FILES_API_URL}?action=getHotFolders`, {
-            headers: { 'Authorization': `Bearer ${password}` }
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         const result = await response.json();
         if (response.ok && result.success && result.hotFolders) {
@@ -74,8 +74,8 @@ async function fetchAndRenderHotFolders() {
 }
 async function fetchAndRenderRecentUploads(showToast = false) {
     if (!recentUploadsListElement) return;
-    const password = localStorage.getItem('authToken');
-    if (!password) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
         recentUploadsListElement.innerHTML = '<li class="empty-state-small">请先完成验证以查看最近上传</li>';
         return;
     }
@@ -99,7 +99,7 @@ async function fetchAndRenderRecentUploads(showToast = false) {
         url.searchParams.set('limit', '6');
         const response = await fetch(url.toString(), {
             headers: {
-                'Authorization': `Bearer ${password}`
+                'Authorization': `Bearer ${token}`
             }
         });
         const result = await response.json();
@@ -209,12 +209,12 @@ if (refreshRecentUploadsBtn) {
     refreshRecentUploadsBtn.addEventListener('click', () => fetchAndRenderRecentUploads(true));
 }
 async function fetchAndBuildFolderTree() {
-    const password = localStorage.getItem('authToken');
-    if (!password || !folderTreeElement) return;
+    const token = localStorage.getItem('authToken');
+    if (!token || !folderTreeElement) return;
     folderTreeElement.innerHTML = '<div class="loading-spinner" style="margin: 20px auto;"></div>';
     try {
         const response = await fetch(`${FILES_API_URL}?action=listAllDirs`, {
-            headers: { 'Authorization': `Bearer ${password}` }
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         const result = await response.json();
         if (response.ok && result.success) {
@@ -314,21 +314,8 @@ let currentPage = 1;
 let totalPages = 1;
 let itemsPerPage = 20;
 let currentTotalItems = 0;
-function getAdminPassword() {
-    const authToken = localStorage.getItem('authToken');
-    return authToken || null;
-}
-function createAuthModal(options = {}) {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-        showNotification('请先登录后再执行此操作。', 'error');
-        return Promise.reject(new Error('用户取消验证'));
-    }
-    if (typeof options.action === 'function') {
-        return options.action(token);
-    }
-    return Promise.resolve(token);
-}
+// 移除 getAdminPassword 函数，因为它不再适用于令牌验证
+// 移除 createAuthModal 函数，因为它与新的 auth.js 逻辑冲突
 function initTheme() {
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -461,14 +448,14 @@ function getFileType(fileName) {
     return typeMap[ext] || 'default';
 }
 async function fetchFileStats() {
-    const password = localStorage.getItem('authToken');
-    if (!password) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
         if (fileCountElement) fileCountElement.textContent = '验证后可用';
         return;
     }
     try {
         const response = await fetch(`${FILES_API_URL}?action=stats`, {
-            headers: { 'Authorization': `Bearer ${password}` }
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         const result = await response.json();
         if (response.ok && result.success) {
@@ -511,9 +498,9 @@ async function fetchFileStats() {
     }
 }
 async function downloadFile(fileKey, downloadBtn) {
-    const password = localStorage.getItem('authToken');
-    if (!password) {
-        showNotification("无法下载：未获取到验证口令。请重新验证。", 'error');
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("无法下载：未获取到验证令牌。请重新登录。", 'error');
         return;
     }
     let originalBtnContent = '';
@@ -528,7 +515,7 @@ async function downloadFile(fileKey, downloadBtn) {
         const response = await fetch(previewApiUrl, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${password}`,
+                'Authorization': `Bearer ${token}`,
             },
         });
         const result = await response.json();
@@ -560,25 +547,24 @@ async function downloadFile(fileKey, downloadBtn) {
     }
 }
 async function deleteFile(key, isDirectory) {
-    const performDelete = async (adminPass) => {
-        const password = localStorage.getItem('authToken');
-        if (!password) {
-            throw new Error("无法删除：未获取到验证口令。请重新验证。");
+    const performDelete = async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            throw new Error("无法删除：未获取到验证令牌。请重新登录。");
         }
         const response = await fetch(`${FILES_API_URL}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${password}`,
+                'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
-                key: key,
-                adminPassword: adminPass
+                key: key
             }),
         });
         const result = await response.json();
         if (!response.ok || !result.success) {
-            throw new Error(result.error || '删除失败，请检查管理员密码或稍后重试');
+            throw new Error(result.error || '删除失败，请稍后重试');
         }
         showNotification(`${isDirectory ? '文件夹' : '文件'} "${key}" 已删除`, 'success');
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
@@ -597,19 +583,7 @@ async function deleteFile(key, isDirectory) {
             showNotification('删除操作已取消', 'info');
             return;
         }
-        const adminPassword = getAdminPassword();
-        if (adminPassword) {
-            await performDelete(adminPassword);
-        } else {
-            await createAuthModal({
-                title: '管理员验证',
-                subtitle: `请输入管理员密码以确认删除 "${key}"`,
-                placeholder: '请输入管理员密码',
-                buttonText: '确认删除',
-                iconClass: 'fa-exclamation-triangle',
-                action: performDelete
-            });
-        }
+        await performDelete();
     } catch (error) {
         if (error.message !== '用户取消验证' && error.message !== 'User cancelled') {
             showNotification(`删除操作失败: ${error.message}`, 'error');
@@ -635,9 +609,9 @@ async function previewFile(fileKey, fileName, fileSize) {
         showNotification('视频文件超过300MB，不支持在线播放。', 'info');
         return;
     }
-    const password = localStorage.getItem('authToken');
-    if (!password) {
-        showNotification("无法预览：未获取到验证口令。", 'error');
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("无法预览：未获取到验证令牌。", 'error');
         return;
     }
     const previewLoader = previewModal.querySelector('.preview-loader');
@@ -671,7 +645,7 @@ async function previewFile(fileKey, fileName, fileSize) {
             }
             const response = await fetch(apiUrl.toString(), {
                 headers: {
-                    'Authorization': `Bearer ${password}`
+                    'Authorization': `Bearer ${token}`
                 }
             });
             const data = await response.json();
@@ -1200,25 +1174,24 @@ async function handleBatchDelete() {
         showNotification('没有选择任何项目', 'info');
         return;
     }
-    const performBatchDelete = async (adminPass) => {
-        const password = localStorage.getItem('authToken');
-        if (!password) {
-            throw new Error("无法删除：未获取到验证口令。请重新验证。");
+    const performBatchDelete = async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            throw new Error("无法删除：未获取到验证令牌。请重新登录。");
         }
         const response = await fetch(`${FILES_API_URL}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${password}`,
+                'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
-                keys: keysToDelete,
-                adminPassword: adminPass
+                keys: keysToDelete
             }),
         });
         const result = await response.json();
         if (!response.ok || !result.success) {
-            throw new Error(result.error || '批量删除失败，请检查管理员密码或稍后重试');
+            throw new Error(result.error || '批量删除失败，请稍后重试');
         }
         showNotification(`成功删除了 ${keysToDelete.length} 个项目`, 'success');
         keysToDelete.forEach(key => {
@@ -1245,19 +1218,7 @@ async function handleBatchDelete() {
             showNotification('批量删除操作已取消', 'info');
             return;
         }
-        const adminPassword = getAdminPassword();
-        if (adminPassword) {
-            await performBatchDelete(adminPassword);
-        } else {
-            await createAuthModal({
-                title: '管理员验证',
-                subtitle: `请输入管理员密码以确认删除 ${keysToDelete.length} 个项目`,
-                placeholder: '请输入管理员密码',
-                buttonText: '确认删除',
-                iconClass: 'fa-exclamation-triangle',
-                action: performBatchDelete
-            });
-        }
+        await performBatchDelete();
     } catch (error) {
         if (error.message !== '用户取消验证' && error.message !== 'User cancelled') {
             showNotification(`批量删除操作失败: ${error.message}`, 'error');
@@ -1279,9 +1240,9 @@ async function handleBatchDownload() {
         showNotification('批量下载暂不支持文件夹，请选择文件后重试。', 'warning');
         return;
     }
-    const password = localStorage.getItem('authToken');
-    if (!password) {
-        showNotification("无法下载：未获取到验证口令。请重新验证。", 'error');
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("无法下载：未获取到验证令牌。请重新登录。", 'error');
         return;
     }
     const downloadBtn = document.getElementById('batch-download-btn');
@@ -1300,7 +1261,7 @@ async function handleBatchDownload() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${password}`,
+                'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
                 keys: fileKeys
@@ -1379,10 +1340,10 @@ async function handleBatchMove() {
         showNotification('移动操作已取消', 'info');
         return;
     }
-    const performBatchMove = async (adminPass) => {
-        const password = localStorage.getItem('authToken');
-        if (!password) {
-            throw new Error("无法移动：未获取到验证口令。请重新验证。");
+    const performBatchMove = async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            throw new Error("无法移动：未获取到验证令牌。请重新登录。");
         }
         let successCount = 0;
         let errorCount = 0;
@@ -1393,12 +1354,11 @@ async function handleBatchMove() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${password}`,
+                        'Authorization': `Bearer ${token}`,
                     },
                     body: JSON.stringify({
                         sourceKey: key,
-                        destinationPath: destinationPath,
-                        adminPassword: adminPass
+                        destinationPath: destinationPath
                     }),
                 });
                 const result = await response.json();
@@ -1428,19 +1388,7 @@ async function handleBatchMove() {
         });
     };
     try {
-        const adminPassword = getAdminPassword();
-        if (adminPassword) {
-            await performBatchMove(adminPassword);
-        } else {
-            await createAuthModal({
-                title: '管理员验证',
-                subtitle: `请输入管理员密码以移动 ${keysToMove.length} 个项目到 "${destinationPath || '根目录'}"`,
-                placeholder: '请输入管理员密码',
-                buttonText: '确认移动',
-                iconClass: 'fa-folder-tree',
-                action: performBatchMove
-            });
-        }
+        await performBatchMove();
     } catch (error) {
         if (error.message !== '用户取消验证' && error.message !== 'User cancelled') {
             showNotification(`批量移动操作失败: ${error.message}`, 'error');
@@ -1597,12 +1545,12 @@ function renderPaginationControls(paginationData) {
     controlsContainer.appendChild(nextButton);
 }
 async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
-    const password = localStorage.getItem('authToken');
-    if (!password) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
         fileListElement.innerHTML = `
-            <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+            <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary); cursor: pointer;" title="点击登录">
                 <i class="fas fa-user-shield" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
-                无法获取文件列表：未获取到验证口令。请先验证。
+                请先完成验证以查看文件
             </li>
         `;
         updateBreadcrumb('');
@@ -1643,7 +1591,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${password}`,
+                'Authorization': `Bearer ${token}`,
             },
         });
         let result;
@@ -1733,7 +1681,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     createParticleBackground();
     fileListElement.innerHTML = `
-        <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+        <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary); cursor: pointer;" title="点击登录">
             <i class="fas fa-user-shield" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
             请先完成验证以查看文件
         </li>
@@ -1760,9 +1708,15 @@ document.addEventListener('DOMContentLoaded', () => {
         fileListElement.addEventListener('click', (event) => {
             const targetLi = event.target.closest('li.empty-state');
             if (targetLi && targetLi.textContent.includes('请先完成验证以查看文件')) {
-                if (typeof window.isUserAuthenticated === 'function' && !window.isUserAuthenticated()) {
-                    if (typeof window.checkAuth === 'function') {
-                        window.checkAuth();
+                console.log('Empty state clicked, attempting to show auth modal');
+                if (typeof showAuthModal === 'function') {
+                    showAuthModal('login');
+                } else if (typeof window.showAuthModal === 'function') {
+                    window.showAuthModal('login');
+                } else {
+                    console.error('showAuthModal is not defined');
+                    if (typeof showNotification === 'function') {
+                        showNotification('无法打开登录窗口，请刷新页面重试', 'error');
                     }
                 }
             }
@@ -2116,26 +2070,25 @@ async function moveItem(key, currentName, isDirectory) {
         showNotification('移动操作已取消', 'info');
         return;
     }
-    const performMove = async (adminPass) => {
-        const password = localStorage.getItem('authToken');
-        if (!password) {
+    const performMove = async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
             throw new Error("需要进行验证。");
         }
         const response = await fetch(`${FILES_API_URL}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${password}`,
+                'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
                 sourceKey: key,
-                destinationPath: destinationPath,
-                adminPassword: adminPass
+                destinationPath: destinationPath
             }),
         });
         const result = await response.json();
         if (!response.ok || !result.success) {
-            throw new Error(result.error || '移动失败，请检查管理员密码或目标路径。');
+            throw new Error(result.error || '移动失败，请稍后重试。');
         }
         showNotification(`成功将 "${currentName}" 移动到 "${destinationPath || '根目录'}"`, 'success');
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
@@ -2145,19 +2098,7 @@ async function moveItem(key, currentName, isDirectory) {
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
     };
     try {
-        const adminPassword = getAdminPassword();
-        if (adminPassword) {
-            await performMove(adminPassword);
-        } else {
-            await createAuthModal({
-                title: '确认移动',
-                subtitle: `确定要将 "${currentName}" 移动到 "${destinationPath || '根目录'}" 吗？`,
-                placeholder: '请输入管理员密码以确认',
-                buttonText: '确认移动',
-                iconClass: 'fa-folder-tree',
-                action: performMove
-            });
-        }
+        await performMove();
     } catch (error) {
         if (error.message !== '用户取消验证') {
             showNotification(`移动操作失败: ${error.message}`, 'error');
@@ -2183,26 +2124,25 @@ async function renameFile(key, currentName, isDirectory) {
         showNotification('名称无效或未改变，已取消操作。', 'info');
         return;
     }
-    const performRename = async (adminPass) => {
-        const password = localStorage.getItem('authToken');
-        if (!password) {
+    const performRename = async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
             throw new Error("需要进行验证。");
         }
         const response = await fetch(`${FILES_API_URL}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${password}`,
+                'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
                 key: key,
-                newName: newName,
-                adminPassword: adminPass
+                newName: newName
             }),
         });
         const result = await response.json();
         if (!response.ok || !result.success) {
-            throw new Error(result.error || '重命名失败，请检查管理员密码或稍后重试。');
+            throw new Error(result.error || '重命名失败，请稍后重试。');
         }
         showNotification(`成功重命名为 "${newName}"`, 'success');
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
@@ -2211,19 +2151,7 @@ async function renameFile(key, currentName, isDirectory) {
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
     };
     try {
-        const adminPassword = getAdminPassword();
-        if (adminPassword) {
-            await performRename(adminPassword);
-        } else {
-            await createAuthModal({
-                title: '确认重命名',
-                subtitle: `确定要将 "${currentName}" 重命名为 "${newName}" 吗？`,
-                placeholder: '请输入管理员密码以确认',
-                buttonText: '确认重命名',
-                iconClass: 'fa-pencil-alt',
-                action: performRename
-            });
-        }
+        await performRename();
     } catch (error) {
         if (error.message !== '用户取消验证') {
             showNotification(`重命名操作失败: ${error.message}`, 'error');
@@ -2234,8 +2162,8 @@ async function renameFile(key, currentName, isDirectory) {
 }
 function showDirectoryPicker(itemsToMove = []) {
     return new Promise(async (resolve, reject) => {
-        const password = localStorage.getItem('authToken');
-        if (!password) {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
             return reject(new Error("需要验证"));
         }
         const modalOverlay = document.createElement('div');
@@ -2342,7 +2270,7 @@ function showDirectoryPicker(itemsToMove = []) {
         });
         try {
             const response = await fetch(`${FILES_API_URL}?action=listAllDirs`, {
-                headers: { 'Authorization': `Bearer ${password}` }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             const result = await response.json();
             if (response.ok && result.success) {

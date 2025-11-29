@@ -1,6 +1,5 @@
 function startTutorial() {
-    const isAdmin = typeof getAdminPassword === 'function' && getAdminPassword();
-    const isAuthenticated = typeof isUserAuthenticated === 'function' && isUserAuthenticated();
+    const isAuthenticated = !!localStorage.getItem('authToken');
 
     const tour = new Shepherd.Tour({
         useModalOverlay: true,
@@ -32,7 +31,7 @@ function startTutorial() {
 
     steps.push({
         id: 'intro',
-        title: '欢迎来到生科树洞！(づ｡◕‿‿◕｡)づ',
+        title: '欢迎来到武理资源共享平台！(づ｡◕‿‿◕｡)づ',
         text: '这是一个互动教程，将引导你了解平台的主要功能。你可以随时点击右上角的 <i class="fas fa-question-circle"></i> 图标重新开始哦。',
         attachTo: {
             element: '.hero-section',
@@ -47,8 +46,8 @@ function startTutorial() {
         if (isMobileNav) {
             steps.push({
                 id: 'auth',
-                title: '第一步：验证',
-                text: '在移动端，验证、主题切换等功能都收纳在“更多”菜单里了。点开看看吧！',
+                title: '第一步：登录/注册',
+                text: '在移动端，登录、注册、主题切换等功能都收纳在“更多”菜单里了。请使用 @whut.edu.cn 邮箱登录以解锁全部功能！',
                 attachTo: {
                     element: '#mobile-menu-toggle',
                     on: 'left'
@@ -57,10 +56,10 @@ function startTutorial() {
         } else {
             steps.push({
                 id: 'auth',
-                title: '第一步：验证',
-                text: '要访问文件，你首先需要点击这里进行口令验证。这是保护我们共享资源的第一道防线！',
+                title: '第一步：登录/注册',
+                text: '要访问热门文件夹、最近上传以及下载文件，你需要使用 @whut.edu.cn 邮箱进行登录。这是为了保护我们的共享资源！',
                 attachTo: {
-                    element: '#login-button',
+                    element: '#auth-section',
                     on: 'bottom'
                 }
             });
@@ -108,7 +107,7 @@ function startTutorial() {
         steps.push({
             id: 'upload-button',
             title: '上传你的资料！',
-            text: '是的，你没看错！所有人都可以上传文件，分享是这个社区的核心精神！(ゝ∀･)',
+            text: '管理员可以点击这里上传文件。支持拖放上传哦！',
             attachTo: {
                 element: '#upload-btn-link',
                 on: 'top'
@@ -158,29 +157,27 @@ function startTutorial() {
         }
     });
 
-    if (isAdmin) {
-        if (document.querySelector('.delete-button')) {
-            steps.push({
-                id: 'admin-delete',
-                title: '管理员功能：删除',
-                text: '你拥有删除文件或文件夹的权限。请谨慎操作，此操作不可逆！',
-                attachTo: {
-                    element: '.delete-button',
-                    on: 'bottom'
-                }
-            });
-        }
-        if (document.querySelector('.rename-button')) {
-            steps.push({
-                id: 'admin-rename',
-                title: '管理员功能：重命名和移动',
-                text: '你还可以对文件或文件夹进行重命名和移动操作，以更好地组织文件结构。',
-                attachTo: {
-                    element: '.rename-button',
-                    on: 'bottom'
-                }
-            });
-        }
+    if (document.querySelector('.delete-button')) {
+        steps.push({
+            id: 'admin-delete',
+            title: '管理员功能：删除',
+            text: '你拥有删除文件或文件夹的权限。请谨慎操作，此操作不可逆！',
+            attachTo: {
+                element: '.delete-button',
+                on: 'bottom'
+            }
+        });
+    }
+    if (document.querySelector('.rename-button')) {
+        steps.push({
+            id: 'admin-rename',
+            title: '管理员功能：重命名和移动',
+            text: '你还可以对文件或文件夹进行重命名和移动操作，以更好地组织文件结构。',
+            attachTo: {
+                element: '.rename-button',
+                on: 'bottom'
+            }
+        });
     }
 
     steps.push({
