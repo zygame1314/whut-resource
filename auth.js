@@ -124,7 +124,7 @@ function showAuthModal(mode = 'login') {
         sendCodeBtn.onclick = async () => {
             const email = document.getElementById('auth-email').value;
             if (!email || !email.endsWith('@whut.edu.cn')) {
-                alert('请输入有效的 @whut.edu.cn 邮箱');
+                showNotification('请输入有效的 @whut.edu.cn 邮箱', 'error');
                 return;
             }
             sendCodeBtn.disabled = true;
@@ -137,7 +137,7 @@ function showAuthModal(mode = 'login') {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('验证码已发送，请查收邮件');
+                    showNotification('验证码已发送，请查收邮件', 'success');
                     let countdown = 60;
                     const timer = setInterval(() => {
                         sendCodeBtn.textContent = `${countdown}s`;
@@ -149,12 +149,12 @@ function showAuthModal(mode = 'login') {
                         }
                     }, 1000);
                 } else {
-                    alert(data.error);
+                    showNotification(data.error, 'error');
                     sendCodeBtn.disabled = false;
                     sendCodeBtn.textContent = '发送验证码';
                 }
             } catch (e) {
-                alert('发送失败: ' + e.message);
+                showNotification('发送失败: ' + e.message, 'error');
                 sendCodeBtn.disabled = false;
                 sendCodeBtn.textContent = '发送验证码';
             }
@@ -190,15 +190,15 @@ function showAuthModal(mode = 'login') {
                     modal.remove();
                     window.location.reload();
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'success');
                     modal.remove();
                     showAuthModal('login');
                 }
             } else {
-                alert(data.error);
+                showNotification(data.error, 'error');
             }
         } catch (err) {
-            alert('Error: ' + err.message);
+            showNotification('Error: ' + err.message, 'error');
         }
     };
 }
@@ -237,10 +237,10 @@ async function syncFiles() {
             hasMore = !!cursor;
             btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${totalSynced}`;
         }
-        alert(`同步完成！共同步了 ${totalSynced} 个文件。`);
+        showNotification(`同步完成！共同步了 ${totalSynced} 个文件。`, 'success');
         window.location.reload();
     } catch (e) {
-        alert('同步出错: ' + e.message);
+        showNotification('同步出错: ' + e.message, 'error');
     } finally {
         btn.innerHTML = originalIcon;
         btn.disabled = false;

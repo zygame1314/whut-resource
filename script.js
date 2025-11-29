@@ -64,10 +64,12 @@ async function fetchAndRenderHotFolders() {
         } else {
             hotFoldersListElement.innerHTML = '<p class="empty-state-small">无法加载热门文件夹。</p>';
             console.error('获取热门文件夹失败:', result.error);
+            showNotification(`获取热门文件夹失败: ${result.error}`, 'error');
         }
     } catch (error) {
         hotFoldersListElement.innerHTML = '<p class="empty-state-small">加载热门文件夹时出错。</p>';
         console.error('请求热门文件夹出错:', error);
+        showNotification(`请求热门文件夹出错: ${error.message}`, 'error');
     }
 }
 async function fetchAndRenderRecentUploads(showToast = false) {
@@ -189,6 +191,7 @@ async function fetchAndRenderRecentUploads(showToast = false) {
         recentUploadsListElement.appendChild(fragment);
     } catch (error) {
         console.error('加载最近上传失败:', error);
+        showNotification(`加载最近上传失败: ${error.message}`, 'error');
         recentUploadsListElement.innerHTML = '';
         const errorLi = document.createElement('li');
         errorLi.className = 'empty-state-small';
@@ -220,10 +223,12 @@ async function fetchAndBuildFolderTree() {
         } else {
             folderTreeElement.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem;">无法加载文件夹树。</p>';
             console.error('获取文件夹树失败:', result.error);
+            showNotification(`获取文件夹树失败: ${result.error}`, 'error');
         }
     } catch (error) {
         folderTreeElement.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem;">加载文件夹树时出错。</p>';
         console.error('请求文件夹树出错:', error);
+        showNotification(`请求文件夹树出错: ${error.message}`, 'error');
     }
 }
 function buildTree(paths) {
@@ -497,10 +502,12 @@ async function fetchFileStats() {
         } else {
             if (fileCountElement) fileCountElement.textContent = '统计失败';
             console.error('获取统计信息失败:', result.error);
+            showNotification(`获取统计信息失败: ${result.error}`, 'error');
         }
     } catch (error) {
         if (fileCountElement) fileCountElement.textContent = '统计出错';
         console.error('请求统计信息出错:', error);
+        showNotification(`请求统计信息出错: ${error.message}`, 'error');
     }
 }
 async function downloadFile(fileKey, downloadBtn) {
@@ -1673,6 +1680,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
         } else {
             const errorMessage = result?.error || `HTTP 错误 ${response.status}`;
             console.error("获取文件列表失败:", errorMessage, result);
+            showNotification(`获取文件列表失败: ${errorMessage}`, 'error');
             renderPaginationControls(null);
             fileListElement.innerHTML = `
                 <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--accent-color);">
@@ -1684,6 +1692,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
         }
     } catch (error) {
         console.error("获取文件列表请求出错:", error);
+        showNotification(`获取文件列表请求出错: ${error.message}`, 'error');
         fileListElement.innerHTML = `
             <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--accent-color);">
                 <i class="fas fa-wifi" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
