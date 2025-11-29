@@ -58,7 +58,7 @@ export async function onRequest(context) {
           return new Response(JSON.stringify({ success: false, error: '链接已过期。' }), { status: 410, headers: addCorsHeaders() });
       }
 
-      if (userId) {
+        if (userId) {
           const user = await env.DB.prepare('SELECT id, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(userId).first();
           if (!user) {
             return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders() });
@@ -67,6 +67,19 @@ export async function onRequest(context) {
           const today = new Date().toISOString().split('T')[0];
           if (user.last_download_date !== today) {
               user.quota_used = 0;
+          }
+
+          // 短时间窗口内去重（例如 30 秒），防止 IDM 多次并发/重试导致重复计数
+          const recentDuplicate = await env.DB.prepare(
+          `SELECT id FROM downloads
+           WHERE user_id = ? AND file_key = ?
+             AND downloaded_at > DATETIME('now', '-30 seconds')`
+          ).bind(user.id, key).first();
+
+          const shouldCountThisDownload = !recentDuplicate;
+
+          if (shouldCountThisDownload && user.quota_used >= user.quota_limit) {
+            return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders() });
           }
 
           if (user.quota_used >= user.quota_limit) {
@@ -78,12 +91,14 @@ export async function onRequest(context) {
 
           context.waitUntil((async () => {
             try {
-                if (user.last_download_date !== today) {
-                    await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
-                } else {
-                    await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ?').bind(user.id).run();
-                }
-                await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
+            if (shouldCountThisDownload) {
+              if (user.last_download_date !== today) {
+                await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
+              } else {
+                await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ?').bind(user.id).run();
+              }
+              await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
+            }
 
                 const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
                 await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
