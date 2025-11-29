@@ -29,14 +29,14 @@ export async function onRequestPost({ request, env }) {
     user = await verifyToken(token, env.JWT_SECRET || 'secret');
   }
   if (!user) {
-    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+    return new Response(JSON.stringify({ success: false, error: '未授权' }), {
       status: 401,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
   const R2_BUCKET = env.R2_bucket;
   if (!R2_BUCKET) {
-    return new Response(JSON.stringify({ success: false, error: 'Server configuration error (R2 binding).' }), {
+    return new Response(JSON.stringify({ success: false, error: '服务器配置错误（R2绑定）。' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
@@ -52,14 +52,14 @@ export async function onRequestPost({ request, env }) {
   }
   const { keys } = payload;
   if (!keys || !Array.isArray(keys) || keys.length === 0) {
-    return new Response(JSON.stringify({ success: false, error: 'Missing or invalid keys array.' }), {
+    return new Response(JSON.stringify({ success: false, error: '缺少或无效的keys数组。' }), {
       status: 400,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
   const DB = env.DB;
   if (!DB) {
-    return new Response(JSON.stringify({ success: false, error: 'Server configuration error (D1 binding).' }), {
+    return new Response(JSON.stringify({ success: false, error: '服务器配置错误（D1绑定）。' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
@@ -107,7 +107,7 @@ export async function onRequestPost({ request, env }) {
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   } catch (error) {
-    console.error('Error generating signed URLs:', error);
+    console.error('生成签名URL时出错:', error);
     return new Response(JSON.stringify({ success: false, error: '生成下载链接失败。请稍后重试或联系管理员。' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

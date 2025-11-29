@@ -16,7 +16,7 @@ export async function onRequest(context) {
     });
   }
   if (request.method !== 'GET') {
-    return new Response(JSON.stringify({ success: false, error: 'Method Not Allowed' }), {
+    return new Response(JSON.stringify({ success: false, error: '方法不允许' }), {
       status: 405,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
@@ -28,14 +28,14 @@ export async function onRequest(context) {
     user = await verifyToken(token, env.JWT_SECRET || 'secret');
   }
   if (!user) {
-    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+    return new Response(JSON.stringify({ success: false, error: '未授权' }), {
       status: 401,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
   const R2_BUCKET = env.R2_bucket;
   if (!R2_BUCKET) {
-    console.error("Server config error: R2 binding 'R2_bucket' not found.");
+    console.error("服务器配置错误：未找到 R2 绑定 'R2_bucket'。");
     return new Response(JSON.stringify({ success: false, error: 'Server configuration error.' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -49,7 +49,7 @@ export async function onRequest(context) {
   if (!key) {
     return new Response(JSON.stringify({
       success: false,
-      error: 'File key is required.'
+      error: '需要文件key。'
     }), {
       status: 400,
       headers: addCorsHeaders({
@@ -60,7 +60,7 @@ export async function onRequest(context) {
   try {
     const object = await R2_BUCKET.get(key);
     if (object === null) {
-      return new Response(JSON.stringify({ success: false, error: 'File not found.' }), {
+      return new Response(JSON.stringify({ success: false, error: '文件未找到。' }), {
         status: 404,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
@@ -102,8 +102,8 @@ export async function onRequest(context) {
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   } catch (error) {
-    console.error(`Error generating preview URL for key "${key}":`, error);
-    return new Response(JSON.stringify({ success: false, error: 'Failed to generate preview URL.' }), {
+    console.error(`为键 "${key}" 生成预览URL时出错:`, error);
+    return new Response(JSON.stringify({ success: false, error: '生成预览URL失败。' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });

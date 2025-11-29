@@ -23,10 +23,10 @@ async function ensureDirectoryExists(db, fullPath, env) {
           true,
           0
         ).run();
-        console.log(`Created directory entry in D1: ${currentPath}`);
+        console.log(`在D1中创建目录条目: ${currentPath}`);
       }
     } catch (error) {
-      console.error(`Error ensuring directory ${currentPath} exists in D1:`, error);
+      console.error(`确保目录 ${currentPath} 在D1中存在时出错:`, error);
     }
   }
 }
@@ -35,25 +35,25 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const R2_BUCKET = env.R2_bucket;
     const DB = env.DB;
     if (!R2_BUCKET || !DB) {
-      return new Response(JSON.stringify({ success: false, error: 'Server configuration error (R2 or D1 binding).' }), {
+      return new Response(JSON.stringify({ success: false, error: '服务器配置错误（R2或D1绑定）。' }), {
         status: 500,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
     }
     const token = authHeader.substring(7);
     const user = await verifyToken(token, env.JWT_SECRET || 'secret');
     if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: 'Forbidden: Admin access required.' }), { status: 403, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '禁止：需要管理员访问权限。' }), { status: 403, headers: addCorsHeaders() });
     }
     let formData;
     try {
       formData = await request.formData();
     } catch (e) {
-      return new Response(JSON.stringify({ success: false, error: 'Invalid request body. Expected FormData.' }), {
+      return new Response(JSON.stringify({ success: false, error: '请求体无效。期望FormData。' }), {
         status: 400,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
@@ -61,14 +61,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const file = formData.get('file');
     const filename = file?.name;
     if (!file || !(file instanceof File)) {
-      return new Response(JSON.stringify({ success: false, error: 'File data is missing or invalid.' }), {
+      return new Response(JSON.stringify({ success: false, error: '文件数据缺失或无效。' }), {
         status: 400,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
     const MAX_FILE_SIZE = 300 * 1024 * 1024;
     if (file.size > MAX_FILE_SIZE) {
-      return new Response(JSON.stringify({ success: false, error: 'File size exceeds the 300MB limit.' }), {
+      return new Response(JSON.stringify({ success: false, error: '文件大小超过300MB限制。' }), {
         status: 413,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
@@ -76,7 +76,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const key = filename;
     const existingFile = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(key).first();
     if (existingFile) {
-        return new Response(JSON.stringify({ success: false, error: 'File already exists.' }), { status: 409, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '文件已存在。' }), { status: 409, headers: addCorsHeaders() });
     }
     await R2_BUCKET.put(key, file.stream(), {
         httpMetadata: { contentType: file.type },
@@ -96,13 +96,13 @@ export async function onRequestPost({ request, env, waitUntil }) {
         0,
         user.id
     ).run();
-    return new Response(JSON.stringify({ success: true, message: 'File uploaded successfully.' }), {
+    return new Response(JSON.stringify({ success: true, message: '文件上传成功。' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   } catch (error) {
-    console.error("Upload error:", error);
-    return new Response(JSON.stringify({ success: false, error: 'An unexpected error occurred.' }), {
+    console.error("上传错误:", error);
+    return new Response(JSON.stringify({ success: false, error: '发生意外错误。' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });

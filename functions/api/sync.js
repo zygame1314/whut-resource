@@ -2,17 +2,17 @@ import { verifyToken, addCorsHeaders } from '../utils.js';
 export async function onRequestPost({ request, env }) {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders() });
+    return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
   }
   const token = authHeader.substring(7);
   const user = await verifyToken(token, env.JWT_SECRET || 'secret');
   if (!user || user.role !== 'admin') {
-    return new Response(JSON.stringify({ success: false, error: 'Forbidden' }), { status: 403, headers: addCorsHeaders() });
+    return new Response(JSON.stringify({ success: false, error: '禁止' }), { status: 403, headers: addCorsHeaders() });
   }
   const R2 = env.R2_bucket;
   const DB = env.DB;
   if (!R2 || !DB) {
-     return new Response(JSON.stringify({ success: false, error: 'Config error' }), { status: 500, headers: addCorsHeaders() });
+     return new Response(JSON.stringify({ success: false, error: '配置错误' }), { status: 500, headers: addCorsHeaders() });
   }
   try {
     let requestBody = {};

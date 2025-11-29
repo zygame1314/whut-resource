@@ -45,10 +45,10 @@ export async function onRequest(context) {
           .replace(/\//g, '_')
           .replace(/=/g, '');
       if (signature !== expectedSignature) {
-          return new Response(JSON.stringify({ success: false, error: 'Invalid signature.' }), { status: 403, headers: addCorsHeaders() });
+          return new Response(JSON.stringify({ success: false, error: '签名无效。' }), { status: 403, headers: addCorsHeaders() });
       }
       if (Date.now() > expires) {
-          return new Response(JSON.stringify({ success: false, error: 'Link expired.' }), { status: 410, headers: addCorsHeaders() });
+          return new Response(JSON.stringify({ success: false, error: '链接已过期。' }), { status: 410, headers: addCorsHeaders() });
       }
   } else {
       let token = null;
@@ -59,15 +59,15 @@ export async function onRequest(context) {
         token = url.searchParams.get('token');
       }
       if (!token) {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized: Missing token.' }), { status: 401, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '未授权：缺少令牌。' }), { status: 401, headers: addCorsHeaders() });
       }
       const userPayload = await verifyToken(token, env.JWT_SECRET || 'secret');
       if (!userPayload) {
-        return new Response(JSON.stringify({ success: false, error: 'Unauthorized: Invalid token.' }), { status: 401, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '未授权：令牌无效。' }), { status: 401, headers: addCorsHeaders() });
       }
       const user = await env.DB.prepare('SELECT id, quota_limit, quota_used FROM users WHERE id = ?').bind(userPayload.id).first();
       if (!user) {
-        return new Response(JSON.stringify({ success: false, error: 'User not found.' }), { status: 401, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders() });
       }
       if (Array.isArray(path)) {
           key = decodeURIComponent(path.join('/'));
@@ -75,14 +75,14 @@ export async function onRequest(context) {
           key = decodeURIComponent(path);
       }
       if (!key) {
-        return new Response(JSON.stringify({ success: false, error: 'Invalid file path' }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '文件路径无效' }), { status: 400, headers: addCorsHeaders() });
       }
       const fileInfo = await env.DB.prepare('SELECT size FROM files WHERE key = ?').bind(key).first();
       if (!fileInfo) {
-          return new Response(JSON.stringify({ success: false, error: 'File not found in index.' }), { status: 404, headers: addCorsHeaders() });
+          return new Response(JSON.stringify({ success: false, error: '索引中未找到文件。' }), { status: 404, headers: addCorsHeaders() });
       }
       if (user.quota_used + fileInfo.size > user.quota_limit) {
-          return new Response(JSON.stringify({ success: false, error: 'Download quota exceeded.' }), { status: 403, headers: addCorsHeaders() });
+          return new Response(JSON.stringify({ success: false, error: '下载配额已超。' }), { status: 403, headers: addCorsHeaders() });
       }
       context.waitUntil((async () => {
         try {
@@ -93,14 +93,14 @@ export async function onRequest(context) {
                 .bind(user.id, key, ip, fileInfo.size)
                 .run();
         } catch (e) {
-            console.error("Error updating stats:", e);
+            console.error("更新统计信息时出错:", e);
         }
       })());
   }
   try {
     const object = await env.R2_bucket.get(key);
     if (object === null) {
-      return new Response(JSON.stringify({ success: false, error: 'File not found in storage.' }), {
+      return new Response(JSON.stringify({ success: false, error: '存储中未找到文件。' }), {
         status: 404,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
@@ -123,8 +123,8 @@ export async function onRequest(context) {
       headers,
     });
   } catch (error) {
-    console.error(`Error serving file "${key}":`, error);
-    return new Response(JSON.stringify({ success: false, error: 'Internal Server Error' }), {
+    console.error(`提供文件 "${key}" 时出错:`, error);
+    return new Response(JSON.stringify({ success: false, error: '内部服务器错误' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });

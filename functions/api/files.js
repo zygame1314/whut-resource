@@ -8,14 +8,14 @@ export async function onRequestGet({ request, env }) {
     user = await verifyToken(token, env.JWT_SECRET || 'secret');
   }
   if (!user) {
-    return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+    return new Response(JSON.stringify({ success: false, error: '未授权' }), {
       status: 401,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
   const DB = env.DB;
   if (!DB) {
-    return new Response(JSON.stringify({ success: false, error: 'Server configuration error (D1 binding).' }), {
+    return new Response(JSON.stringify({ success: false, error: '服务器配置错误（D1绑定）。' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
@@ -99,8 +99,8 @@ export async function onRequestGet({ request, env }) {
       limit
     }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
   } catch (error) {
-    console.error('Error in files API:', error);
-    return new Response(JSON.stringify({ success: false, error: 'Failed to fetch files.' }), {
+    console.error('文件API错误:', error);
+    return new Response(JSON.stringify({ success: false, error: '获取文件失败。' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
@@ -114,7 +114,7 @@ export async function onRequestPut({ request, env }) {
     user = await verifyToken(token, env.JWT_SECRET || 'secret');
   }
   if (!user || user.role !== 'admin') {
-    return new Response(JSON.stringify({ success: false, error: 'Unauthorized: Admin access required.' }), {
+    return new Response(JSON.stringify({ success: false, error: '未授权：需要管理员访问权限。' }), {
       status: 401,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
@@ -122,7 +122,7 @@ export async function onRequestPut({ request, env }) {
   const DB = env.DB;
   const R2 = env.R2_bucket;
   if (!DB || !R2) {
-    return new Response(JSON.stringify({ success: false, error: 'Server configuration error.' }), {
+    return new Response(JSON.stringify({ success: false, error: '服务器配置错误。' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
@@ -131,20 +131,20 @@ export async function onRequestPut({ request, env }) {
     const body = await request.json();
     const { key, newName } = body;
     if (!key || !newName) {
-      return new Response(JSON.stringify({ success: false, error: 'Missing key or newName.' }), {
+      return new Response(JSON.stringify({ success: false, error: '缺少key或newName。' }), {
         status: 400,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
     const fileRecord = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(key).first();
     if (!fileRecord) {
-        return new Response(JSON.stringify({ success: false, error: 'File not found.' }), {
+        return new Response(JSON.stringify({ success: false, error: '文件未找到。' }), {
             status: 404,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
     if (fileRecord.is_directory) {
-        return new Response(JSON.stringify({ success: false, error: 'Renaming directories is not supported yet.' }), {
+        return new Response(JSON.stringify({ success: false, error: '尚不支持重命名目录。' }), {
             status: 400,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
@@ -153,7 +153,7 @@ export async function onRequestPut({ request, env }) {
     const newKey = parentPath ? `${parentPath}${newName}` : newName;
     const existing = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newKey).first();
     if (existing) {
-        return new Response(JSON.stringify({ success: false, error: 'File with new name already exists.' }), {
+        return new Response(JSON.stringify({ success: false, error: '新名称的文件已存在。' }), {
             status: 409,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
@@ -164,18 +164,18 @@ export async function onRequestPut({ request, env }) {
         });
         await R2.delete(key);
     } catch (e) {
-        return new Response(JSON.stringify({ success: false, error: 'R2 Rename failed: ' + e.message }), {
+        return new Response(JSON.stringify({ success: false, error: 'R2重命名失败：' + e.message }), {
             status: 500,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
     await DB.prepare('UPDATE files SET key = ?, name = ? WHERE key = ?').bind(newKey, newName, key).run();
-    return new Response(JSON.stringify({ success: true, message: 'Renamed successfully' }), {
+    return new Response(JSON.stringify({ success: true, message: '重命名成功' }), {
       status: 200,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   } catch (error) {
-    console.error('Rename error:', error);
+    console.error('重命名错误:', error);
     return new Response(JSON.stringify({ success: false, error: 'Rename failed: ' + error.message }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -190,7 +190,7 @@ export async function onRequestPost({ request, env }) {
     user = await verifyToken(token, env.JWT_SECRET || 'secret');
   }
   if (!user || user.role !== 'admin') {
-    return new Response(JSON.stringify({ success: false, error: 'Unauthorized: Admin access required.' }), {
+    return new Response(JSON.stringify({ success: false, error: '未授权：需要管理员访问权限。' }), {
       status: 401,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
@@ -207,20 +207,20 @@ export async function onRequestPost({ request, env }) {
     const body = await request.json();
     const { sourceKey, destinationPath } = body;
     if (!sourceKey || destinationPath === undefined) {
-      return new Response(JSON.stringify({ success: false, error: 'Missing sourceKey or destinationPath.' }), {
+      return new Response(JSON.stringify({ success: false, error: '缺少sourceKey或destinationPath。' }), {
         status: 400,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
     const fileRecord = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(sourceKey).first();
     if (!fileRecord) {
-        return new Response(JSON.stringify({ success: false, error: 'File not found.' }), {
+        return new Response(JSON.stringify({ success: false, error: '文件未找到。' }), {
             status: 404,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
     if (fileRecord.is_directory) {
-         return new Response(JSON.stringify({ success: false, error: 'Moving directories is not supported yet.' }), {
+         return new Response(JSON.stringify({ success: false, error: '尚不支持移动目录。' }), {
             status: 400,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
@@ -231,14 +231,14 @@ export async function onRequestPost({ request, env }) {
     }
     const newKey = newParentPath ? `${newParentPath}${fileRecord.name}` : fileRecord.name;
     if (sourceKey === newKey) {
-         return new Response(JSON.stringify({ success: false, error: 'Source and destination are the same.' }), {
+         return new Response(JSON.stringify({ success: false, error: '源和目标相同。' }), {
             status: 400,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
     const existing = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newKey).first();
     if (existing) {
-        return new Response(JSON.stringify({ success: false, error: 'File already exists in destination.' }), {
+        return new Response(JSON.stringify({ success: false, error: '目标中文件已存在。' }), {
             status: 409,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
@@ -249,18 +249,18 @@ export async function onRequestPost({ request, env }) {
         });
         await R2.delete(sourceKey);
     } catch (e) {
-        return new Response(JSON.stringify({ success: false, error: 'R2 Move failed: ' + e.message }), {
+        return new Response(JSON.stringify({ success: false, error: 'R2移动失败：' + e.message }), {
             status: 500,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
     await DB.prepare('UPDATE files SET key = ?, parent_path = ? WHERE key = ?').bind(newKey, newParentPath, sourceKey).run();
-    return new Response(JSON.stringify({ success: true, message: 'Moved successfully' }), {
+    return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
       status: 200,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   } catch (error) {
-    console.error('Move error:', error);
+    console.error('移动错误:', error);
     return new Response(JSON.stringify({ success: false, error: 'Move failed: ' + error.message }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -275,7 +275,7 @@ export async function onRequestDelete({ request, env }) {
     user = await verifyToken(token, env.JWT_SECRET || 'secret');
   }
   if (!user || user.role !== 'admin') {
-    return new Response(JSON.stringify({ success: false, error: 'Unauthorized: Admin access required.' }), {
+    return new Response(JSON.stringify({ success: false, error: '未授权：需要管理员访问权限。' }), {
       status: 401,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
@@ -292,7 +292,7 @@ export async function onRequestDelete({ request, env }) {
     const body = await request.json();
     const { key, keys } = body;
     if (!key && (!keys || !Array.isArray(keys) || keys.length === 0)) {
-      return new Response(JSON.stringify({ success: false, error: 'Missing file key or keys.' }), {
+      return new Response(JSON.stringify({ success: false, error: '缺少文件key或keys。' }), {
         status: 400,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
@@ -309,7 +309,7 @@ export async function onRequestDelete({ request, env }) {
             if (fileRecord.is_directory) {
                 const children = await DB.prepare('SELECT key FROM files WHERE parent_path = ? LIMIT 1').bind(currentKey.endsWith('/') ? currentKey : currentKey + '/').first();
                 if (children) {
-                    errors.push(`Directory ${currentKey} is not empty.`);
+                    errors.push(`目录 ${currentKey} 不为空。`);
                     continue;
                 }
                 await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
@@ -319,8 +319,8 @@ export async function onRequestDelete({ request, env }) {
             }
             deletedCount++;
         } catch (err) {
-            console.error(`Failed to delete ${currentKey}:`, err);
-            errors.push(`Failed to delete ${currentKey}: ${err.message}`);
+            console.error(`删除 ${currentKey} 失败:`, err);
+            errors.push(`删除 ${currentKey} 失败：${err.message}`);
         }
     }
     if (deletedCount === 0 && errors.length > 0) {
@@ -331,15 +331,15 @@ export async function onRequestDelete({ request, env }) {
     }
     return new Response(JSON.stringify({ 
         success: true, 
-        message: `Deleted ${deletedCount} items successfully.`,
+        message: `成功删除了 ${deletedCount} 个项目。`,
         errors: errors.length > 0 ? errors : undefined
     }), {
       status: 200,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   } catch (error) {
-    console.error('Delete error:', error);
-    return new Response(JSON.stringify({ success: false, error: 'Delete failed: ' + error.message }), {
+    console.error('删除错误:', error);
+    return new Response(JSON.stringify({ success: false, error: '删除失败：' + error.message }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
