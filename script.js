@@ -1690,6 +1690,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentPrefix = '';
     renderPaginationControls(null);
     fetchAndRenderRecentUploads();
+    fetchFileStats(); // 初始化时尝试获取统计信息（如果未登录会显示提示）
     if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
     }

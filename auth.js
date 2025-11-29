@@ -25,6 +25,9 @@ async function checkAuth() {
             if (typeof fetchAndRenderRecentUploads === 'function') {
                 fetchAndRenderRecentUploads();
             }
+            if (typeof fetchFileStats === 'function') {
+                fetchFileStats();
+            }
         } else {
             logout();
         }
