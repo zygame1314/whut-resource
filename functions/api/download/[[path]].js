@@ -35,7 +35,14 @@ export async function onRequest(context) {
   }
   if (isSignedUrl) {
       const secret = env.PREVIEW_SECRET || 'default-secret';
-      const tokenPayload = `${key}:${expires}`;
+      const userId = url.searchParams.get('user');
+      let tokenPayload;
+      if (userId) {
+          tokenPayload = `${key}:${expires}:${userId}`;
+      } else {
+          tokenPayload = `${key}:${expires}`;
+      }
+
       const encoder = new TextEncoder();
       const keyData = encoder.encode(secret);
       const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -49,6 +56,43 @@ export async function onRequest(context) {
       }
       if (Date.now() > expires) {
           return new Response(JSON.stringify({ success: false, error: '链接已过期。' }), { status: 410, headers: addCorsHeaders() });
+      }
+
+      if (userId) {
+          const user = await env.DB.prepare('SELECT id, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(userId).first();
+          if (!user) {
+            return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders() });
+          }
+
+          const today = new Date().toISOString().split('T')[0];
+          if (user.last_download_date !== today) {
+              user.quota_used = 0;
+          }
+
+          if (user.quota_used >= user.quota_limit) {
+              return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders() });
+          }
+
+          const fileInfo = await env.DB.prepare('SELECT size FROM files WHERE key = ?').bind(key).first();
+          const fileSize = fileInfo ? fileInfo.size : 0;
+
+          context.waitUntil((async () => {
+            try {
+                if (user.last_download_date !== today) {
+                    await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
+                } else {
+                    await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ?').bind(user.id).run();
+                }
+                await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
+
+                const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+                await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
+                    .bind(user.id, key, ip, fileSize)
+                    .run();
+            } catch (e) {
+                console.error("更新统计信息时出错:", e);
+            }
+          })());
       }
   } else {
       let token = null;

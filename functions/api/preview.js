@@ -79,7 +79,17 @@ export async function onRequest(context) {
     }
     const expiresIn = url.searchParams.get('expiresIn') ? parseInt(url.searchParams.get('expiresIn')) : 300;
     const expires = Date.now() + expiresIn * 1000;
-    const tokenPayload = `${key}:${expires}`;
+    
+    // 根据预览类型构建 payload
+    // 如果是 Office 预览，保持旧格式（不包含 userId），不计入下载次数
+    // 如果是普通下载/预览，包含 userId，以便计入下载次数
+    let tokenPayload;
+    if (isOfficePreview) {
+        tokenPayload = `${key}:${expires}`;
+    } else {
+        tokenPayload = `${key}:${expires}:${user.id}`;
+    }
+
     const secret = env.PREVIEW_SECRET || 'default-secret';
     const encoder = new TextEncoder();
     const keyData = encoder.encode(secret);
@@ -92,7 +102,7 @@ export async function onRequest(context) {
     if (isOfficePreview) {
       previewUrl = `${baseUrl}/api/download/${signature}/${expires}/${encodeURIComponent(key)}`;
     } else {
-      previewUrl = `${baseUrl}/api/download/${encodeURIComponent(key)}?token=${signature}&expires=${expires}`;
+      previewUrl = `${baseUrl}/api/download/${encodeURIComponent(key)}?token=${signature}&expires=${expires}&user=${user.id}`;
       if (isInline) {
         previewUrl += '&inline=true';
       }

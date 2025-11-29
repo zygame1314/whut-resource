@@ -8,9 +8,9 @@ const addCorsHeaders = (headers = {}) => {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 };
-async function generateToken(key, secret, expiration = 86400) {
+async function generateToken(key, secret, userId, expiration = 86400) {
   const expires = Date.now() + expiration * 1000;
-  const tokenPayload = `${key}:${expires}`;
+  const tokenPayload = `${key}:${expires}:${userId}`;
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);
   const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -89,8 +89,8 @@ export async function onRequestPost({ request, env }) {
     const secret = env.PREVIEW_SECRET || 'default-secret';
     const signedUrls = [];
     for (const fileKey of allFileKeysToProcess) {
-      const { token, expires } = await generateToken(fileKey, secret);
-      const urlPath = `/api/download/${encodeURIComponent(fileKey)}?token=${token}&expires=${expires}`;
+      const { token, expires } = await generateToken(fileKey, secret, user.id);
+      const urlPath = `/api/download/${encodeURIComponent(fileKey)}?token=${token}&expires=${expires}&user=${user.id}`;
       signedUrls.push({
         key: fileKey,
         filename: fileKey.split('/').pop(),
