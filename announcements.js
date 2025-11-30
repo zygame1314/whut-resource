@@ -18,7 +18,6 @@ let allAnnouncements = [];
 let currentAnnouncementPage = 1;
 let totalAnnouncementPages = 1;
 const ANNOUNCEMENTS_PER_PAGE = 5;
-
 document.addEventListener('DOMContentLoaded', () => {
     fetchAndDisplayAnnouncements(currentAnnouncementPage);
     initAnnouncementManager();
@@ -36,15 +35,12 @@ async function fetchAndDisplayAnnouncements(page = 1) {
         }
         const response = await fetch(`${ANNOUNCEMENTS_API_URL}?page=${page}&limit=${ANNOUNCEMENTS_PER_PAGE}`, { headers });
         if (!response.ok) throw new Error('Failed to fetch announcements');
-        
         const data = await response.json();
         const announcements = data.data;
         const pagination = data.pagination;
-        
         allAnnouncements = announcements;
         currentAnnouncementPage = pagination.page;
         totalAnnouncementPages = pagination.totalPages;
-        
         renderAnnouncements(announcements);
         checkAdminPermission();
     } catch (error) {
@@ -56,15 +52,10 @@ function renderAnnouncements(announcements) {
         announcementSection.style.display = 'none';
         return;
     }
-    
-    // Admin view logic handles draft/published status separately, here we render what API returns
-    // For regular view, API already filters published only
-    
     if (announcements.length === 0) {
         announcementSection.style.display = 'none';
     } else {
         announcementSection.style.display = 'block';
-        
         let html = announcements.map(a => `
             <div class="announcement-item">
                 <span class="announcement-title">${escapeHtml(a.title)}</span>
@@ -74,8 +65,6 @@ function renderAnnouncements(announcements) {
                 </div>
             </div>
         `).join('');
-
-        // Add pagination controls if multiple pages
         if (totalAnnouncementPages > 1) {
             html += `
                 <div class="pagination-controls" style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; align-items: center;">
@@ -89,11 +78,9 @@ function renderAnnouncements(announcements) {
                 </div>
             `;
         }
-        
         announcementContent.innerHTML = html;
     }
 }
-
 window.changeAnnouncementPage = function(page) {
     if (page < 1 || page > totalAnnouncementPages) return;
     fetchAndDisplayAnnouncements(page);
@@ -150,7 +137,6 @@ function renderAdminAnnouncementList() {
             </div>
         </div>
     `).join('');
-
     if (totalAnnouncementPages > 1) {
         html += `
             <div class="pagination-controls" style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; align-items: center;">
@@ -164,7 +150,6 @@ function renderAdminAnnouncementList() {
             </div>
         `;
     }
-    
     announcementList.innerHTML = html;
 }
 function showAnnouncementForm(announcement = null) {
@@ -190,14 +175,19 @@ function hideAnnouncementForm() {
     addAnnouncementBtn.style.display = 'block';
     announcementList.style.display = 'block';
 }
-window.editAnnouncement = function(id) {
-    const announcement = allAnnouncements.find(a => a.id === id);
-    if (announcement) {
-        showAnnouncementForm(announcement);
-    }
-};
 window.deleteAnnouncement = async function(id) {
-    if (!confirm('确定要删除这条公告吗？')) return;
+    let confirmed = false;
+    if (typeof showConfirmation === 'function') {
+        confirmed = await showConfirmation({
+            title: '删除公告',
+            message: '确定要删除这条公告吗？',
+            confirmText: '删除',
+            confirmClass: 'confirm-btn-danger'
+        });
+    } else {
+        confirmed = confirm('确定要删除这条公告吗？');
+    }
+    if (!confirmed) return;
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(`${ANNOUNCEMENTS_API_URL}?id=${id}`, {

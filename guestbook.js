@@ -18,9 +18,6 @@ window.changeGuestbookPage = function(page) {
 window.likeGuestbook = function(id, btnElement) {
     handleGuestbookAction(id, 'like', btnElement);
 };
-window.unlikeGuestbook = function(id, btnElement) {
-    handleGuestbookAction(id, 'unlike', btnElement);
-};
 window.deleteGuestbook = function(id) {
     handleDeleteGuestbook(id);
 };
@@ -38,7 +35,6 @@ async function fetchAndDisplayGuestbook(page = 1) {
     if (!guestbookSection) return;
     try {
         const token = localStorage.getItem('authToken');
-        
         if (!token) {
              if (guestbookForm) guestbookForm.style.display = 'none';
              const loginPrompt = document.getElementById('guestbook-login-prompt');
@@ -51,7 +47,6 @@ async function fetchAndDisplayGuestbook(page = 1) {
              }
              return;
         }
-
         const headers = {};
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
@@ -68,11 +63,9 @@ async function fetchAndDisplayGuestbook(page = 1) {
         totalGuestbookPages = pagination.totalPages;
         renderGuestbook(messages);
         renderGuestbookPagination();
-        
         if (guestbookForm) guestbookForm.style.display = 'block';
         const loginPrompt = document.getElementById('guestbook-login-prompt');
         if (loginPrompt) loginPrompt.style.display = 'none';
-
     } catch (error) {
         console.error('Error fetching guestbook:', error);
         if (guestbookList) {
@@ -112,7 +105,6 @@ function renderGuestbook(messages) {
         const nickname = msg.nickname || '匿名用户';
         const avatarChar = nickname.charAt(0).toUpperCase();
         const avatarColor = getAvatarColor(nickname);
-        
         return `
             <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''}">
                 <div class="guestbook-left">
@@ -137,7 +129,6 @@ function renderGuestbook(messages) {
         `;
     }).join('');
 }
-
 function getAvatarColor(name) {
     const colors = [
         'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)',
@@ -156,7 +147,6 @@ function getAvatarColor(name) {
     }
     return colors[Math.abs(hash) % colors.length];
 }
-
 function renderGuestbookPagination() {
     if (!guestbookPagination) return;
     if (totalGuestbookPages <= 1) {
@@ -267,7 +257,18 @@ async function handleGuestbookAction(id, action, btnElement) {
     }
 }
 async function handleDeleteGuestbook(id) {
-    if (!confirm('确定要删除这条留言吗？')) return;
+    let confirmed = false;
+    if (typeof showConfirmation === 'function') {
+        confirmed = await showConfirmation({
+            title: '删除留言',
+            message: '确定要删除这条留言吗？',
+            confirmText: '删除',
+            confirmClass: 'confirm-btn-danger'
+        });
+    } else {
+        confirmed = confirm('确定要删除这条留言吗？');
+    }
+    if (!confirmed) return;
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(`${GUESTBOOK_API_URL}?id=${id}`, {

@@ -222,7 +222,12 @@ function formatSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 async function syncFiles() {
-    if (!confirm('确定要从 R2 同步文件索引到数据库吗？这可能需要一些时间。')) return;
+    const confirmed = await showConfirmation({
+        title: '同步确认',
+        message: '确定要从 R2 同步文件索引到数据库吗？这可能需要一些时间。',
+        confirmText: '确定同步'
+    });
+    if (!confirmed) return;
     const btn = document.getElementById('sync-btn');
     const originalIcon = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
