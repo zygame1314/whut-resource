@@ -796,7 +796,7 @@ style.textContent = `
         color: var(--success-color);
         width: 16px;
     }
-    @media (max-width: 768px) {
+    @media (max-width: 1024px) {
         .upload-stats {
             gap: 1rem;
         }

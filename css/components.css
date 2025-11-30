@@ -658,7 +658,7 @@
     font-size: 0.9rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .recent-upload-item {
         flex-direction: column;
         align-items: flex-start;

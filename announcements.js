@@ -74,7 +74,7 @@ function initAnnouncementManager() {
     }
     if (closeAnnouncementModalBtn) {
         closeAnnouncementModalBtn.addEventListener('click', () => {
-            announcementModal.classList.remove('active');
+            announcementModal.classList.remove('visible');
         });
     }
     if (addAnnouncementBtn) {
@@ -92,7 +92,7 @@ function initAnnouncementManager() {
     }
 }
 function openAnnouncementModal() {
-    announcementModal.classList.add('active');
+    announcementModal.classList.add('visible');
     renderAdminAnnouncementList();
     hideAnnouncementForm();
 }

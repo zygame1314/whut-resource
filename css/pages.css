@@ -436,7 +436,7 @@
     margin-bottom: 0.8rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .hero-section {
         padding: 2rem 1rem;
     }
