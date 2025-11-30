@@ -1,4 +1,6 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders } from '../utils.js';
+import { sendEmail } from '../smtp.js';
+
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
@@ -26,24 +28,16 @@ export async function onRequestPost({ request, env }) {
         .bind(email, code, expiresAt)
         .run();
 
-      const resendRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: '武理资源共享平台 <noreply@mails.zygame1314.site>',
-          to: email,
-          subject: '武理资源共享平台 - 注册验证码',
-          html: `<p>您的验证码是: <strong>${code}</strong></p><p>该验证码10分钟内有效。</p>`
-        })
-      });
-
-      if (!resendRes.ok) {
-        const errorText = await resendRes.text();
-        console.error('Resend 错误:', errorText);
-        return new Response(JSON.stringify({ success: false, error: '发送验证码邮件失败。' }), { status: 500, headers: addCorsHeaders() });
+      try {
+        await sendEmail(
+          env, 
+          email, 
+          '武理资源共享平台 - 注册验证码', 
+          `<p>您的验证码是: <strong>${code}</strong></p><p>该验证码10分钟内有效。</p>`
+        );
+      } catch (e) {
+        console.error('邮件发送失败:', e);
+        return new Response(JSON.stringify({ success: false, error: '验证码发送失败，请稍后重试。' }), { status: 500, headers: addCorsHeaders() });
       }
 
       return new Response(JSON.stringify({ success: true, message: '验证码已发送。' }), { status: 200, headers: addCorsHeaders() });
