@@ -1501,6 +1501,11 @@ textarea.form-input {
     margin-top: 0.5rem;
 }
 
+.guestbook-admin-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
 .guestbook-actions {
     display: flex;
     align-items: center;
