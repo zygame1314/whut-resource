@@ -99,28 +99,54 @@ function renderGuestbook(messages) {
                 </div>
             `;
         }
+        const nickname = msg.nickname || '匿名用户';
+        const avatarChar = nickname.charAt(0).toUpperCase();
+        const avatarColor = getAvatarColor(nickname);
+        
         return `
             <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''}">
-                <div class="guestbook-header">
-                    <div class="guestbook-user">
-                        <div class="user-avatar-placeholder">${msg.nickname ? msg.nickname.charAt(0).toUpperCase() : 'U'}</div>
-                        <div class="user-info-text">
-                            <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
-                            <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
-                        </div>
-                    </div>
-                     ${adminControls}
+                <div class="guestbook-left">
+                    <div class="user-avatar-placeholder" style="background: ${avatarColor}">${avatarChar}</div>
                 </div>
-                <div class="guestbook-content">${escapeHtml(msg.content)}</div>
-                <div class="guestbook-footer">
-                    <button class="like-btn ${likedClass}" onclick="${likeAction}">
-                        <i class="${likeIcon}"></i> <span>${msg.likes}</span>
-                    </button>
+                <div class="guestbook-main">
+                    <div class="guestbook-header">
+                        <div class="guestbook-user-info">
+                             <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
+                             <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
+                        </div>
+                        ${adminControls}
+                    </div>
+                    <div class="guestbook-content">${escapeHtml(msg.content)}</div>
+                    <div class="guestbook-footer">
+                        <button class="like-btn ${likedClass}" onclick="${likeAction}">
+                            <i class="${likeIcon}"></i> <span>${msg.likes}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
     }).join('');
 }
+
+function getAvatarColor(name) {
+    const colors = [
+        'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)',
+        'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+        'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)',
+        'linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)',
+        'linear-gradient(135deg, #fccb90 0%, #d57eeb 100%)',
+        'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+        'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+}
+
 function renderGuestbookPagination() {
     if (!guestbookPagination) return;
     if (totalGuestbookPages <= 1) {
