@@ -1,6 +1,6 @@
 name = "whut-resource"
 pages_build_output_dir = "."
-compatibility_date = "2023-01-01"
+compatibility_date = "2024-10-22"
 
 [[d1_databases]]
 binding = "DB"
