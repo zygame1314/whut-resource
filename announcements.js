@@ -15,11 +15,15 @@ const announcementPublishedInput = document.getElementById('announcement-publish
 const saveAnnouncementBtn = document.getElementById('save-announcement-btn');
 const cancelAnnouncementBtn = document.getElementById('cancel-announcement-btn');
 let allAnnouncements = [];
+let currentPage = 1;
+let totalPages = 1;
+const ITEMS_PER_PAGE = 5;
+
 document.addEventListener('DOMContentLoaded', () => {
-    fetchAndDisplayAnnouncements();
+    fetchAndDisplayAnnouncements(currentPage);
     initAnnouncementManager();
 });
-async function fetchAndDisplayAnnouncements() {
+async function fetchAndDisplayAnnouncements(page = 1) {
     try {
         const token = localStorage.getItem('authToken');
         if (!token) {
@@ -30,10 +34,17 @@ async function fetchAndDisplayAnnouncements() {
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
-        const response = await fetch(ANNOUNCEMENTS_API_URL, { headers });
+        const response = await fetch(`${ANNOUNCEMENTS_API_URL}?page=${page}&limit=${ITEMS_PER_PAGE}`, { headers });
         if (!response.ok) throw new Error('Failed to fetch announcements');
-        const announcements = await response.json();
+        
+        const data = await response.json();
+        const announcements = data.data;
+        const pagination = data.pagination;
+        
         allAnnouncements = announcements;
+        currentPage = pagination.page;
+        totalPages = pagination.totalPages;
+        
         renderAnnouncements(announcements);
         checkAdminPermission();
     } catch (error) {
@@ -45,12 +56,16 @@ function renderAnnouncements(announcements) {
         announcementSection.style.display = 'none';
         return;
     }
-    const publishedAnnouncements = announcements.filter(a => a.is_published);
-    if (publishedAnnouncements.length === 0) {
+    
+    // Admin view logic handles draft/published status separately, here we render what API returns
+    // For regular view, API already filters published only
+    
+    if (announcements.length === 0) {
         announcementSection.style.display = 'none';
     } else {
         announcementSection.style.display = 'block';
-        announcementContent.innerHTML = publishedAnnouncements.map(a => `
+        
+        let html = announcements.map(a => `
             <div class="announcement-item">
                 <span class="announcement-title">${escapeHtml(a.title)}</span>
                 <div class="announcement-text">${escapeHtml(a.content)}</div>
@@ -59,8 +74,30 @@ function renderAnnouncements(announcements) {
                 </div>
             </div>
         `).join('');
+
+        // Add pagination controls if multiple pages
+        if (totalPages > 1) {
+            html += `
+                <div class="pagination-controls" style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; align-items: center;">
+                    <button class="secondary-btn" onclick="changeAnnouncementPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                        <i class="fas fa-chevron-left"></i> 上一页
+                    </button>
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">${currentPage} / ${totalPages}</span>
+                    <button class="secondary-btn" onclick="changeAnnouncementPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                        下一页 <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            `;
+        }
+        
+        announcementContent.innerHTML = html;
     }
 }
+
+window.changeAnnouncementPage = function(page) {
+    if (page < 1 || page > totalPages) return;
+    fetchAndDisplayAnnouncements(page);
+};
 function checkAdminPermission() {
     if (window.currentUser && window.currentUser.role === 'admin') {
         if (manageAnnouncementsBtn) {
@@ -101,7 +138,7 @@ function openAnnouncementModal() {
     hideAnnouncementForm();
 }
 function renderAdminAnnouncementList() {
-    announcementList.innerHTML = allAnnouncements.map(a => `
+    let html = allAnnouncements.map(a => `
         <div class="admin-announcement-item">
             <div class="admin-announcement-info">
                 <h4>${escapeHtml(a.title)} <span class="admin-announcement-status ${a.is_published ? 'status-published' : 'status-draft'}">${a.is_published ? '已发布' : '草稿'}</span></h4>
@@ -113,6 +150,22 @@ function renderAdminAnnouncementList() {
             </div>
         </div>
     `).join('');
+
+    if (totalPages > 1) {
+        html += `
+            <div class="pagination-controls" style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; align-items: center;">
+                <button class="secondary-btn" onclick="changeAnnouncementPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                    <i class="fas fa-chevron-left"></i> 上一页
+                </button>
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">${currentPage} / ${totalPages}</span>
+                <button class="secondary-btn" onclick="changeAnnouncementPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                    下一页 <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        `;
+    }
+    
+    announcementList.innerHTML = html;
 }
 function showAnnouncementForm(announcement = null) {
     announcementForm.style.display = 'block';
@@ -154,7 +207,7 @@ window.deleteAnnouncement = async function(id) {
             }
         });
         if (response.ok) {
-            await fetchAndDisplayAnnouncements();
+            await fetchAndDisplayAnnouncements(currentPage);
             renderAdminAnnouncementList();
         } else {
             alert('删除失败');
@@ -187,7 +240,7 @@ async function saveAnnouncement() {
             body: JSON.stringify(body)
         });
         if (response.ok) {
-            await fetchAndDisplayAnnouncements();
+            await fetchAndDisplayAnnouncements(currentPage);
             openAnnouncementModal();
         } else {
             alert('保存失败');
