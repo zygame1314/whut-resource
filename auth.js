@@ -99,7 +99,7 @@ function showAuthModal(mode = 'login') {
             <form id="auth-form">
                 <div class="form-group">
                     <label>邮箱 (@whut.edu.cn)</label>
-                    <input type="email" id="auth-email" required class="form-control" placeholder="请输入学校邮箱">
+                    <input type="email" id="auth-email" required class="form-control" placeholder="${isLogin ? '请输入学校邮箱' : '请输入工号邮箱 (如 123456@whut.edu.cn)'}">
                 </div>
                 ${!isLogin ? `
                 <div class="form-group">
@@ -134,8 +134,9 @@ function showAuthModal(mode = 'login') {
         const sendCodeBtn = modal.querySelector('#send-code-btn');
         sendCodeBtn.onclick = async () => {
             const email = document.getElementById('auth-email').value;
-            if (!email || !email.endsWith('@whut.edu.cn')) {
-                showNotification('请输入有效的 @whut.edu.cn 邮箱', 'error');
+            const studentIdEmailRegex = /^\d+@whut\.edu\.cn$/;
+            if (!email || !studentIdEmailRegex.test(email)) {
+                showNotification('请使用工号邮箱（纯数字前缀）进行注册', 'error');
                 return;
             }
             sendCodeBtn.disabled = true;

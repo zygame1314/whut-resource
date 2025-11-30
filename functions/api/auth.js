@@ -7,8 +7,9 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({ success: false, error: '数据库未配置' }), { status: 500, headers: addCorsHeaders() });
     }
     if (action === 'send-code') {
-      if (!email || !email.endsWith('@whut.edu.cn')) {
-        return new Response(JSON.stringify({ success: false, error: '只允许@whut.edu.cn邮箱。' }), { status: 400, headers: addCorsHeaders() });
+      const studentIdEmailRegex = /^\d+@whut\.edu\.cn$/;
+      if (!email || !studentIdEmailRegex.test(email)) {
+        return new Response(JSON.stringify({ success: false, error: '为防止重复注册，请使用工号邮箱（如 123456@whut.edu.cn）。' }), { status: 400, headers: addCorsHeaders() });
       }
       
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
@@ -47,8 +48,9 @@ export async function onRequestPost({ request, env }) {
     }
 
     if (action === 'register') {
-      if (!email || !email.endsWith('@whut.edu.cn')) {
-        return new Response(JSON.stringify({ success: false, error: '只允许@whut.edu.cn邮箱。' }), { status: 400, headers: addCorsHeaders() });
+      const studentIdEmailRegex = /^\d+@whut\.edu\.cn$/;
+      if (!email || !studentIdEmailRegex.test(email)) {
+        return new Response(JSON.stringify({ success: false, error: '为防止重复注册，请使用工号邮箱（如 123456@whut.edu.cn）。' }), { status: 400, headers: addCorsHeaders() });
       }
       if (!password || password.length < 6) {
         return new Response(JSON.stringify({ success: false, error: '密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });

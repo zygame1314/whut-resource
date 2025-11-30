@@ -10,7 +10,6 @@ console.log(`%c${[
 ' 愿代码与你同在！',
 ''
 ].join('\n')}`, "font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace; color: #007BFF;");
-
 const fileListElement = document.getElementById('file-list');
 const breadcrumbListElement = document.getElementById('breadcrumb-list');
 const searchInput = document.getElementById('search-input');
@@ -327,8 +326,6 @@ let currentPage = 1;
 let totalPages = 1;
 let itemsPerPage = 20;
 let currentTotalItems = 0;
-// 移除 getAdminPassword 函数，因为它不再适用于令牌验证
-// 移除 createAuthModal 函数，因为它与新的 auth.js 逻辑冲突
 function initTheme() {
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -1147,15 +1144,18 @@ function updateSelectionToolbar() {
     const toolbar = document.getElementById('selection-toolbar');
     const countSpan = document.getElementById('selection-count');
     const selectedCount = selectedItems.size;
+    const batchMoveBtn = document.getElementById('batch-move-btn');
+    const batchDeleteBtn = document.getElementById('batch-delete-btn');
+    const isAdmin = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin';
     if (isSelectionMode && selectedCount > 0) {
         toolbar.classList.add('visible');
         countSpan.textContent = `已选择 ${selectedCount} 项`;
-        const batchMoveBtn = document.getElementById('batch-move-btn');
-        if (batchMoveBtn) batchMoveBtn.style.display = 'inline-flex';
+        if (batchMoveBtn) batchMoveBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+        if (batchDeleteBtn) batchDeleteBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     } else {
         toolbar.classList.remove('visible');
-        const batchMoveBtn = document.getElementById('batch-move-btn');
         if (batchMoveBtn) batchMoveBtn.style.display = 'none';
+        if (batchDeleteBtn) batchDeleteBtn.style.display = 'none';
     }
     updateSelectAllButtonState();
 }
@@ -1703,7 +1703,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentPrefix = '';
     renderPaginationControls(null);
     fetchAndRenderRecentUploads();
-    fetchFileStats(); // 初始化时尝试获取统计信息（如果未登录会显示提示）
+    fetchFileStats();
     if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
     }
