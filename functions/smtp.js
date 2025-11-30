@@ -1,4 +1,3 @@
-import { Buffer } from 'node:buffer';
 export async function sendEmail(env, to, subject, html) {
   const SECRET_ID = env.TENCENT_SECRET_ID;
   const SECRET_KEY = env.TENCENT_SECRET_KEY;
