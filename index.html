@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/pages.css">
     <link rel="stylesheet" href="https://cdn.jsdmirror.com/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdmirror.com/npm/shepherd.js@10.0.1/dist/css/shepherd.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdmirror.com/npm/shepherd.js@10.0.1/dist/css/shepherd.css" />
 </head>
 
 <body>
@@ -41,16 +41,7 @@
                             <i class="fas fa-moon"></i>
                         </button>
                     </div>
-                    <div id="auth-section">
-                        <button id="login-button" class="primary-btn">
-                            <i class="fas fa-user"></i>
-                            <span>身份验证</span>
-                        </button>
-                        <button id="admin-login-button" class="primary-btn" style="display: none;">
-                            <i class="fas fa-user-shield"></i>
-                            <span>管理员验证</span>
-                        </button>
-                    </div>
+                    <div id="auth-section"></div>
                 </div>
                 <button id="mobile-menu-toggle" class="icon-btn">
                     <i class="fas fa-ellipsis-v"></i>
@@ -223,8 +214,8 @@
                                 <span>批量下载</span>
                             </button>
                             <button id="batch-move-btn" class="secondary-btn">
-                               <i class="fas fa-folder-tree"></i>
-                               <span>移动到...</span>
+                                <i class="fas fa-folder-tree"></i>
+                                <span>移动到...</span>
                             </button>
                             <button id="batch-delete-btn" class="danger-btn">
                                 <i class="fas fa-trash"></i>
@@ -304,19 +295,23 @@
                 <button id="add-announcement-btn" class="primary-btn" style="margin-top: 1rem; width: 100%;">
                     <i class="fas fa-plus"></i> 发布新公告
                 </button>
-                
-                <div id="announcement-form" style="display: none; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+
+                <div id="announcement-form"
+                    style="display: none; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                     <h3 id="form-title" style="margin-bottom: 1rem;">发布公告</h3>
                     <input type="hidden" id="announcement-id">
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label for="announcement-title" style="display: block; margin-bottom: 0.5rem;">标题</label>
-                        <input type="text" id="announcement-title" class="form-input" placeholder="请输入标题" style="width: 100%; padding: 0.5rem;">
+                        <input type="text" id="announcement-title" class="form-input" placeholder="请输入标题"
+                            style="width: 100%; padding: 0.5rem;">
                     </div>
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label for="announcement-text" style="display: block; margin-bottom: 0.5rem;">内容</label>
-                        <textarea id="announcement-text" class="form-input" rows="5" placeholder="请输入内容" style="width: 100%; padding: 0.5rem;"></textarea>
+                        <textarea id="announcement-text" class="form-input" rows="5" placeholder="请输入内容"
+                            style="width: 100%; padding: 0.5rem;"></textarea>
                     </div>
-                    <div class="form-group checkbox-group" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="form-group checkbox-group"
+                        style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                         <input type="checkbox" id="announcement-published">
                         <label for="announcement-published">立即发布</label>
                     </div>

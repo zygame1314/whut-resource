@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
 async function fetchAndDisplayAnnouncements() {
     try {
         const token = localStorage.getItem('authToken');
+        if (!token) {
+            announcementSection.style.display = 'none';
+            return;
+        }
         const headers = {};
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;

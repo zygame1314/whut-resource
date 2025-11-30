@@ -33,11 +33,16 @@ async function getUser(request, env) {
 }
 async function handleGet(request, env) {
     const user = await getUser(request, env);
+    if (!user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const isAdmin = user && user.role === 'admin';
+
     let query = 'SELECT * FROM announcements WHERE is_published = TRUE ORDER BY created_at DESC';
     if (isAdmin) {
         query = 'SELECT * FROM announcements ORDER BY created_at DESC';
     }
+
     const { results } = await env.DB.prepare(query).all();
     return new Response(JSON.stringify(results), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
