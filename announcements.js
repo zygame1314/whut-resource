@@ -15,12 +15,12 @@ const announcementPublishedInput = document.getElementById('announcement-publish
 const saveAnnouncementBtn = document.getElementById('save-announcement-btn');
 const cancelAnnouncementBtn = document.getElementById('cancel-announcement-btn');
 let allAnnouncements = [];
-let currentPage = 1;
-let totalPages = 1;
-const ITEMS_PER_PAGE = 5;
+let currentAnnouncementPage = 1;
+let totalAnnouncementPages = 1;
+const ANNOUNCEMENTS_PER_PAGE = 5;
 
 document.addEventListener('DOMContentLoaded', () => {
-    fetchAndDisplayAnnouncements(currentPage);
+    fetchAndDisplayAnnouncements(currentAnnouncementPage);
     initAnnouncementManager();
 });
 async function fetchAndDisplayAnnouncements(page = 1) {
@@ -34,7 +34,7 @@ async function fetchAndDisplayAnnouncements(page = 1) {
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
-        const response = await fetch(`${ANNOUNCEMENTS_API_URL}?page=${page}&limit=${ITEMS_PER_PAGE}`, { headers });
+        const response = await fetch(`${ANNOUNCEMENTS_API_URL}?page=${page}&limit=${ANNOUNCEMENTS_PER_PAGE}`, { headers });
         if (!response.ok) throw new Error('Failed to fetch announcements');
         
         const data = await response.json();
@@ -42,8 +42,8 @@ async function fetchAndDisplayAnnouncements(page = 1) {
         const pagination = data.pagination;
         
         allAnnouncements = announcements;
-        currentPage = pagination.page;
-        totalPages = pagination.totalPages;
+        currentAnnouncementPage = pagination.page;
+        totalAnnouncementPages = pagination.totalPages;
         
         renderAnnouncements(announcements);
         checkAdminPermission();
@@ -76,14 +76,14 @@ function renderAnnouncements(announcements) {
         `).join('');
 
         // Add pagination controls if multiple pages
-        if (totalPages > 1) {
+        if (totalAnnouncementPages > 1) {
             html += `
                 <div class="pagination-controls" style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; align-items: center;">
-                    <button class="secondary-btn" onclick="changeAnnouncementPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                    <button class="secondary-btn" onclick="changeAnnouncementPage(${currentAnnouncementPage - 1})" ${currentAnnouncementPage === 1 ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
                         <i class="fas fa-chevron-left"></i> 上一页
                     </button>
-                    <span style="color: var(--text-secondary); font-size: 0.9rem;">${currentPage} / ${totalPages}</span>
-                    <button class="secondary-btn" onclick="changeAnnouncementPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">${currentAnnouncementPage} / ${totalAnnouncementPages}</span>
+                    <button class="secondary-btn" onclick="changeAnnouncementPage(${currentAnnouncementPage + 1})" ${currentAnnouncementPage === totalAnnouncementPages ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
                         下一页 <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
@@ -95,7 +95,7 @@ function renderAnnouncements(announcements) {
 }
 
 window.changeAnnouncementPage = function(page) {
-    if (page < 1 || page > totalPages) return;
+    if (page < 1 || page > totalAnnouncementPages) return;
     fetchAndDisplayAnnouncements(page);
 };
 function checkAdminPermission() {
@@ -151,14 +151,14 @@ function renderAdminAnnouncementList() {
         </div>
     `).join('');
 
-    if (totalPages > 1) {
+    if (totalAnnouncementPages > 1) {
         html += `
             <div class="pagination-controls" style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; align-items: center;">
-                <button class="secondary-btn" onclick="changeAnnouncementPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                <button class="secondary-btn" onclick="changeAnnouncementPage(${currentAnnouncementPage - 1})" ${currentAnnouncementPage === 1 ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
                     <i class="fas fa-chevron-left"></i> 上一页
                 </button>
-                <span style="color: var(--text-secondary); font-size: 0.9rem;">${currentPage} / ${totalPages}</span>
-                <button class="secondary-btn" onclick="changeAnnouncementPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">${currentAnnouncementPage} / ${totalAnnouncementPages}</span>
+                <button class="secondary-btn" onclick="changeAnnouncementPage(${currentAnnouncementPage + 1})" ${currentAnnouncementPage === totalAnnouncementPages ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
                     下一页 <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
@@ -207,7 +207,7 @@ window.deleteAnnouncement = async function(id) {
             }
         });
         if (response.ok) {
-            await fetchAndDisplayAnnouncements(currentPage);
+            await fetchAndDisplayAnnouncements(currentAnnouncementPage);
             renderAdminAnnouncementList();
         } else {
             alert('删除失败');
@@ -240,7 +240,7 @@ async function saveAnnouncement() {
             body: JSON.stringify(body)
         });
         if (response.ok) {
-            await fetchAndDisplayAnnouncements(currentPage);
+            await fetchAndDisplayAnnouncements(currentAnnouncementPage);
             openAnnouncementModal();
         } else {
             alert('保存失败');
