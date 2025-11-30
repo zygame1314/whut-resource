@@ -5,7 +5,7 @@ export async function sendEmail(env, to, subject, html) {
     throw new Error("请配置 SMTP_USER 和 SMTP_PASS 环境变量");
   }
   const socket = connect({
-    hostname: 'smtp.qiye.aliyun.com',
+    hostname: 'smtp.zygame1314.site',
     port: 465,
     secureTransport: 'on',
   });
