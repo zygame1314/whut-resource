@@ -26,9 +26,9 @@ async function getUser(request, env) {
         return null;
     }
     const token = authHeader.split(' ')[1];
-    const payload = await verifyToken(token, env.JWT_SECRET);
+    const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
     if (!payload) return null;
-    const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.sub).first();
+    const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
     return user;
 }
 async function handleGet(request, env) {
