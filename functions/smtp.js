@@ -1,10 +1,11 @@
-export async function sendEmail(env, to, subject, html) {
+export async function sendEmail(env, to, subject, templateData) {
   const SECRET_ID = env.TENCENT_SECRET_ID;
   const SECRET_KEY = env.TENCENT_SECRET_KEY;
   const FROM_ADDRESS = env.TENCENT_SES_FROM;
+  const TEMPLATE_ID = env.TENCENT_TEMPLATE_ID;
   const REGION = env.TENCENT_SES_REGION || "ap-hongkong";
-  if (!SECRET_ID || !SECRET_KEY || !FROM_ADDRESS) {
-    throw new Error("请配置腾讯云环境变量: TENCENT_SECRET_ID, TENCENT_SECRET_KEY, TENCENT_SES_FROM");
+  if (!SECRET_ID || !SECRET_KEY || !FROM_ADDRESS || !TEMPLATE_ID) {
+    throw new Error("请配置腾讯云环境变量: TENCENT_SECRET_ID, TENCENT_SECRET_KEY, TENCENT_SES_FROM, TENCENT_TEMPLATE_ID");
   }
   const endpoint = "ses.tencentcloudapi.com";
   const service = "ses";
@@ -12,16 +13,16 @@ export async function sendEmail(env, to, subject, html) {
   const version = "2020-10-02";
   const timestamp = Math.floor(Date.now() / 1000);
   const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
-  const base64Html = btoa(unescape(encodeURIComponent(html)));
   const payload = {
     FromEmailAddress: FROM_ADDRESS,
     Destination: [to],
     Subject: subject,
     TriggerType: 1,
     ReplyToAddresses: FROM_ADDRESS,
-    Simple: {
-      Html: base64Html,
-    },
+    Template: {
+      TemplateID: parseInt(TEMPLATE_ID),
+      TemplateData: JSON.stringify(templateData)
+    }
   };
   const payloadStr = JSON.stringify(payload);
   const algorithm = "TC3-HMAC-SHA256";

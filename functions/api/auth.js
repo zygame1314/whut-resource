@@ -33,7 +33,7 @@ export async function onRequestPost({ request, env }) {
           env, 
           email, 
           '武理资源共享平台 - 注册验证码', 
-          `<p>您的验证码是: <strong>${code}</strong></p><p>该验证码10分钟内有效。</p>`
+          { code: code }
         );
       } catch (e) {
         console.error('邮件发送失败:', e);
