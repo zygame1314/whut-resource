@@ -1,0 +1,253 @@
+const GUESTBOOK_API_URL = '/api/guestbook';
+const guestbookSection = document.getElementById('guestbook-section');
+const guestbookList = document.getElementById('guestbook-list');
+const guestbookForm = document.getElementById('guestbook-form');
+const guestbookContentInput = document.getElementById('guestbook-content');
+const submitGuestbookBtn = document.getElementById('submit-guestbook-btn');
+const guestbookPagination = document.getElementById('guestbook-pagination');
+let currentGuestbookPage = 1;
+let totalGuestbookPages = 1;
+const GUESTBOOK_PER_PAGE = 5;
+document.addEventListener('DOMContentLoaded', () => {
+    initGuestbook();
+});
+window.changeGuestbookPage = function(page) {
+    if (page < 1 || page > totalGuestbookPages) return;
+    fetchAndDisplayGuestbook(page);
+};
+window.likeGuestbook = function(id, btnElement) {
+    handleGuestbookAction(id, 'like', btnElement);
+};
+window.unlikeGuestbook = function(id, btnElement) {
+    handleGuestbookAction(id, 'unlike', btnElement);
+};
+window.deleteGuestbook = function(id) {
+    handleDeleteGuestbook(id);
+};
+window.toggleGuestbookVisibility = function(id, currentHiddenState) {
+    const action = currentHiddenState ? 'unhide' : 'hide';
+    handleGuestbookAction(id, action);
+};
+function initGuestbook() {
+    if (guestbookForm) {
+        guestbookForm.addEventListener('submit', handleGuestbookSubmit);
+    }
+    fetchAndDisplayGuestbook(currentGuestbookPage);
+}
+async function fetchAndDisplayGuestbook(page = 1) {
+    if (!guestbookSection) return;
+    try {
+        const token = localStorage.getItem('authToken');
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        if (guestbookList) {
+            guestbookList.innerHTML = '<div class="loading-spinner"></div>';
+        }
+        const response = await fetch(`${GUESTBOOK_API_URL}?page=${page}&limit=${GUESTBOOK_PER_PAGE}`, { headers });
+        if (!response.ok) throw new Error('Failed to fetch guestbook messages');
+        const data = await response.json();
+        const messages = data.data;
+        const pagination = data.pagination;
+        currentGuestbookPage = pagination.page;
+        totalGuestbookPages = pagination.totalPages;
+        renderGuestbook(messages);
+        renderGuestbookPagination();
+        if (!token) {
+             if (guestbookForm) guestbookForm.style.display = 'none';
+             const loginPrompt = document.getElementById('guestbook-login-prompt');
+             if (loginPrompt) loginPrompt.style.display = 'block';
+        } else {
+             if (guestbookForm) guestbookForm.style.display = 'block';
+             const loginPrompt = document.getElementById('guestbook-login-prompt');
+             if (loginPrompt) loginPrompt.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error fetching guestbook:', error);
+        if (guestbookList) {
+             guestbookList.innerHTML = '<p class="error-message">加载留言失败，请稍后重试</p>';
+        }
+    }
+}
+function renderGuestbook(messages) {
+    if (!guestbookList) return;
+    if (!messages || messages.length === 0) {
+        guestbookList.innerHTML = '<p class="empty-state-small">暂无留言，快来发布第一条心愿吧！</p>';
+        return;
+    }
+    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    const currentUserId = window.currentUser ? window.currentUser.id : null;
+    guestbookList.innerHTML = messages.map(msg => {
+        const isAuthor = currentUserId === msg.user_id;
+        const likedClass = msg.has_liked ? 'liked' : '';
+        const likeAction = msg.has_liked ? `unlikeGuestbook(${msg.id}, this)` : `likeGuestbook(${msg.id}, this)`;
+        const likeIcon = msg.has_liked ? 'fas fa-heart' : 'far fa-heart';
+        let adminControls = '';
+        if (isAdmin) {
+            const visibilityIcon = msg.is_hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+            const visibilityTitle = msg.is_hidden ? '取消隐藏' : '隐藏留言';
+            const visibilityClass = msg.is_hidden ? 'status-hidden' : '';
+            adminControls = `
+                <div class="guestbook-admin-controls">
+                    <button class="icon-btn small ${visibilityClass}" onclick="toggleGuestbookVisibility(${msg.id}, ${msg.is_hidden})" title="${visibilityTitle}">
+                        <i class="${visibilityIcon}"></i>
+                    </button>
+                    <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }
+        return `
+            <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''}">
+                <div class="guestbook-header">
+                    <div class="guestbook-user">
+                        <div class="user-avatar-placeholder">${msg.nickname ? msg.nickname.charAt(0).toUpperCase() : 'U'}</div>
+                        <div class="user-info-text">
+                            <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
+                            <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
+                        </div>
+                    </div>
+                     ${adminControls}
+                </div>
+                <div class="guestbook-content">${escapeHtml(msg.content)}</div>
+                <div class="guestbook-footer">
+                    <button class="like-btn ${likedClass}" onclick="${likeAction}">
+                        <i class="${likeIcon}"></i> <span>${msg.likes}</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+function renderGuestbookPagination() {
+    if (!guestbookPagination) return;
+    if (totalGuestbookPages <= 1) {
+        guestbookPagination.innerHTML = '';
+        guestbookPagination.style.display = 'none';
+        return;
+    }
+    guestbookPagination.style.display = 'flex';
+    guestbookPagination.innerHTML = `
+        <button class="secondary-btn small" onclick="changeGuestbookPage(${currentGuestbookPage - 1})" ${currentGuestbookPage === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <span class="pagination-info">${currentGuestbookPage} / ${totalGuestbookPages}</span>
+        <button class="secondary-btn small" onclick="changeGuestbookPage(${currentGuestbookPage + 1})" ${currentGuestbookPage === totalGuestbookPages ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    `;
+}
+async function handleGuestbookSubmit(e) {
+    e.preventDefault();
+    const content = guestbookContentInput.value.trim();
+    if (!content) return;
+    if (submitGuestbookBtn) {
+        submitGuestbookBtn.disabled = true;
+        submitGuestbookBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 发布中...';
+    }
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(GUESTBOOK_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ content })
+        });
+        if (response.ok) {
+            guestbookContentInput.value = '';
+            showNotification('留言发布成功！', 'success');
+            fetchAndDisplayGuestbook(1);
+        } else {
+            const data = await response.json();
+            showNotification(data.error || '发布失败', 'error');
+        }
+    } catch (error) {
+        console.error('Error posting guestbook:', error);
+        showNotification('发布出错，请检查网络', 'error');
+    } finally {
+        if (submitGuestbookBtn) {
+            submitGuestbookBtn.disabled = false;
+            submitGuestbookBtn.innerHTML = '发布心愿';
+        }
+    }
+}
+async function handleGuestbookAction(id, action, btnElement) {
+    try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            showNotification('请先登录', 'warning');
+            return;
+        }
+        if (btnElement && (action === 'like' || action === 'unlike')) {
+             const icon = btnElement.querySelector('i');
+             const countSpan = btnElement.querySelector('span');
+             let count = parseInt(countSpan.textContent);
+             if (action === 'like') {
+                 btnElement.classList.add('liked');
+                 icon.classList.remove('far');
+                 icon.classList.add('fas');
+                 countSpan.textContent = count + 1;
+                 btnElement.setAttribute('onclick', `unlikeGuestbook(${id}, this)`);
+             } else {
+                 btnElement.classList.remove('liked');
+                 icon.classList.remove('fas');
+                 icon.classList.add('far');
+                 countSpan.textContent = Math.max(0, count - 1);
+                 btnElement.setAttribute('onclick', `likeGuestbook(${id}, this)`);
+             }
+        }
+        const response = await fetch(GUESTBOOK_API_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ id, action })
+        });
+        if (!response.ok) {
+             if (btnElement && (action === 'like' || action === 'unlike')) {
+                 fetchAndDisplayGuestbook(currentGuestbookPage);
+                 showNotification('操作失败', 'error');
+             } else {
+                 const data = await response.json();
+                 showNotification(data.error || '操作失败', 'error');
+             }
+        } else {
+            if (action === 'hide' || action === 'unhide') {
+                showNotification('状态已更新', 'success');
+                fetchAndDisplayGuestbook(currentGuestbookPage);
+            }
+        }
+    } catch (error) {
+        console.error('Error handling guestbook action:', error);
+        showNotification('操作出错', 'error');
+         if (btnElement && (action === 'like' || action === 'unlike')) {
+             fetchAndDisplayGuestbook(currentGuestbookPage);
+         }
+    }
+}
+async function handleDeleteGuestbook(id) {
+    if (!confirm('确定要删除这条留言吗？')) return;
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${GUESTBOOK_API_URL}?id=${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (response.ok) {
+            showNotification('留言已删除', 'success');
+            fetchAndDisplayGuestbook(currentGuestbookPage);
+        } else {
+            showNotification('删除失败', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting guestbook:', error);
+        showNotification('删除出错', 'error');
+    }
+}
