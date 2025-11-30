@@ -12,6 +12,7 @@ export async function sendEmail(env, to, subject, html) {
   const version = "2020-10-02";
   const timestamp = Math.floor(Date.now() / 1000);
   const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
+  const base64Html = btoa(unescape(encodeURIComponent(html)));
   const payload = {
     FromEmailAddress: FROM_ADDRESS,
     Destination: [to],
@@ -19,7 +20,7 @@ export async function sendEmail(env, to, subject, html) {
     TriggerType: 1,
     ReplyToAddresses: FROM_ADDRESS,
     Simple: {
-      Html: html,
+      Html: base64Html,
     },
   };
   const payloadStr = JSON.stringify(payload);
