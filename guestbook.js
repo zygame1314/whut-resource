@@ -38,6 +38,20 @@ async function fetchAndDisplayGuestbook(page = 1) {
     if (!guestbookSection) return;
     try {
         const token = localStorage.getItem('authToken');
+        
+        if (!token) {
+             if (guestbookForm) guestbookForm.style.display = 'none';
+             const loginPrompt = document.getElementById('guestbook-login-prompt');
+             if (loginPrompt) loginPrompt.style.display = 'block';
+             if (guestbookList) {
+                 guestbookList.innerHTML = '';
+             }
+             if (guestbookPagination) {
+                 guestbookPagination.style.display = 'none';
+             }
+             return;
+        }
+
         const headers = {};
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
@@ -54,15 +68,11 @@ async function fetchAndDisplayGuestbook(page = 1) {
         totalGuestbookPages = pagination.totalPages;
         renderGuestbook(messages);
         renderGuestbookPagination();
-        if (!token) {
-             if (guestbookForm) guestbookForm.style.display = 'none';
-             const loginPrompt = document.getElementById('guestbook-login-prompt');
-             if (loginPrompt) loginPrompt.style.display = 'block';
-        } else {
-             if (guestbookForm) guestbookForm.style.display = 'block';
-             const loginPrompt = document.getElementById('guestbook-login-prompt');
-             if (loginPrompt) loginPrompt.style.display = 'none';
-        }
+        
+        if (guestbookForm) guestbookForm.style.display = 'block';
+        const loginPrompt = document.getElementById('guestbook-login-prompt');
+        if (loginPrompt) loginPrompt.style.display = 'none';
+
     } catch (error) {
         console.error('Error fetching guestbook:', error);
         if (guestbookList) {

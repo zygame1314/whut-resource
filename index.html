@@ -90,38 +90,6 @@
         </div>
     </section>
 
-    <section id="guestbook-section" class="guestbook-section">
-        <div class="container">
-            <div class="guestbook-card">
-                <div class="guestbook-header-section">
-                    <h3 class="section-title"><i class="fas fa-comments"></i> 留言板 & 资源请愿</h3>
-                    <p class="section-subtitle">想要什么资源？或者有什么想说的话？在这里告诉我们吧！</p>
-                </div>
-                
-                <div class="guestbook-form-container">
-                    <div id="guestbook-login-prompt" style="display: none;" class="login-prompt">
-                        <i class="fas fa-lock"></i> 请先 <a href="#" onclick="showAuthModal('login'); return false;">登录</a> 后发布留言
-                    </div>
-                    <form id="guestbook-form" style="display: none;">
-                        <div class="input-wrapper">
-                            <textarea id="guestbook-content" placeholder="写下你的心愿或留言..." maxlength="500" required></textarea>
-                            <button type="submit" id="submit-guestbook-btn" class="primary-btn">
-                                发布心愿
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <div id="guestbook-list" class="guestbook-list">
-                    <div class="loading-spinner"></div>
-                </div>
-                
-                <div id="guestbook-pagination" class="pagination-controls" style="display: none; justify-content: center; margin-top: 1rem;">
-                </div>
-            </div>
-        </div>
-    </section>
-
     <main class="main-content">
         <div class="container">
             <div class="explorer-container">
@@ -266,6 +234,38 @@
             </div>
         </div>
     </main>
+
+    <section id="guestbook-section" class="guestbook-section">
+        <div class="container">
+            <div class="guestbook-card">
+                <div class="guestbook-header-section">
+                    <h3 class="section-title"><i class="fas fa-comments"></i> 留言板 & 资源请愿</h3>
+                    <p class="section-subtitle">想要什么资源？或者有什么想说的话？在这里告诉我们吧！</p>
+                </div>
+                
+                <div class="guestbook-form-container">
+                    <div id="guestbook-login-prompt" style="display: none;" class="login-prompt">
+                        <i class="fas fa-lock"></i> 请先 <a href="#" onclick="showAuthModal('login'); return false;">登录</a> 后查看和发布留言
+                    </div>
+                    <form id="guestbook-form" style="display: none;">
+                        <div class="input-wrapper">
+                            <textarea id="guestbook-content" placeholder="写下你的心愿或留言..." maxlength="500" required></textarea>
+                            <button type="submit" id="submit-guestbook-btn" class="primary-btn">
+                                发布心愿
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="guestbook-list" class="guestbook-list">
+                    <div class="loading-spinner"></div>
+                </div>
+                
+                <div id="guestbook-pagination" class="pagination-controls" style="display: none; justify-content: center; margin-top: 1rem;">
+                </div>
+            </div>
+        </div>
+    </section>
 
     <footer class="footer">
         <div class="footer-content">
