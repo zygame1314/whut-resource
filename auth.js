@@ -13,6 +13,7 @@ async function checkAuth() {
         const data = await response.json();
         if (data.success) {
             currentUser = data.user;
+            window.currentUser = currentUser;
             if (typeof fetchAndDisplayFiles === 'function') {
                 fetchAndDisplayFiles('');
             }
@@ -27,6 +28,9 @@ async function checkAuth() {
             }
             if (typeof fetchFileStats === 'function') {
                 fetchFileStats();
+            }
+            if (typeof checkAdminPermission === 'function') {
+                checkAdminPermission();
             }
         } else {
             logout();
@@ -86,10 +90,8 @@ function updateAuthUI() {
 function showAuthModal(mode = 'login') {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';
-    
     const isLogin = mode === 'login';
     const title = isLogin ? '登录' : '注册';
-    
     modal.innerHTML = `
         <div class="auth-box">
             <button id="close-modal" class="close-modal-btn">
@@ -129,7 +131,6 @@ function showAuthModal(mode = 'login') {
     const form = modal.querySelector('#auth-form');
     const closeBtn = modal.querySelector('#close-modal');
     const switchLink = modal.querySelector('#switch-mode');
-    
     if (!isLogin) {
         const sendCodeBtn = modal.querySelector('#send-code-btn');
         sendCodeBtn.onclick = async () => {
@@ -172,7 +173,6 @@ function showAuthModal(mode = 'login') {
             }
         };
     }
-
     closeBtn.onclick = () => modal.remove();
     modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
     switchLink.onclick = (e) => {
@@ -186,7 +186,6 @@ function showAuthModal(mode = 'login') {
         const password = document.getElementById('auth-password').value;
         const code = !isLogin ? document.getElementById('auth-code').value : undefined;
         const nickname = !isLogin ? document.getElementById('auth-nickname').value : undefined;
-
         try {
             const res = await fetch(AUTH_API_URL, {
                 method: 'POST',
@@ -259,11 +258,9 @@ async function syncFiles() {
         btn.disabled = false;
     }
 }
-
 function showChangePasswordModal() {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';
-    
     modal.innerHTML = `
         <div class="auth-box">
             <button id="close-modal" class="close-modal-btn">
@@ -284,21 +281,17 @@ function showChangePasswordModal() {
         </div>
     `;
     document.body.appendChild(modal);
-    
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
-    
     const form = modal.querySelector('#change-pwd-form');
     form.onsubmit = async (e) => {
         e.preventDefault();
         const oldPassword = document.getElementById('old-password').value;
         const newPassword = document.getElementById('new-password').value;
-        
         if (newPassword.length < 6) {
             showNotification('新密码至少需要6个字符', 'error');
             return;
         }
-
         try {
             const res = await fetch(AUTH_API_URL, {
                 method: 'POST',

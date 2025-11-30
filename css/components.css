@@ -871,7 +871,7 @@
 }
 
 .close-modal-btn i {
-    transition: none; /* 防止图标自身也有导致偏移的动画 */
+    transition: none;
     line-height: 1;
     display: block;
 }
@@ -932,7 +932,6 @@
     to { transform: translateY(0); opacity: 1; }
 }
 
-/* User Info 美化样式 */
 .user-info {
     display: inline-flex;
     align-items: center;
@@ -1008,5 +1007,122 @@
 .user-info .quota:hover {
     background: rgba(0, 123, 255, 0.15);
     transform: scale(1.05);
+}
+
+
+.announcement-section {
+    padding: 1rem 0;
+    margin-bottom: 1rem;
+}
+
+.announcement-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border-color);
+}
+
+.announcement-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.announcement-header h3 {
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.announcement-header h3 i {
+    color: var(--primary-color);
+}
+
+.announcement-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.announcement-item:last-child {
+    border-bottom: none;
+}
+
+.announcement-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.announcement-text {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.announcement-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.admin-announcement-item {
+    background: var(--background-alt);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-announcement-info h4 {
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+}
+
+.admin-announcement-status {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+}
+
+.status-published {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+}
+
+.status-draft {
+    background: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+}
+
+.admin-announcement-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.secondary-btn {
+    padding: 0.6rem 1.2rem;
+    background: var(--background-alt);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.secondary-btn:hover {
+    background: var(--hover-bg);
 }
 

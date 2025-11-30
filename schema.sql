@@ -38,6 +38,18 @@ CREATE TABLE downloads (
     FOREIGN KEY (file_key) REFERENCES files(key) ON DELETE CASCADE
 );
 
+DROP TABLE IF EXISTS announcements;
+CREATE TABLE announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    is_published BOOLEAN DEFAULT FALSE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    author_id INTEGER,
+    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_files_parent_path_is_directory_name ON files(parent_path, is_directory, name);
 CREATE INDEX IF NOT EXISTS idx_files_parent_path_is_directory_uploaded ON files(parent_path, is_directory, uploaded DESC);
 CREATE INDEX IF NOT EXISTS idx_downloads_user_id ON downloads(user_id);
