@@ -51,13 +51,15 @@ function updateAuthUI() {
         if (authSection) {
             authSection.innerHTML = `
                 <span class="user-info">
-                    <i class="fas fa-user"></i> ${currentUser.email}
+                    <i class="fas fa-user"></i> ${currentUser.nickname || currentUser.email}
                     <span class="quota">(${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次)</span>
                 </span>
                 ${currentUser.role === 'admin' ? '<button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>' : ''}
+                <button id="change-pwd-btn" class="secondary-btn" title="修改密码"><i class="fas fa-key"></i></button>
                 <button id="logout-btn" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>
             `;
             document.getElementById('logout-btn').addEventListener('click', logout);
+            document.getElementById('change-pwd-btn').addEventListener('click', showChangePasswordModal);
             if (currentUser.role === 'admin') {
                 document.getElementById('sync-btn').addEventListener('click', syncFiles);
             }
@@ -100,6 +102,10 @@ function showAuthModal(mode = 'login') {
                     <input type="email" id="auth-email" required class="form-control" placeholder="请输入学校邮箱">
                 </div>
                 ${!isLogin ? `
+                <div class="form-group">
+                    <label>昵称</label>
+                    <input type="text" id="auth-nickname" class="form-control" placeholder="请输入昵称">
+                </div>
                 <div class="form-group">
                     <label>验证码</label>
                     <div class="input-group">
@@ -178,12 +184,13 @@ function showAuthModal(mode = 'login') {
         const email = document.getElementById('auth-email').value;
         const password = document.getElementById('auth-password').value;
         const code = !isLogin ? document.getElementById('auth-code').value : undefined;
+        const nickname = !isLogin ? document.getElementById('auth-nickname').value : undefined;
 
         try {
             const res = await fetch(AUTH_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: mode, email, password, code })
+                body: JSON.stringify({ action: mode, email, password, code, nickname })
             });
             const data = await res.json();
             if (data.success) {
@@ -250,5 +257,72 @@ async function syncFiles() {
         btn.innerHTML = originalIcon;
         btn.disabled = false;
     }
+}
+
+function showChangePasswordModal() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    
+    modal.innerHTML = `
+        <div class="auth-box">
+            <button id="close-modal" class="close-modal-btn">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="auth-title">修改密码</h2>
+            <form id="change-pwd-form">
+                <div class="form-group">
+                    <label>旧密码</label>
+                    <input type="password" id="old-password" required class="form-control" placeholder="请输入旧密码">
+                </div>
+                <div class="form-group">
+                    <label>新密码</label>
+                    <input type="password" id="new-password" required class="form-control" placeholder="请输入新密码">
+                </div>
+                <button type="submit" class="primary-btn full-width">确认修改</button>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const closeBtn = modal.querySelector('#close-modal');
+    closeBtn.onclick = () => modal.remove();
+    
+    const form = modal.querySelector('#change-pwd-form');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const oldPassword = document.getElementById('old-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        
+        if (newPassword.length < 6) {
+            showNotification('新密码至少需要6个字符', 'error');
+            return;
+        }
+
+        try {
+            const res = await fetch(AUTH_API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ 
+                    action: 'change-password', 
+                    email: currentUser.email, 
+                    oldPassword, 
+                    newPassword 
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showNotification('密码修改成功', 'success');
+                modal.remove();
+            } else {
+                showNotification(data.error || '修改失败', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showNotification('网络错误', 'error');
+        }
+    };
 }
 document.addEventListener('DOMContentLoaded', checkAuth);

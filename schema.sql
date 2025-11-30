@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS users;
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
+    nickname TEXT,
     password_hash TEXT NOT NULL,
     role TEXT DEFAULT 'user',
     quota_limit INTEGER DEFAULT 50,
