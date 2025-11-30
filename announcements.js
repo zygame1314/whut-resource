@@ -208,7 +208,12 @@ function escapeHtml(text) {
 }
 function formatDateLocal(dateString) {
     if (!dateString) return '';
-    const date = new Date(dateString);
+    let date;
+    if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+')) {
+        date = new Date(dateString.replace(' ', 'T') + 'Z');
+    } else {
+        date = new Date(dateString);
+    }
     return date.toLocaleString('zh-CN', {
         year: 'numeric',
         month: '2-digit',
