@@ -1,5 +1,6 @@
 import { connect } from 'cloudflare:sockets';
 export async function sendEmail(env, to, subject, html) {
+  console.log(`Starting email send to ${to}`);
   if (!env.SMTP_USER || !env.SMTP_PASS) {
     throw new Error("请配置 SMTP_USER 和 SMTP_PASS 环境变量");
   }
@@ -14,9 +15,11 @@ export async function sendEmail(env, to, subject, html) {
   const decoder = new TextDecoder();
   let buffer = "";
   async function readResponse() {
+    let loopCount = 0;
     while (true) {
       const { value, done } = await reader.read();
       if (done) {
+        console.log("Stream done (closed by server)");
         break;
       }
       const text = decoder.decode(value, { stream: true });
@@ -28,21 +31,30 @@ export async function sendEmail(env, to, subject, html) {
              return response;
           }
       }
+      loopCount++;
+      if (loopCount > 100) {
+          console.error("Too many loops without full response");
+          throw new Error("Timeout reading response");
+      }
     }
     return buffer;
   }
   async function sendCommand(cmd, logName) {
+    console.log(`Sending: ${logName || cmd.substring(0, 10)}`); 
     await writer.write(encoder.encode(cmd + "\r\n"));
     const res = await readResponse();
+    console.log(`Response for ${logName}: ${res ? res.trim() : 'EMPTY'}`);
     if (!res || !/^[23]/.test(res)) {
-        throw new Error(`SMTP 错误（${logName || cmd}）：${res}`);
+        throw new Error(`SMTP Error for ${logName || cmd}: ${res}`);
     }
     return res;
   }
   try {
+    console.log("Waiting for welcome message...");
     const welcome = await readResponse();
+    console.log(`Welcome message: ${welcome ? welcome.trim() : 'EMPTY'}`);
     if (!welcome || !welcome.startsWith('220')) {
-        throw new Error(`连接失败: ${welcome}`);
+        throw new Error(`Connection failed: ${welcome || 'No response from server'}`);
     }
     await sendCommand("EHLO client", "EHLO");
     await sendCommand("AUTH LOGIN", "AUTH LOGIN");
@@ -72,13 +84,15 @@ export async function sendEmail(env, to, subject, html) {
     }
     return { success: true };
   } catch (e) {
-    console.error("邮件发送异常:", e);
+    console.error("邮件发送异常详情:", e);
     return { success: false, error: e.message };
   } finally {
     try {
+        console.log("Closing connection...");
         writer.releaseLock();
         socket.close();
     } catch(e) {
+        console.error("Error closing socket:", e);
     }
   }
 }
