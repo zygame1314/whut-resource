@@ -101,7 +101,7 @@ function showAuthModal(mode = 'login') {
             <form id="auth-form">
                 <div class="form-group">
                     <label>邮箱 (@whut.edu.cn)</label>
-                    <input type="email" id="auth-email" required class="form-control" placeholder="${isLogin ? '请输入学校邮箱' : '请输入工号邮箱 (如 123456@whut.edu.cn)'}">
+                    <input type="email" id="auth-email" required class="form-control" placeholder="${isLogin ? '请输入学校邮箱' : '请输入校园卡号邮箱 (如 123456@whut.edu.cn)'}">
                 </div>
                 ${!isLogin ? `
                 <div class="form-group">
@@ -148,7 +148,7 @@ function showAuthModal(mode = 'login') {
             const email = document.getElementById('auth-email').value;
             const studentIdEmailRegex = /^\d+@whut\.edu\.cn$/;
             if (!email || !studentIdEmailRegex.test(email)) {
-                showNotification('请使用工号邮箱（纯数字前缀）进行注册', 'error');
+                showNotification('请使用校园卡号邮箱（6个数字）进行注册', 'error');
                 return;
             }
             let cfToken = '';

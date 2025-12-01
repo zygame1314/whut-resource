@@ -699,7 +699,14 @@
         linear-gradient(135deg, rgba(0, 123, 255, 0.2), rgba(77, 163, 255, 0.2));
     background-origin: border-box;
     background-clip: padding-box, border-box;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 700px;
+    scrollbar-width: none;
+}
+
+.auth-box::-webkit-scrollbar {
+    display: none;
 }
 
 .auth-box::before {
