@@ -59,7 +59,7 @@ function renderAnnouncements(announcements) {
         let html = announcements.map(a => `
             <div class="announcement-item">
                 <span class="announcement-title">${escapeHtml(a.title)}</span>
-                <div class="announcement-text">${escapeHtml(a.content)}</div>
+                <div class="announcement-text">${DOMPurify.sanitize(marked.parse(a.content, { breaks: true }))}</div>
                 <div class="announcement-meta">
                     <span><i class="far fa-clock"></i> ${formatDateLocal(a.created_at)}</span>
                 </div>
