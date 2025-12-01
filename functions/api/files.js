@@ -93,9 +93,11 @@ export async function onRequestGet({ request, env }) {
         WHERE files_fts MATCH ?
       `;
 
+      const searchQuery = `"${search.replace(/"/g, '""')}"`;
+
       [itemsResult, totalResult] = await Promise.all([
-        DB.prepare(ftsQuery).bind(search, limit, offset).all(),
-        DB.prepare(ftsCountQuery).bind(search).first()
+        DB.prepare(ftsQuery).bind(searchQuery, limit, offset).all(),
+        DB.prepare(ftsCountQuery).bind(searchQuery).first()
       ]);
     } else {
       const params = [];
