@@ -152,6 +152,12 @@ function renderAdminAnnouncementList() {
     }
     announcementList.innerHTML = html;
 }
+function editAnnouncement(id) {
+    const announcement = allAnnouncements.find(a => a.id == id);
+    if (announcement) {
+        showAnnouncementForm(announcement);
+    }
+}
 function showAnnouncementForm(announcement = null) {
     announcementForm.style.display = 'block';
     addAnnouncementBtn.style.display = 'none';
