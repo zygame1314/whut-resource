@@ -1,6 +1,5 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders } from '../utils.js';
 import { sendEmail } from '../smtp.js';
-
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
@@ -9,16 +8,42 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({ success: false, error: '数据库未配置' }), { status: 500, headers: addCorsHeaders() });
     }
     if (action === 'send-code') {
+      const { cfToken } = body;
+      if (env.TURNSTILE_SECRET_KEY) {
+        if (!cfToken) {
+          return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
+        }
+        const ip = request.headers.get('CF-Connecting-IP');
+        const formData = new FormData();
+        formData.append('secret', env.TURNSTILE_SECRET_KEY);
+        formData.append('response', cfToken);
+        formData.append('remoteip', ip);
+        const url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+        const result = await fetch(url, {
+          body: formData,
+          method: 'POST',
+        });
+        const outcome = await result.json();
+        if (!outcome.success) {
+          return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新页面重试' }), { status: 403, headers: addCorsHeaders() });
+        }
+      }
       const studentIdEmailRegex = /^\d+@whut\.edu\.cn$/;
       if (!email || !studentIdEmailRegex.test(email)) {
         return new Response(JSON.stringify({ success: false, error: '为防止重复注册，请使用工号邮箱（如 123456@whut.edu.cn）。' }), { status: 400, headers: addCorsHeaders() });
       }
-
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
       if (existing) {
         return new Response(JSON.stringify({ success: false, error: '用户已存在。' }), { status: 400, headers: addCorsHeaders() });
       }
-
+      const lastCode = await env.DB.prepare('SELECT created_at FROM verification_codes WHERE email = ? ORDER BY created_at DESC LIMIT 1').bind(email).first();
+      if (lastCode) {
+        const lastSentTime = new Date(lastCode.created_at).getTime();
+        const now = Date.now();
+        if (now - lastSentTime < 60 * 1000) {
+          return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请 60 秒后再试。' }), { status: 429, headers: addCorsHeaders() });
+        }
+      }
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       await env.DB.prepare('DELETE FROM verification_codes WHERE expires_at < ?').bind(new Date().toISOString()).run();
@@ -27,7 +52,6 @@ export async function onRequestPost({ request, env }) {
       await env.DB.prepare('INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)')
         .bind(email, code, expiresAt)
         .run();
-
       try {
         await sendEmail(
           env, 
@@ -39,10 +63,8 @@ export async function onRequestPost({ request, env }) {
         console.error('邮件发送失败:', e);
         return new Response(JSON.stringify({ success: false, error: '验证码发送失败，请稍后重试。' }), { status: 500, headers: addCorsHeaders() });
       }
-
       return new Response(JSON.stringify({ success: true, message: '验证码已发送。' }), { status: 200, headers: addCorsHeaders() });
     }
-
     if (action === 'register') {
       const studentIdEmailRegex = /^\d+@whut\.edu\.cn$/;
       if (!email || !studentIdEmailRegex.test(email)) {
@@ -51,20 +73,16 @@ export async function onRequestPost({ request, env }) {
       if (!password || password.length < 6) {
         return new Response(JSON.stringify({ success: false, error: '密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });
       }
-
       const { code, nickname } = body;
       if (!code) {
         return new Response(JSON.stringify({ success: false, error: '需要验证码。' }), { status: 400, headers: addCorsHeaders() });
       }
-
       const validCode = await env.DB.prepare('SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1')
         .bind(email, code, new Date().toISOString())
         .first();
-
       if (!validCode) {
         return new Response(JSON.stringify({ success: false, error: '验证码无效或已过期。' }), { status: 400, headers: addCorsHeaders() });
       }
-
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
       if (existing) {
         return new Response(JSON.stringify({ success: false, error: '用户已存在。' }), { status: 400, headers: addCorsHeaders() });
@@ -74,12 +92,9 @@ export async function onRequestPost({ request, env }) {
       await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role) VALUES (?, ?, ?, ?)')
         .bind(email, nickname || email.split('@')[0], passwordHash, role)
         .run();
-
       await env.DB.prepare('DELETE FROM verification_codes WHERE email = ?').bind(email).run();
-
       return new Response(JSON.stringify({ success: true, message: '注册成功。请登录。' }), { status: 200, headers: addCorsHeaders() });
     }
-
     if (action === 'change-password') {
       const { oldPassword, newPassword } = body;
       if (!oldPassword || !newPassword) {
@@ -88,25 +103,20 @@ export async function onRequestPost({ request, env }) {
       if (newPassword.length < 6) {
         return new Response(JSON.stringify({ success: false, error: '新密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });
       }
-
       const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
       if (!user) {
         return new Response(JSON.stringify({ success: false, error: '用户不存在。' }), { status: 404, headers: addCorsHeaders() });
       }
-
       const isValid = await verifyPasswordHash(oldPassword, user.password_hash, env.SALT);
       if (!isValid) {
         return new Response(JSON.stringify({ success: false, error: '旧密码错误。' }), { status: 401, headers: addCorsHeaders() });
       }
-
       const passwordHash = await hashPassword(newPassword, env.SALT);
       await env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
         .bind(passwordHash, user.id)
         .run();
-
       return new Response(JSON.stringify({ success: true, message: '密码修改成功。' }), { status: 200, headers: addCorsHeaders() });
     }
-
     if (action === 'login') {
       const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
       if (!user) {
@@ -117,12 +127,10 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({ success: false, error: '凭据无效。' }), { status: 401, headers: addCorsHeaders() });
       }
       const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
-
       const today = new Date().toISOString().split('T')[0];
       if (user.last_download_date !== today) {
         user.quota_used = 0;
       }
-
       const quota_remaining = user.quota_limit - user.quota_used;
       return new Response(JSON.stringify({ success: true, token, user: { email: user.email, nickname: user.nickname, role: user.role, quota_limit: user.quota_limit, quota_used: user.quota_used, quota_remaining } }), { status: 200, headers: addCorsHeaders() });
     }

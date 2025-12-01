@@ -114,6 +114,8 @@ function showAuthModal(mode = 'login') {
                         <input type="text" id="auth-code" placeholder="6位验证码" class="form-control">
                         <button type="button" id="send-code-btn" class="send-code-btn">发送验证码</button>
                     </div>
+                    <!-- Cloudflare Turnstile Widget -->
+                    <div id="turnstile-widget" style="margin-top: 10px;"></div>
                 </div>
                 ` : ''}
                 <div class="form-group">
@@ -132,6 +134,15 @@ function showAuthModal(mode = 'login') {
     const closeBtn = modal.querySelector('#close-modal');
     const switchLink = modal.querySelector('#switch-mode');
     if (!isLogin) {
+        let turnstileWidgetId;
+        if (window.turnstile) {
+            turnstileWidgetId = turnstile.render('#turnstile-widget', {
+                sitekey: '0x4AAAAAABfgqCmMGBV9Nf8U',
+                callback: function(token) {
+                    console.log('Turnstile success');
+                },
+            });
+        }
         const sendCodeBtn = modal.querySelector('#send-code-btn');
         sendCodeBtn.onclick = async () => {
             const email = document.getElementById('auth-email').value;
@@ -140,13 +151,21 @@ function showAuthModal(mode = 'login') {
                 showNotification('请使用工号邮箱（纯数字前缀）进行注册', 'error');
                 return;
             }
+            let cfToken = '';
+            if (window.turnstile) {
+                cfToken = turnstile.getResponse(turnstileWidgetId);
+                if (!cfToken) {
+                    showNotification('请先完成人机验证', 'error');
+                    return;
+                }
+            }
             sendCodeBtn.disabled = true;
             sendCodeBtn.textContent = '发送中...';
             try {
                 const res = await fetch(AUTH_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'send-code', email })
+                    body: JSON.stringify({ action: 'send-code', email, cfToken })
                 });
                 const data = await res.json();
                 if (data.success) {
