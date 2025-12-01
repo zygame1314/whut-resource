@@ -109,7 +109,26 @@
                         <div class="loading-spinner" style="margin-top: 20px;"></div>
                     </div>
                 </aside>
+                
                 <section id="file-explorer" class="file-explorer">
+                    <section id="recent-uploads-section" class="recent-uploads-section">
+                        <div class="recent-uploads-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-clock-rotate-left"></i>
+                                最近上传
+                            </h3>
+                            <button id="refresh-recent-uploads" class="icon-btn" title="刷新最近上传">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <ul id="recent-uploads-list" class="recent-uploads-list">
+                            <li class="loading-item">
+                                <div class="loading-spinner"></div>
+                                <span>请先完成验证以查看最近上传</span>
+                            </li>
+                        </ul>
+                    </section>
+                    
                     <div class="explorer-header">
                         <div class="header-left">
                             <h2 class="section-title">
@@ -140,24 +159,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <section id="recent-uploads-section" class="recent-uploads-section">
-                        <div class="recent-uploads-header">
-                            <h3 class="section-title">
-                                <i class="fas fa-clock-rotate-left"></i>
-                                最近上传
-                            </h3>
-                            <button id="refresh-recent-uploads" class="icon-btn" title="刷新最近上传">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
-                        <ul id="recent-uploads-list" class="recent-uploads-list">
-                            <li class="loading-item">
-                                <div class="loading-spinner"></div>
-                                <span>请先完成验证以查看最近上传</span>
-                            </li>
-                        </ul>
-                    </section>
 
                     <div class="search-container">
                         <div class="search-box">
