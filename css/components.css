@@ -709,23 +709,6 @@
     display: none;
 }
 
-.auth-box::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(0, 123, 255, 0.05) 0%, transparent 70%);
-    animation: rotateGlow 8s linear infinite;
-    pointer-events: none;
-}
-
-@keyframes rotateGlow {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
 .auth-title {
     margin-bottom: 2.5rem;
     text-align: center;
