@@ -59,6 +59,17 @@ export async function onRequestGet({ request, env }) {
       }));
       return new Response(JSON.stringify({ success: true, hotFolders: hotFolders }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    if (action === 'recentUploads') {
+      const limit = parseInt(url.searchParams.get('limit') || '6');
+      const stmt = DB.prepare(`
+        SELECT * FROM files
+        WHERE is_directory = FALSE
+        ORDER BY uploaded DESC
+        LIMIT ?
+      `);
+      const { results } = await stmt.bind(limit).all();
+      return new Response(JSON.stringify({ success: true, files: results }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || DEFAULT_PAGE_SIZE);
     const offset = (page - 1) * limit;
