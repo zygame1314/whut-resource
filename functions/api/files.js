@@ -75,32 +75,54 @@ export async function onRequestGet({ request, env }) {
     const offset = (page - 1) * limit;
     const search = url.searchParams.get('search') || '';
     const prefix = url.searchParams.get('prefix') || '';
-    const params = [];
-    let baseWhere = 'WHERE 1=1';
+
+    let itemsResult, totalResult;
+
     if (search) {
-      baseWhere += ' AND name LIKE ?';
-      params.push(`%${search}%`);
+      const ftsQuery = `
+        SELECT files.* FROM files
+        JOIN files_fts ON files.id = files_fts.rowid
+        WHERE files_fts MATCH ?
+        ORDER BY rank
+        LIMIT ? OFFSET ?
+      `;
+      
+      const ftsCountQuery = `
+        SELECT COUNT(*) as total FROM files
+        JOIN files_fts ON files.id = files_fts.rowid
+        WHERE files_fts MATCH ?
+      `;
+
+      [itemsResult, totalResult] = await Promise.all([
+        DB.prepare(ftsQuery).bind(search, limit, offset).all(),
+        DB.prepare(ftsCountQuery).bind(search).first()
+      ]);
     } else {
+      const params = [];
+      let baseWhere = 'WHERE 1=1';
+      
       let searchPath = prefix;
       if (searchPath && !searchPath.endsWith('/')) {
         searchPath += '/';
       }
       baseWhere += ' AND parent_path = ?';
       params.push(searchPath);
+      
+      const combinedQuery = `
+        SELECT * FROM files
+        ${baseWhere}
+        ORDER BY is_directory DESC,
+                 CASE WHEN is_directory = 1 THEN name END ASC,
+                 CASE WHEN is_directory = 0 THEN uploaded END DESC
+        LIMIT ? OFFSET ?
+      `;
+      const countQuery = `SELECT COUNT(*) as total FROM files ${baseWhere}`;
+      
+      [itemsResult, totalResult] = await Promise.all([
+        DB.prepare(combinedQuery).bind(...params, limit, offset).all(),
+        DB.prepare(countQuery).bind(...params).first()
+      ]);
     }
-    const combinedQuery = `
-      SELECT * FROM files
-      ${baseWhere}
-      ORDER BY is_directory DESC,
-               CASE WHEN is_directory = 1 THEN name END ASC,
-               CASE WHEN is_directory = 0 THEN uploaded END DESC
-      LIMIT ? OFFSET ?
-    `;
-    const countQuery = `SELECT COUNT(*) as total FROM files ${baseWhere}`;
-    const [itemsResult, totalResult] = await Promise.all([
-      DB.prepare(combinedQuery).bind(...params, limit, offset).all(),
-      DB.prepare(countQuery).bind(...params).first()
-    ]);
     const items = itemsResult.results || [];
     const totalItems = totalResult?.total || 0;
     const directories = items.filter(item => item.is_directory);
