@@ -1445,9 +1445,9 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
         }
     }
     let displayedDirectories = [];
-    if (!isGlobalSearch && data.directories && data.directories.length > 0) {
+    if (data.directories && data.directories.length > 0) {
         let filteredDirectories = data.directories;
-        if (lowerLocalSearchTerm) {
+        if (!isGlobalSearch && lowerLocalSearchTerm) {
             filteredDirectories = filteredDirectories.filter(dir =>
                 dir.name.toLowerCase().includes(lowerLocalSearchTerm)
             );
