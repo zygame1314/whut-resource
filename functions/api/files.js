@@ -77,17 +77,23 @@ export async function onRequestGet({ request, env }) {
       baseWhere += ' AND parent_path = ?';
       params.push(searchPath);
     }
-    const dirQuery = `SELECT * FROM files ${baseWhere} AND is_directory = TRUE ORDER BY name ASC`;
-    const fileQuery = `SELECT * FROM files ${baseWhere} AND is_directory = FALSE ORDER BY uploaded DESC`;
-    const [dirResult, fileResult] = await Promise.all([
-      DB.prepare(dirQuery).bind(...params).all(),
-      DB.prepare(fileQuery + ' LIMIT ? OFFSET ?').bind(...params, limit, offset).all()
+    const combinedQuery = `
+      SELECT * FROM files
+      ${baseWhere}
+      ORDER BY is_directory DESC,
+               CASE WHEN is_directory = 1 THEN name END ASC,
+               CASE WHEN is_directory = 0 THEN uploaded END DESC
+      LIMIT ? OFFSET ?
+    `;
+    const countQuery = `SELECT COUNT(*) as total FROM files ${baseWhere}`;
+    const [itemsResult, totalResult] = await Promise.all([
+      DB.prepare(combinedQuery).bind(...params, limit, offset).all(),
+      DB.prepare(countQuery).bind(...params).first()
     ]);
-    const directories = dirResult.results || [];
-    const files = fileResult.results || [];
-    let countQuery = `SELECT COUNT(*) as total FROM files ${baseWhere} AND is_directory = FALSE`;
-    const totalResult = await DB.prepare(countQuery).bind(...params).first();
+    const items = itemsResult.results || [];
     const totalItems = totalResult?.total || 0;
+    const directories = items.filter(item => item.is_directory);
+    const files = items.filter(item => !item.is_directory);
     const totalPages = Math.max(1, Math.ceil(totalItems / limit));
     return new Response(JSON.stringify({
       success: true,
