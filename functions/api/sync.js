@@ -15,29 +15,38 @@ export async function onRequestPost({ request, env }) {
      return new Response(JSON.stringify({ success: false, error: '配置错误' }), { status: 500, headers: addCorsHeaders() });
   }
   try {
-    let requestBody = {};
-    try {
-        requestBody = await request.json();
-    } catch (e) {}
-    const cursor = requestBody.cursor;
-    const options = { limit: 500 };
-    if (cursor) options.cursor = cursor;
-    const list = await R2.list(options);
+    let allR2Objects = [];
+    let cursor = null;
+    let truncated = true;
+    while (truncated) {
+        const options = { limit: 1000 };
+        if (cursor) options.cursor = cursor;
+        const list = await R2.list(options);
+        allR2Objects = allR2Objects.concat(list.objects);
+        truncated = list.truncated;
+        cursor = list.cursor;
+    }
     const statements = [];
+    const validKeys = new Set();
     const dirPaths = new Set();
-    let totalSynced = 0;
-    for (const object of list.objects) {
+    for (const object of allR2Objects) {
         const key = object.key;
         if (key.endsWith('/')) continue;
+        validKeys.add(key);
         const name = key.split('/').pop();
         const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         const size = object.size;
         const uploaded = object.uploaded.toISOString();
         const contentType = object.httpMetadata?.contentType || 'application/octet-stream';
         statements.push(DB.prepare(
-            'INSERT OR IGNORE INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            `INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads, uploader_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET
+             size=excluded.size,
+             uploaded=excluded.uploaded,
+             contentType=excluded.contentType,
+             parent_path=excluded.parent_path`
         ).bind(key, name, size, uploaded, contentType, parentPath, false, 0, user.id));
-        totalSynced++;
         if (parentPath) {
             let currentPath = parentPath;
             while (currentPath) {
@@ -50,25 +59,41 @@ export async function onRequestPost({ request, env }) {
         }
     }
     for (const dirPath of dirPaths) {
+        validKeys.add(dirPath);
         const parts = dirPath.split('/').filter(p => p);
         const dirName = parts[parts.length - 1];
         const parentDir = parts.length > 1 ? parts.slice(0, parts.length - 1).join('/') + '/' : '';
         statements.push(DB.prepare(
-            'INSERT OR IGNORE INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            `INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET
+             uploaded=excluded.uploaded,
+             parent_path=excluded.parent_path`
         ).bind(dirPath, dirName, 0, new Date().toISOString(), 'inode/directory', parentDir, true, 0));
     }
+    const { results } = await DB.prepare('SELECT key FROM files').all();
+    const dbKeys = results.map(r => r.key);
+    const keysToDelete = dbKeys.filter(key => !validKeys.has(key));
+    for (const key of keysToDelete) {
+        statements.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(key));
+    }
     const BATCH_SIZE = 50;
+    let processedCount = 0;
     for (let i = 0; i < statements.length; i += BATCH_SIZE) {
         const chunk = statements.slice(i, i + BATCH_SIZE);
         if (chunk.length > 0) {
             await DB.batch(chunk);
+            processedCount += chunk.length;
         }
     }
-    return new Response(JSON.stringify({ 
-        success: true, 
-        message: `已处理 ${totalSynced} 个文件。`,
-        nextCursor: list.truncated ? list.cursor : null,
-        syncedCount: totalSynced
+    return new Response(JSON.stringify({
+        success: true,
+        message: `同步完成。R2文件数: ${allR2Objects.length}, 目录数: ${dirPaths.size}, 数据库操作数: ${statements.length} (含 ${keysToDelete.length} 个删除)`,
+        syncedStats: {
+            files: allR2Objects.length,
+            dirs: dirPaths.size,
+            deleted: keysToDelete.length
+        }
     }), { status: 200, headers: addCorsHeaders() });
   } catch (e) {
     return new Response(JSON.stringify({ success: false, error: e.message, stack: e.stack }), { status: 500, headers: addCorsHeaders() });

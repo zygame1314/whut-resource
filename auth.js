@@ -223,39 +223,30 @@ function formatSize(bytes) {
 }
 async function syncFiles() {
     const confirmed = await showConfirmation({
-        title: '同步确认',
-        message: '确定要从 R2 同步文件索引到数据库吗？这可能需要一些时间。',
-        confirmText: '确定同步'
+        title: '高风险操作确认',
+        message: '⚠️ 警告：全量同步非常消耗服务器资源！<br><br>正常上传/删除无需使用此功能。<br>仅在你直接操作过 R2 存储桶（如批量上传/改名）导致数据不一致时才使用。<br><br>确定要执行全量同步吗？这可能需要几十秒甚至更久。',
+        confirmText: '我明白，开始同步'
     });
     if (!confirmed) return;
     const btn = document.getElementById('sync-btn');
     const originalIcon = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     btn.disabled = true;
-    let cursor = null;
-    let totalSynced = 0;
-    let hasMore = true;
     try {
-        while (hasMore) {
-            const response = await fetch(`/api/sync`, {
-                method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ cursor })
-            });
-            const result = await response.json();
-            if (!result.success) {
-                throw new Error(result.error || 'Unknown error');
-            }
-            totalSynced += (result.syncedCount || 0);
-            cursor = result.nextCursor;
-            hasMore = !!cursor;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${totalSynced}`;
+        const response = await fetch(`/api/sync`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+        });
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Unknown error');
         }
-        showNotification(`同步完成！共同步了 ${totalSynced} 个文件。`, 'success');
-        window.location.reload();
+        showNotification(result.message, 'success');
+        setTimeout(() => window.location.reload(), 2000);
     } catch (e) {
         showNotification('同步出错: ' + e.message, 'error');
     } finally {
