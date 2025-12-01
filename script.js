@@ -52,7 +52,7 @@ async function fetchAndRenderHotFolders() {
                 const li = document.createElement('li');
                 li.className = 'hot-folder-item';
                 li.innerHTML = `
-                    <span class="hot-folder-name">
+                    <span class="hot-folder-name" title="${folder.name}">
                        <i class="fas fa-folder"></i>
                        ${folder.name}
                     </span>
@@ -279,7 +279,7 @@ function renderFolderNode(name, node, currentPath) {
         <span class="folder-item-main">
             <i class="fas fa-chevron-right folder-toggle-icon ${hasChildren ? '' : 'hidden'}"></i>
             <i class="fas fa-folder folder-icon"></i>
-            <span class="folder-name">${name}</span>
+            <span class="folder-name" title="${name}">${name}</span>
         </span>
         <button class="go-to-folder-btn" title="进入文件夹">
             <i class="fas fa-arrow-right"></i>

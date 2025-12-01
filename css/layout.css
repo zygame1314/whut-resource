@@ -107,6 +107,7 @@
     overflow-y: auto;
     position: sticky;
     top: 90px;
+    width: 280px;
 }
 
 .folder-tree-container .section-title {
