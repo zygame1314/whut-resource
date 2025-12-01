@@ -28,9 +28,9 @@ export async function onRequestPost({ request, env }) {
           return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新页面重试' }), { status: 403, headers: addCorsHeaders() });
         }
       }
-      const studentIdEmailRegex = /^\d+@whut\.edu\.cn$/;
+      const studentIdEmailRegex = /^\d{6}@whut\.edu\.cn$/;
       if (!email || !studentIdEmailRegex.test(email)) {
-        return new Response(JSON.stringify({ success: false, error: '为防止重复注册，请使用校园卡号邮箱（如 123456@whut.edu.cn）。' }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '为防止重复注册，请使用6位校园卡号邮箱（如 123456@whut.edu.cn）。' }), { status: 400, headers: addCorsHeaders() });
       }
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
       if (existing) {
@@ -66,9 +66,9 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({ success: true, message: '验证码已发送。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'register') {
-      const studentIdEmailRegex = /^\d+@whut\.edu\.cn$/;
+      const studentIdEmailRegex = /^\d{6}@whut\.edu\.cn$/;
       if (!email || !studentIdEmailRegex.test(email)) {
-        return new Response(JSON.stringify({ success: false, error: '为防止重复注册，请使用校园卡号邮箱（如 123456@whut.edu.cn）。' }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '为防止重复注册，请使用6位校园卡号邮箱（如 123456@whut.edu.cn）。' }), { status: 400, headers: addCorsHeaders() });
       }
       if (!password || password.length < 6) {
         return new Response(JSON.stringify({ success: false, error: '密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });

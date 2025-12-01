@@ -146,9 +146,9 @@ function showAuthModal(mode = 'login') {
         const sendCodeBtn = modal.querySelector('#send-code-btn');
         sendCodeBtn.onclick = async () => {
             const email = document.getElementById('auth-email').value;
-            const studentIdEmailRegex = /^\d+@whut\.edu\.cn$/;
+            const studentIdEmailRegex = /^\d{6}@whut\.edu\.cn$/;
             if (!email || !studentIdEmailRegex.test(email)) {
-                showNotification('请使用校园卡号邮箱（6个数字）进行注册', 'error');
+                showNotification('请使用6位校园卡号邮箱进行注册', 'error');
                 return;
             }
             let cfToken = '';
