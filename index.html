@@ -337,8 +337,17 @@
                         <input type="text" id="announcement-title" class="form-input" placeholder="请输入公告标题">
                     </div>
                     <div class="form-group">
-                        <label for="announcement-text" class="form-label">内容</label>
-                        <textarea id="announcement-text" class="form-input" rows="8" placeholder="请输入公告内容..."></textarea>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <label for="announcement-text" class="form-label" style="margin-bottom: 0;">内容 (支持 Markdown)</label>
+                            <div class="tab-controls">
+                                <button type="button" id="edit-mode-btn" class="tab-btn active">编辑</button>
+                                <button type="button" id="preview-mode-btn" class="tab-btn">预览</button>
+                            </div>
+                        </div>
+                        <div id="edit-area">
+                            <textarea id="announcement-text" class="form-input" rows="8" placeholder="请输入公告内容... (支持 Markdown 语法)"></textarea>
+                        </div>
+                        <div id="preview-area" class="announcement-text form-input" style="display: none; min-height: 200px; height: auto; overflow-y: auto; background: var(--background);"></div>
                     </div>
                     <div class="form-group checkbox-group">
                         <label class="custom-checkbox">

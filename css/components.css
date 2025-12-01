@@ -1386,7 +1386,40 @@ textarea.form-input {
 
 
 
-/* Guestbook Styles */
+.tab-controls {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--background-alt);
+    padding: 0.2rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.tab-btn {
+    padding: 0.3rem 0.8rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    color: var(--primary-color);
+}
+
+.tab-btn.active {
+    background: white;
+    color: var(--primary-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .tab-btn.active {
+    background: var(--background-dark);
+}
 .guestbook-section {
     padding: 1rem 0;
     margin-bottom: 2rem;

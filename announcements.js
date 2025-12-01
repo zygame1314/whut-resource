@@ -14,6 +14,10 @@ const announcementTextInput = document.getElementById('announcement-text');
 const announcementPublishedInput = document.getElementById('announcement-published');
 const saveAnnouncementBtn = document.getElementById('save-announcement-btn');
 const cancelAnnouncementBtn = document.getElementById('cancel-announcement-btn');
+const editModeBtn = document.getElementById('edit-mode-btn');
+const previewModeBtn = document.getElementById('preview-mode-btn');
+const editArea = document.getElementById('edit-area');
+const previewArea = document.getElementById('preview-area');
 let allAnnouncements = [];
 let currentAnnouncementPage = 1;
 let totalAnnouncementPages = 1;
@@ -118,6 +122,29 @@ function initAnnouncementManager() {
     if (saveAnnouncementBtn) {
         saveAnnouncementBtn.addEventListener('click', saveAnnouncement);
     }
+    if (editModeBtn && previewModeBtn) {
+        editModeBtn.addEventListener('click', () => switchTab('edit'));
+        previewModeBtn.addEventListener('click', () => switchTab('preview'));
+    }
+}
+function switchTab(mode) {
+    if (mode === 'edit') {
+        editModeBtn.classList.add('active');
+        previewModeBtn.classList.remove('active');
+        editArea.style.display = 'block';
+        previewArea.style.display = 'none';
+    } else {
+        editModeBtn.classList.remove('active');
+        previewModeBtn.classList.add('active');
+        editArea.style.display = 'none';
+        previewArea.style.display = 'block';
+        const content = announcementTextInput.value;
+        if (!content) {
+            previewArea.innerHTML = '<p class="text-muted">无内容可预览</p>';
+        } else {
+            previewArea.innerHTML = DOMPurify.sanitize(marked.parse(content, { breaks: true }));
+        }
+    }
 }
 function openAnnouncementModal() {
     announcementModal.classList.add('visible');
@@ -175,6 +202,7 @@ function showAnnouncementForm(announcement = null) {
         announcementTextInput.value = '';
         announcementPublishedInput.checked = true;
     }
+    switchTab('edit');
 }
 function hideAnnouncementForm() {
     announcementForm.style.display = 'none';
