@@ -109,26 +109,9 @@
                         <div class="loading-spinner" style="margin-top: 20px;"></div>
                     </div>
                 </aside>
-                
+
                 <section id="file-explorer" class="file-explorer">
-                    <section id="recent-uploads-section" class="recent-uploads-section">
-                        <div class="recent-uploads-header">
-                            <h3 class="section-title">
-                                <i class="fas fa-clock-rotate-left"></i>
-                                最近上传
-                            </h3>
-                            <button id="refresh-recent-uploads" class="icon-btn" title="刷新最近上传">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
-                        <ul id="recent-uploads-list" class="recent-uploads-list">
-                            <li class="loading-item">
-                                <div class="loading-spinner"></div>
-                                <span>请先完成验证以查看最近上传</span>
-                            </li>
-                        </ul>
-                    </section>
-                    
+
                     <div class="explorer-header">
                         <div class="header-left">
                             <h2 class="section-title">
@@ -159,6 +142,24 @@
                             </div>
                         </div>
                     </div>
+
+                    <section id="recent-uploads-section" class="recent-uploads-section">
+                        <div class="recent-uploads-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-clock-rotate-left"></i>
+                                最近上传
+                            </h3>
+                            <button id="refresh-recent-uploads" class="icon-btn" title="刷新最近上传">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <ul id="recent-uploads-list" class="recent-uploads-list">
+                            <li class="loading-item">
+                                <div class="loading-spinner"></div>
+                                <span>请先完成验证以查看最近上传</span>
+                            </li>
+                        </ul>
+                    </section>
 
                     <div class="search-container">
                         <div class="search-box">
@@ -244,14 +245,16 @@
                     <h3 class="section-title"><i class="fas fa-comments"></i> 留言板 & 资源请愿</h3>
                     <p class="section-subtitle">想要什么资源？或者有什么想说的话？在这里告诉我们吧！</p>
                 </div>
-                
+
                 <div class="guestbook-form-container">
                     <div id="guestbook-login-prompt" style="display: none;" class="login-prompt">
-                        <i class="fas fa-lock"></i> 请先 <a href="#" onclick="showAuthModal('login'); return false;">登录</a> 后查看和发布留言
+                        <i class="fas fa-lock"></i> 请先 <a href="#"
+                            onclick="showAuthModal('login'); return false;">登录</a> 后查看和发布留言
                     </div>
                     <form id="guestbook-form" style="display: none;">
                         <div class="input-wrapper">
-                            <textarea id="guestbook-content" placeholder="写下你的心愿或留言..." maxlength="500" required></textarea>
+                            <textarea id="guestbook-content" placeholder="写下你的心愿或留言..." maxlength="500"
+                                required></textarea>
                             <button type="submit" id="submit-guestbook-btn" class="primary-btn">
                                 发布心愿
                             </button>
@@ -262,8 +265,9 @@
                 <div id="guestbook-list" class="guestbook-list">
                     <div class="loading-spinner"></div>
                 </div>
-                
-                <div id="guestbook-pagination" class="pagination-controls" style="display: none; justify-content: center; margin-top: 1rem;">
+
+                <div id="guestbook-pagination" class="pagination-controls"
+                    style="display: none; justify-content: center; margin-top: 1rem;">
                 </div>
             </div>
         </div>
@@ -338,17 +342,22 @@
                         <input type="text" id="announcement-title" class="form-input" placeholder="请输入公告标题">
                     </div>
                     <div class="form-group">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <label for="announcement-text" class="form-label" style="margin-bottom: 0;">内容 (支持 Markdown)</label>
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <label for="announcement-text" class="form-label" style="margin-bottom: 0;">内容 (支持
+                                Markdown)</label>
                             <div class="tab-controls">
                                 <button type="button" id="edit-mode-btn" class="tab-btn active">编辑</button>
                                 <button type="button" id="preview-mode-btn" class="tab-btn">预览</button>
                             </div>
                         </div>
                         <div id="edit-area">
-                            <textarea id="announcement-text" class="form-input" rows="8" placeholder="请输入公告内容... (支持 Markdown 语法)"></textarea>
+                            <textarea id="announcement-text" class="form-input" rows="8"
+                                placeholder="请输入公告内容... (支持 Markdown 语法)"></textarea>
                         </div>
-                        <div id="preview-area" class="announcement-text form-input" style="display: none; min-height: 200px; height: auto; overflow-y: auto; background: var(--background);"></div>
+                        <div id="preview-area" class="announcement-text form-input"
+                            style="display: none; min-height: 200px; height: auto; overflow-y: auto; background: var(--background);">
+                        </div>
                     </div>
                     <div class="form-group checkbox-group">
                         <label class="custom-checkbox">
