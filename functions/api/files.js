@@ -78,7 +78,9 @@ export async function onRequestGet({ request, env }) {
 
     let itemsResult, totalResult;
 
-    if (search) {
+    const useFTS = search && search.length >= 3;
+
+    if (useFTS) {
       const ftsQuery = `
         SELECT files.* FROM files
         JOIN files_fts ON files.id = files_fts.rowid
@@ -103,12 +105,17 @@ export async function onRequestGet({ request, env }) {
       const params = [];
       let baseWhere = 'WHERE 1=1';
       
-      let searchPath = prefix;
-      if (searchPath && !searchPath.endsWith('/')) {
-        searchPath += '/';
+      if (search) {
+        baseWhere += ' AND name LIKE ?';
+        params.push(`%${search}%`);
+      } else {
+        let searchPath = prefix;
+        if (searchPath && !searchPath.endsWith('/')) {
+          searchPath += '/';
+        }
+        baseWhere += ' AND parent_path = ?';
+        params.push(searchPath);
       }
-      baseWhere += ' AND parent_path = ?';
-      params.push(searchPath);
       
       const combinedQuery = `
         SELECT * FROM files
