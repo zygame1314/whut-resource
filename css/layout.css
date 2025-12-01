@@ -243,7 +243,7 @@
         box-shadow: var(--shadow-large);
         flex-direction: column;
         align-items: stretch;
-        width: 200px;
+        width: 280px;
         padding: 1rem;
         z-index: 100;
         gap: 0.5rem;

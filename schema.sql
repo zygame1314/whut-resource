@@ -76,6 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_files_parent_path_is_directory_uploaded ON files(
 CREATE INDEX IF NOT EXISTS idx_downloads_user_id ON downloads(user_id);
 CREATE INDEX IF NOT EXISTS idx_downloads_file_key ON downloads(file_key);
 CREATE INDEX IF NOT EXISTS idx_guestbook_created_at ON guestbook(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_guestbook_likes_created_at ON guestbook(likes DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_files_uploaded ON files(uploaded DESC);
 
 

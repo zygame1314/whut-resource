@@ -7,6 +7,7 @@ const submitGuestbookBtn = document.getElementById('submit-guestbook-btn');
 const guestbookPagination = document.getElementById('guestbook-pagination');
 let currentGuestbookPage = 1;
 let totalGuestbookPages = 1;
+let currentGuestbookSort = 'time';
 const GUESTBOOK_PER_PAGE = 5;
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
@@ -14,6 +15,22 @@ document.addEventListener('DOMContentLoaded', () => {
 window.changeGuestbookPage = function(page) {
     if (page < 1 || page > totalGuestbookPages) return;
     fetchAndDisplayGuestbook(page);
+};
+window.changeGuestbookSort = function(sortType) {
+    if (currentGuestbookSort === sortType) return;
+    currentGuestbookSort = sortType;
+    currentGuestbookPage = 1; // Reset to first page
+    
+    // Update UI buttons
+    document.querySelectorAll('.guestbook-sort-btn').forEach(btn => {
+        if (btn.dataset.sort === sortType) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    fetchAndDisplayGuestbook(1);
 };
 window.likeGuestbook = function(id, btnElement) {
     handleGuestbookAction(id, 'like', btnElement);
@@ -54,7 +71,7 @@ async function fetchAndDisplayGuestbook(page = 1) {
         if (guestbookList) {
             guestbookList.innerHTML = '<div class="loading-spinner"></div>';
         }
-        const response = await fetch(`${GUESTBOOK_API_URL}?page=${page}&limit=${GUESTBOOK_PER_PAGE}`, { headers });
+        const response = await fetch(`${GUESTBOOK_API_URL}?page=${page}&limit=${GUESTBOOK_PER_PAGE}&sort=${currentGuestbookSort}`, { headers });
         if (!response.ok) throw new Error('Failed to fetch guestbook messages');
         const data = await response.json();
         const messages = data.data;

@@ -34,6 +34,7 @@ async function handleGet(request, env) {
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
+    const sort = url.searchParams.get('sort') || 'time';
     const offset = (page - 1) * limit;
     const user = await getUser(request, env);
     const currentUserId = user ? user.id : null;
@@ -44,13 +45,19 @@ async function handleGet(request, env) {
     }
     const totalResult = await env.DB.prepare(countQuery).first();
     const total = totalResult.total;
+
+    let orderByClause = 'ORDER BY g.created_at DESC';
+    if (sort === 'likes') {
+        orderByClause = 'ORDER BY g.likes DESC, g.created_at DESC';
+    }
+
     let query = `
         SELECT g.*, u.nickname, u.email,
         (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
         FROM guestbook g
         LEFT JOIN users u ON g.user_id = u.id
         WHERE g.is_hidden = FALSE
-        ORDER BY g.created_at DESC
+        ${orderByClause}
         LIMIT ? OFFSET ?
     `;
     if (isAdmin) {
@@ -59,7 +66,7 @@ async function handleGet(request, env) {
             (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
             FROM guestbook g
             LEFT JOIN users u ON g.user_id = u.id
-            ORDER BY g.created_at DESC
+            ${orderByClause}
             LIMIT ? OFFSET ?
         `;
     }
