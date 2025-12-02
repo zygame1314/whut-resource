@@ -170,10 +170,14 @@ function renderGuestbook(messages) {
                 <div class="guestbook-main">
                     <div class="guestbook-header">
                         <div class="guestbook-user-info">
-                             <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
-                             <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
-                             ${pinnedBadge}
-                             ${statusBadge}
+                            <div class="user-info-top">
+                                <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
+                                <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
+                            </div>
+                            <div class="user-badges">
+                                ${pinnedBadge}
+                                ${statusBadge}
+                            </div>
                         </div>
                         ${adminControls}
                     </div>
