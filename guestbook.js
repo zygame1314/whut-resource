@@ -194,8 +194,10 @@ function renderGuestbook(messages) {
                     <div class="guestbook-header">
                         <div class="guestbook-user-info">
                             <div class="user-info-top">
-                                <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
-                                ${msg.isAdmin ? '<span class="admin-badge">管理员</span>' : ''}
+                                <div class="nickname-wrapper">
+                                    <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
+                                    ${msg.isAdmin ? '<span class="admin-badge"><i class="fas fa-shield-alt"></i> 管理员</span>' : ''}
+                                </div>
                                 <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
                             </div>
                             <div class="user-badges">
