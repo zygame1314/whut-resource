@@ -50,7 +50,7 @@ async function handleGet(request, env) {
         orderByClause = 'ORDER BY g.is_pinned DESC, g.likes DESC, g.created_at DESC';
     }
     let query = `
-        SELECT g.*, u.nickname, u.email,
+        SELECT g.*, u.nickname, u.email, u.role,
         (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
         FROM guestbook g
         LEFT JOIN users u ON g.user_id = u.id
@@ -60,7 +60,7 @@ async function handleGet(request, env) {
     `;
     if (isAdmin) {
         query = `
-            SELECT g.*, u.nickname, u.email, u.is_banned,
+            SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
             (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
             FROM guestbook g
             LEFT JOIN users u ON g.user_id = u.id
@@ -70,6 +70,9 @@ async function handleGet(request, env) {
     }
     const { results } = await env.DB.prepare(query).bind(currentUserId, limit, offset).all();
     const sanitizedResults = results.map(msg => {
+        if (msg.role === 'admin') {
+            msg.isAdmin = true;
+        }
         if (!isAdmin && msg.email) {
             const [name, domain] = msg.email.split('@');
             msg.email = `${name.substring(0, 2)}***@${domain}`;

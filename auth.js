@@ -59,10 +59,12 @@ function updateAuthUI() {
                     <span class="quota">(${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次)</span>
                 </span>
                 ${currentUser.role === 'admin' ? '<button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>' : ''}
+                <button id="change-nickname-btn" class="secondary-btn" title="修改昵称"><i class="fas fa-id-card"></i></button>
                 <button id="change-pwd-btn" class="secondary-btn" title="修改密码"><i class="fas fa-key"></i></button>
                 <button id="logout-btn" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>
             `;
             document.getElementById('logout-btn').addEventListener('click', logout);
+            document.getElementById('change-nickname-btn').addEventListener('click', showChangeNicknameModal);
             document.getElementById('change-pwd-btn').addEventListener('click', showChangePasswordModal);
             if (currentUser.role === 'admin') {
                 document.getElementById('sync-btn').addEventListener('click', syncFiles);
@@ -273,6 +275,68 @@ async function syncFiles() {
         btn.disabled = false;
     }
 }
+function showChangeNicknameModal() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.innerHTML = `
+        <div class="auth-box">
+            <button id="close-modal" class="close-modal-btn">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="auth-title">修改昵称</h2>
+            <form id="change-nickname-form">
+                <div class="form-group">
+                    <label>新昵称</label>
+                    <input type="text" id="new-nickname" required class="form-control" placeholder="请输入新昵称" value="${currentUser.nickname || ''}" maxlength="20">
+                </div>
+                <button type="submit" class="primary-btn full-width">确认修改</button>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    const closeBtn = modal.querySelector('#close-modal');
+    closeBtn.onclick = () => modal.remove();
+    modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+    const form = modal.querySelector('#change-nickname-form');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const newNickname = document.getElementById('new-nickname').value.trim();
+        if (!newNickname) {
+            showNotification('昵称不能为空', 'error');
+            return;
+        }
+        if (newNickname.length > 20) {
+            showNotification('昵称过长', 'error');
+            return;
+        }
+        try {
+            const res = await fetch(AUTH_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    action: 'change-nickname',
+                    newNickname
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showNotification('昵称修改成功', 'success');
+                currentUser.nickname = newNickname;
+                updateAuthUI();
+                modal.remove();
+            } else {
+                showNotification(data.error || '修改失败', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showNotification('网络错误', 'error');
+        }
+    };
+}
+
 function showChangePasswordModal() {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';

@@ -95,6 +95,31 @@ export async function onRequestPost({ request, env }) {
       await env.DB.prepare('DELETE FROM verification_codes WHERE email = ?').bind(email).run();
       return new Response(JSON.stringify({ success: true, message: '注册成功。请登录。' }), { status: 200, headers: addCorsHeaders() });
     }
+    if (action === 'change-nickname') {
+      const { newNickname } = body;
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
+      }
+      const token = authHeader.split(' ')[1];
+      const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+      if (!payload) {
+        return new Response(JSON.stringify({ success: false, error: '无效令牌' }), { status: 401, headers: addCorsHeaders() });
+      }
+      
+      if (!newNickname || newNickname.trim().length === 0) {
+        return new Response(JSON.stringify({ success: false, error: '昵称不能为空。' }), { status: 400, headers: addCorsHeaders() });
+      }
+      if (newNickname.length > 20) {
+        return new Response(JSON.stringify({ success: false, error: '昵称过长（最多20字符）。' }), { status: 400, headers: addCorsHeaders() });
+      }
+
+      await env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?')
+        .bind(newNickname, payload.id)
+        .run();
+      
+      return new Response(JSON.stringify({ success: true, message: '昵称修改成功。' }), { status: 200, headers: addCorsHeaders() });
+    }
     if (action === 'change-password') {
       const { oldPassword, newPassword } = body;
       if (!oldPassword || !newPassword) {
