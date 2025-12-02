@@ -2071,43 +2071,48 @@ textarea.form-input {
 }
 
 .guestbook-item.is-pinned {
-    border-color: var(--primary-color);
-    background: linear-gradient(to bottom right, var(--background), rgba(var(--primary-rgb), 0.05));
-    box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.1);
+    border-left: 4px solid var(--primary-color);
+    background: linear-gradient(to right, rgba(var(--primary-rgb), 0.03), transparent);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
 .pinned-badge {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    padding: 0.2rem 0.6rem;
-    background: var(--primary-color);
-    color: white;
-    border-radius: 12px;
+    padding: 0.15rem 0.5rem;
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(var(--primary-rgb), 0.2);
+    border-radius: 6px;
     font-size: 0.75rem;
-    font-weight: 500;
-    margin-left: 0.5rem;
+    font-weight: 600;
+    margin-left: 0.6rem;
+    vertical-align: middle;
 }
 
 .status-badge {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 12px;
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
     font-size: 0.75rem;
-    font-weight: 500;
-    margin-left: 0.5rem;
+    font-weight: 600;
+    margin-left: 0.4rem;
+    vertical-align: middle;
 }
 
 .status-badge.resolved {
-    background: var(--success-color);
-    color: white;
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.2);
 }
 
 .status-badge.unresolved {
-    background: var(--text-muted);
-    color: white;
+    background: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+    border: 1px solid rgba(108, 117, 125, 0.2);
 }
 
 @media (max-width: 768px) {
