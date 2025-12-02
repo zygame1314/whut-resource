@@ -55,6 +55,23 @@ window.confirmBanUser = async function(id) {
         handleGuestbookAction(id, 'ban_user');
     }
 };
+
+window.confirmUnbanUser = async function(id) {
+    let confirmed = false;
+    if (typeof showConfirmation === 'function') {
+        confirmed = await showConfirmation({
+            title: '解封用户',
+            message: '确定要解封这位用户吗？该用户将恢复发布留言的权限。',
+            confirmText: '解封',
+            confirmClass: 'confirm-btn-primary'
+        });
+    } else {
+        confirmed = confirm('确定要解封这位用户吗？该用户将恢复发布留言的权限。');
+    }
+    if (confirmed) {
+        handleGuestbookAction(id, 'unban_user');
+    }
+};
 function initGuestbook() {
     if (guestbookForm) {
         guestbookForm.addEventListener('submit', handleGuestbookSubmit);
@@ -140,9 +157,15 @@ function renderGuestbook(messages) {
                     <button class="icon-btn small ${visibilityClass}" onclick="toggleGuestbookVisibility(${msg.id}, ${msg.is_hidden})" title="${visibilityTitle}">
                         <i class="${visibilityIcon}"></i>
                     </button>
+                    ${msg.is_banned ? `
+                    <button class="icon-btn small success" onclick="confirmUnbanUser(${msg.id})" title="解封用户">
+                        <i class="fas fa-user-check"></i>
+                    </button>
+                    ` : `
                     <button class="icon-btn small danger" onclick="confirmBanUser(${msg.id})" title="封禁用户">
                         <i class="fas fa-user-slash"></i>
                     </button>
+                    `}
                     <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -306,7 +329,7 @@ async function handleGuestbookAction(id, action, btnElement) {
                  showNotification(data.error || '操作失败', 'error');
              }
         } else {
-            if (action === 'hide' || action === 'unhide' || action === 'pin' || action === 'unpin' || action === 'resolve' || action === 'unresolve' || action === 'ban_user') {
+            if (action === 'hide' || action === 'unhide' || action === 'pin' || action === 'unpin' || action === 'resolve' || action === 'unresolve' || action === 'ban_user' || action === 'unban_user') {
                 showNotification('操作成功', 'success');
                 fetchAndDisplayGuestbook(currentGuestbookPage);
             }
