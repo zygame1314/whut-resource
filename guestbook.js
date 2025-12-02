@@ -19,9 +19,7 @@ window.changeGuestbookPage = function(page) {
 window.changeGuestbookSort = function(sortType) {
     if (currentGuestbookSort === sortType) return;
     currentGuestbookSort = sortType;
-    currentGuestbookPage = 1; // Reset to first page
-    
-    // Update UI buttons
+    currentGuestbookPage = 1;
     document.querySelectorAll('.guestbook-sort-btn').forEach(btn => {
         if (btn.dataset.sort === sortType) {
             btn.classList.add('active');
@@ -29,7 +27,6 @@ window.changeGuestbookSort = function(sortType) {
             btn.classList.remove('active');
         }
     });
-
     fetchAndDisplayGuestbook(1);
 };
 window.likeGuestbook = function(id, btnElement) {
@@ -41,6 +38,22 @@ window.deleteGuestbook = function(id) {
 window.toggleGuestbookVisibility = function(id, currentHiddenState) {
     const action = currentHiddenState ? 'unhide' : 'hide';
     handleGuestbookAction(id, action);
+};
+window.confirmBanUser = async function(id) {
+    let confirmed = false;
+    if (typeof showConfirmation === 'function') {
+        confirmed = await showConfirmation({
+            title: '封禁用户',
+            message: '确定要封禁发布这条留言的用户吗？该用户将无法再发布留言。',
+            confirmText: '封禁',
+            confirmClass: 'confirm-btn-danger'
+        });
+    } else {
+        confirmed = confirm('确定要封禁发布这条留言的用户吗？该用户将无法再发布留言。');
+    }
+    if (confirmed) {
+        handleGuestbookAction(id, 'ban_user');
+    }
 };
 function initGuestbook() {
     if (guestbookForm) {
@@ -108,10 +121,27 @@ function renderGuestbook(messages) {
             const visibilityIcon = msg.is_hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
             const visibilityTitle = msg.is_hidden ? '取消隐藏' : '隐藏留言';
             const visibilityClass = msg.is_hidden ? 'status-hidden' : '';
+            const pinIcon = msg.is_pinned ? 'fas fa-thumbtack' : 'fas fa-thumbtack';
+            const pinTitle = msg.is_pinned ? '取消置顶' : '置顶留言';
+            const pinClass = msg.is_pinned ? 'active' : '';
+            const pinAction = msg.is_pinned ? 'unpin' : 'pin';
+            const statusIcon = msg.status === 'resolved' ? 'fas fa-check-circle' : 'far fa-check-circle';
+            const statusTitle = msg.status === 'resolved' ? '标记为未解决' : '标记为已解决';
+            const statusClass = msg.status === 'resolved' ? 'success' : '';
+            const statusAction = msg.status === 'resolved' ? 'unresolve' : 'resolve';
             adminControls = `
                 <div class="guestbook-admin-controls">
+                    <button class="icon-btn small ${pinClass}" onclick="handleGuestbookAction(${msg.id}, '${pinAction}')" title="${pinTitle}">
+                        <i class="${pinIcon}"></i>
+                    </button>
+                    <button class="icon-btn small ${statusClass}" onclick="handleGuestbookAction(${msg.id}, '${statusAction}')" title="${statusTitle}">
+                        <i class="${statusIcon}"></i>
+                    </button>
                     <button class="icon-btn small ${visibilityClass}" onclick="toggleGuestbookVisibility(${msg.id}, ${msg.is_hidden})" title="${visibilityTitle}">
                         <i class="${visibilityIcon}"></i>
+                    </button>
+                    <button class="icon-btn small danger" onclick="confirmBanUser(${msg.id})" title="封禁用户">
+                        <i class="fas fa-user-slash"></i>
                     </button>
                     <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
                         <i class="fas fa-trash"></i>
@@ -122,8 +152,18 @@ function renderGuestbook(messages) {
         const nickname = msg.nickname || '匿名用户';
         const avatarChar = nickname.charAt(0).toUpperCase();
         const avatarColor = getAvatarColor(nickname);
+        let statusBadge = '';
+        if (msg.status === 'resolved') {
+            statusBadge = '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>';
+        } else {
+            statusBadge = '<span class="status-badge unresolved">未解决</span>';
+        }
+        let pinnedBadge = '';
+        if (msg.is_pinned) {
+            pinnedBadge = '<span class="pinned-badge"><i class="fas fa-thumbtack"></i> 置顶</span>';
+        }
         return `
-            <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''}">
+            <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''} ${msg.is_pinned ? 'is-pinned' : ''}">
                 <div class="guestbook-left">
                     <div class="user-avatar-placeholder" style="background: ${avatarColor}">${avatarChar}</div>
                 </div>
@@ -132,6 +172,8 @@ function renderGuestbook(messages) {
                         <div class="guestbook-user-info">
                              <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
                              <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
+                             ${pinnedBadge}
+                             ${statusBadge}
                         </div>
                         ${adminControls}
                     </div>
@@ -260,8 +302,8 @@ async function handleGuestbookAction(id, action, btnElement) {
                  showNotification(data.error || '操作失败', 'error');
              }
         } else {
-            if (action === 'hide' || action === 'unhide') {
-                showNotification('状态已更新', 'success');
+            if (action === 'hide' || action === 'unhide' || action === 'pin' || action === 'unpin' || action === 'resolve' || action === 'unresolve' || action === 'ban_user') {
+                showNotification('操作成功', 'success');
                 fetchAndDisplayGuestbook(currentGuestbookPage);
             }
         }

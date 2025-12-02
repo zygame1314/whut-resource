@@ -45,12 +45,10 @@ async function handleGet(request, env) {
     }
     const totalResult = await env.DB.prepare(countQuery).first();
     const total = totalResult.total;
-
-    let orderByClause = 'ORDER BY g.created_at DESC';
+    let orderByClause = 'ORDER BY g.is_pinned DESC, g.created_at DESC';
     if (sort === 'likes') {
-        orderByClause = 'ORDER BY g.likes DESC, g.created_at DESC';
+        orderByClause = 'ORDER BY g.is_pinned DESC, g.likes DESC, g.created_at DESC';
     }
-
     let query = `
         SELECT g.*, u.nickname, u.email,
         (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
@@ -92,6 +90,14 @@ async function handlePost(request, env) {
     const user = await getUser(request, env);
     if (!user) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (user.is_banned) {
+        return new Response(JSON.stringify({ error: 'You are banned from posting.' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    const todayStart = new Date().toISOString().split('T')[0] + ' 00:00:00';
+    const postCountResult = await env.DB.prepare('SELECT COUNT(*) as count FROM guestbook WHERE user_id = ? AND created_at >= ?').bind(user.id, todayStart).first();
+    if (postCountResult.count >= 10) {
+        return new Response(JSON.stringify({ error: 'Daily limit reached (10 posts/day).' }), { status: 429, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const { content } = await request.json();
     if (!content || content.trim().length === 0) {
@@ -151,6 +157,26 @@ async function handlePut(request, env) {
         }
         const isHidden = action === 'hide';
         await env.DB.prepare('UPDATE guestbook SET is_hidden = ? WHERE id = ?').bind(isHidden ? 1 : 0, id).run();
+    } else if (action === 'pin' || action === 'unpin') {
+        if (user.role !== 'admin') {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const isPinned = action === 'pin';
+        await env.DB.prepare('UPDATE guestbook SET is_pinned = ? WHERE id = ?').bind(isPinned ? 1 : 0, id).run();
+    } else if (action === 'resolve' || action === 'unresolve') {
+        if (user.role !== 'admin') {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const status = action === 'resolve' ? 'resolved' : 'unresolved';
+        await env.DB.prepare('UPDATE guestbook SET status = ? WHERE id = ?').bind(status, id).run();
+    } else if (action === 'ban_user') {
+        if (user.role !== 'admin') {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const guestbookEntry = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
+        if (guestbookEntry) {
+            await env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id).run();
+        }
     } else {
         return new Response(JSON.stringify({ error: 'Invalid action' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }

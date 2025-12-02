@@ -8,6 +8,7 @@ CREATE TABLE users (
     quota_limit INTEGER DEFAULT 50,
     quota_used INTEGER DEFAULT 0,
     last_download_date TEXT,
+    is_banned BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -57,6 +58,8 @@ CREATE TABLE guestbook (
     content TEXT NOT NULL,
     likes INTEGER DEFAULT 0,
     is_hidden BOOLEAN DEFAULT FALSE,
+    is_pinned BOOLEAN DEFAULT FALSE,
+    status TEXT DEFAULT 'unresolved', -- 'resolved', 'unresolved'
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -75,8 +78,9 @@ CREATE INDEX IF NOT EXISTS idx_files_parent_path_is_directory_name ON files(pare
 CREATE INDEX IF NOT EXISTS idx_files_parent_path_is_directory_uploaded ON files(parent_path, is_directory, uploaded DESC);
 CREATE INDEX IF NOT EXISTS idx_downloads_user_id ON downloads(user_id);
 CREATE INDEX IF NOT EXISTS idx_downloads_file_key ON downloads(file_key);
-CREATE INDEX IF NOT EXISTS idx_guestbook_created_at ON guestbook(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_guestbook_likes_created_at ON guestbook(likes DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_guestbook_list_default ON guestbook(is_hidden, is_pinned DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_guestbook_list_likes ON guestbook(is_hidden, is_pinned DESC, likes DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_guestbook_user_daily_limit ON guestbook(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_files_uploaded ON files(uploaded DESC);
 
 
