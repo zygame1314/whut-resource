@@ -982,34 +982,64 @@
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    padding: 0.2rem 0.6rem;
-    background: var(--primary-color);
+    padding: 0.3rem 0.7rem;
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 50%, #FF6B6B 100%);
+    background-size: 200% 100%;
     color: white;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
     margin-left: 0.5rem;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+    animation: pinShine 3s ease-in-out infinite;
+}
+
+.pinned-badge i {
+    animation: pinRotate 2s ease-in-out infinite;
+}
+
+@keyframes pinShine {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+@keyframes pinRotate {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-15deg); }
+    75% { transform: rotate(15deg); }
 }
 
 .status-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
     margin-left: 0.5rem;
+    transition: all 0.3s ease;
 }
 
 .status-badge.resolved {
-    background: var(--success-color);
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     color: white;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.status-badge.resolved i {
+    animation: checkBounce 2s ease-in-out infinite;
 }
 
 .status-badge.unresolved {
-    background: var(--text-muted);
-    color: white;
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.15) 0%, rgba(108, 117, 125, 0.25) 100%);
+    color: var(--text-secondary);
+    border: 1.5px solid rgba(108, 117, 125, 0.3);
+}
+
+@keyframes checkBounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
 }
 
 @media (max-width: 1200px) {
@@ -2071,48 +2101,22 @@ textarea.form-input {
 }
 
 .guestbook-item.is-pinned {
-    border-left: 4px solid var(--primary-color);
-    background: linear-gradient(to right, rgba(var(--primary-rgb), 0.03), transparent);
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    position: relative;
+    border: 2px solid transparent;
+    background: linear-gradient(var(--background), var(--background)) padding-box,
+                linear-gradient(135deg, rgba(0, 123, 255, 0.3), rgba(77, 163, 255, 0.5)) border-box;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.15);
 }
 
-.pinned-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.15rem 0.5rem;
-    background: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary-color);
-    border: 1px solid rgba(var(--primary-rgb), 0.2);
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    margin-left: 0.6rem;
-    vertical-align: middle;
-}
-
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    margin-left: 0.4rem;
-    vertical-align: middle;
-}
-
-.status-badge.resolved {
-    background: rgba(40, 167, 69, 0.1);
-    color: #28a745;
-    border: 1px solid rgba(40, 167, 69, 0.2);
-}
-
-.status-badge.unresolved {
-    background: rgba(108, 117, 125, 0.1);
-    color: #6c757d;
-    border: 1px solid rgba(108, 117, 125, 0.2);
+.guestbook-item.is-pinned::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, #007BFF 0%, #4DA3FF 100%);
+    border-radius: 16px 0 0 16px;
 }
 
 @media (max-width: 768px) {
