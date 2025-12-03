@@ -144,6 +144,7 @@ function renderGuestbook(messages) {
             const statusTitle = msg.status === 'resolved' ? '标记为未解决' : '标记为已解决';
             const statusClass = msg.status === 'resolved' ? 'success' : '';
             const statusAction = msg.status === 'resolved' ? 'unresolve' : 'resolve';
+            const escapedContent = escapeHtml(msg.content).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
             adminControls = `
                 <div class="guestbook-admin-controls">
                     <button class="icon-btn small ${pinClass}" onclick="handleGuestbookAction(${msg.id}, '${pinAction}')" title="${pinTitle}">
@@ -154,6 +155,9 @@ function renderGuestbook(messages) {
                     </button>
                     <button class="icon-btn small ${visibilityClass}" onclick="toggleGuestbookVisibility(${msg.id}, ${msg.is_hidden})" title="${visibilityTitle}">
                         <i class="${visibilityIcon}"></i>
+                    </button>
+                    <button class="icon-btn small" onclick="editGuestbook(${msg.id}, '${escapedContent}')" title="编辑留言">
+                        <i class="fas fa-edit"></i>
                     </button>
                     ${msg.is_banned ? `
                     <button class="icon-btn small success" onclick="confirmUnbanUser(${msg.id})" title="解封用户">
@@ -170,7 +174,7 @@ function renderGuestbook(messages) {
                 </div>
             `;
         }
-        if (isAuthor) {
+        if (isAuthor && !isAdmin) {
             const escapedContent = escapeHtml(msg.content).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
             authorControls = `
                 <div class="guestbook-author-controls">
