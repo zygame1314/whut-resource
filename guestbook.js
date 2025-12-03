@@ -56,6 +56,7 @@ window.confirmBanUser = async function(id) {
         handleGuestbookAction(id, 'ban_user');
     }
 };
+
 window.confirmUnbanUser = async function(id) {
     let confirmed = false;
     if (typeof showConfirmation === 'function') {
@@ -83,6 +84,7 @@ async function fetchAndDisplayGuestbook(page = 1) {
     try {
         const token = localStorage.getItem('authToken');
         if (!token) {
+            // 未登录用户不能看到任何留言
             if (guestbookForm) guestbookForm.style.display = 'none';
             const loginPrompt = document.getElementById('guestbook-login-prompt');
             if (loginPrompt) loginPrompt.style.display = 'block';
@@ -94,10 +96,7 @@ async function fetchAndDisplayGuestbook(page = 1) {
             }
             return;
         }
-        const headers = {};
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
+        const headers = { 'Authorization': `Bearer ${token}` };
         if (guestbookList) {
             guestbookList.innerHTML = '<div class="loading-spinner"></div>';
         }
@@ -390,9 +389,13 @@ async function handleDeleteGuestbook(id) {
         showNotification('删除出错', 'error');
     }
 }
+
+// allow unliking
 window.unlikeGuestbook = function(id, btnElement) {
     handleGuestbookAction(id, 'unlike', btnElement);
 };
+
+// switch filters: 'all' or 'mine'
 window.changeGuestbookFilter = function(filter) {
     if (currentGuestbookFilter === filter) return;
     currentGuestbookFilter = filter;
@@ -402,6 +405,8 @@ window.changeGuestbookFilter = function(filter) {
     });
     fetchAndDisplayGuestbook(1);
 };
+
+// edit a guestbook entry (author or admin)
 window.editGuestbook = async function(id) {
     let newContent = '';
     if (typeof showPrompt === 'function') {

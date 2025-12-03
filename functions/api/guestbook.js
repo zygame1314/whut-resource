@@ -38,9 +38,6 @@ async function handleGet(request, env) {
     const filter = url.searchParams.get('filter') || 'all';
     const offset = (page - 1) * limit;
     const user = await getUser(request, env);
-    if (!user) {
-        return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-    }
     const currentUserId = user ? user.id : null;
     const isAdmin = user && user.role === 'admin';
     let total = 0;
