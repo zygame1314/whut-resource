@@ -175,7 +175,7 @@ export async function onRequestGet({ request, env }) {
   if (!payload) {
     return new Response(JSON.stringify({ success: false, error: '令牌无效' }), { status: 401, headers: addCorsHeaders() });
   }
-  const user = await env.DB.prepare('SELECT email, nickname, role, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(payload.id).first();
+  const user = await env.DB.prepare('SELECT id, email, nickname, role, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(payload.id).first();
   if (user) {
     const today = new Date().toISOString().split('T')[0];
     if (user.last_download_date !== today) {
