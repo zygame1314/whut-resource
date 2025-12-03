@@ -260,6 +260,10 @@ async function handlePut(request, env) {
         }
         const guestbookEntry = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
         if (guestbookEntry) {
+            const targetUser = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(guestbookEntry.user_id).first();
+            if (targetUser && targetUser.role === 'admin') {
+                return new Response(JSON.stringify({ error: '不能封禁管理员' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            }
             await env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id).run();
         }
     } else if (action === 'unban_user') {

@@ -409,7 +409,7 @@ window.editGuestbook = async function(id, currentContent = '') {
     let newContent = '';
     try {
         if (typeof showPrompt === 'function') {
-            newContent = await showPrompt({ title: '编辑留言', message: '修改你的留言内容：', initialValue: decoded, placeholder: '请输入留言内容' });
+            newContent = await showPrompt({ title: '编辑留言', message: '修改留言内容：', initialValue: decoded, placeholder: '请输入留言内容' });
         } else {
             newContent = prompt('编辑留言：', decoded);
         }
