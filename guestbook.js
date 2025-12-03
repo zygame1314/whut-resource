@@ -56,7 +56,6 @@ window.confirmBanUser = async function(id) {
         handleGuestbookAction(id, 'ban_user');
     }
 };
-
 window.confirmUnbanUser = async function(id) {
     let confirmed = false;
     if (typeof showConfirmation === 'function') {
@@ -389,13 +388,9 @@ async function handleDeleteGuestbook(id) {
         showNotification('删除出错', 'error');
     }
 }
-
-// allow unliking
 window.unlikeGuestbook = function(id, btnElement) {
     handleGuestbookAction(id, 'unlike', btnElement);
 };
-
-// switch filters: 'all' or 'mine'
 window.changeGuestbookFilter = function(filter) {
     if (currentGuestbookFilter === filter) return;
     currentGuestbookFilter = filter;
@@ -405,16 +400,17 @@ window.changeGuestbookFilter = function(filter) {
     });
     fetchAndDisplayGuestbook(1);
 };
-
-// edit a guestbook entry (author or admin)
 window.editGuestbook = async function(id, currentContent = '') {
-    // Decode HTML entities
     const decoded = currentContent.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
     let newContent = '';
-    if (typeof showPrompt === 'function') {
-        newContent = await showPrompt({ title: '编辑留言', value: decoded });
-    } else {
-        newContent = prompt('编辑留言：', decoded);
+    try {
+        if (typeof showPrompt === 'function') {
+            newContent = await showPrompt({ title: '编辑留言', message: '修改你的留言内容：', initialValue: decoded, placeholder: '请输入留言内容' });
+        } else {
+            newContent = prompt('编辑留言：', decoded);
+        }
+    } catch (e) {
+        return;
     }
     if (newContent === null) return;
     newContent = newContent.trim();
