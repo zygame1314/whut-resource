@@ -84,7 +84,6 @@ async function fetchAndDisplayGuestbook(page = 1) {
     try {
         const token = localStorage.getItem('authToken');
         if (!token) {
-            // 未登录用户不能看到任何留言
             if (guestbookForm) guestbookForm.style.display = 'none';
             const loginPrompt = document.getElementById('guestbook-login-prompt');
             if (loginPrompt) loginPrompt.style.display = 'block';
@@ -173,9 +172,10 @@ function renderGuestbook(messages) {
             `;
         }
         if (isAuthor) {
+            const escapedContent = escapeHtml(msg.content).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
             authorControls = `
                 <div class="guestbook-author-controls">
-                    <button class="icon-btn small" onclick="editGuestbook(${msg.id})" title="编辑留言">
+                    <button class="icon-btn small" onclick="editGuestbook(${msg.id}, '${escapedContent}')" title="编辑留言">
                         <i class="fas fa-edit"></i>
                     </button>
                     <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
@@ -407,12 +407,14 @@ window.changeGuestbookFilter = function(filter) {
 };
 
 // edit a guestbook entry (author or admin)
-window.editGuestbook = async function(id) {
+window.editGuestbook = async function(id, currentContent = '') {
+    // Decode HTML entities
+    const decoded = currentContent.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
     let newContent = '';
     if (typeof showPrompt === 'function') {
-        newContent = await showPrompt({ title: '编辑留言', value: '' });
+        newContent = await showPrompt({ title: '编辑留言', value: decoded });
     } else {
-        newContent = prompt('编辑留言：');
+        newContent = prompt('编辑留言：', decoded);
     }
     if (newContent === null) return;
     newContent = newContent.trim();

@@ -707,6 +707,43 @@
     gap: 0.8rem;
 }
 
+.guestbook-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.guestbook-filter-controls {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--background);
+    padding: 0.25rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.guestbook-filter-btn {
+    background: none;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.guestbook-filter-btn:hover {
+    color: var(--secondary-color);
+    background: var(--hover-bg);
+}
+
+.guestbook-filter-btn.active {
+    background: var(--secondary-color);
+    color: white;
+    font-weight: 500;
+}
+
 .guestbook-sort-controls {
     display: flex;
     gap: 0.5rem;
@@ -742,6 +779,12 @@
     .guestbook-header-top {
         flex-direction: column;
         text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .guestbook-controls {
+        flex-wrap: wrap;
+        justify-content: center;
     }
     
     .guestbook-header-section .section-title {
@@ -923,6 +966,13 @@
 .guestbook-admin-controls {
     display: flex;
     flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.guestbook-author-controls {
+    display: flex;
+    flex-direction: row;
     gap: 0.5rem;
     align-items: center;
 }

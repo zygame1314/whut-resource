@@ -241,9 +241,15 @@
                 <div class="guestbook-header-section">
                     <div class="guestbook-header-top">
                         <h3 class="section-title"><i class="fas fa-comments"></i> 留言板 & 资源请愿</h3>
-                        <div class="guestbook-sort-controls">
-                            <button class="guestbook-sort-btn active" data-sort="time" onclick="changeGuestbookSort('time')">最新</button>
-                            <button class="guestbook-sort-btn" data-sort="likes" onclick="changeGuestbookSort('likes')">最热</button>
+                        <div class="guestbook-controls">
+                            <div class="guestbook-filter-controls">
+                                <button class="guestbook-filter-btn active" data-filter="all" onclick="changeGuestbookFilter('all')">全部留言</button>
+                                <button class="guestbook-filter-btn" data-filter="mine" onclick="changeGuestbookFilter('mine')">我的留言</button>
+                            </div>
+                            <div class="guestbook-sort-controls">
+                                <button class="guestbook-sort-btn active" data-sort="time" onclick="changeGuestbookSort('time')">最新</button>
+                                <button class="guestbook-sort-btn" data-sort="likes" onclick="changeGuestbookSort('likes')">最热</button>
+                            </div>
                         </div>
                     </div>
                     <p class="section-subtitle">想要什么资源？或者有什么想说的话？在这里告诉我们吧！</p>
