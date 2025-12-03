@@ -8,6 +8,7 @@ const guestbookPagination = document.getElementById('guestbook-pagination');
 let currentGuestbookPage = 1;
 let totalGuestbookPages = 1;
 let currentGuestbookSort = 'time';
+let currentGuestbookFilter = 'all';
 const GUESTBOOK_PER_PAGE = 5;
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
@@ -55,7 +56,6 @@ window.confirmBanUser = async function(id) {
         handleGuestbookAction(id, 'ban_user');
     }
 };
-
 window.confirmUnbanUser = async function(id) {
     let confirmed = false;
     if (typeof showConfirmation === 'function') {
@@ -83,16 +83,16 @@ async function fetchAndDisplayGuestbook(page = 1) {
     try {
         const token = localStorage.getItem('authToken');
         if (!token) {
-             if (guestbookForm) guestbookForm.style.display = 'none';
-             const loginPrompt = document.getElementById('guestbook-login-prompt');
-             if (loginPrompt) loginPrompt.style.display = 'block';
-             if (guestbookList) {
-                 guestbookList.innerHTML = '';
-             }
-             if (guestbookPagination) {
-                 guestbookPagination.style.display = 'none';
-             }
-             return;
+            if (guestbookForm) guestbookForm.style.display = 'none';
+            const loginPrompt = document.getElementById('guestbook-login-prompt');
+            if (loginPrompt) loginPrompt.style.display = 'block';
+            if (guestbookList) {
+                guestbookList.innerHTML = '';
+            }
+            if (guestbookPagination) {
+                guestbookPagination.style.display = 'none';
+            }
+            return;
         }
         const headers = {};
         if (token) {
@@ -101,7 +101,7 @@ async function fetchAndDisplayGuestbook(page = 1) {
         if (guestbookList) {
             guestbookList.innerHTML = '<div class="loading-spinner"></div>';
         }
-        const response = await fetch(`${GUESTBOOK_API_URL}?page=${page}&limit=${GUESTBOOK_PER_PAGE}&sort=${currentGuestbookSort}`, { headers });
+        const response = await fetch(`${GUESTBOOK_API_URL}?page=${page}&limit=${GUESTBOOK_PER_PAGE}&sort=${currentGuestbookSort}&filter=${currentGuestbookFilter}`, { headers });
         if (!response.ok) throw new Error('Failed to fetch guestbook messages');
         const data = await response.json();
         const messages = data.data;
@@ -134,6 +134,7 @@ function renderGuestbook(messages) {
         const likeAction = msg.has_liked ? `unlikeGuestbook(${msg.id}, this)` : `likeGuestbook(${msg.id}, this)`;
         const likeIcon = msg.has_liked ? 'fas fa-heart' : 'far fa-heart';
         let adminControls = '';
+        let authorControls = '';
         if (isAdmin) {
             const visibilityIcon = msg.is_hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
             const visibilityTitle = msg.is_hidden ? '取消隐藏' : '隐藏留言';
@@ -166,6 +167,18 @@ function renderGuestbook(messages) {
                         <i class="fas fa-user-slash"></i>
                     </button>
                     `}
+                    <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }
+        if (isAuthor) {
+            authorControls = `
+                <div class="guestbook-author-controls">
+                    <button class="icon-btn small" onclick="editGuestbook(${msg.id})" title="编辑留言">
+                        <i class="fas fa-edit"></i>
+                    </button>
                     <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -205,7 +218,7 @@ function renderGuestbook(messages) {
                                 ${statusBadge}
                             </div>
                         </div>
-                        ${adminControls}
+                        ${adminControls}${authorControls}
                     </div>
                     <div class="guestbook-content">${escapeHtml(msg.content)}</div>
                     <div class="guestbook-footer">
@@ -377,3 +390,54 @@ async function handleDeleteGuestbook(id) {
         showNotification('删除出错', 'error');
     }
 }
+window.unlikeGuestbook = function(id, btnElement) {
+    handleGuestbookAction(id, 'unlike', btnElement);
+};
+window.changeGuestbookFilter = function(filter) {
+    if (currentGuestbookFilter === filter) return;
+    currentGuestbookFilter = filter;
+    currentGuestbookPage = 1;
+    document.querySelectorAll('.guestbook-filter-btn').forEach(btn => {
+        if (btn.dataset.filter === filter) btn.classList.add('active'); else btn.classList.remove('active');
+    });
+    fetchAndDisplayGuestbook(1);
+};
+window.editGuestbook = async function(id) {
+    let newContent = '';
+    if (typeof showPrompt === 'function') {
+        newContent = await showPrompt({ title: '编辑留言', value: '' });
+    } else {
+        newContent = prompt('编辑留言：');
+    }
+    if (newContent === null) return;
+    newContent = newContent.trim();
+    if (!newContent) {
+        showNotification('内容不能为空', 'warning');
+        return;
+    }
+    if (newContent.length > 500) {
+        showNotification('内容过长（最多500字符）', 'warning');
+        return;
+    }
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(GUESTBOOK_API_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ id, action: 'edit', content: newContent })
+        });
+        if (response.ok) {
+            showNotification('编辑成功', 'success');
+            fetchAndDisplayGuestbook(currentGuestbookPage);
+        } else {
+            const data = await response.json();
+            showNotification(data.error || '编辑失败', 'error');
+        }
+    } catch (error) {
+        console.error('Edit guestbook error:', error);
+        showNotification('编辑出错', 'error');
+    }
+};

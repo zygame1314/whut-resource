@@ -35,40 +35,98 @@ async function handleGet(request, env) {
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
     const sort = url.searchParams.get('sort') || 'time';
+    const filter = url.searchParams.get('filter') || 'all';
     const offset = (page - 1) * limit;
     const user = await getUser(request, env);
+    if (!user) {
+        return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const currentUserId = user ? user.id : null;
     const isAdmin = user && user.role === 'admin';
-    let countQuery = 'SELECT COUNT(*) as total FROM guestbook WHERE is_hidden = FALSE';
-    if (isAdmin) {
-        countQuery = 'SELECT COUNT(*) as total FROM guestbook';
+    let total = 0;
+    if (filter === 'mine') {
+        if (!currentUserId) {
+            total = 0;
+        } else {
+            const cnt = await env.DB.prepare('SELECT COUNT(*) as total FROM guestbook WHERE user_id = ?').bind(currentUserId).first();
+            total = cnt.total;
+        }
+    } else {
+        if (isAdmin) {
+            const cnt = await env.DB.prepare('SELECT COUNT(*) as total FROM guestbook').first();
+            total = cnt.total;
+        } else {
+            if (currentUserId) {
+                const cnt = await env.DB.prepare('SELECT COUNT(*) as total FROM guestbook WHERE is_hidden = FALSE OR user_id = ?').bind(currentUserId).first();
+                total = cnt.total;
+            } else {
+                const cnt = await env.DB.prepare('SELECT COUNT(*) as total FROM guestbook WHERE is_hidden = FALSE').first();
+                total = cnt.total;
+            }
+        }
     }
-    const totalResult = await env.DB.prepare(countQuery).first();
-    const total = totalResult.total;
     let orderByClause = 'ORDER BY g.is_pinned DESC, g.created_at DESC';
     if (sort === 'likes') {
         orderByClause = 'ORDER BY g.is_pinned DESC, g.likes DESC, g.created_at DESC';
     }
-    let query = `
-        SELECT g.*, u.nickname, u.email, u.role,
-        (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
-        FROM guestbook g
-        LEFT JOIN users u ON g.user_id = u.id
-        WHERE g.is_hidden = FALSE
-        ${orderByClause}
-        LIMIT ? OFFSET ?
-    `;
-    if (isAdmin) {
-        query = `
-            SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
-            (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
-            FROM guestbook g
-            LEFT JOIN users u ON g.user_id = u.id
-            ${orderByClause}
-            LIMIT ? OFFSET ?
-        `;
+    let query;
+    let results;
+    if (filter === 'mine') {
+        if (!currentUserId) {
+            results = [];
+        } else {
+            query = `
+                SELECT g.*, u.nickname, u.email, u.role,
+                (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
+                FROM guestbook g
+                LEFT JOIN users u ON g.user_id = u.id
+                WHERE g.user_id = ?
+                ${orderByClause}
+                LIMIT ? OFFSET ?
+            `;
+            const q = await env.DB.prepare(query).bind(currentUserId, currentUserId, limit, offset).all();
+            results = q.results;
+        }
+    } else {
+        if (isAdmin) {
+            query = `
+                SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
+                (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
+                FROM guestbook g
+                LEFT JOIN users u ON g.user_id = u.id
+                ${orderByClause}
+                LIMIT ? OFFSET ?
+            `;
+            const q = await env.DB.prepare(query).bind(currentUserId, limit, offset).all();
+            results = q.results;
+        } else {
+            if (currentUserId) {
+                query = `
+                    SELECT g.*, u.nickname, u.email, u.role,
+                    (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
+                    FROM guestbook g
+                    LEFT JOIN users u ON g.user_id = u.id
+                    WHERE g.is_hidden = FALSE OR g.user_id = ?
+                    ${orderByClause}
+                    LIMIT ? OFFSET ?
+                `;
+                const q = await env.DB.prepare(query).bind(currentUserId, currentUserId, limit, offset).all();
+                results = q.results;
+            } else {
+                query = `
+                    SELECT g.*, u.nickname, u.email, u.role,
+                    (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
+                    FROM guestbook g
+                    LEFT JOIN users u ON g.user_id = u.id
+                    WHERE g.is_hidden = FALSE
+                    ${orderByClause}
+                    LIMIT ? OFFSET ?
+                `;
+                const q = await env.DB.prepare(query).bind(currentUserId, limit, offset).all();
+                results = q.results;
+            }
+        }
     }
-    const { results } = await env.DB.prepare(query).bind(currentUserId, limit, offset).all();
     const sanitizedResults = results.map(msg => {
         if (msg.role === 'admin') {
             msg.isAdmin = true;
@@ -116,13 +174,20 @@ async function handlePost(request, env) {
 }
 async function handleDelete(request, env) {
     const user = await getUser(request, env);
-    if (!user || user.role !== 'admin') {
+    if (!user) {
         return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     if (!id) {
         return new Response(JSON.stringify({ error: '缺少ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    const entry = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
+    if (!entry) {
+        return new Response(JSON.stringify({ error: '留言不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (user.role !== 'admin' && entry.user_id !== user.id) {
+        return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(id).run();
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -132,9 +197,29 @@ async function handlePut(request, env) {
     if (!user) {
         return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    const { id, action } = await request.json();
+    const body = await request.json();
+    const id = body.id;
+    const action = body.action;
     if (!id || !action) {
         return new Response(JSON.stringify({ error: '缺少参数' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (action === 'edit') {
+        const content = body.content || '';
+        if (!content || content.trim().length === 0) {
+            return new Response(JSON.stringify({ error: '内容不能为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (content.length > 500) {
+            return new Response(JSON.stringify({ error: '内容过长（最多500字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const guestbookEntry = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
+        if (!guestbookEntry) {
+            return new Response(JSON.stringify({ error: '留言不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (user.role !== 'admin' && guestbookEntry.user_id !== user.id) {
+            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        await env.DB.prepare('UPDATE guestbook SET content = ? WHERE id = ?').bind(content.trim(), id).run();
+        return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     if (action === 'like') {
         const existingLike = await env.DB.prepare('SELECT * FROM guestbook_likes WHERE user_id = ? AND guestbook_id = ?').bind(user.id, id).first();
