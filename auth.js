@@ -127,7 +127,7 @@ function showAuthModal(mode = 'login') {
                 <button type="submit" class="primary-btn full-width">${title}</button>
             </form>
             <p class="auth-footer">
-                ${isLogin ? '没有账号? <a href="#" id="switch-mode">去注册</a>' : '已有账号? <a href="#" id="switch-mode">去登录</a>'}
+                ${isLogin ? '没有账号? <a href="#" id="switch-mode">去注册</a> | <a href="#" id="forgot-password">忘记密码?</a>' : '已有账号? <a href="#" id="switch-mode">去登录</a>'}
             </p>
         </div>
     `;
@@ -201,6 +201,16 @@ function showAuthModal(mode = 'login') {
         modal.remove();
         showAuthModal(isLogin ? 'register' : 'login');
     };
+    if (isLogin) {
+        const forgotPasswordLink = modal.querySelector('#forgot-password');
+        if (forgotPasswordLink) {
+            forgotPasswordLink.onclick = (e) => {
+                e.preventDefault();
+                modal.remove();
+                showForgotPasswordModal();
+            };
+        }
+    }
     form.onsubmit = async (e) => {
         e.preventDefault();
         const email = document.getElementById('auth-email').value;
@@ -336,7 +346,136 @@ function showChangeNicknameModal() {
         }
     };
 }
-
+function showForgotPasswordModal() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.innerHTML = `
+        <div class="auth-box">
+            <button id="close-modal" class="close-modal-btn">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="auth-title">找回密码</h2>
+            <form id="forgot-pwd-form">
+                <div class="form-group">
+                    <label>邮箱 (@whut.edu.cn)</label>
+                    <input type="email" id="reset-email" required class="form-control" placeholder="请输入注册时使用的邮箱">
+                </div>
+                <div class="form-group">
+                    <label>验证码</label>
+                    <div class="input-group">
+                        <input type="text" id="reset-code" placeholder="6位验证码" class="form-control">
+                        <button type="button" id="send-reset-code-btn" class="send-code-btn">发送验证码</button>
+                    </div>
+                    <!-- Cloudflare Turnstile Widget -->
+                    <div id="turnstile-reset-widget" style="margin-top: 10px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>新密码</label>
+                    <input type="password" id="reset-new-password" required class="form-control" placeholder="请输入新密码（至少6位）">
+                </div>
+                <button type="submit" class="primary-btn full-width">重置密码</button>
+            </form>
+            <p class="auth-footer">
+                <a href="#" id="back-to-login">返回登录</a>
+            </p>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    const closeBtn = modal.querySelector('#close-modal');
+    closeBtn.onclick = () => modal.remove();
+    modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+    const backToLoginLink = modal.querySelector('#back-to-login');
+    backToLoginLink.onclick = (e) => {
+        e.preventDefault();
+        modal.remove();
+        showAuthModal('login');
+    };
+    let turnstileWidgetId;
+    if (window.turnstile) {
+        turnstileWidgetId = turnstile.render('#turnstile-reset-widget', {
+            sitekey: '0x4AAAAAABfgqCmMGBV9Nf8U',
+            callback: function(token) {
+                console.log('Turnstile success');
+            },
+        });
+    }
+    const sendCodeBtn = modal.querySelector('#send-reset-code-btn');
+    sendCodeBtn.onclick = async () => {
+        const email = document.getElementById('reset-email').value;
+        const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
+        if (!email || !emailRegex.test(email)) {
+            showNotification('请输入有效的学校邮箱地址', 'error');
+            return;
+        }
+        let cfToken = '';
+        if (window.turnstile) {
+            cfToken = turnstile.getResponse(turnstileWidgetId);
+            if (!cfToken) {
+                showNotification('请先完成人机验证', 'error');
+                return;
+            }
+        }
+        sendCodeBtn.disabled = true;
+        sendCodeBtn.textContent = '发送中...';
+        try {
+            const res = await fetch(AUTH_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'send-reset-code', email, cfToken })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showNotification('验证码已发送，请查收邮件', 'success');
+                let countdown = 60;
+                const timer = setInterval(() => {
+                    sendCodeBtn.textContent = `${countdown}s`;
+                    countdown--;
+                    if (countdown < 0) {
+                        clearInterval(timer);
+                        sendCodeBtn.disabled = false;
+                        sendCodeBtn.textContent = '发送验证码';
+                    }
+                }, 1000);
+            } else {
+                showNotification(data.error, 'error');
+                sendCodeBtn.disabled = false;
+                sendCodeBtn.textContent = '发送验证码';
+            }
+        } catch (e) {
+            showNotification('发送失败: ' + e.message, 'error');
+            sendCodeBtn.disabled = false;
+            sendCodeBtn.textContent = '发送验证码';
+        }
+    };
+    const form = modal.querySelector('#forgot-pwd-form');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('reset-email').value;
+        const code = document.getElementById('reset-code').value;
+        const newPassword = document.getElementById('reset-new-password').value;
+        if (newPassword.length < 6) {
+            showNotification('新密码至少需要6个字符', 'error');
+            return;
+        }
+        try {
+            const res = await fetch(AUTH_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'reset-password', email, code, password: newPassword })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showNotification(data.message, 'success');
+                modal.remove();
+                showAuthModal('login');
+            } else {
+                showNotification(data.error, 'error');
+            }
+        } catch (err) {
+            showNotification('重置失败: ' + err.message, 'error');
+        }
+    };
+}
 function showChangePasswordModal() {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';

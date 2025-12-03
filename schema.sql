@@ -96,6 +96,17 @@ CREATE TABLE verification_codes (
 CREATE INDEX IF NOT EXISTS idx_verification_codes_email ON verification_codes(email);
 
 
+DROP TABLE IF EXISTS password_reset_codes;
+CREATE TABLE password_reset_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    code TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_password_reset_codes_email ON password_reset_codes(email);
+
+
 DROP TABLE IF EXISTS system_stats;
 CREATE TABLE IF NOT EXISTS system_stats (
     id INTEGER PRIMARY KEY CHECK (id = 1),
