@@ -1,3 +1,48 @@
+const TENCENT_ERROR_MAP = {
+  'FailedOperation.EmailAddrInBlacklist': '该邮箱地址在黑名单中，无法发送邮件。',
+  'FailedOperation.ExceedSendLimit': '今日发送邮件数量已达上限，请明天再试。',
+  'FailedOperation.FrequencyLimit': '发送过于频繁，请稍后再试。',
+  'FailedOperation.HighRejectionRate': '由于拒信率过高，发送功能被临时限制，请联系管理员。',
+  'FailedOperation.IncorrectEmail': '邮箱地址格式错误，请检查后重试。',
+  'FailedOperation.InsufficientBalance': '邮件服务余额不足，请联系管理员充值。',
+  'FailedOperation.InsufficientQuota': '邮件套餐额度不足，请联系管理员。',
+  'FailedOperation.InvalidTemplateID': '邮件模板无效，请联系管理员检查配置。',
+  'FailedOperation.NotAuthenticatedSender': '发件地址未认证，请联系管理员配置。',
+  'FailedOperation.ReceiverHasUnsubscribed': '该收件人已退订邮件。',
+  'FailedOperation.RejectedByRecipients': '邮件被收件方拒绝。',
+  'FailedOperation.SendEmailErr': '邮件发送遇到问题，请联系管理员。',
+  'FailedOperation.ServiceNotAvailable': '邮件服务暂时不可用，请稍后重试。',
+  'FailedOperation.TemporaryBlocked': '触发了收件服务商限制，请10分钟后再试。',
+  'FailedOperation.UnsupportMailType': '不支持该类型的邮箱地址。',
+  'FailedOperation.IllegalURL': '邮件内容包含不合规链接，请联系管理员。',
+  'InvalidParameterValue.EmailAddressIsNULL': '邮箱地址不能为空。',
+  'InvalidParameterValue.IllegalEmailAddress': '邮箱地址格式不正确。',
+  'InvalidParameterValue.TemplateNotExist': '邮件模板不存在，请联系管理员配置。',
+  'AuthFailure.SecretIdNotFound': '腾讯云密钥配置错误，请联系管理员。',
+  'AuthFailure.SignatureFailure': '腾讯云签名错误，请联系管理员检查配置。',
+  'AuthFailure.SignatureExpire': '请求签名过期，请重试。',
+  'InternalError': '腾讯云内部错误，请稍后重试。',
+  'RequestLimitExceeded': '请求频率超限，请稍后再试。',
+  'ServiceUnavailable': '邮件服务暂时不可用，请稍后重试。',
+  'OperationDenied.DomainNotVerified': '发信域名未验证，请联系管理员。',
+  'OperationDenied.SendAddressStatusError': '发信地址状态异常，请联系管理员。',
+  'OperationDenied.TemplateStatusError': '邮件模板未审核通过，请联系管理员。',
+};
+function getFriendlyErrorMessage(code, message) {
+  if (TENCENT_ERROR_MAP[code]) {
+    return TENCENT_ERROR_MAP[code];
+  }
+  if (code.startsWith('FailedOperation.')) {
+    return `邮件发送失败: ${message || code}`;
+  }
+  if (code.startsWith('AuthFailure.')) {
+    return '腾讯云认证失败，请联系管理员检查配置。';
+  }
+  if (code.startsWith('InvalidParameter')) {
+    return `参数错误: ${message || code}`;
+  }
+  return `邮件发送失败: ${message || code}`;
+}
 export async function sendEmail(env, to, subject, templateData) {
   const SECRET_ID = env.TENCENT_SECRET_ID;
   const SECRET_KEY = env.TENCENT_SECRET_KEY;
@@ -56,8 +101,11 @@ export async function sendEmail(env, to, subject, templateData) {
   });
   const result = await response.json();
   if (result.Response && result.Response.Error) {
-    console.error("Tencent SES Error:", result.Response.Error);
-    throw new Error(`腾讯云发送失败: ${result.Response.Error.Code} - ${result.Response.Error.Message}`);
+    const errCode = result.Response.Error.Code;
+    const errMessage = result.Response.Error.Message;
+    console.error("Tencent SES Error:", { code: errCode, message: errMessage, requestId: result.Response.RequestId });
+    const friendlyMsg = getFriendlyErrorMessage(errCode, errMessage);
+    throw new Error(friendlyMsg);
   }
   return { success: true, requestId: result.Response.RequestId };
 }

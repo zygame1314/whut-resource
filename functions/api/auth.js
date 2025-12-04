@@ -61,7 +61,8 @@ export async function onRequestPost({ request, env }) {
         );
       } catch (e) {
         console.error('邮件发送失败:', e);
-        return new Response(JSON.stringify({ success: false, error: '验证码发送失败，请稍后重试。' }), { status: 500, headers: addCorsHeaders() });
+        const errMsg = e && e.message ? e.message : '验证码发送失败，请稍后重试。';
+        return new Response(JSON.stringify({ success: false, error: errMsg }), { status: 500, headers: addCorsHeaders() });
       }
       return new Response(JSON.stringify({ success: true, message: '验证码已发送。' }), { status: 200, headers: addCorsHeaders() });
     }
@@ -117,9 +118,10 @@ export async function onRequestPost({ request, env }) {
         );
       } catch (e) {
         console.error('邮件发送失败:', e);
-        return new Response(JSON.stringify({ success: false, error: '验证码发送失败，请稍后重试。' }), { status: 500, headers: addCorsHeaders() });
+        const errMsg = e && e.message ? e.message : '验证码发送失败，请稍后重试。';
+        return new Response(JSON.stringify({ success: false, error: errMsg }), { status: 500, headers: addCorsHeaders() });
       }
-      return new Response(JSON.stringify({ success: true, message: '验证码已发送到您的邮箱。' }), { status: 200, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: true, message: '验证码已发送到你的邮箱。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'reset-password') {
       const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
