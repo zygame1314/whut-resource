@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 window.changeGuestbookPage = function(page) {
     if (page < 1 || page > totalGuestbookPages) return;
+    if (guestbookSection) {
+        guestbookSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     fetchAndDisplayGuestbook(page);
 };
 window.changeGuestbookSort = function(sortType) {

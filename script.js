@@ -1532,12 +1532,19 @@ function renderPaginationControls(paginationData) {
     }
     controlsContainer.style.display = 'flex';
     const { currentPage, totalPages, totalItems } = paginationData;
+    const scrollToFileList = () => {
+        const fileListContainer = document.querySelector('.file-list-container');
+        if (fileListContainer) {
+            fileListContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
     const prevButton = document.createElement('button');
     prevButton.innerHTML = '<i class="fas fa-chevron-left"></i> 上一页';
     prevButton.className = 'pagination-button';
     prevButton.disabled = currentPage <= 1;
     prevButton.onclick = () => {
         if (currentPage > 1) {
+            scrollToFileList();
             fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage - 1);
         }
     };
@@ -1552,6 +1559,7 @@ function renderPaginationControls(paginationData) {
     nextButton.disabled = currentPage >= totalPages;
     nextButton.onclick = () => {
         if (currentPage < totalPages) {
+            scrollToFileList();
             fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage + 1);
         }
     };
