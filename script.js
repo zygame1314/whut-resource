@@ -1620,6 +1620,9 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
 function renderPaginationControls(paginationData) {
     let controlsContainer = document.getElementById('pagination-controls');
     if (!controlsContainer) {
+        if (!fileListElement) {
+            return;
+        }
         console.warn('Pagination controls container not found. Creating one.');
         controlsContainer = document.createElement('div');
         controlsContainer.id = 'pagination-controls';
@@ -1807,12 +1810,14 @@ document.addEventListener('authRestored', () => {
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     createParticleBackground();
-    fileListElement.innerHTML = `
-        <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary); cursor: pointer;" title="点击登录">
-            <i class="fas fa-user-shield" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
-            请先完成验证以查看文件
-        </li>
-    `;
+    if (fileListElement) {
+        fileListElement.innerHTML = `
+            <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary); cursor: pointer;" title="点击登录">
+                <i class="fas fa-user-shield" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                请先完成验证以查看文件
+            </li>
+        `;
+    }
     updateBreadcrumb('');
     currentPrefix = '';
     renderPaginationControls(null);

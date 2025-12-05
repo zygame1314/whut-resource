@@ -254,6 +254,13 @@
         display: flex;
     }
 
+    .nav-actions:not(:has(#auth-section)).active {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
     .nav-actions #auth-section {
         display: flex;
         flex-direction: column;
