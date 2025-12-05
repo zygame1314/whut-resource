@@ -115,7 +115,6 @@
 .secondary-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(74, 144, 226, 0.4);
-    background: var(--hover-bg);
 }
 
 .secondary-btn:active {
@@ -720,7 +719,6 @@
 
 .guestbook-filter-btn:hover {
     color: var(--secondary-color);
-    background: var(--hover-bg);
 }
 
 .guestbook-filter-btn.active {
@@ -751,7 +749,6 @@
 
 .guestbook-sort-btn:hover {
     color: var(--primary-color);
-    background: var(--hover-bg);
 }
 
 .guestbook-sort-btn.active {
