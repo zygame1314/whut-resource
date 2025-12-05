@@ -15,7 +15,8 @@ const CONCURRENT_UPLOADS = 5;
 let selectedFiles = [];
 let isDragging = false;
 const urlParams = new URLSearchParams(window.location.search);
-const uploadPath = urlParams.get('path') || '';
+let uploadPath = urlParams.get('path') || '';
+const uploadPathSelect = document.getElementById('upload-path-select');
 function initTheme() {
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -73,17 +74,14 @@ function compressImage(file, quality = 0.8) {
             resolve(file);
             return;
         }
-
         const img = new Image();
         img.src = URL.createObjectURL(file);
-
         img.onload = () => {
             const canvas = document.createElement('canvas');
             canvas.width = img.width;
             canvas.height = img.height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
-
             canvas.toBlob(
                 (blob) => {
                     URL.revokeObjectURL(img.src);
@@ -92,26 +90,22 @@ function compressImage(file, quality = 0.8) {
                         resolve(file);
                         return;
                     }
-                    
                     const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
                     const compressedFile = new File([blob], newFileName, {
                         type: 'image/webp',
                         lastModified: Date.now(),
                     });
-                    
                     const originalPath = file.webkitRelativePath || file._webkitRelativePath;
                     if (originalPath) {
                         const pathOnly = originalPath.substring(0, originalPath.lastIndexOf('/') + 1);
                         compressedFile._webkitRelativePath = pathOnly + newFileName;
                     }
-
                     resolve(compressedFile);
                 },
                 'image/webp',
                 quality
             );
         };
-
         img.onerror = (err) => {
             URL.revokeObjectURL(img.src);
             console.error(`Error loading image ${file.name}:`, err);
@@ -119,7 +113,6 @@ function compressImage(file, quality = 0.8) {
         };
     });
 }
-
 function getFileIcon(fileName) {
     const ext = fileName.toLowerCase().split('.').pop();
     const iconMap = {
@@ -302,16 +295,13 @@ function showUploadStatus(message, type = 'info') {
         }, 5000);
     }
 }
-
 async function handleFileSelect(files) {
     showNotification('正在处理文件，图片将被压缩...', 'info');
     const originalFiles = Array.from(files);
-
     try {
         const processedFiles = await Promise.all(
             originalFiles.map(file => compressImage(file))
         );
-
         let allValid = true;
         for (const file of processedFiles) {
             const validation = validateFile(file);
@@ -320,24 +310,19 @@ async function handleFileSelect(files) {
                 allValid = false;
             }
         }
-
         if (!allValid) {
             clearSelectedFile();
             return;
         }
-
         showSelectedFile(processedFiles);
-        
         const originalSize = originalFiles.reduce((sum, f) => sum + f.size, 0);
         const compressedSize = processedFiles.reduce((sum, f) => sum + f.size, 0);
         const savedSize = originalSize - compressedSize;
-
         if (savedSize > 1024) {
             showNotification(`${processedFiles.length} 个文件处理完成，压缩节省 ${formatBytes(savedSize)}`, 'success');
         } else {
             showNotification(`${processedFiles.length} 个文件选择成功`, 'success');
         }
-
     } catch (error) {
         console.error('文件处理失败:', error);
         showNotification('处理文件时发生错误', 'error');
@@ -350,7 +335,6 @@ async function handleUpload(event) {
         showNotification('请选择要上传的文件或文件夹', 'error');
         return;
     }
-
     uploadSubmitBtn.disabled = true;
     uploadSubmitBtn.innerHTML = `
         <div style="width: 16px; height: 16px; border: 2px solid white; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
@@ -376,7 +360,6 @@ async function handleUpload(event) {
             fileName = `${uploadPath}${fileName}`;
         }
         formData.append('file', file, fileName);
-        
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.upload.addEventListener('progress', (e) => {
@@ -446,19 +429,77 @@ async function handleUpload(event) {
         `;
     }
 }
+async function fetchDirectories() {
+    const token = localStorage.getItem('authToken');
+    if (!token) return [];
+    try {
+        const response = await fetch('/api/files?action=listAllDirs', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (result.success && result.directories) {
+            return result.directories;
+        }
+    } catch (error) {
+        console.error('获取目录列表失败:', error);
+    }
+    return [];
+}
+async function initUploadPathSelector() {
+    const pathSelector = document.getElementById('upload-path-selector');
+    if (!pathSelector || !uploadPathSelect) return;
+    let waitTime = 0;
+    while (!window.currentUser && waitTime < 3000) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        waitTime += 100;
+    }
+    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    if (!isAdmin) {
+        pathSelector.innerHTML = `
+            <div class="upload-path-info" style="display: flex;">
+                <i class="fas fa-folder-open"></i>
+                <span>文件将上传到: ${uploadPath ? '/' + uploadPath : '根目录'}</span>
+            </div>
+        `;
+        pathSelector.style.display = 'flex';
+        return;
+    }
+    const directories = await fetchDirectories();
+    uploadPathSelect.innerHTML = '<option value="">根目录</option>';
+    directories.forEach(dir => {
+        const option = document.createElement('option');
+        const displayPath = dir.endsWith('/') ? dir.slice(0, -1) : dir;
+        option.value = dir;
+        option.textContent = '/' + displayPath;
+        uploadPathSelect.appendChild(option);
+    });
+    if (uploadPath) {
+        const pathWithSlash = uploadPath.endsWith('/') ? uploadPath : uploadPath + '/';
+        uploadPathSelect.value = pathWithSlash;
+        if (!uploadPathSelect.value) {
+            const option = document.createElement('option');
+            option.value = pathWithSlash;
+            option.textContent = '/' + uploadPath;
+            option.selected = true;
+            uploadPathSelect.appendChild(option);
+        }
+    }
+    uploadPathSelect.addEventListener('change', () => {
+        uploadPath = uploadPathSelect.value;
+        const newUrl = new URL(window.location);
+        if (uploadPath) {
+            newUrl.searchParams.set('path', uploadPath);
+        } else {
+            newUrl.searchParams.delete('path');
+        }
+        window.history.replaceState({}, '', newUrl);
+    });
+    pathSelector.style.display = 'flex';
+}
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     createParticleBackground();
-    const uploadPathInfo = document.getElementById('upload-path-info');
-    if (uploadPathInfo) {
-        const pathSpan = uploadPathInfo.querySelector('span');
-        if (uploadPath) {
-            pathSpan.textContent = `文件将上传到: /${uploadPath}`;
-        } else {
-            pathSpan.textContent = '文件将上传到: 根目录';
-        }
-        uploadPathInfo.style.display = 'flex';
-    }
+    initUploadPathSelector();
     if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
     }

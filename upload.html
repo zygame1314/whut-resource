@@ -81,9 +81,14 @@
                     </div>
 
                     <form id="upload-form" class="upload-form">
-                        <div id="upload-path-info" class="upload-path-info" style="display: none;">
-                            <i class="fas fa-folder-open"></i>
-                            <span></span>
+                        <div id="upload-path-selector" class="upload-path-selector" style="display: none;">
+                            <label for="upload-path-select">
+                                <i class="fas fa-folder-open"></i>
+                                上传目录：
+                            </label>
+                            <select id="upload-path-select" class="path-select">
+                                <option value="">根目录</option>
+                            </select>
                         </div>
                         <div class="file-drop-zone" id="file-drop-zone">
                             <div class="drop-zone-content">
