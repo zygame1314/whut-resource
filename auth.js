@@ -191,14 +191,14 @@ function showAuthModal(mode = 'login') {
 
             const studentId = email.split('@')[0];
 
-            if (!studentId.startsWith('3')) {
-                showNotification('同学，咱们学校卡号都是3开头的，你这是哪个平行宇宙的武理？', 'error');
-                return;
-            }
-
             const invalidIds = ['123456', '654321', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '114514'];
             if (invalidIds.includes(studentId)) {
                 showNotification('同学，这个卡号要是真的是你的，我当场把服务器吃了。请填写真实卡号！', 'error');
+                return;
+            }
+
+            if (!studentId.startsWith('3')) {
+                showNotification('同学，咱们学校卡号都是3开头的，你这是哪个平行宇宙的武理？', 'error');
                 return;
             }
 
