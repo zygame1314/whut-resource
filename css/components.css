@@ -1954,3 +1954,55 @@ textarea.form-input {
         font-size: 1.2rem;
     }
 }
+
+.checkbox-group.warning {
+    margin-bottom: 12px;
+    padding: 12px;
+    background: rgba(220, 38, 38, 0.08);
+    border-radius: 6px;
+    border: 1px solid rgba(220, 38, 38, 0.4);
+}
+
+.checkbox-group.warning label {
+    display: block;
+    cursor: pointer;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.warning-check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.checkbox-group.warning input[type='checkbox'] {
+    margin-top: 4px;
+    width: 16px;
+    height: 16px;
+    accent-color: #dc2626;
+    flex-shrink: 0;
+}
+
+.warning-title {
+    color: #dc2626;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 8px;
+    font-size: 1rem;
+}
+
+.warning-text {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85em;
+    color: #dc2626;
+}
+
+.warning-highlight {
+    text-decoration: underline;
+    font-weight: 800;
+}
+

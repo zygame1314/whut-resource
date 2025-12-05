@@ -1,11 +1,9 @@
 # Dependencies
 node_modules/
 
-# Cloudflare Wrangler
-.wrangler/
-
 # System Files
 .DS_Store
+.vscode/
 Thumbs.db
 Desktop.ini
 

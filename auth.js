@@ -123,9 +123,21 @@ function showAuthModal(mode = 'login') {
                 </div>
                 <div class="form-group">
                     <label>验证码</label>
+                    <div class="checkbox-group warning">
+                        <label>
+                            <div class="warning-title"><i class="fas fa-exclamation-triangle"></i> 警告</div>
+                            <div class="warning-check-row">
+                                <input type="checkbox" id="confirm-activation">
+                                <span>我已确认：我已经登录过 whut.edu.cn 邮箱系统并成功激活邮箱。</span>
+                            </div>
+                            <div class="warning-text">
+                                如果不激活，验证码将发送失败。系统将<strong class="warning-highlight">永久封禁</strong>你的账号！
+                            </div>
+                        </label>
+                    </div>
                     <div class="input-group">
                         <input type="text" id="auth-code" placeholder="6位验证码" class="form-control">
-                        <button type="button" id="send-code-btn" class="send-code-btn">发送验证码</button>
+                        <button type="button" id="send-code-btn" class="send-code-btn" disabled title="请先勾选确认框">发送验证码</button>
                     </div>
                     <!-- Cloudflare Turnstile Widget -->
                     <div id="turnstile-widget" style="margin-top: 10px;"></div>
@@ -157,6 +169,18 @@ function showAuthModal(mode = 'login') {
             });
         }
         const sendCodeBtn = modal.querySelector('#send-code-btn');
+        const confirmActivationCheckbox = modal.querySelector('#confirm-activation');
+        
+        if (confirmActivationCheckbox) {
+            confirmActivationCheckbox.addEventListener('change', () => {
+                if (sendCodeBtn.textContent.includes('s') && !sendCodeBtn.textContent.includes('发送')) {
+                     return;
+                }
+                sendCodeBtn.disabled = !confirmActivationCheckbox.checked;
+                sendCodeBtn.title = sendCodeBtn.disabled ? "请先勾选确认框" : "";
+            });
+        }
+
         sendCodeBtn.onclick = async () => {
             const email = document.getElementById('auth-email').value;
             const studentIdEmailRegex = /^\d{6}@whut\.edu\.cn$/;
@@ -189,19 +213,22 @@ function showAuthModal(mode = 'login') {
                         countdown--;
                         if (countdown < 0) {
                             clearInterval(timer);
-                            sendCodeBtn.disabled = false;
+                            sendCodeBtn.disabled = confirmActivationCheckbox ? !confirmActivationCheckbox.checked : false;
                             sendCodeBtn.textContent = '发送验证码';
+                            if (sendCodeBtn.disabled) sendCodeBtn.title = "请先勾选确认框";
                         }
                     }, 1000);
                 } else {
                     showNotification(data.error, 'error');
-                    sendCodeBtn.disabled = false;
+                    sendCodeBtn.disabled = confirmActivationCheckbox ? !confirmActivationCheckbox.checked : false;
                     sendCodeBtn.textContent = '发送验证码';
+                    if (sendCodeBtn.disabled) sendCodeBtn.title = "请先勾选确认框";
                 }
             } catch (e) {
                 showNotification('发送失败: ' + e.message, 'error');
-                sendCodeBtn.disabled = false;
+                sendCodeBtn.disabled = confirmActivationCheckbox ? !confirmActivationCheckbox.checked : false;
                 sendCodeBtn.textContent = '发送验证码';
+                if (sendCodeBtn.disabled) sendCodeBtn.title = "请先勾选确认框";
             }
         };
     }
