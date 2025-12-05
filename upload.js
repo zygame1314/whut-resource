@@ -322,7 +322,9 @@ function clearSelectedFile() {
     selectedFiles = [];
     fileInput.value = '';
     selectedFileInfo.style.display = 'none';
-    fileDropZone.style.display = 'flex';
+    if (currentUploadType === 'file') {
+        fileDropZone.style.display = 'flex';
+    }
     resetProgress();
 }
 function resetProgress() {

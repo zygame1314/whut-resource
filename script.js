@@ -127,12 +127,14 @@ async function fetchAndRenderRecentUploads(showToast = false) {
         files.forEach(file => {
             const li = document.createElement('li');
             li.className = 'recent-upload-item';
-            const iconClass = getFileIcon(file.name, false);
+            const isLink = file.is_link === 1 || file.is_link === true;
+            const iconClass = isLink ? 'fas fa-link' : getFileIcon(file.name, false);
             const parentPath = typeof file.parent_path === 'string' ? file.parent_path : '';
             const normalizedPath = parentPath.endsWith('/') ? parentPath.slice(0, -1) : parentPath;
             const folderName = normalizedPath ? normalizedPath.split('/').filter(Boolean).pop() || '根目录' : '根目录';
             const folderLabel = parentPath && parentPath !== '' ? parentPath : '根目录';
             const downloadsLabel = typeof file.downloads === 'number' ? file.downloads : 0;
+            const sizeDisplay = isLink ? '外部链接' : formatBytes(file.size);
             li.innerHTML = `
                 <div class="recent-upload-info">
                     <div class="recent-upload-name" title="${file.name}">
@@ -140,9 +142,9 @@ async function fetchAndRenderRecentUploads(showToast = false) {
                         <span>${file.name}</span>
                     </div>
                     <div class="recent-upload-meta">
-                        <span><i class="fas fa-database"></i> ${formatBytes(file.size)}</span>
+                        <span><i class="fas ${isLink ? 'fa-link' : 'fa-database'}"></i> ${sizeDisplay}</span>
                         <span><i class="fas fa-clock"></i> ${formatDate(file.uploaded)}</span>
-                        <span><i class="fas fa-download"></i> ${downloadsLabel}</span>
+                        <span><i class="fas ${isLink ? 'fa-mouse-pointer' : 'fa-download'}"></i> ${downloadsLabel}</span>
                     </div>
                     <div class="recent-upload-meta">
                         <span class="recent-upload-path" title="${folderLabel}">
@@ -152,32 +154,59 @@ async function fetchAndRenderRecentUploads(showToast = false) {
                     </div>
                 </div>
                 <div class="recent-upload-actions">
+                    ${isLink ? `
+                    <button class="recent-action-btn recent-open-link-btn" title="打开链接">
+                        <i class="fas fa-external-link-alt"></i>
+                    </button>
+                    ` : `
                     <button class="recent-action-btn recent-preview-btn" title="预览文件">
                         <i class="fas fa-eye"></i>
                     </button>
                     <button class="recent-action-btn recent-download-btn" title="下载文件">
                         <i class="fas fa-download"></i>
                     </button>
+                    `}
                     <button class="recent-action-btn recent-open-btn" title="定位到所在目录">
                         <i class="fas fa-location-arrow"></i>
                     </button>
                 </div>
             `;
-            const previewBtn = li.querySelector('.recent-preview-btn');
-            if (previewBtn) {
-                previewBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    previewFile(file.key, file.name, file.size);
-                });
-            }
-            const downloadBtn = li.querySelector('.recent-download-btn');
-            if (downloadBtn) {
-                downloadBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    downloadFile(file.key, downloadBtn);
-                });
+            if (isLink) {
+                const openLinkBtn = li.querySelector('.recent-open-link-btn');
+                if (openLinkBtn) {
+                    openLinkBtn.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                            const token = localStorage.getItem('authToken');
+                            if (token) {
+                                await fetch(`${FILES_API_URL}?action=recordLinkClick&key=${encodeURIComponent(file.key)}`, {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                            }
+                        } catch (err) {
+                            console.warn('记录链接点击失败:', err);
+                        }
+                        window.open(file.link_url, '_blank');
+                    });
+                }
+            } else {
+                const previewBtn = li.querySelector('.recent-preview-btn');
+                if (previewBtn) {
+                    previewBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        previewFile(file.key, file.name, file.size);
+                    });
+                }
+                const downloadBtn = li.querySelector('.recent-download-btn');
+                if (downloadBtn) {
+                    downloadBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        downloadFile(file.key, downloadBtn);
+                    });
+                }
             }
             const openBtn = li.querySelector('.recent-open-btn');
             if (openBtn) {
