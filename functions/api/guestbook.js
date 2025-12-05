@@ -253,7 +253,24 @@ async function handlePut(request, env) {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const status = action === 'resolve' ? 'resolved' : 'unresolved';
-        await env.DB.prepare('UPDATE guestbook SET status = ? WHERE id = ?').bind(status, id).run();
+        await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL WHERE id = ?').bind(status, id).run();
+    } else if (action === 'reject') {
+        if (user.role !== 'admin') {
+            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const rejectReason = body.reject_reason || '';
+        if (!rejectReason || rejectReason.trim().length === 0) {
+            return new Response(JSON.stringify({ error: '请填写驳回原因' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (rejectReason.length > 200) {
+            return new Response(JSON.stringify({ error: '驳回原因过长（最多200字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = ? WHERE id = ?').bind('rejected', rejectReason.trim(), id).run();
+    } else if (action === 'unreject') {
+        if (user.role !== 'admin') {
+            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL WHERE id = ?').bind('unresolved', id).run();
     } else if (action === 'ban_user') {
         if (user.role !== 'admin') {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });

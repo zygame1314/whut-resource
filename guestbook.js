@@ -75,6 +75,54 @@ window.confirmUnbanUser = async function(id) {
         handleGuestbookAction(id, 'unban_user');
     }
 };
+window.rejectGuestbook = async function(id) {
+    let rejectReason = '';
+    try {
+        if (typeof showPrompt === 'function') {
+            rejectReason = await showPrompt({
+                title: '驳回留言',
+                message: '请输入驳回原因：',
+                initialValue: '',
+                placeholder: '请填写驳回原因（最多200字符）'
+            });
+        } else {
+            rejectReason = prompt('请输入驳回原因：');
+        }
+    } catch (e) {
+        return;
+    }
+    if (rejectReason === null) return;
+    rejectReason = rejectReason.trim();
+    if (!rejectReason) {
+        showNotification('驳回原因不能为空', 'warning');
+        return;
+    }
+    if (rejectReason.length > 200) {
+        showNotification('驳回原因过长（最多200字符）', 'warning');
+        return;
+    }
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(GUESTBOOK_API_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ id, action: 'reject', reject_reason: rejectReason })
+        });
+        if (response.ok) {
+            showNotification('留言已驳回', 'success');
+            fetchAndDisplayGuestbook(currentGuestbookPage);
+        } else {
+            const data = await response.json();
+            showNotification(data.error || '驳回失败', 'error');
+        }
+    } catch (error) {
+        console.error('Reject guestbook error:', error);
+        showNotification('驳回出错', 'error');
+    }
+};
 function initGuestbook() {
     if (guestbookForm) {
         guestbookForm.addEventListener('submit', handleGuestbookSubmit);
@@ -147,6 +195,9 @@ function renderGuestbook(messages) {
             const statusTitle = msg.status === 'resolved' ? '标记为未解决' : '标记为已解决';
             const statusClass = msg.status === 'resolved' ? 'success' : '';
             const statusAction = msg.status === 'resolved' ? 'unresolve' : 'resolve';
+            const rejectIcon = msg.status === 'rejected' ? 'fas fa-times-circle' : 'far fa-times-circle';
+            const rejectTitle = msg.status === 'rejected' ? '取消驳回' : '驳回留言';
+            const rejectClass = msg.status === 'rejected' ? 'danger' : '';
             const escapedContent = escapeHtml(msg.content).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
             adminControls = `
                 <div class="guestbook-admin-controls">
@@ -155,6 +206,9 @@ function renderGuestbook(messages) {
                     </button>
                     <button class="icon-btn small ${statusClass}" onclick="handleGuestbookAction(${msg.id}, '${statusAction}')" title="${statusTitle}">
                         <i class="${statusIcon}"></i>
+                    </button>
+                    <button class="icon-btn small ${rejectClass}" onclick="${msg.status === 'rejected' ? `handleGuestbookAction(${msg.id}, 'unreject')` : `rejectGuestbook(${msg.id})`}" title="${rejectTitle}">
+                        <i class="${rejectIcon}"></i>
                     </button>
                     <button class="icon-btn small ${visibilityClass}" onclick="toggleGuestbookVisibility(${msg.id}, ${msg.is_hidden})" title="${visibilityTitle}">
                         <i class="${visibilityIcon}"></i>
@@ -194,8 +248,14 @@ function renderGuestbook(messages) {
         const avatarChar = nickname.charAt(0).toUpperCase();
         const avatarColor = getAvatarColor(nickname);
         let statusBadge = '';
+        let rejectReasonHtml = '';
         if (msg.status === 'resolved') {
             statusBadge = '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>';
+        } else if (msg.status === 'rejected') {
+            statusBadge = '<span class="status-badge rejected"><i class="fas fa-times"></i> 已驳回</span>';
+            if (msg.reject_reason) {
+                rejectReasonHtml = `<div class="reject-reason"><i class="fas fa-comment-slash"></i> 驳回原因：${escapeHtml(msg.reject_reason)}</div>`;
+            }
         } else {
             statusBadge = '<span class="status-badge unresolved">未解决</span>';
         }
@@ -226,6 +286,7 @@ function renderGuestbook(messages) {
                         ${adminControls}${authorControls}
                     </div>
                     <div class="guestbook-content">${escapeHtml(msg.content)}</div>
+                    ${rejectReasonHtml}
                     <div class="guestbook-footer">
                         <button class="like-btn ${likedClass}" onclick="${likeAction}">
                             <i class="${likeIcon}"></i> <span>${msg.likes}</span>
@@ -350,7 +411,7 @@ async function handleGuestbookAction(id, action, btnElement) {
                  showNotification(data.error || '操作失败', 'error');
              }
         } else {
-            if (action === 'hide' || action === 'unhide' || action === 'pin' || action === 'unpin' || action === 'resolve' || action === 'unresolve' || action === 'ban_user' || action === 'unban_user') {
+            if (action === 'hide' || action === 'unhide' || action === 'pin' || action === 'unpin' || action === 'resolve' || action === 'unresolve' || action === 'reject' || action === 'unreject' || action === 'ban_user' || action === 'unban_user') {
                 showNotification('操作成功', 'success');
                 fetchAndDisplayGuestbook(currentGuestbookPage);
             }

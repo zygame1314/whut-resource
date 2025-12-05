@@ -61,7 +61,8 @@ CREATE TABLE guestbook (
     likes INTEGER DEFAULT 0,
     is_hidden BOOLEAN DEFAULT FALSE,
     is_pinned BOOLEAN DEFAULT FALSE,
-    status TEXT DEFAULT 'unresolved', -- 'resolved', 'unresolved'
+    status TEXT DEFAULT 'unresolved',
+    reject_reason TEXT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
