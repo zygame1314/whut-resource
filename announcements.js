@@ -160,7 +160,7 @@ function renderAdminAnnouncementList() {
             </div>
             <div class="admin-announcement-actions">
                 <button class="secondary-btn" onclick="editAnnouncement(${a.id})">编辑</button>
-                <button class="secondary-btn" onclick="deleteAnnouncement(${a.id})" style="color: var(--danger-color); border-color: var(--danger-color);">删除</button>
+                <button class="secondary-btn" onclick="deleteAnnouncement(${a.id})" style="color: var(--accent-color); border-color: var(--accent-color);">删除</button>
             </div>
         </div>
     `).join('');

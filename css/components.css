@@ -33,11 +33,11 @@
 }
 
 .icon-btn.danger {
-    color: var(--danger-color);
+    color: var(--accent-color);
 }
 
 .icon-btn.danger:hover {
-    background: var(--danger-color);
+    background: var(--accent-color);
     color: white;
 }
 
@@ -1020,7 +1020,7 @@
 }
 
 .admin-action-btn.delete:hover {
-    color: var(--danger-color);
+    color: var(--accent-color);
 }
 
 .item-hidden {
