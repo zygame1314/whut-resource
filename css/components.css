@@ -32,6 +32,15 @@
     color: white;
 }
 
+.icon-btn.danger {
+    color: var(--danger-color);
+}
+
+.icon-btn.danger:hover {
+    background: var(--danger-color);
+    color: white;
+}
+
 .primary-btn {
     display: inline-flex;
     align-items: center;
@@ -1109,7 +1118,7 @@
 .reject-presets {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.2rem;
     margin-bottom: 1rem;
 }
 
