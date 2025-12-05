@@ -242,6 +242,7 @@
         background: var(--background);
         border-radius: var(--border-radius-large);
         box-shadow: var(--shadow-large);
+        border: 1px solid var(--border-color);
         flex-direction: column;
         align-items: stretch;
         width: 280px;
