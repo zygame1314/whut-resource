@@ -1,6 +1,17 @@
 const AUTH_API_URL = `/api/auth`;
 let currentUser = null;
 let token = localStorage.getItem('authToken');
+
+function escapeHtmlAuth(text) {
+    if (!text) return '';
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 async function checkAuth() {
     if (!token) {
         updateAuthUI();
@@ -55,7 +66,7 @@ function updateAuthUI() {
         if (authSection) {
             authSection.innerHTML = `
                 <span class="user-info">
-                    <i class="fas fa-user"></i> ${currentUser.nickname || currentUser.email}
+                    <i class="fas fa-user"></i> ${escapeHtmlAuth(currentUser.nickname || currentUser.email)}
                     <span class="quota">(${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次)</span>
                 </span>
                 ${currentUser.role === 'admin' ? '<button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>' : ''}
@@ -297,7 +308,7 @@ function showChangeNicknameModal() {
             <form id="change-nickname-form">
                 <div class="form-group">
                     <label>新昵称</label>
-                    <input type="text" id="new-nickname" required class="form-control" placeholder="请输入新昵称" value="${currentUser.nickname || ''}" maxlength="20">
+                    <input type="text" id="new-nickname" required class="form-control" placeholder="请输入新昵称" value="${escapeHtmlAuth(currentUser.nickname || '')}" maxlength="20">
                 </div>
                 <button type="submit" class="primary-btn full-width">确认修改</button>
             </form>

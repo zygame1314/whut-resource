@@ -38,6 +38,16 @@ function isValidUrl(string) {
     return false;
   }
 }
+function sanitizeFileName(name) {
+  if (!name || typeof name !== 'string') return null;
+  let sanitized = name
+    .replace(/\.\./g, '')
+    .replace(/^[\/]+/, '')
+    .replace(/[<>:"|?*\x00-\x1f]/g, '')
+    .trim();
+  if (sanitized.length === 0 || sanitized.length > 255) return null;
+  return sanitized;
+}
 export async function onRequestPost({ request, env, waitUntil }) {
   try {
     const R2_BUCKET = env.R2_bucket;
@@ -81,6 +91,12 @@ export async function onRequestPost({ request, env, waitUntil }) {
           headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
       }
+      if (linkUrl.length > 2000) {
+        return new Response(JSON.stringify({ success: false, error: 'URL不能超过2000个字符。' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
       if (linkName.length > 200) {
         return new Response(JSON.stringify({ success: false, error: '链接名称不能超过200个字符。' }), {
           status: 400,
@@ -88,7 +104,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
         });
       }
       const parentPath = uploadPath || '';
-      const key = parentPath ? `${parentPath}${linkName}` : linkName;
+      const sanitizedLinkName = sanitizeFileName(linkName);
+      if (!sanitizedLinkName) {
+        return new Response(JSON.stringify({ success: false, error: '链接名称包含无效字符。' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const key = parentPath ? `${parentPath}${sanitizedLinkName}` : sanitizedLinkName;
       const existingFile = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(key).first();
       if (existingFile) {
         return new Response(JSON.stringify({ success: false, error: '该名称的条目已存在。' }), { status: 409, headers: addCorsHeaders() });
@@ -100,7 +123,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(
         key,
-        linkName,
+        sanitizedLinkName,
         0,
         new Date().toISOString(),
         'application/x-link',
@@ -140,7 +163,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
-    const key = filename;
+    const sanitizedFilename = sanitizeFileName(filename);
+    if (!sanitizedFilename) {
+      return new Response(JSON.stringify({ success: false, error: '文件名包含无效字符或过长。' }), {
+        status: 400,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
+    }
+    const key = sanitizedFilename;
     const existingFile = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(key).first();
     if (existingFile) {
         return new Response(JSON.stringify({ success: false, error: '文件已存在。' }), { status: 409, headers: addCorsHeaders() });
@@ -154,7 +184,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
         key,
-        key.split('/').pop(),
+        sanitizedFilename.split('/').pop(),
         file.size,
         new Date().toISOString(),
         file.type,

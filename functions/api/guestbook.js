@@ -152,6 +152,10 @@ async function handlePost(request, env) {
     if (user.is_banned) {
         return new Response(JSON.stringify({ error: '你已被禁止发帖。' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    const contentLength = request.headers.get('Content-Length');
+    if (contentLength && parseInt(contentLength) > 10240) {
+        return new Response(JSON.stringify({ error: '请求体过大' }), { status: 413, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const todayStart = new Date().toISOString().split('T')[0] + ' 00:00:00';
     const postCountResult = await env.DB.prepare('SELECT COUNT(*) as count FROM guestbook WHERE user_id = ? AND created_at >= ?').bind(user.id, todayStart).first();
     if (postCountResult.count >= 10) {
@@ -193,6 +197,10 @@ async function handlePut(request, env) {
     const user = await getUser(request, env);
     if (!user) {
         return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    const contentLength = request.headers.get('Content-Length');
+    if (contentLength && parseInt(contentLength) > 10240) {
+        return new Response(JSON.stringify({ error: '请求体过大' }), { status: 413, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const body = await request.json();
     const id = body.id;

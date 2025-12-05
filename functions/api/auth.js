@@ -164,6 +164,13 @@ export async function onRequestPost({ request, env }) {
       if (!code) {
         return new Response(JSON.stringify({ success: false, error: '需要验证码。' }), { status: 400, headers: addCorsHeaders() });
       }
+      let sanitizedNickname = nickname ? nickname.trim() : email.split('@')[0];
+      if (sanitizedNickname.length > 20) {
+        return new Response(JSON.stringify({ success: false, error: '昵称过长（最多20字符）。' }), { status: 400, headers: addCorsHeaders() });
+      }
+      if (sanitizedNickname.length === 0) {
+        sanitizedNickname = email.split('@')[0];
+      }
       const validCode = await env.DB.prepare('SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1')
         .bind(email, code, new Date().toISOString())
         .first();
@@ -177,7 +184,7 @@ export async function onRequestPost({ request, env }) {
       const passwordHash = await hashPassword(password, env.SALT);
       const role = 'user';
       await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role) VALUES (?, ?, ?, ?)')
-        .bind(email, nickname || email.split('@')[0], passwordHash, role)
+        .bind(email, sanitizedNickname, passwordHash, role)
         .run();
       await env.DB.prepare('DELETE FROM verification_codes WHERE email = ?').bind(email).run();
       return new Response(JSON.stringify({ success: true, message: '注册成功。请登录。' }), { status: 200, headers: addCorsHeaders() });

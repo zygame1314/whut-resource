@@ -310,7 +310,8 @@ function renderGuestbook(messages) {
             `;
         }
         const nickname = msg.nickname || '匿名用户';
-        const avatarChar = nickname.charAt(0).toUpperCase();
+        const safeNickname = escapeHtml(nickname);
+        const avatarChar = safeNickname.charAt(0).toUpperCase();
         const avatarColor = getAvatarColor(nickname);
         let statusBadge = '';
         let rejectReasonHtml = '';

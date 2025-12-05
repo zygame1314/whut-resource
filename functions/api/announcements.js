@@ -69,10 +69,26 @@ async function handlePost(request, env) {
     if (!user || user.role !== 'admin') {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    const contentLength = request.headers.get('Content-Length');
+    if (contentLength && parseInt(contentLength) > 102400) {
+        return new Response(JSON.stringify({ error: '请求体过大' }), { status: 413, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const { title, content, is_published } = await request.json();
+    if (!title || title.trim().length === 0) {
+        return new Response(JSON.stringify({ error: '标题不能为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (title.length > 200) {
+        return new Response(JSON.stringify({ error: '标题过长（最多200字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (!content || content.trim().length === 0) {
+        return new Response(JSON.stringify({ error: '内容不能为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (content.length > 50000) {
+        return new Response(JSON.stringify({ error: '内容过长（最多50000字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const result = await env.DB.prepare(
         'INSERT INTO announcements (title, content, is_published, author_id) VALUES (?, ?, ?, ?)'
-    ).bind(title, content, is_published ? 1 : 0, user.id).run();
+    ).bind(title.trim(), content.trim(), is_published ? 1 : 0, user.id).run();
     return new Response(JSON.stringify({ success: true, id: result.meta.last_row_id }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePut(request, env) {
@@ -80,10 +96,29 @@ async function handlePut(request, env) {
     if (!user || user.role !== 'admin') {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    const contentLength = request.headers.get('Content-Length');
+    if (contentLength && parseInt(contentLength) > 102400) {
+        return new Response(JSON.stringify({ error: '请求体过大' }), { status: 413, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const { id, title, content, is_published } = await request.json();
+    if (!id) {
+        return new Response(JSON.stringify({ error: '缺少ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (!title || title.trim().length === 0) {
+        return new Response(JSON.stringify({ error: '标题不能为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (title.length > 200) {
+        return new Response(JSON.stringify({ error: '标题过长（最多200字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (!content || content.trim().length === 0) {
+        return new Response(JSON.stringify({ error: '内容不能为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (content.length > 50000) {
+        return new Response(JSON.stringify({ error: '内容过长（最多50000字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     await env.DB.prepare(
         'UPDATE announcements SET title = ?, content = ?, is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).bind(title, content, is_published ? 1 : 0, id).run();
+    ).bind(title.trim(), content.trim(), is_published ? 1 : 0, id).run();
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handleDelete(request, env) {
