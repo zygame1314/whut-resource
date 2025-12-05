@@ -83,26 +83,6 @@
     animation-delay: 6s;
 }
 
-@keyframes floatingMove {
-
-    0%,
-    100% {
-        transform: translate(0, 0) rotate(0deg);
-    }
-
-    25% {
-        transform: translate(10px, -15px) rotate(90deg);
-    }
-
-    50% {
-        transform: translate(-5px, -25px) rotate(180deg);
-    }
-
-    75% {
-        transform: translate(-15px, -10px) rotate(270deg);
-    }
-}
-
 .file-explorer {
     background: var(--background);
     border-radius: 20px;
@@ -981,7 +961,7 @@
     background: var(--text-secondary);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
     .upload-path-selector {
         flex-direction: column;
         align-items: stretch;
@@ -1041,17 +1021,6 @@
 .no-permission-icon i {
     font-size: 2.5rem;
     color: #e74c3c;
-}
-
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.2);
-    }
-    50% {
-        transform: scale(1.05);
-        box-shadow: 0 0 20px 10px rgba(231, 76, 60, 0);
-    }
 }
 
 .no-permission-title {
