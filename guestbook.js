@@ -75,19 +75,16 @@ window.confirmUnbanUser = async function(id) {
         handleGuestbookAction(id, 'unban_user');
     }
 };
+const REJECT_PRESETS = [
+    '无关内容',
+    '重复提交',
+    '表述不清',
+    '无法实现',
+];
 window.rejectGuestbook = async function(id) {
     let rejectReason = '';
     try {
-        if (typeof showPrompt === 'function') {
-            rejectReason = await showPrompt({
-                title: '驳回留言',
-                message: '请输入驳回原因：',
-                initialValue: '',
-                placeholder: '请填写驳回原因（最多200字符）'
-            });
-        } else {
-            rejectReason = prompt('请输入驳回原因：');
-        }
+        rejectReason = await showRejectPrompt();
     } catch (e) {
         return;
     }
@@ -123,6 +120,74 @@ window.rejectGuestbook = async function(id) {
         showNotification('驳回出错', 'error');
     }
 };
+function showRejectPrompt() {
+    return new Promise((resolve, reject) => {
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'confirmation-modal-overlay';
+        const presetsHtml = REJECT_PRESETS.map((preset, index) => 
+            `<button class="reject-preset-btn" data-index="${index}">${preset}</button>`
+        ).join('');
+        modalOverlay.innerHTML = `
+            <div class="confirmation-modal reject-modal">
+                <h3><i class="fas fa-times-circle"></i> 驳回留言</h3>
+                <p>选择预设原因或自定义输入：</p>
+                <div class="reject-presets">
+                    ${presetsHtml}
+                </div>
+                <div class="prompt-input-container">
+                    <textarea id="reject-reason-input" placeholder="请填写驳回原因（最多200字符）" rows="3" maxlength="200"></textarea>
+                    <div class="char-counter"><span id="reject-char-count">0</span>/200</div>
+                </div>
+                <div class="confirmation-buttons">
+                    <button class="confirm-btn-cancel">取消</button>
+                    <button class="confirm-btn confirm-btn-danger">驳回</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modalOverlay);
+        const textarea = modalOverlay.querySelector('#reject-reason-input');
+        const charCount = modalOverlay.querySelector('#reject-char-count');
+        const presetBtns = modalOverlay.querySelectorAll('.reject-preset-btn');
+        textarea.focus();
+        textarea.addEventListener('input', () => {
+            charCount.textContent = textarea.value.length;
+        });
+        presetBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const preset = REJECT_PRESETS[parseInt(btn.dataset.index)];
+                textarea.value = preset;
+                charCount.textContent = preset.length;
+                presetBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+        const closeModal = (value) => {
+            modalOverlay.classList.add('closing');
+            modalOverlay.addEventListener('animationend', () => {
+                if (modalOverlay.parentNode) {
+                    document.body.removeChild(modalOverlay);
+                }
+                if (value !== null) {
+                    resolve(value);
+                } else {
+                    reject(new Error('User cancelled'));
+                }
+            }, { once: true });
+        };
+        modalOverlay.querySelector('.confirm-btn').addEventListener('click', () => closeModal(textarea.value));
+        modalOverlay.querySelector('.confirm-btn-cancel').addEventListener('click', () => closeModal(null));
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal(null);
+            }
+        });
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                closeModal(null);
+            }
+        });
+    });
+}
 function initGuestbook() {
     if (guestbookForm) {
         guestbookForm.addEventListener('submit', handleGuestbookSubmit);

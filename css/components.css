@@ -1091,6 +1091,81 @@
     margin-right: 0.5rem;
 }
 
+.reject-modal {
+    max-width: 500px;
+}
+
+.reject-modal h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #dc3545;
+}
+
+.reject-modal h3 i {
+    font-size: 1.2rem;
+}
+
+.reject-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.reject-preset-btn {
+    padding: 0.5rem 0.85rem;
+    background: var(--bg-secondary);
+    border: 1.5px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.reject-preset-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.reject-preset-btn.active {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.15) 100%);
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.reject-modal .prompt-input-container {
+    position: relative;
+}
+
+.reject-modal textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+    transition: border-color 0.2s ease;
+}
+
+.reject-modal textarea:focus {
+    outline: none;
+    border-color: #dc3545;
+}
+
+.reject-modal .char-counter {
+    text-align: right;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-top: 0.3rem;
+}
+
 .admin-badge {
     display: inline-flex;
     align-items: center;
