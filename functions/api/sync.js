@@ -71,11 +71,25 @@ export async function onRequestPost({ request, env }) {
              parent_path=excluded.parent_path`
         ).bind(dirPath, dirName, 0, new Date().toISOString(), 'inode/directory', parentDir, true, 0));
     }
-    const { results } = await DB.prepare('SELECT key FROM files').all();
+    const { results } = await DB.prepare('SELECT key FROM files WHERE is_link = FALSE OR is_link IS NULL').all();
     const dbKeys = results.map(r => r.key);
     const keysToDelete = dbKeys.filter(key => !validKeys.has(key));
     for (const key of keysToDelete) {
         statements.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(key));
+    }
+    const { results: linkResults } = await DB.prepare('SELECT key, parent_path FROM files WHERE is_link = TRUE').all();
+    for (const link of linkResults) {
+        validKeys.add(link.key);
+        if (link.parent_path) {
+            let currentPath = link.parent_path;
+            while (currentPath) {
+                dirPaths.add(currentPath);
+                if (currentPath.endsWith('/')) currentPath = currentPath.slice(0, -1);
+                const lastSlash = currentPath.lastIndexOf('/');
+                if (lastSlash === -1) break;
+                currentPath = currentPath.substring(0, lastSlash + 1);
+            }
+        }
     }
     const BATCH_SIZE = 50;
     let processedCount = 0;
@@ -88,10 +102,11 @@ export async function onRequestPost({ request, env }) {
     }
     return new Response(JSON.stringify({
         success: true,
-        message: `同步完成。R2文件数: ${allR2Objects.length}, 目录数: ${dirPaths.size}, 数据库操作数: ${statements.length} (含 ${keysToDelete.length} 个删除)`,
+        message: `同步完成。R2文件数: ${allR2Objects.length}, 目录数: ${dirPaths.size}, 链接数: ${linkResults.length}, 数据库操作数: ${statements.length} (含 ${keysToDelete.length} 个删除)`,
         syncedStats: {
             files: allR2Objects.length,
             dirs: dirPaths.size,
+            links: linkResults.length,
             deleted: keysToDelete.length
         }
     }), { status: 200, headers: addCorsHeaders() });

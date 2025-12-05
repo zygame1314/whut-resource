@@ -208,16 +208,22 @@ export async function onRequestPut({ request, env }) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
-    try {
-        await R2.put(newKey, await R2.get(key).then(obj => obj.body), {
-            httpMetadata: { contentType: fileRecord.contentType }
-        });
-        await R2.delete(key);
-    } catch (e) {
-        return new Response(JSON.stringify({ success: false, error: 'R2重命名失败：' + e.message }), {
-            status: 500,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+    const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
+    if (!isLink) {
+        try {
+            const sourceObj = await R2.get(key);
+            if (sourceObj) {
+                await R2.put(newKey, sourceObj.body, {
+                    httpMetadata: { contentType: fileRecord.contentType }
+                });
+                await R2.delete(key);
+            }
+        } catch (e) {
+            return new Response(JSON.stringify({ success: false, error: 'R2重命名失败：' + e.message }), {
+                status: 500,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
     }
     await DB.prepare('UPDATE files SET key = ?, name = ? WHERE key = ?').bind(newKey, newName, key).run();
     return new Response(JSON.stringify({ success: true, message: '重命名成功' }), {
