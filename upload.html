@@ -82,13 +82,24 @@
 
                     <form id="upload-form" class="upload-form">
                         <div id="upload-path-selector" class="upload-path-selector" style="display: none;">
-                            <label for="upload-path-select">
+                            <label>
                                 <i class="fas fa-folder-open"></i>
                                 上传目录：
                             </label>
-                            <select id="upload-path-select" class="path-select">
-                                <option value="">根目录</option>
-                            </select>
+                            <div class="path-dropdown-wrapper">
+                                <button type="button" id="upload-path-btn" class="path-dropdown-btn">
+                                    <span class="selected-path">根目录</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div id="upload-path-dropdown" class="path-dropdown-menu">
+                                    <div class="path-dropdown-header">
+                                        <span>选择上传目录</span>
+                                    </div>
+                                    <div id="path-tree-container" class="path-tree-container">
+                                        <div class="loading-spinner"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="file-drop-zone" id="file-drop-zone">
                             <div class="drop-zone-content">

@@ -16,7 +16,9 @@ let selectedFiles = [];
 let isDragging = false;
 const urlParams = new URLSearchParams(window.location.search);
 let uploadPath = urlParams.get('path') || '';
-const uploadPathSelect = document.getElementById('upload-path-select');
+const uploadPathBtn = document.getElementById('upload-path-btn');
+const uploadPathDropdown = document.getElementById('upload-path-dropdown');
+const pathTreeContainer = document.getElementById('path-tree-container');
 function initTheme() {
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -331,6 +333,11 @@ async function handleFileSelect(files) {
 }
 async function handleUpload(event) {
     event.preventDefault();
+    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    if (!isAdmin) {
+        showNotification('抱歉，只有管理员才能上传文件', 'error');
+        return;
+    }
     if (selectedFiles.length === 0) {
         showNotification('请选择要上传的文件或文件夹', 'error');
         return;
@@ -401,8 +408,10 @@ async function handleUpload(event) {
                         const displayName = file.webkitRelativePath || file._webkitRelativePath || file.name;
                         showNotification(`文件 "${displayName}" 上传成功！`, 'success');
                     } catch (error) {
-                        showUploadStatus(`上传文件 "${file.webkitRelativePath || file.name}" 失败: ${error.message}`, 'error');
-                        showNotification(`上传文件 "${file.webkitRelativePath || file.name}" 失败`, 'error');
+                        const displayName = file.webkitRelativePath || file._webkitRelativePath || file.name;
+                        const errorMsg = error.message || '未知错误';
+                        showUploadStatus(`上传文件 "${displayName}" 失败: ${errorMsg}`, 'error');
+                        showNotification(`上传失败: ${errorMsg}`, 'error');
                     }
                 }
             }
@@ -445,9 +454,96 @@ async function fetchDirectories() {
     }
     return [];
 }
+function buildDirectoryTree(directories) {
+    const tree = {};
+    directories.forEach(dir => {
+        const cleanPath = dir.endsWith('/') ? dir.slice(0, -1) : dir;
+        const parts = cleanPath.split('/');
+        let current = tree;
+        parts.forEach(part => {
+            if (!current[part]) {
+                current[part] = {};
+            }
+            current = current[part];
+        });
+    });
+    return tree;
+}
+function renderPathTreeNode(name, children, path, isRoot = false) {
+    const li = document.createElement('li');
+    li.className = 'path-tree-node';
+    const fullPath = isRoot ? '' : path;
+    const hasChildren = Object.keys(children).length > 0;
+    const nodeContent = document.createElement('div');
+    nodeContent.className = 'path-tree-item';
+    nodeContent.dataset.path = fullPath;
+    if (fullPath === uploadPath || (fullPath === '' && uploadPath === '')) {
+        nodeContent.classList.add('selected');
+    }
+    nodeContent.innerHTML = `
+        <i class="fas fa-chevron-right path-toggle-icon ${hasChildren ? '' : 'invisible'}"></i>
+        <i class="fas ${isRoot ? 'fa-home' : 'fa-folder'} path-folder-icon"></i>
+        <span class="path-folder-name">${name}</span>
+    `;
+    li.appendChild(nodeContent);
+    if (hasChildren) {
+        const sublist = document.createElement('ul');
+        sublist.className = 'path-tree-list';
+        sublist.style.display = isRoot ? 'block' : 'none';
+        const sortedKeys = Object.keys(children).sort();
+        sortedKeys.forEach(key => {
+            const childPath = isRoot ? key + '/' : path + key + '/';
+            sublist.appendChild(renderPathTreeNode(key, children[key], childPath, false));
+        });
+        li.appendChild(sublist);
+    }
+    return li;
+}
+function showNoPermissionUI() {
+    const uploadCard = document.querySelector('.upload-card');
+    if (uploadCard) {
+        uploadCard.innerHTML = `
+            <div class="no-permission-container">
+                <div class="no-permission-icon">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h2 class="no-permission-title">暂无上传权限</h2>
+                <p class="no-permission-desc">
+                    抱歉，目前只有管理员可以上传文件。<br>
+                    如果你有优质的学习资料想要分享，请联系管理员。
+                </p>
+                <div class="no-permission-actions">
+                    <a href="index.html" class="primary-btn">
+                        <i class="fas fa-home"></i>
+                        <span>返回首页</span>
+                    </a>
+                    <a href="mailto:Proudly_embers@qq.com" class="secondary-btn">
+                        <i class="fas fa-envelope"></i>
+                        <span>联系管理员</span>
+                    </a>
+                </div>
+            </div>
+        `;
+    }
+}
+function updateSelectedPathDisplay() {
+    if (uploadPathBtn) {
+        const displayPath = uploadPath ? '/' + (uploadPath.endsWith('/') ? uploadPath.slice(0, -1) : uploadPath) : '根目录';
+        uploadPathBtn.querySelector('.selected-path').textContent = displayPath;
+    }
+}
+function updateUrlPath() {
+    const newUrl = new URL(window.location);
+    if (uploadPath) {
+        newUrl.searchParams.set('path', uploadPath);
+    } else {
+        newUrl.searchParams.delete('path');
+    }
+    window.history.replaceState({}, '', newUrl);
+}
 async function initUploadPathSelector() {
     const pathSelector = document.getElementById('upload-path-selector');
-    if (!pathSelector || !uploadPathSelect) return;
+    if (!pathSelector) return;
     let waitTime = 0;
     while (!window.currentUser && waitTime < 3000) {
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -455,46 +551,80 @@ async function initUploadPathSelector() {
     }
     const isAdmin = window.currentUser && window.currentUser.role === 'admin';
     if (!isAdmin) {
-        pathSelector.innerHTML = `
-            <div class="upload-path-info" style="display: flex;">
-                <i class="fas fa-folder-open"></i>
-                <span>文件将上传到: ${uploadPath ? '/' + uploadPath : '根目录'}</span>
-            </div>
-        `;
-        pathSelector.style.display = 'flex';
+        showNoPermissionUI();
         return;
     }
-    const directories = await fetchDirectories();
-    uploadPathSelect.innerHTML = '<option value="">根目录</option>';
-    directories.forEach(dir => {
-        const option = document.createElement('option');
-        const displayPath = dir.endsWith('/') ? dir.slice(0, -1) : dir;
-        option.value = dir;
-        option.textContent = '/' + displayPath;
-        uploadPathSelect.appendChild(option);
-    });
-    if (uploadPath) {
-        const pathWithSlash = uploadPath.endsWith('/') ? uploadPath : uploadPath + '/';
-        uploadPathSelect.value = pathWithSlash;
-        if (!uploadPathSelect.value) {
-            const option = document.createElement('option');
-            option.value = pathWithSlash;
-            option.textContent = '/' + uploadPath;
-            option.selected = true;
-            uploadPathSelect.appendChild(option);
-        }
-    }
-    uploadPathSelect.addEventListener('change', () => {
-        uploadPath = uploadPathSelect.value;
-        const newUrl = new URL(window.location);
-        if (uploadPath) {
-            newUrl.searchParams.set('path', uploadPath);
-        } else {
-            newUrl.searchParams.delete('path');
-        }
-        window.history.replaceState({}, '', newUrl);
-    });
     pathSelector.style.display = 'flex';
+    updateSelectedPathDisplay();
+    const directories = await fetchDirectories();
+    const tree = buildDirectoryTree(directories);
+    if (pathTreeContainer) {
+        const ul = document.createElement('ul');
+        ul.className = 'path-tree-list root';
+        ul.appendChild(renderPathTreeNode('根目录', tree, '', true));
+        pathTreeContainer.innerHTML = '';
+        pathTreeContainer.appendChild(ul);
+        pathTreeContainer.addEventListener('click', (e) => {
+            const toggleIcon = e.target.closest('.path-toggle-icon');
+            const treeItem = e.target.closest('.path-tree-item');
+            if (toggleIcon && !toggleIcon.classList.contains('invisible')) {
+                e.stopPropagation();
+                const parentLi = toggleIcon.closest('.path-tree-node');
+                const sublist = parentLi.querySelector(':scope > .path-tree-list');
+                if (sublist) {
+                    const isExpanded = sublist.style.display !== 'none';
+                    sublist.style.display = isExpanded ? 'none' : 'block';
+                    toggleIcon.style.transform = isExpanded ? '' : 'rotate(90deg)';
+                }
+            } else if (treeItem) {
+                pathTreeContainer.querySelectorAll('.path-tree-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                treeItem.classList.add('selected');
+                uploadPath = treeItem.dataset.path;
+                updateSelectedPathDisplay();
+                updateUrlPath();
+                if (uploadPathDropdown) {
+                    uploadPathDropdown.classList.remove('open');
+                    uploadPathBtn.classList.remove('open');
+                }
+            }
+        });
+    }
+    if (uploadPathBtn && uploadPathDropdown) {
+        uploadPathBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const isOpen = uploadPathDropdown.classList.contains('open');
+            uploadPathDropdown.classList.toggle('open');
+            uploadPathBtn.classList.toggle('open');
+            if (!isOpen && uploadPath) {
+                const pathParts = uploadPath.split('/').filter(Boolean);
+                let currentPath = '';
+                pathParts.forEach(part => {
+                    currentPath += part + '/';
+                    const item = pathTreeContainer.querySelector(`.path-tree-item[data-path="${currentPath}"]`);
+                    if (item) {
+                        const parentLi = item.closest('.path-tree-node');
+                        const parentSublist = parentLi.parentElement;
+                        if (parentSublist && parentSublist.style.display === 'none') {
+                            parentSublist.style.display = 'block';
+                            const parentToggle = parentSublist.previousElementSibling?.querySelector('.path-toggle-icon');
+                            if (parentToggle) {
+                                parentToggle.style.transform = 'rotate(90deg)';
+                            }
+                        }
+                    }
+                });
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!uploadPathDropdown.contains(e.target) && !uploadPathBtn.contains(e.target)) {
+                uploadPathDropdown.classList.remove('open');
+                uploadPathBtn.classList.remove('open');
+            }
+        });
+    }
 }
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();

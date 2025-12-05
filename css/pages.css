@@ -749,29 +749,6 @@
     color: var(--primary-color);
 }
 
-.upload-path-selector .path-select {
-    flex: 1;
-    padding: 0.6rem 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: var(--background);
-    color: var(--text-primary);
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    min-width: 0;
-}
-
-.upload-path-selector .path-select:hover {
-    border-color: var(--primary-color);
-}
-
-.upload-path-selector .path-select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
-}
-
 .upload-path-selector .upload-path-info {
     display: flex;
     align-items: center;
@@ -785,18 +762,303 @@
     font-weight: 500;
 }
 
+.path-dropdown-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.path-dropdown-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding: 0.7rem 1rem;
+    background: var(--background);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.path-dropdown-btn:hover {
+    border-color: var(--primary-color);
+    background: var(--background);
+}
+
+.path-dropdown-btn.open {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.path-dropdown-btn .selected-path {
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.path-dropdown-btn i.fa-chevron-down {
+    color: var(--text-secondary);
+    transition: transform var(--transition-fast);
+    font-size: 0.85rem;
+}
+
+.path-dropdown-btn.open i.fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+.path-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: var(--background);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.path-dropdown-menu.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.path-dropdown-header {
+    padding: 0.8rem 1rem;
+    background: var(--background-alt);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.path-tree-container {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.path-tree-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.path-tree-list:not(.root) {
+    margin-left: 1.2rem;
+    border-left: 1px dashed var(--border-color);
+    padding-left: 0.5rem;
+}
+
+.path-tree-node {
+    margin: 2px 0;
+}
+
+.path-tree-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--text-primary);
+}
+
+.path-tree-item:hover {
+    background: var(--background-alt);
+}
+
+.path-tree-item.selected {
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary-color);
+}
+
+.path-tree-item.selected .path-folder-icon {
+    color: var(--primary-color);
+}
+
+.path-toggle-icon {
+    width: 16px;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    transition: transform var(--transition-fast);
+    cursor: pointer;
+}
+
+.path-toggle-icon.invisible {
+    visibility: hidden;
+}
+
+.path-folder-icon {
+    color: var(--primary-light);
+    font-size: 1rem;
+}
+
+.path-folder-name {
+    flex: 1;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.path-tree-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.path-tree-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.path-tree-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.path-tree-container::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
 @media (max-width: 768px) {
     .upload-path-selector {
         flex-direction: column;
         align-items: stretch;
         gap: 0.6rem;
     }
-    
+
     .upload-path-selector label {
         font-size: 0.9rem;
     }
-    
-    .upload-path-selector .path-select {
+
+    .path-dropdown-wrapper {
         width: 100%;
+    }
+
+    .path-dropdown-menu {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        border-radius: 16px 16px 0 0;
+        max-height: 60vh;
+        transform: translateY(100%);
+    }
+
+    .path-dropdown-menu.open {
+        transform: translateY(0);
+    }
+
+    .path-tree-container {
+        max-height: calc(60vh - 50px);
+    }
+}
+
+.no-permission-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 2rem;
+    min-height: 400px;
+}
+
+.no-permission-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.1), rgba(192, 57, 43, 0.1));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.no-permission-icon i {
+    font-size: 2.5rem;
+    color: #e74c3c;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.2);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px 10px rgba(231, 76, 60, 0);
+    }
+}
+
+.no-permission-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.no-permission-desc {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+    max-width: 400px;
+    margin-bottom: 2rem;
+}
+
+.no-permission-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+@media (max-width: 480px) {
+    .no-permission-container {
+        padding: 2rem 1rem;
+        min-height: 300px;
+    }
+
+    .no-permission-icon {
+        width: 80px;
+        height: 80px;
+    }
+
+    .no-permission-icon i {
+        font-size: 2rem;
+    }
+
+    .no-permission-title {
+        font-size: 1.4rem;
+    }
+
+    .no-permission-desc {
+        font-size: 0.9rem;
+    }
+
+    .no-permission-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .no-permission-actions .primary-btn,
+    .no-permission-actions .secondary-btn {
+        width: 100%;
+        justify-content: center;
     }
 }
