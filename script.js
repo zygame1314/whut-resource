@@ -507,6 +507,45 @@ async function fetchFileStats() {
         showNotification(`请求统计信息出错: ${error.message}`, 'error');
     }
 }
+async function openLink(fileKey, linkUrl, openBtn) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("请先登录后再访问链接。", 'error');
+        return;
+    }
+    let originalBtnContent = '';
+    if (openBtn) {
+        originalBtnContent = openBtn.innerHTML;
+        openBtn.disabled = true;
+        openBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    }
+    try {
+        if (linkUrl) {
+            try {
+                await fetch(`${FILES_API_URL}?action=recordLinkClick&key=${encodeURIComponent(fileKey)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+            } catch (e) {
+                console.warn('记录链接点击失败:', e);
+            }
+            window.open(linkUrl, '_blank', 'noopener,noreferrer');
+            showNotification('链接已在新标签页中打开', 'success');
+        } else {
+            showNotification('链接地址无效', 'error');
+        }
+    } catch (error) {
+        console.error(`打开链接 ${fileKey} 出错:`, error);
+        showNotification(`打开链接出错: ${error.message}`, 'error');
+    } finally {
+        if (openBtn) {
+            openBtn.disabled = false;
+            openBtn.innerHTML = originalBtnContent || '<i class="fas fa-external-link-alt"></i> 打开链接';
+        }
+    }
+}
 async function downloadFile(fileKey, downloadBtn) {
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -962,16 +1001,24 @@ function updateBreadcrumb(prefix, isSearch = false, searchTerm = '') {
         });
     }
 }
+function getLinkIcon() {
+    return 'fas fa-external-link-alt';
+}
 function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const li = document.createElement('li');
     li.className = 'file-list-item';
     li.dataset.key = item.key;
-    li.dataset.itemType = isDirectory ? 'directory' : 'file';
+    const isLink = item.is_link === true || item.is_link === 1;
+    li.dataset.itemType = isDirectory ? 'directory' : (isLink ? 'link' : 'file');
     item.isDirectory = !!isDirectory;
+    item.isLink = isLink;
+    if (isLink) {
+        li.classList.add('link-item');
+    }
     li.style.opacity = '0';
     li.style.transform = 'translateY(20px)';
-    const fileType = isDirectory ? 'folder' : getFileType(item.name);
-    const iconClass = getFileIcon(item.name, isDirectory);
+    const fileType = isDirectory ? 'folder' : (isLink ? 'link' : getFileType(item.name));
+    const iconClass = isLink ? getLinkIcon() : getFileIcon(item.name, isDirectory);
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.className = 'file-checkbox';
@@ -979,20 +1026,29 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     checkbox.onchange = (e) => handleItemSelection(e.target, item);
     const fileItemDiv = document.createElement('div');
     fileItemDiv.className = 'file-item';
+    let metaContent = '';
+    if (isDirectory) {
+        metaContent = '<div class="file-meta">文件夹</div>';
+    } else if (isLink) {
+        metaContent = `<div class="file-meta"><i class="fas fa-link"></i> 外部链接 • ${formatDate(item.uploaded)} • <i class="fas fa-mouse-pointer"></i> ${item.downloads || 0}</div>`;
+    } else {
+        metaContent = `<div class="file-meta">${formatBytes(item.size)} • ${formatDate(item.uploaded)} • <i class="fas fa-download"></i> ${item.downloads || 0}</div>`;
+    }
     fileItemDiv.innerHTML = `
         <div class="file-icon ${fileType}">
             <i class="${iconClass}"></i>
         </div>
         <div class="file-info">
-            <div class="file-name">${item.name}</div>
+            <div class="file-name">${item.name}${isLink ? ' <span class="link-badge"><i class="fas fa-external-link-alt"></i></span>' : ''}</div>
             ${isGlobalSearch && typeof item.parent_path === 'string' ? `<div class="file-path clickable">${item.parent_path || '根目录'}</div>` : ''}
-            ${!isDirectory ? `<div class="file-meta">${formatBytes(item.size)} • ${formatDate(item.uploaded)} • <i class="fas fa-download"></i> ${item.downloads || 0}</div>` : '<div class="file-meta">文件夹</div>'}
+            ${metaContent}
         </div>
     `;
     const fileActionsDiv = document.createElement('div');
     fileActionsDiv.className = 'file-actions';
     let previewButtonHTML = '';
-    if (!isDirectory) {
+    let downloadButtonHTML = '';
+    if (!isDirectory && !isLink) {
         const isVideo = fileType === 'video';
         const sizeLimit = isVideo ? 300 * 1024 * 1024 : 300 * 1024 * 1024;
         const previewDisabled = item.size > sizeLimit;
@@ -1008,14 +1064,20 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
                                    预览
                                </button>`;
         }
+        downloadButtonHTML = `<button class="download-button">
+                <i class="fas fa-download"></i>
+                下载
+            </button>`;
+    } else if (isLink) {
+        downloadButtonHTML = `<button class="open-link-button">
+                <i class="fas fa-external-link-alt"></i>
+                打开链接
+            </button>`;
     }
     fileActionsDiv.innerHTML = `
         ${!isDirectory ? `
             ${previewButtonHTML}
-            <button class="download-button">
-                <i class="fas fa-download"></i>
-                下载
-            </button>
+            ${downloadButtonHTML}
         ` : ''}
         ${(typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') ? `
         <button class="rename-button" title="重命名">
@@ -1040,7 +1102,7 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             fetchAndDisplayFiles(item.parent_path);
         });
     }
-    if (!isDirectory) {
+    if (!isDirectory && !isLink) {
         const previewBtn = fileActionsDiv.querySelector('.preview-button');
         if (previewBtn && !previewBtn.disabled) {
             previewBtn.onclick = () => previewFile(item.key, item.name, item.size);
@@ -1049,6 +1111,21 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         if (downloadBtn) {
             downloadBtn.onclick = () => downloadFile(item.key, downloadBtn);
         }
+    }
+    if (isLink) {
+        const openLinkBtn = fileActionsDiv.querySelector('.open-link-button');
+        if (openLinkBtn) {
+            openLinkBtn.onclick = (e) => {
+                e.stopPropagation();
+                openLink(item.key, item.link_url, openLinkBtn);
+            };
+        }
+        fileItemDiv.style.cursor = 'pointer';
+        fileItemDiv.onclick = (e) => {
+            if (!isSelectionMode) {
+                openLink(item.key, item.link_url);
+            }
+        };
     }
     const deleteBtn = fileActionsDiv.querySelector('.delete-button');
     if (deleteBtn) {

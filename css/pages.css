@@ -725,6 +725,54 @@
     box-shadow: 0 0 0 2px var(--primary-light-trans);
 }
 
+.file-list-item.link-item {
+    border-left: 3px solid var(--secondary-color);
+}
+
+.file-list-item.link-item .file-icon.link {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+}
+
+.file-list-item.link-item .file-icon.link i {
+    color: white;
+}
+
+.link-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--secondary-color);
+    margin-left: 0.3rem;
+    vertical-align: middle;
+}
+
+.open-link-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    background: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.open-link-button:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+}
+
+.open-link-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .upload-path-selector {
     display: flex;
     align-items: center;

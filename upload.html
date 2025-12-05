@@ -80,6 +80,17 @@
                         </p>
                     </div>
 
+                    <div class="upload-type-toggle">
+                        <button type="button" id="upload-type-file" class="upload-type-btn active">
+                            <i class="fas fa-file"></i>
+                            <span>上传文件</span>
+                        </button>
+                        <button type="button" id="upload-type-link" class="upload-type-btn">
+                            <i class="fas fa-link"></i>
+                            <span>添加链接</span>
+                        </button>
+                    </div>
+
                     <form id="upload-form" class="upload-form">
                         <div id="upload-path-selector" class="upload-path-selector" style="display: none;">
                             <label>
@@ -115,6 +126,27 @@
                                 </div>
                             </div>
                             <input type="file" id="file-input" name="file" hidden multiple>
+                        </div>
+
+                        <div id="link-upload-zone" class="link-upload-zone" style="display: none;">
+                            <div class="link-input-group">
+                                <label for="link-name-input">
+                                    <i class="fas fa-tag"></i>
+                                    链接名称
+                                </label>
+                                <input type="text" id="link-name-input" class="link-input" placeholder="输入链接显示名称（如：课程视频）" maxlength="200">
+                            </div>
+                            <div class="link-input-group">
+                                <label for="link-url-input">
+                                    <i class="fas fa-globe"></i>
+                                    链接地址
+                                </label>
+                                <input type="url" id="link-url-input" class="link-input" placeholder="输入链接地址（以 http:// 或 https:// 开头）">
+                            </div>
+                            <div class="link-preview" id="link-preview" style="display: none;">
+                                <i class="fas fa-external-link-alt"></i>
+                                <span id="link-preview-text"></span>
+                            </div>
                         </div>
 
                         <div id="selected-file-info" class="selected-file-info" style="display: none;">

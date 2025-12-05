@@ -14,11 +14,119 @@ const UPLOAD_API_URL = `/api/upload`;
 const CONCURRENT_UPLOADS = 5;
 let selectedFiles = [];
 let isDragging = false;
+let currentUploadType = 'file';
 const urlParams = new URLSearchParams(window.location.search);
 let uploadPath = urlParams.get('path') || '';
 const uploadPathBtn = document.getElementById('upload-path-btn');
 const uploadPathDropdown = document.getElementById('upload-path-dropdown');
 const pathTreeContainer = document.getElementById('path-tree-container');
+const uploadTypeFileBtn = document.getElementById('upload-type-file');
+const uploadTypeLinkBtn = document.getElementById('upload-type-link');
+const linkUploadZone = document.getElementById('link-upload-zone');
+const linkNameInput = document.getElementById('link-name-input');
+const linkUrlInput = document.getElementById('link-url-input');
+const linkPreview = document.getElementById('link-preview');
+const linkPreviewText = document.getElementById('link-preview-text');
+function switchUploadType(type) {
+    currentUploadType = type;
+    if (type === 'file') {
+        uploadTypeFileBtn.classList.add('active');
+        uploadTypeLinkBtn.classList.remove('active');
+        fileDropZone.style.display = 'flex';
+        linkUploadZone.style.display = 'none';
+        uploadSubmitBtn.innerHTML = '<i class="fas fa-upload"></i><span>开始上传</span>';
+    } else {
+        uploadTypeFileBtn.classList.remove('active');
+        uploadTypeLinkBtn.classList.add('active');
+        fileDropZone.style.display = 'none';
+        selectedFileInfo.style.display = 'none';
+        linkUploadZone.style.display = 'block';
+        uploadSubmitBtn.innerHTML = '<i class="fas fa-plus"></i><span>添加链接</span>';
+        clearSelectedFile();
+    }
+}
+function initLinkUpload() {
+    if (uploadTypeFileBtn) {
+        uploadTypeFileBtn.addEventListener('click', () => switchUploadType('file'));
+    }
+    if (uploadTypeLinkBtn) {
+        uploadTypeLinkBtn.addEventListener('click', () => switchUploadType('link'));
+    }
+    if (linkUrlInput) {
+        linkUrlInput.addEventListener('input', () => {
+            const url = linkUrlInput.value.trim();
+            if (url && isValidUrl(url)) {
+                linkPreview.style.display = 'flex';
+                linkPreviewText.textContent = url;
+            } else {
+                linkPreview.style.display = 'none';
+            }
+        });
+    }
+}
+function isValidUrl(string) {
+    try {
+        const url = new URL(string);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (_) {
+        return false;
+    }
+}
+async function uploadLink() {
+    const linkName = linkNameInput.value.trim();
+    const linkUrl = linkUrlInput.value.trim();
+    if (!linkName) {
+        showNotification('请输入链接名称', 'error');
+        linkNameInput.focus();
+        return;
+    }
+    if (!linkUrl) {
+        showNotification('请输入链接地址', 'error');
+        linkUrlInput.focus();
+        return;
+    }
+    if (!isValidUrl(linkUrl)) {
+        showNotification('请输入有效的URL', 'error');
+        linkUrlInput.focus();
+        return;
+    }
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification('请先登录', 'error');
+        return;
+    }
+    uploadSubmitBtn.disabled = true;
+    uploadSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>正在添加...</span>';
+    try {
+        const response = await fetch(UPLOAD_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                linkName: linkName,
+                linkUrl: linkUrl,
+                uploadPath: uploadPath
+            })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showNotification('链接添加成功！', 'success');
+            linkNameInput.value = '';
+            linkUrlInput.value = '';
+            linkPreview.style.display = 'none';
+        } else {
+            showNotification(result.error || '链接添加失败', 'error');
+        }
+    } catch (error) {
+        console.error('链接上传错误:', error);
+        showNotification('网络错误，请稍后重试', 'error');
+    } finally {
+        uploadSubmitBtn.disabled = false;
+        uploadSubmitBtn.innerHTML = '<i class="fas fa-plus"></i><span>添加链接</span>';
+    }
+}
 function initTheme() {
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -338,6 +446,10 @@ async function handleUpload(event) {
         showNotification('抱歉，只有管理员才能上传文件', 'error');
         return;
     }
+    if (currentUploadType === 'link') {
+        await uploadLink();
+        return;
+    }
     if (selectedFiles.length === 0) {
         showNotification('请选择要上传的文件或文件夹', 'error');
         return;
@@ -630,6 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     createParticleBackground();
     initUploadPathSelector();
+    initLinkUpload();
     if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
     }
@@ -1011,6 +1124,94 @@ style.textContent = `
     }
     .upload-path-info i {
         color: var(--primary-color);
+    }
+    .upload-type-toggle {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 0 2rem;
+    }
+    .upload-type-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        background: var(--background-alt);
+        color: var(--text-secondary);
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .upload-type-btn:hover {
+        border-color: var(--primary-light);
+        color: var(--primary-color);
+    }
+    .upload-type-btn.active {
+        border-color: var(--primary-color);
+        background: rgba(46, 139, 87, 0.1);
+        color: var(--primary-color);
+    }
+    .upload-type-btn i {
+        font-size: 1.2rem;
+    }
+    .link-upload-zone {
+        padding: 2rem;
+        background: var(--background-alt);
+        border-radius: 15px;
+        border: 2px dashed var(--border-color);
+        margin-bottom: 2rem;
+    }
+    .link-input-group {
+        margin-bottom: 1.5rem;
+    }
+    .link-input-group label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+    .link-input-group label i {
+        color: var(--primary-color);
+    }
+    .link-input {
+        width: 100%;
+        padding: 1rem 1.2rem;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--background);
+        color: var(--text-primary);
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+    .link-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.1);
+    }
+    .link-input::placeholder {
+        color: var(--text-light);
+    }
+    .link-preview {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        padding: 1rem;
+        background: rgba(46, 139, 87, 0.1);
+        border-radius: 10px;
+        color: var(--primary-color);
+        font-size: 0.9rem;
+        word-break: break-all;
+    }
+    .link-preview i {
+        flex-shrink: 0;
     }
 `;
 document.head.appendChild(style);

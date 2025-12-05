@@ -22,6 +22,8 @@ CREATE TABLE files (
     contentType TEXT,
     parent_path TEXT,
     is_directory BOOLEAN DEFAULT FALSE,
+    is_link BOOLEAN DEFAULT FALSE,
+    link_url TEXT,
     downloads INTEGER DEFAULT 0,
     uploader_id INTEGER,
     FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE SET NULL

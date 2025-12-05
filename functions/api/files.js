@@ -34,6 +34,17 @@ export async function onRequestGet({ request, env }) {
         }
       }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    if (action === 'recordLinkClick') {
+      const key = url.searchParams.get('key');
+      if (!key) {
+        return new Response(JSON.stringify({ success: false, error: '缺少key参数' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      await DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ? AND is_link = TRUE').bind(key).run();
+      return new Response(JSON.stringify({ success: true }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     if (action === 'listAllDirs') {
       const stmt = DB.prepare("SELECT key FROM files WHERE is_directory = TRUE ORDER BY key ASC");
       const { results } = await stmt.all();
@@ -75,11 +86,8 @@ export async function onRequestGet({ request, env }) {
     const offset = (page - 1) * limit;
     const search = url.searchParams.get('search') || '';
     const prefix = url.searchParams.get('prefix') || '';
-
     let itemsResult, totalResult;
-
     const useFTS = search && search.length >= 3;
-
     if (useFTS) {
       const ftsQuery = `
         SELECT files.* FROM files
@@ -88,15 +96,12 @@ export async function onRequestGet({ request, env }) {
         ORDER BY rank
         LIMIT ? OFFSET ?
       `;
-      
       const ftsCountQuery = `
         SELECT COUNT(*) as total FROM files
         JOIN files_fts ON files.id = files_fts.rowid
         WHERE files_fts MATCH ?
       `;
-
       const searchQuery = `"${search.replace(/"/g, '""')}"`;
-
       [itemsResult, totalResult] = await Promise.all([
         DB.prepare(ftsQuery).bind(searchQuery, limit, offset).all(),
         DB.prepare(ftsCountQuery).bind(searchQuery).first()
@@ -104,7 +109,6 @@ export async function onRequestGet({ request, env }) {
     } else {
       const params = [];
       let baseWhere = 'WHERE 1=1';
-      
       if (search) {
         baseWhere += ' AND name LIKE ?';
         params.push(`%${search}%`);
@@ -116,7 +120,6 @@ export async function onRequestGet({ request, env }) {
         baseWhere += ' AND parent_path = ?';
         params.push(searchPath);
       }
-      
       const combinedQuery = `
         SELECT * FROM files
         ${baseWhere}
@@ -126,7 +129,6 @@ export async function onRequestGet({ request, env }) {
         LIMIT ? OFFSET ?
       `;
       const countQuery = `SELECT COUNT(*) as total FROM files ${baseWhere}`;
-      
       [itemsResult, totalResult] = await Promise.all([
         DB.prepare(combinedQuery).bind(...params, limit, offset).all(),
         DB.prepare(countQuery).bind(...params).first()

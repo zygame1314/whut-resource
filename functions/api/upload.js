@@ -30,6 +30,14 @@ async function ensureDirectoryExists(db, fullPath, env) {
     }
   }
 }
+function isValidUrl(string) {
+  try {
+    const url = new URL(string);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch (_) {
+    return false;
+  }
+}
 export async function onRequestPost({ request, env, waitUntil }) {
   try {
     const R2_BUCKET = env.R2_bucket;
@@ -48,6 +56,65 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const user = await verifyToken(token, env.JWT_SECRET || 'secret');
     if (!user || user.role !== 'admin') {
         return new Response(JSON.stringify({ success: false, error: '禁止：需要管理员访问权限。' }), { status: 403, headers: addCorsHeaders() });
+    }
+    const contentType = request.headers.get('Content-Type') || '';
+    if (contentType.includes('application/json')) {
+      let jsonData;
+      try {
+        jsonData = await request.json();
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: '请求体无效。期望JSON格式。' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const { linkName, linkUrl, uploadPath } = jsonData;
+      if (!linkName || !linkUrl) {
+        return new Response(JSON.stringify({ success: false, error: '链接名称和URL不能为空。' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      if (!isValidUrl(linkUrl)) {
+        return new Response(JSON.stringify({ success: false, error: '请输入有效的URL（以http://或https://开头）。' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      if (linkName.length > 200) {
+        return new Response(JSON.stringify({ success: false, error: '链接名称不能超过200个字符。' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const parentPath = uploadPath || '';
+      const key = parentPath ? `${parentPath}${linkName}` : linkName;
+      const existingFile = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(key).first();
+      if (existingFile) {
+        return new Response(JSON.stringify({ success: false, error: '该名称的条目已存在。' }), { status: 409, headers: addCorsHeaders() });
+      }
+      if (parentPath) {
+        await ensureDirectoryExists(DB, key, env);
+      }
+      await DB.prepare(
+        'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(
+        key,
+        linkName,
+        0,
+        new Date().toISOString(),
+        'application/x-link',
+        parentPath,
+        false,
+        true,
+        linkUrl,
+        0,
+        user.id
+      ).run();
+      return new Response(JSON.stringify({ success: true, message: '链接创建成功。' }), {
+        status: 200,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
     let formData;
     try {
@@ -84,7 +151,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
     await ensureDirectoryExists(DB, key, env);
     await DB.prepare(
-        'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
         key,
         key.split('/').pop(),
@@ -93,6 +160,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
         file.type,
         parentPath,
         false,
+        false,
+        null,
         0,
         user.id
     ).run();
