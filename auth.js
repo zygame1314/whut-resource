@@ -163,18 +163,18 @@ function showAuthModal(mode = 'login') {
         if (window.turnstile) {
             turnstileWidgetId = turnstile.render('#turnstile-widget', {
                 sitekey: '0x4AAAAAABfgqCmMGBV9Nf8U',
-                callback: function(token) {
+                callback: function (token) {
                     console.log('Turnstile success');
                 },
             });
         }
         const sendCodeBtn = modal.querySelector('#send-code-btn');
         const confirmActivationCheckbox = modal.querySelector('#confirm-activation');
-        
+
         if (confirmActivationCheckbox) {
             confirmActivationCheckbox.addEventListener('change', () => {
                 if (sendCodeBtn.textContent.includes('s') && !sendCodeBtn.textContent.includes('发送')) {
-                     return;
+                    return;
                 }
                 sendCodeBtn.disabled = !confirmActivationCheckbox.checked;
                 sendCodeBtn.title = sendCodeBtn.disabled ? "请先勾选确认框" : "";
@@ -188,6 +188,20 @@ function showAuthModal(mode = 'login') {
                 showNotification('请使用6位校园卡号邮箱进行注册', 'error');
                 return;
             }
+
+            const studentId = email.split('@')[0];
+
+            if (!studentId.startsWith('3')) {
+                showNotification('同学，咱们学校卡号都是3开头的，你这是哪个平行宇宙的武理？', 'error');
+                return;
+            }
+
+            const invalidIds = ['123456', '654321', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '114514'];
+            if (invalidIds.includes(studentId)) {
+                showNotification('同学，这个卡号要是真的是你的，我当场把服务器吃了。请填写真实卡号！', 'error');
+                return;
+            }
+
             let cfToken = '';
             if (window.turnstile) {
                 cfToken = turnstile.getResponse(turnstileWidgetId);
@@ -233,7 +247,7 @@ function showAuthModal(mode = 'login') {
         };
     }
     closeBtn.onclick = () => modal.remove();
-    modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     switchLink.onclick = (e) => {
         e.preventDefault();
         modal.remove();
@@ -344,7 +358,7 @@ function showChangeNicknameModal() {
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
-    modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     const form = modal.querySelector('#change-nickname-form');
     form.onsubmit = async (e) => {
         e.preventDefault();
@@ -421,7 +435,7 @@ function showForgotPasswordModal() {
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
-    modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     const backToLoginLink = modal.querySelector('#back-to-login');
     backToLoginLink.onclick = (e) => {
         e.preventDefault();
@@ -432,7 +446,7 @@ function showForgotPasswordModal() {
     if (window.turnstile) {
         turnstileWidgetId = turnstile.render('#turnstile-reset-widget', {
             sitekey: '0x4AAAAAABfgqCmMGBV9Nf8U',
-            callback: function(token) {
+            callback: function (token) {
                 console.log('Turnstile success');
             },
         });
@@ -551,15 +565,15 @@ function showChangePasswordModal() {
         try {
             const res = await fetch(AUTH_API_URL, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ 
-                    action: 'change-password', 
-                    email: currentUser.email, 
-                    oldPassword, 
-                    newPassword 
+                body: JSON.stringify({
+                    action: 'change-password',
+                    email: currentUser.email,
+                    oldPassword,
+                    newPassword
                 })
             });
             const data = await res.json();
