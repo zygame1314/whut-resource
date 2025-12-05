@@ -293,16 +293,22 @@ export async function onRequestPost({ request, env }) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
-    try {
-        await R2.put(newKey, await R2.get(sourceKey).then(obj => obj.body), {
-            httpMetadata: { contentType: fileRecord.contentType }
-        });
-        await R2.delete(sourceKey);
-    } catch (e) {
-        return new Response(JSON.stringify({ success: false, error: 'R2移动失败：' + e.message }), {
-            status: 500,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+    const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
+    if (!isLink) {
+        try {
+            const sourceObj = await R2.get(sourceKey);
+            if (sourceObj) {
+                await R2.put(newKey, sourceObj.body, {
+                    httpMetadata: { contentType: fileRecord.contentType }
+                });
+                await R2.delete(sourceKey);
+            }
+        } catch (e) {
+            return new Response(JSON.stringify({ success: false, error: 'R2移动失败：' + e.message }), {
+                status: 500,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
     }
     await DB.prepare('UPDATE files SET key = ?, parent_path = ? WHERE key = ?').bind(newKey, newParentPath, sourceKey).run();
     return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
@@ -352,7 +358,7 @@ export async function onRequestDelete({ request, env }) {
     let deletedCount = 0;
     for (const currentKey of keysToDelete) {
         try {
-            const fileRecord = await DB.prepare('SELECT is_directory FROM files WHERE key = ?').bind(currentKey).first();
+            const fileRecord = await DB.prepare('SELECT is_directory, is_link FROM files WHERE key = ?').bind(currentKey).first();
             if (!fileRecord) {
                 continue;
             }
@@ -364,7 +370,10 @@ export async function onRequestDelete({ request, env }) {
                 }
                 await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
             } else {
-                await R2.delete(currentKey);
+                const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
+                if (!isLink) {
+                    await R2.delete(currentKey);
+                }
                 await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
             }
             deletedCount++;
