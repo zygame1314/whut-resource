@@ -679,7 +679,7 @@
 }
 
 .guestbook-header-section {
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
 }
 
 .guestbook-header-top {
@@ -790,6 +790,7 @@
 .section-subtitle {
     color: var(--text-secondary);
     font-size: 0.95rem;
+    text-align: center;
 }
 
 .guestbook-form-container {
