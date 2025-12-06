@@ -10,7 +10,7 @@ const progressFill = document.getElementById('progress-fill');
 const progressPercentage = document.getElementById('progress-percentage');
 const progressStatus = document.getElementById('progress-status');
 const themeToggle = document.getElementById('theme-toggle');
-const UPLOAD_API_URL = `/api/upload`;
+const UPLOAD_API_URL = API_ENDPOINTS.upload;
 const CONCURRENT_UPLOADS = 5;
 let selectedFiles = [];
 let isDragging = false;
@@ -628,7 +628,7 @@ async function fetchDirectories() {
     const token = localStorage.getItem('authToken');
     if (!token) return [];
     try {
-        const response = await fetch('/api/files?action=listAllDirs', {
+        const response = await fetch(`${API_ENDPOINTS.files}?action=listAllDirs`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const result = await response.json();

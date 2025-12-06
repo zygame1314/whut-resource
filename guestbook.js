@@ -1,4 +1,4 @@
-const GUESTBOOK_API_URL = '/api/guestbook';
+const GUESTBOOK_API_URL = API_ENDPOINTS.guestbook;
 const guestbookSection = document.getElementById('guestbook-section');
 const guestbookList = document.getElementById('guestbook-list');
 const guestbookForm = document.getElementById('guestbook-form');
@@ -13,14 +13,14 @@ const GUESTBOOK_PER_PAGE = 5;
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
 });
-window.changeGuestbookPage = function(page) {
+window.changeGuestbookPage = function (page) {
     if (page < 1 || page > totalGuestbookPages) return;
     if (guestbookSection) {
         guestbookSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     fetchAndDisplayGuestbook(page);
 };
-window.changeGuestbookSort = function(sortType) {
+window.changeGuestbookSort = function (sortType) {
     if (currentGuestbookSort === sortType) return;
     currentGuestbookSort = sortType;
     currentGuestbookPage = 1;
@@ -33,17 +33,17 @@ window.changeGuestbookSort = function(sortType) {
     });
     fetchAndDisplayGuestbook(1);
 };
-window.likeGuestbook = function(id, btnElement) {
+window.likeGuestbook = function (id, btnElement) {
     handleGuestbookAction(id, 'like', btnElement);
 };
-window.deleteGuestbook = function(id) {
+window.deleteGuestbook = function (id) {
     handleDeleteGuestbook(id);
 };
-window.toggleGuestbookVisibility = function(id, currentHiddenState) {
+window.toggleGuestbookVisibility = function (id, currentHiddenState) {
     const action = currentHiddenState ? 'unhide' : 'hide';
     handleGuestbookAction(id, action);
 };
-window.confirmBanUser = async function(id) {
+window.confirmBanUser = async function (id) {
     let confirmed = false;
     if (typeof showConfirmation === 'function') {
         confirmed = await showConfirmation({
@@ -59,7 +59,7 @@ window.confirmBanUser = async function(id) {
         handleGuestbookAction(id, 'ban_user');
     }
 };
-window.confirmUnbanUser = async function(id) {
+window.confirmUnbanUser = async function (id) {
     let confirmed = false;
     if (typeof showConfirmation === 'function') {
         confirmed = await showConfirmation({
@@ -81,7 +81,7 @@ const REJECT_PRESETS = [
     '表述不清',
     '无法实现',
 ];
-window.rejectGuestbook = async function(id) {
+window.rejectGuestbook = async function (id) {
     let rejectReason = '';
     try {
         rejectReason = await showRejectPrompt();
@@ -124,7 +124,7 @@ function showRejectPrompt() {
     return new Promise((resolve, reject) => {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'confirmation-modal-overlay';
-        const presetsHtml = REJECT_PRESETS.map((preset, index) => 
+        const presetsHtml = REJECT_PRESETS.map((preset, index) =>
             `<button class="reject-preset-btn" data-index="${index}">${preset}</button>`
         ).join('');
         modalOverlay.innerHTML = `
@@ -229,7 +229,7 @@ async function fetchAndDisplayGuestbook(page = 1) {
     } catch (error) {
         console.error('Error fetching guestbook:', error);
         if (guestbookList) {
-             guestbookList.innerHTML = '<p class="error-message">加载留言失败，请稍后重试</p>';
+            guestbookList.innerHTML = '<p class="error-message">加载留言失败，请稍后重试</p>';
         }
     }
 }
@@ -450,22 +450,22 @@ async function handleGuestbookAction(id, action, btnElement) {
             return;
         }
         if (btnElement && (action === 'like' || action === 'unlike')) {
-             const icon = btnElement.querySelector('i');
-             const countSpan = btnElement.querySelector('span');
-             let count = parseInt(countSpan.textContent);
-             if (action === 'like') {
-                 btnElement.classList.add('liked');
-                 icon.classList.remove('far');
-                 icon.classList.add('fas');
-                 countSpan.textContent = count + 1;
-                 btnElement.setAttribute('onclick', `unlikeGuestbook(${id}, this)`);
-             } else {
-                 btnElement.classList.remove('liked');
-                 icon.classList.remove('fas');
-                 icon.classList.add('far');
-                 countSpan.textContent = Math.max(0, count - 1);
-                 btnElement.setAttribute('onclick', `likeGuestbook(${id}, this)`);
-             }
+            const icon = btnElement.querySelector('i');
+            const countSpan = btnElement.querySelector('span');
+            let count = parseInt(countSpan.textContent);
+            if (action === 'like') {
+                btnElement.classList.add('liked');
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                countSpan.textContent = count + 1;
+                btnElement.setAttribute('onclick', `unlikeGuestbook(${id}, this)`);
+            } else {
+                btnElement.classList.remove('liked');
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                countSpan.textContent = Math.max(0, count - 1);
+                btnElement.setAttribute('onclick', `likeGuestbook(${id}, this)`);
+            }
         }
         const response = await fetch(GUESTBOOK_API_URL, {
             method: 'PUT',
@@ -476,13 +476,13 @@ async function handleGuestbookAction(id, action, btnElement) {
             body: JSON.stringify({ id, action })
         });
         if (!response.ok) {
-             if (btnElement && (action === 'like' || action === 'unlike')) {
-                 fetchAndDisplayGuestbook(currentGuestbookPage);
-                 showNotification('操作失败', 'error');
-             } else {
-                 const data = await response.json();
-                 showNotification(data.error || '操作失败', 'error');
-             }
+            if (btnElement && (action === 'like' || action === 'unlike')) {
+                fetchAndDisplayGuestbook(currentGuestbookPage);
+                showNotification('操作失败', 'error');
+            } else {
+                const data = await response.json();
+                showNotification(data.error || '操作失败', 'error');
+            }
         } else {
             if (action === 'hide' || action === 'unhide' || action === 'pin' || action === 'unpin' || action === 'resolve' || action === 'unresolve' || action === 'reject' || action === 'unreject' || action === 'ban_user' || action === 'unban_user') {
                 showNotification('操作成功', 'success');
@@ -492,9 +492,9 @@ async function handleGuestbookAction(id, action, btnElement) {
     } catch (error) {
         console.error('Error handling guestbook action:', error);
         showNotification('操作出错', 'error');
-         if (btnElement && (action === 'like' || action === 'unlike')) {
-             fetchAndDisplayGuestbook(currentGuestbookPage);
-         }
+        if (btnElement && (action === 'like' || action === 'unlike')) {
+            fetchAndDisplayGuestbook(currentGuestbookPage);
+        }
     }
 }
 async function handleDeleteGuestbook(id) {
@@ -529,10 +529,10 @@ async function handleDeleteGuestbook(id) {
         showNotification('删除出错', 'error');
     }
 }
-window.unlikeGuestbook = function(id, btnElement) {
+window.unlikeGuestbook = function (id, btnElement) {
     handleGuestbookAction(id, 'unlike', btnElement);
 };
-window.changeGuestbookFilter = function(filter) {
+window.changeGuestbookFilter = function (filter) {
     if (currentGuestbookFilter === filter) return;
     currentGuestbookFilter = filter;
     currentGuestbookPage = 1;
@@ -541,7 +541,7 @@ window.changeGuestbookFilter = function(filter) {
     });
     fetchAndDisplayGuestbook(1);
 };
-window.editGuestbook = async function(id, currentContent = '') {
+window.editGuestbook = async function (id, currentContent = '') {
     const decoded = currentContent.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
     let newContent = '';
     try {

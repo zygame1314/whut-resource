@@ -1,14 +1,14 @@
 console.log(`%c${[
-'                                                            ',
-'                                                            ',
-' ▄▄▄▄▄ ▄▄ ▄▄  ▄▄▄▄  ▄▄▄  ▄▄   ▄▄ ▄▄▄▄▄ ▄██ ████▄ ▄██ ██  ██ ',
-'   ▄█▀ ▀███▀ ██ ▄▄ ██▀██ ██▀▄▀██ ██▄▄   ██  ▄▄██  ██ ▀█████ ',
-' ▄██▄▄   █   ▀███▀ ██▀██ ██   ██ ██▄▄▄  ██ ▄▄▄█▀  ██     ██ ',
-'                                                            ',
-'     Developed by zygame1314',
-' 既然你发现了这里，说明你也是个爱折腾的人。',
-' 愿代码与你同在！',
-''
+    '                                                            ',
+    '                                                            ',
+    ' ▄▄▄▄▄ ▄▄ ▄▄  ▄▄▄▄  ▄▄▄  ▄▄   ▄▄ ▄▄▄▄▄ ▄██ ████▄ ▄██ ██  ██ ',
+    '   ▄█▀ ▀███▀ ██ ▄▄ ██▀██ ██▀▄▀██ ██▄▄   ██  ▄▄██  ██ ▀█████ ',
+    ' ▄██▄▄   █   ▀███▀ ██▀██ ██   ██ ██▄▄▄  ██ ▄▄▄█▀  ██     ██ ',
+    '                                                            ',
+    '     Developed by zygame1314',
+    ' 既然你发现了这里，说明你也是个爱折腾的人。',
+    ' 愿代码与你同在！',
+    ''
 ].join('\n')}`, "font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace; color: #007BFF;");
 const fileListElement = document.getElementById('file-list');
 const breadcrumbListElement = document.getElementById('breadcrumb-list');
@@ -24,8 +24,8 @@ const previewModal = document.getElementById('preview-modal');
 const previewTitle = document.getElementById('preview-title');
 const previewIframe = document.getElementById('preview-iframe');
 const closePreviewBtn = document.getElementById('close-preview');
-const FILES_API_URL = `/api/files`;
-const DOWNLOAD_API_BASE_URL = `/api/download`;
+const FILES_API_URL = API_ENDPOINTS.files;
+const DOWNLOAD_API_BASE_URL = API_ENDPOINTS.download;
 const folderTreeElement = document.getElementById('folder-tree');
 const hotFoldersListElement = document.getElementById('hot-folders-list');
 const recentUploadsSection = document.getElementById('recent-uploads-section');
@@ -589,7 +589,7 @@ async function downloadFile(fileKey, downloadBtn) {
         downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="download-progress-text">准备下载...</span>';
     }
     try {
-        const previewApiUrl = `/api/preview?key=${encodeURIComponent(fileKey)}&expiresIn=86400`;
+        const previewApiUrl = `${API_ENDPOINTS.preview}?key=${encodeURIComponent(fileKey)}&expiresIn=86400`;
         const response = await fetch(previewApiUrl, {
             method: 'GET',
             headers: {
@@ -710,7 +710,7 @@ async function previewFile(fileKey, fileName, fileSize) {
         const isVideoPreview = videoExtensions.includes(extension);
         const isTxtPreview = txtExtensions.includes(extension);
         if (isOfficePreview || isPdfPreview || isImagePreview || isVideoPreview || isTxtPreview) {
-            const apiUrl = new URL(`/api/preview`, window.location.origin);
+            const apiUrl = new URL(API_ENDPOINTS.preview, window.location.origin);
             apiUrl.searchParams.append('key', fileKey);
             if (isOfficePreview) {
                 apiUrl.searchParams.append('office', 'true');
@@ -1369,7 +1369,7 @@ async function handleBatchDownload() {
     }
     showNotification(`正在为 ${fileKeys.length} 个项目生成下载链接...`, 'info');
     try {
-        const response = await fetch(`/api/batch-download`, {
+        const response = await fetch(API_ENDPOINTS.batchDownload, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1663,14 +1663,14 @@ function renderPaginationControls(paginationData) {
     pageInput.value = currentPage;
     pageInput.className = 'pagination-jump-input';
     pageInput.title = '输入页码跳转';
-    
+
     pageInput.onchange = () => {
         let val = parseInt(pageInput.value);
         if (isNaN(val)) val = 1;
         if (val < 1) val = 1;
         if (val > totalPages) val = totalPages;
         if (val !== currentPage) {
-             fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', val);
+            fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', val);
         } else {
             pageInput.value = currentPage;
         }
@@ -1685,7 +1685,7 @@ function renderPaginationControls(paginationData) {
     pageInfoContainer.appendChild(document.createTextNode('第 '));
     pageInfoContainer.appendChild(pageInput);
     pageInfoContainer.appendChild(totalPageSpan);
-    
+
     controlsContainer.appendChild(pageInfoContainer);
 
     const nextButton = document.createElement('button');
@@ -1812,9 +1812,9 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
     if (fileListContainer) {
         const rect = fileListContainer.getBoundingClientRect();
         if (rect.top < 80) {
-             const offset = 80;
-             const targetY = window.scrollY + rect.top - offset;
-             window.scrollTo({ top: targetY, behavior: 'auto' });
+            const offset = 80;
+            const targetY = window.scrollY + rect.top - offset;
+            window.scrollTo({ top: targetY, behavior: 'auto' });
         }
     }
     fileListElement.style.minHeight = '';

@@ -1,4 +1,4 @@
-const ANNOUNCEMENTS_API_URL = '/api/announcements';
+const ANNOUNCEMENTS_API_URL = API_ENDPOINTS.announcements;
 const announcementSection = document.getElementById('announcement-section');
 const announcementContent = document.getElementById('announcement-content');
 const manageAnnouncementsBtn = document.getElementById('manage-announcements-btn');
@@ -92,7 +92,7 @@ function renderAnnouncements(announcements) {
         announcementContent.innerHTML = html;
     }
 }
-window.changeAnnouncementPage = function(page) {
+window.changeAnnouncementPage = function (page) {
     if (page < 1 || page > totalAnnouncementPages) return;
     fetchAndDisplayAnnouncements(page);
 };
@@ -223,7 +223,7 @@ function hideAnnouncementForm() {
     addAnnouncementBtn.style.display = 'block';
     announcementList.style.display = 'block';
 }
-window.deleteAnnouncement = async function(id) {
+window.deleteAnnouncement = async function (id) {
     let confirmed = false;
     if (typeof showConfirmation === 'function') {
         confirmed = await showConfirmation({

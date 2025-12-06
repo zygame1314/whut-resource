@@ -1,4 +1,4 @@
-const AUTH_API_URL = `/api/auth`;
+const AUTH_API_URL = API_ENDPOINTS.auth;
 let currentUser = null;
 let token = localStorage.getItem('authToken');
 function escapeHtmlAuth(text) {
@@ -311,7 +311,7 @@ async function syncFiles() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     btn.disabled = true;
     try {
-        const response = await fetch(`/api/sync`, {
+        const response = await fetch(`${API_BASE}/api/sync`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
