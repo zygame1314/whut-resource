@@ -2007,3 +2007,17 @@ textarea.form-input {
     font-weight: 800;
 }
 
+.pagination-jump-input {
+    width: 50px;
+    padding: 0.3rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    text-align: center;
+    margin: 0 0.5rem;
+    background: var(--background);
+    color: var(--text-primary);
+}
+.pagination-jump-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}

@@ -1650,10 +1650,44 @@ function renderPaginationControls(paginationData) {
         }
     };
     controlsContainer.appendChild(prevButton);
-    const pageInfo = document.createElement('span');
-    pageInfo.className = 'pagination-info';
-    pageInfo.textContent = `第 ${currentPage} / ${totalPages} 页 (共 ${totalItems} 项)`;
-    controlsContainer.appendChild(pageInfo);
+
+    const pageInfoContainer = document.createElement('div');
+    pageInfoContainer.className = 'pagination-info-container';
+    pageInfoContainer.style.display = 'flex';
+    pageInfoContainer.style.alignItems = 'center';
+
+    const pageInput = document.createElement('input');
+    pageInput.type = 'number';
+    pageInput.min = 1;
+    pageInput.max = totalPages;
+    pageInput.value = currentPage;
+    pageInput.className = 'pagination-jump-input';
+    pageInput.title = '输入页码跳转';
+    
+    pageInput.onchange = () => {
+        let val = parseInt(pageInput.value);
+        if (isNaN(val)) val = 1;
+        if (val < 1) val = 1;
+        if (val > totalPages) val = totalPages;
+        if (val !== currentPage) {
+             fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', val);
+        } else {
+            pageInput.value = currentPage;
+        }
+    };
+    pageInput.onkeydown = (e) => {
+        if (e.key === 'Enter') pageInput.blur();
+    };
+
+    const totalPageSpan = document.createElement('span');
+    totalPageSpan.textContent = ` / ${totalPages} 页 (共 ${totalItems} 项)`;
+
+    pageInfoContainer.appendChild(document.createTextNode('第 '));
+    pageInfoContainer.appendChild(pageInput);
+    pageInfoContainer.appendChild(totalPageSpan);
+    
+    controlsContainer.appendChild(pageInfoContainer);
+
     const nextButton = document.createElement('button');
     nextButton.innerHTML = '下一页 <i class="fas fa-chevron-right"></i>';
     nextButton.className = 'pagination-button';
@@ -1773,6 +1807,15 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
         `;
         updateBreadcrumb(isGlobal ? '' : prefix, isGlobal, searchTerm.trim());
         renderPaginationControls(null);
+    }
+    const fileListContainer = document.querySelector('.file-list-container');
+    if (fileListContainer) {
+        const rect = fileListContainer.getBoundingClientRect();
+        if (rect.top < 80) {
+             const offset = 80;
+             const targetY = window.scrollY + rect.top - offset;
+             window.scrollTo({ top: targetY, behavior: 'auto' });
+        }
     }
     fileListElement.style.minHeight = '';
     updateUploadButtonLink();

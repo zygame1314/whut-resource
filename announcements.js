@@ -75,7 +75,14 @@ function renderAnnouncements(announcements) {
                     <button class="secondary-btn" onclick="changeAnnouncementPage(${currentAnnouncementPage - 1})" ${currentAnnouncementPage === 1 ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
                         <i class="fas fa-chevron-left"></i> 上一页
                     </button>
-                    <span style="color: var(--text-secondary); font-size: 0.9rem;">${currentAnnouncementPage} / ${totalAnnouncementPages}</span>
+                    <div style="display:flex; align-items:center;">
+                        <input type="number" min="1" max="${totalAnnouncementPages}" value="${currentAnnouncementPage}" 
+                            class="pagination-jump-input" 
+                            onchange="let val = parseInt(this.value); if(val >= 1 && val <= ${totalAnnouncementPages}) changeAnnouncementPage(val); else this.value = ${currentAnnouncementPage}"
+                            onkeydown="if(event.key === 'Enter') this.blur()"
+                        >
+                        <span style="color: var(--text-secondary); font-size: 0.9rem;">/ ${totalAnnouncementPages}</span>
+                    </div>
                     <button class="secondary-btn" onclick="changeAnnouncementPage(${currentAnnouncementPage + 1})" ${currentAnnouncementPage === totalAnnouncementPages ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
                         下一页 <i class="fas fa-chevron-right"></i>
                     </button>
@@ -170,7 +177,14 @@ function renderAdminAnnouncementList() {
                 <button class="secondary-btn" onclick="changeAnnouncementPage(${currentAnnouncementPage - 1})" ${currentAnnouncementPage === 1 ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
                     <i class="fas fa-chevron-left"></i> 上一页
                 </button>
-                <span style="color: var(--text-secondary); font-size: 0.9rem;">${currentAnnouncementPage} / ${totalAnnouncementPages}</span>
+                <div style="display:flex; align-items:center;">
+                    <input type="number" min="1" max="${totalAnnouncementPages}" value="${currentAnnouncementPage}" 
+                        class="pagination-jump-input" 
+                        onchange="let val = parseInt(this.value); if(val >= 1 && val <= ${totalAnnouncementPages}) changeAnnouncementPage(val); else this.value = ${currentAnnouncementPage}"
+                        onkeydown="if(event.key === 'Enter') this.blur()"
+                    >
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">/ ${totalAnnouncementPages}</span>
+                </div>
                 <button class="secondary-btn" onclick="changeAnnouncementPage(${currentAnnouncementPage + 1})" ${currentAnnouncementPage === totalAnnouncementPages ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
                     下一页 <i class="fas fa-chevron-right"></i>
                 </button>

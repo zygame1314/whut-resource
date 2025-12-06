@@ -393,7 +393,14 @@ function renderGuestbookPagination() {
         <button class="secondary-btn small" onclick="changeGuestbookPage(${currentGuestbookPage - 1})" ${currentGuestbookPage === 1 ? 'disabled' : ''}>
             <i class="fas fa-chevron-left"></i>
         </button>
-        <span class="pagination-info">${currentGuestbookPage} / ${totalGuestbookPages}</span>
+        <div style="display:flex; align-items:center;">
+            <input type="number" min="1" max="${totalGuestbookPages}" value="${currentGuestbookPage}" 
+                class="pagination-jump-input" 
+                onchange="let val = parseInt(this.value); if(val >= 1 && val <= ${totalGuestbookPages}) changeGuestbookPage(val); else this.value = ${currentGuestbookPage}"
+                onkeydown="if(event.key === 'Enter') this.blur()"
+            >
+            <span class="pagination-info">/ ${totalGuestbookPages}</span>
+        </div>
         <button class="secondary-btn small" onclick="changeGuestbookPage(${currentGuestbookPage + 1})" ${currentGuestbookPage === totalGuestbookPages ? 'disabled' : ''}>
             <i class="fas fa-chevron-right"></i>
         </button>
