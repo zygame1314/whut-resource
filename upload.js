@@ -27,6 +27,8 @@ const linkNameInput = document.getElementById('link-name-input');
 const linkUrlInput = document.getElementById('link-url-input');
 const linkPreview = document.getElementById('link-preview');
 const linkPreviewText = document.getElementById('link-preview-text');
+const watermarkOption = document.getElementById('watermark-option');
+const watermarkToggle = document.getElementById('watermark-toggle');
 function switchUploadType(type) {
     currentUploadType = type;
     if (type === 'file') {
@@ -586,7 +588,8 @@ async function handleUpload(event) {
                 const file = queue.shift();
                 if (file) {
                     try {
-                        const fileToUpload = await addWatermarkToPDF(file);
+                        const enableWatermark = watermarkToggle ? watermarkToggle.checked : true;
+                        const fileToUpload = enableWatermark ? await addWatermarkToPDF(file) : file;
                         const result = await uploadFile(fileToUpload);
                         const displayName = file.webkitRelativePath || file._webkitRelativePath || file.name;
                         showNotification(`文件 "${displayName}" 上传成功！`, 'success');
@@ -738,6 +741,9 @@ async function initUploadPathSelector() {
         return;
     }
     pathSelector.style.display = 'flex';
+    if (watermarkOption) {
+        watermarkOption.style.display = 'flex';
+    }
     updateSelectedPathDisplay();
     const directories = await fetchDirectories();
     const tree = buildDirectoryTree(directories);

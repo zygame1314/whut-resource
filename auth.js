@@ -111,8 +111,15 @@ function showAuthModal(mode = 'login') {
             <h2 class="auth-title">${title}</h2>
             <form id="auth-form">
                 <div class="form-group">
-                    <label>邮箱 (@whut.edu.cn)</label>
-                    <input type="email" id="auth-email" required class="form-control" placeholder="${isLogin ? '请输入学校邮箱' : '请输入校园卡号邮箱 (如 123456@whut.edu.cn)'}">
+                    <label>${isLogin ? '邮箱' : '校园卡号'}</label>
+                    ${isLogin ? `
+                    <input type="email" id="auth-email" required class="form-control" placeholder="请输入学校邮箱">
+                    ` : `
+                    <div class="email-input-group">
+                        <input type="text" id="auth-email" required class="form-control" placeholder="6位卡号" maxlength="6" pattern="\\d{6}" inputmode="numeric">
+                        <span class="email-suffix">@whut.edu.cn</span>
+                    </div>
+                    `}
                 </div>
                 ${!isLogin ? `
                 <div class="form-group">
@@ -178,13 +185,12 @@ function showAuthModal(mode = 'login') {
             });
         }
         sendCodeBtn.onclick = async () => {
-            const email = document.getElementById('auth-email').value;
-            const studentIdEmailRegex = /^\d{6}@whut\.edu\.cn$/;
-            if (!email || !studentIdEmailRegex.test(email)) {
-                showNotification('请使用6位校园卡号邮箱进行注册', 'error');
+            const studentId = document.getElementById('auth-email').value.trim();
+            if (!studentId || !/^\d{6}$/.test(studentId)) {
+                showNotification('请输入6位校园卡号', 'error');
                 return;
             }
-            const studentId = email.split('@')[0];
+            const email = studentId + '@whut.edu.cn';
             const invalidIds = ['123456', '654321', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '114514'];
             if (invalidIds.includes(studentId)) {
                 showNotification('同学，这个卡号要是真的是你的，我当场把服务器吃了。请填写真实卡号！', 'error');
@@ -253,7 +259,8 @@ function showAuthModal(mode = 'login') {
     }
     form.onsubmit = async (e) => {
         e.preventDefault();
-        const email = document.getElementById('auth-email').value;
+        const emailInput = document.getElementById('auth-email').value.trim();
+        const email = isLogin ? emailInput : (emailInput + '@whut.edu.cn');
         const password = document.getElementById('auth-password').value;
         const code = !isLogin ? document.getElementById('auth-code').value : undefined;
         const nickname = !isLogin ? document.getElementById('auth-nickname').value : undefined;
