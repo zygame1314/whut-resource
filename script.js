@@ -1653,7 +1653,6 @@ function renderPaginationControls(paginationData) {
     prevButton.disabled = currentPage <= 1;
     prevButton.onclick = () => {
         if (currentPage > 1) {
-            scrollToFileList();
             fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage - 1);
         }
     };
@@ -1668,7 +1667,6 @@ function renderPaginationControls(paginationData) {
     nextButton.disabled = currentPage >= totalPages;
     nextButton.onclick = () => {
         if (currentPage < totalPages) {
-            scrollToFileList();
             fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage + 1);
         }
     };
@@ -1696,6 +1694,9 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
         currentPage = 1;
     } else {
         currentPage = page;
+    }
+    if (fileListElement.offsetHeight > 0) {
+        fileListElement.style.minHeight = `${fileListElement.offsetHeight}px`;
     }
     fileListElement.innerHTML = `
         <li class="loading-item">
@@ -1780,6 +1781,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
         updateBreadcrumb(isGlobal ? '' : prefix, isGlobal, searchTerm.trim());
         renderPaginationControls(null);
     }
+    fileListElement.style.minHeight = '';
     updateUploadButtonLink();
     updateSelectAllButtonState();
 }
