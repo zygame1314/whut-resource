@@ -1045,7 +1045,7 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         li.classList.add('link-item');
     }
     li.style.opacity = '0';
-    li.style.transform = 'translateY(20px)';
+    li.style.animation = 'fadeIn 0.3s ease-out forwards';
     const fileType = isDirectory ? 'folder' : (isLink ? 'link' : getFileType(item.name));
     const iconClass = isLink ? getLinkIcon() : getFileIcon(item.name, isDirectory);
     const checkbox = document.createElement('input');
@@ -1183,11 +1183,6 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             checkbox.dispatchEvent(new Event('change'));
         }
     };
-    setTimeout(() => {
-        li.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-        li.style.opacity = '1';
-        li.style.transform = 'translateY(0)';
-    }, Math.random() * 200);
     return li;
 }
 function toggleSelectionMode() {
