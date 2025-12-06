@@ -32,16 +32,11 @@ export async function onRequestPost({ request, env }) {
       if (!email || !studentIdEmailRegex.test(email)) {
         return new Response(JSON.stringify({ success: false, error: '为防止重复注册，请使用6位校园卡号邮箱（如 123456@whut.edu.cn）。' }), { status: 400, headers: addCorsHeaders() });
       }
-      
       const studentId = email.split('@')[0];
       const invalidIds = ['123456', '654321', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '114514'];
       if (invalidIds.includes(studentId)) {
         return new Response(JSON.stringify({ success: false, error: '同学，这个卡号要是真的是你的，我当场把服务器吃了。请填写真实卡号！' }), { status: 400, headers: addCorsHeaders() });
       }
-      if (!studentId.startsWith('3')) {
-        return new Response(JSON.stringify({ success: false, error: '同学，咱们学校卡号都是3开头的，你这是哪个平行宇宙的武理？' }), { status: 400, headers: addCorsHeaders() });
-      }
-
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
       if (existing) {
         return new Response(JSON.stringify({ success: false, error: '用户已存在。' }), { status: 400, headers: addCorsHeaders() });
@@ -167,7 +162,6 @@ export async function onRequestPost({ request, env }) {
       if (!email || !studentIdEmailRegex.test(email)) {
         return new Response(JSON.stringify({ success: false, error: '为防止重复注册，请使用6位校园卡号邮箱（如 123456@whut.edu.cn）。' }), { status: 400, headers: addCorsHeaders() });
       }
-
       const studentId = email.split('@')[0];
       const invalidIds = ['123456', '654321', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '114514'];
       if (invalidIds.includes(studentId)) {
@@ -176,7 +170,6 @@ export async function onRequestPost({ request, env }) {
       if (!studentId.startsWith('3')) {
         return new Response(JSON.stringify({ success: false, error: '同学，咱们学校卡号都是3开头的，你这是哪个平行宇宙的武理？' }), { status: 400, headers: addCorsHeaders() });
       }
-
       if (!password || password.length < 6) {
         return new Response(JSON.stringify({ success: false, error: '密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });
       }

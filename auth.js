@@ -1,7 +1,6 @@
 const AUTH_API_URL = `/api/auth`;
 let currentUser = null;
 let token = localStorage.getItem('authToken');
-
 function escapeHtmlAuth(text) {
     if (!text) return '';
     return text
@@ -11,7 +10,6 @@ function escapeHtmlAuth(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
-
 async function checkAuth() {
     if (!token) {
         updateAuthUI();
@@ -170,7 +168,6 @@ function showAuthModal(mode = 'login') {
         }
         const sendCodeBtn = modal.querySelector('#send-code-btn');
         const confirmActivationCheckbox = modal.querySelector('#confirm-activation');
-
         if (confirmActivationCheckbox) {
             confirmActivationCheckbox.addEventListener('change', () => {
                 if (sendCodeBtn.textContent.includes('s') && !sendCodeBtn.textContent.includes('发送')) {
@@ -180,7 +177,6 @@ function showAuthModal(mode = 'login') {
                 sendCodeBtn.title = sendCodeBtn.disabled ? "请先勾选确认框" : "";
             });
         }
-
         sendCodeBtn.onclick = async () => {
             const email = document.getElementById('auth-email').value;
             const studentIdEmailRegex = /^\d{6}@whut\.edu\.cn$/;
@@ -188,20 +184,12 @@ function showAuthModal(mode = 'login') {
                 showNotification('请使用6位校园卡号邮箱进行注册', 'error');
                 return;
             }
-
             const studentId = email.split('@')[0];
-
             const invalidIds = ['123456', '654321', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '114514'];
             if (invalidIds.includes(studentId)) {
                 showNotification('同学，这个卡号要是真的是你的，我当场把服务器吃了。请填写真实卡号！', 'error');
                 return;
             }
-
-            if (!studentId.startsWith('3')) {
-                showNotification('同学，咱们学校卡号都是3开头的，你这是哪个平行宇宙的武理？', 'error');
-                return;
-            }
-
             let cfToken = '';
             if (window.turnstile) {
                 cfToken = turnstile.getResponse(turnstileWidgetId);

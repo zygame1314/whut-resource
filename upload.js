@@ -223,6 +223,74 @@ function compressImage(file, quality = 0.8) {
         };
     });
 }
+async function addWatermarkToPDF(file) {
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        return file;
+    }
+    const match = file.name.match(/【(.+?)】/);
+    if (!match) {
+        return file;
+    }
+    const watermarkText = match[1];
+    try {
+        if (typeof PDFLib === 'undefined') {
+            console.warn('PDFLib未加载，跳过水印添加');
+            return file;
+        }
+        showNotification(`正在为 "${file.name}" 添加水印...`, 'info');
+        const arrayBuffer = await file.arrayBuffer();
+        const { PDFDocument, rgb, degrees } = PDFLib;
+        const pdfDoc = await PDFDocument.load(arrayBuffer);
+        const pages = pdfDoc.getPages();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const fontSize = 40;
+        canvas.width = 300;
+        canvas.height = 150;
+        ctx.font = `${fontSize}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = 'rgba(128, 128, 128, 0.3)';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(-45 * Math.PI / 180);
+        ctx.fillText(watermarkText, 0, 0);
+        const imageUrl = canvas.toDataURL('image/png');
+        const imageBytes = await fetch(imageUrl).then(res => res.arrayBuffer());
+        const watermarkImage = await pdfDoc.embedPng(imageBytes);
+        const watermarkDims = watermarkImage.scale(1);
+        for (const page of pages) {
+            const { width, height } = page.getSize();
+            const horizontalSpacing = width / 2.5;
+            const verticalSpacing = height / 2.5;
+            for (let x = 0; x < 3; x++) {
+                for (let y = 0; y < 3; y++) {
+                    const xPos = (x * horizontalSpacing) + horizontalSpacing / 4;
+                    const yPos = (y * verticalSpacing) + verticalSpacing / 4;
+                    page.drawImage(watermarkImage, {
+                        x: xPos - watermarkDims.width / 2,
+                        y: yPos - watermarkDims.height / 2,
+                        width: watermarkDims.width,
+                        height: watermarkDims.height,
+                        opacity: 0.5,
+                    });
+                }
+            }
+        }
+        const pdfBytes = await pdfDoc.save();
+        const newFile = new File([pdfBytes], file.name, {
+            type: 'application/pdf',
+            lastModified: Date.now()
+        });
+        if (file.webkitRelativePath || file._webkitRelativePath) {
+            newFile._webkitRelativePath = file.webkitRelativePath || file._webkitRelativePath;
+        }
+        return newFile;
+    } catch (error) {
+        console.error('添加水印失败:', error);
+        showNotification(`添加水印失败: ${error.message}，将上传原文件`, 'error');
+        return file;
+    }
+}
 function getFileIcon(fileName) {
     const ext = fileName.toLowerCase().split('.').pop();
     const iconMap = {
@@ -518,7 +586,8 @@ async function handleUpload(event) {
                 const file = queue.shift();
                 if (file) {
                     try {
-                        const result = await uploadFile(file);
+                        const fileToUpload = await addWatermarkToPDF(file);
+                        const result = await uploadFile(fileToUpload);
                         const displayName = file.webkitRelativePath || file._webkitRelativePath || file.name;
                         showNotification(`文件 "${displayName}" 上传成功！`, 'success');
                     } catch (error) {
