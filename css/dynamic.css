@@ -17,7 +17,7 @@
 }
 
 .file-list-item {
-    animation: fadeInUp 0.4s ease forwards;
+    animation: fadeIn 0.3s ease forwards;
 }
 
 .file-list-item:hover {
