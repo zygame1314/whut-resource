@@ -2008,16 +2008,36 @@ textarea.form-input {
 }
 
 .pagination-jump-input {
-    width: 50px;
-    padding: 0.3rem;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
+    width: 60px;
+    padding: 0.5rem 0.3rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
     text-align: center;
     margin: 0 0.5rem;
-    background: var(--background);
+    background: var(--background-alt);
     color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    appearance: textfield;
+    -moz-appearance: textfield;
 }
+
+.pagination-jump-input::-webkit-outer-spin-button,
+.pagination-jump-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.pagination-jump-input:hover {
+    border-color: var(--primary-color);
+    background: var(--background);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
+}
+
 .pagination-jump-input:focus {
     outline: none;
     border-color: var(--primary-color);
+    background: var(--background);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
