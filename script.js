@@ -1552,12 +1552,12 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
             );
         }
         displayedDirectories = filteredDirectories;
+        const dirFragment = document.createDocumentFragment();
         displayedDirectories.forEach((dir, index) => {
-            setTimeout(() => {
-                const li = createFileListItem(dir, true, isGlobalSearch);
-                fileListElement.appendChild(li);
-            }, index * 50);
+            const li = createFileListItem(dir, true, isGlobalSearch);
+            dirFragment.appendChild(li);
         });
+        fileListElement.appendChild(dirFragment);
     }
     let displayedFiles = [];
     if (data.files && data.files.length > 0) {
@@ -1575,14 +1575,14 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
             });
         }
         displayedFiles = filteredFiles;
+        const fileFragment = document.createDocumentFragment();
         displayedFiles.forEach((file, index) => {
             if (!file.isDirectoryPlaceholder) {
-                setTimeout(() => {
-                    const li = createFileListItem(file, !!file.isDirectory, isGlobalSearch);
-                    fileListElement.appendChild(li);
-                }, (displayedDirectories.length + index) * 50);
+                const li = createFileListItem(file, !!file.isDirectory, isGlobalSearch);
+                fileFragment.appendChild(li);
             }
         });
+        fileListElement.appendChild(fileFragment);
     }
     const hasDisplayedContent = displayedDirectories.length > 0 || displayedFiles.length > 0;
     if (!hasDisplayedContent) {
