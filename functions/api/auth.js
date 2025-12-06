@@ -167,9 +167,6 @@ export async function onRequestPost({ request, env }) {
       if (invalidIds.includes(studentId)) {
         return new Response(JSON.stringify({ success: false, error: '同学，这个卡号要是真的是你的，我当场把服务器吃了。请填写真实卡号！' }), { status: 400, headers: addCorsHeaders() });
       }
-      if (!studentId.startsWith('3')) {
-        return new Response(JSON.stringify({ success: false, error: '同学，咱们学校卡号都是3开头的，你这是哪个平行宇宙的武理？' }), { status: 400, headers: addCorsHeaders() });
-      }
       if (!password || password.length < 6) {
         return new Response(JSON.stringify({ success: false, error: '密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });
       }
