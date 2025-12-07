@@ -53,9 +53,22 @@ export async function onRequestGet({ request, env }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
-        const fileIds = vectorResults.matches.map(m => parseInt(m.id));
+        const MIN_SCORE = 0.45;
+        const validMatches = vectorResults.matches.filter(m => m.score >= MIN_SCORE);
+        if (validMatches.length === 0) {
+            return new Response(JSON.stringify({
+                success: true,
+                files: [],
+                directories: [],
+                message: '未找到相关性主要内容，请尝试更换关键词'
+            }), {
+                status: 200,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
+        const fileIds = validMatches.map(m => parseInt(m.id));
         const scoreMap = {};
-        vectorResults.matches.forEach(m => {
+        validMatches.forEach(m => {
             scoreMap[m.id] = m.score;
         });
         const placeholders = fileIds.map(() => '?').join(',');
