@@ -136,12 +136,16 @@ export async function onRequestPost({ request, env, waitUntil }) {
       ).run();
       if (env.AI && env.VECTORIZE && linkInsertResult.meta?.last_row_id) {
         try {
-          const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [sanitizedLinkName] });
+          // 使用完整路径(key)作为嵌入文本
+          const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [key] });
           if (embedding?.data?.[0]) {
             await env.VECTORIZE.upsert([{
               id: linkInsertResult.meta.last_row_id.toString(),
               values: embedding.data[0],
-              metadata: { name: sanitizedLinkName }
+              metadata: {
+                name: sanitizedLinkName,
+                path: key
+              }
             }]);
           }
         } catch (indexError) {
@@ -212,12 +216,16 @@ export async function onRequestPost({ request, env, waitUntil }) {
     ).run();
     if (env.AI && env.VECTORIZE && fileInsertResult.meta?.last_row_id) {
       try {
-        const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [fileName] });
+        // 使用完整路径(key)作为嵌入文本
+        const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [key] });
         if (embedding?.data?.[0]) {
           await env.VECTORIZE.upsert([{
             id: fileInsertResult.meta.last_row_id.toString(),
             values: embedding.data[0],
-            metadata: { name: fileName }
+            metadata: {
+              name: fileName,
+              path: key
+            }
           }]);
         }
       } catch (indexError) {

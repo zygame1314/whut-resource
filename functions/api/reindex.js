@@ -41,7 +41,7 @@ export async function onRequestPost({ request, env }) {
             });
         }
         const filesResult = await DB.prepare(
-            'SELECT id, name FROM files WHERE is_directory = FALSE ORDER BY id LIMIT ? OFFSET ?'
+            'SELECT id, name, key FROM files WHERE is_directory = FALSE ORDER BY id LIMIT ? OFFSET ?'
         ).bind(BATCH_SIZE, offset).all();
         const files = filesResult.results || [];
         if (files.length === 0) {
@@ -56,9 +56,9 @@ export async function onRequestPost({ request, env }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
-        const fileNames = files.map(f => f.name);
+        const textsToEmbed = files.map(f => f.key);
         const embeddingResponse = await AI.run('@cf/baai/bge-m3', {
-            text: fileNames
+            text: textsToEmbed
         });
         if (!embeddingResponse || !embeddingResponse.data || embeddingResponse.data.length !== files.length) {
             throw new Error('AI 嵌入生成失败或数量不匹配');
@@ -67,7 +67,8 @@ export async function onRequestPost({ request, env }) {
             id: file.id.toString(),
             values: embeddingResponse.data[index],
             metadata: {
-                name: file.name
+                name: file.name,
+                path: file.key
             }
         }));
         await VECTORIZE.upsert(vectors);
