@@ -232,7 +232,7 @@ export async function onRequestPut({ request, env }) {
     });
   } catch (error) {
     console.error('重命名错误:', error);
-    return new Response(JSON.stringify({ success: false, error: 'Rename failed: ' + error.message }), {
+    return new Response(JSON.stringify({ success: false, error: '重命名失败：' + error.message }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
@@ -254,7 +254,7 @@ export async function onRequestPost({ request, env }) {
   const DB = env.DB;
   const R2 = env.R2_bucket;
   if (!DB || !R2) {
-    return new Response(JSON.stringify({ success: false, error: 'Server configuration error.' }), {
+    return new Response(JSON.stringify({ success: false, error: '服务器配置错误。' }), {
       status: 500,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });

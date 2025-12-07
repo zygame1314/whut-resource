@@ -14,7 +14,7 @@ export async function onRequestGet({ request, env }) {
     }
     const url = new URL(request.url);
     const query = url.searchParams.get('query');
-    const topK = parseInt(url.searchParams.get('topK') || '20');
+    const topK = parseInt(url.searchParams.get('topK') || '50');
     if (!query || query.trim().length === 0) {
         return new Response(JSON.stringify({ success: false, error: '缺少搜索关键词' }), {
             status: 400,
@@ -60,7 +60,7 @@ export async function onRequestGet({ request, env }) {
                 success: true,
                 files: [],
                 directories: [],
-                message: '未找到相关性主要内容，请尝试更换关键词'
+                message: '啥也没找到，AI都觉得你在瞎填。'
             }), {
                 status: 200,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

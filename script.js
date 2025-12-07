@@ -1749,6 +1749,17 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
             }
             if (response.ok && result.success) {
                 isShowingSearchResults = true;
+                if (result.files?.length === 0 && result.message) {
+                    fileListElement.innerHTML = `
+                        <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            <i class="fas fa-robot" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+                            ${result.message}
+                        </li>
+                    `;
+                    updateBreadcrumb('', true, searchTerm.trim());
+                    renderPaginationControls(null);
+                    return;
+                }
                 const receivedData = {
                     files: result.files || [],
                     directories: result.directories || [],
@@ -1773,6 +1784,17 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                 if (searchCache.has(searchTerm)) {
                     console.log(`命中搜索缓存: "${searchTerm}"`);
                     const cachedResult = searchCache.get(searchTerm);
+                    if (cachedResult.files.length === 0 && cachedResult.message) {
+                        fileListElement.innerHTML = `
+                            <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+                                ${cachedResult.message}
+                            </li>
+                        `;
+                        updateBreadcrumb(isGlobal ? '' : prefix, isGlobal, searchTerm.trim());
+                        renderPaginationControls(null);
+                        return;
+                    }
                     const startIndex = (currentPage - 1) * itemsPerPage;
                     const endIndex = startIndex + itemsPerPage;
                     receivedData = {
@@ -1808,6 +1830,23 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                         result = { success: false, error: `无法解析响应: ${response.statusText}` };
                     }
                     if (response.ok && result.success) {
+                        if (result.files?.length === 0 && result.message) {
+                            searchCache.set(searchTerm, {
+                                files: [],
+                                totalItems: 0,
+                                message: result.message,
+                                timestamp: Date.now()
+                            });
+                            fileListElement.innerHTML = `
+                                <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                    <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+                                    ${result.message}
+                                </li>
+                            `;
+                            updateBreadcrumb(isGlobal ? '' : prefix, isGlobal, searchTerm.trim());
+                            renderPaginationControls(null);
+                            return;
+                        }
                         const allFiles = result.files || [];
                         const totalFound = result.totalItems || allFiles.length;
                         searchCache.set(searchTerm, {
