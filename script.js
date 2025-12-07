@@ -1733,48 +1733,97 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
     try {
         let result;
         if (useAISearch) {
-            console.log(`发起 AI 搜索: "${searchTerm}"`);
-            const aiSearchUrl = `${API_ENDPOINTS.aiSearch}?query=${encodeURIComponent(searchTerm.trim())}&topK=50`;
-            const response = await fetch(aiSearchUrl, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-            try {
-                result = await response.json();
-            } catch (jsonError) {
-                console.error("JSON 解析错误:", jsonError);
-                result = { success: false, error: `无法解析响应: ${response.statusText}` };
-            }
-            if (response.ok && result.success) {
-                isShowingSearchResults = true;
-                if (result.files?.length === 0 && result.message) {
+            const aiCacheKey = `ai_search:${searchTerm.trim()}`;
+            let receivedData = { files: [], directories: [] };
+            let paginationData = {};
+            let result;
+            if (searchCache.has(aiCacheKey)) {
+                console.log(`命中 AI 搜索缓存: "${searchTerm}"`);
+                const cachedResult = searchCache.get(aiCacheKey);
+                if (cachedResult.files.length === 0 && cachedResult.message) {
                     fileListElement.innerHTML = `
                         <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                             <i class="fas fa-robot" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
-                            ${result.message}
+                            ${cachedResult.message}
                         </li>
                     `;
                     updateBreadcrumb('', true, searchTerm.trim());
                     renderPaginationControls(null);
                     return;
                 }
-                const receivedData = {
-                    files: result.files || [],
-                    directories: result.directories || [],
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                receivedData = {
+                    files: cachedResult.files.slice(startIndex, endIndex),
+                    directories: []
                 };
-                const paginationData = {
-                    currentPage: 1,
-                    totalPages: 1,
-                    totalItems: result.totalItems || receivedData.files.length + receivedData.directories.length,
-                    limit: 50
+                paginationData = {
+                    currentPage: currentPage,
+                    totalPages: Math.ceil(cachedResult.totalItems / itemsPerPage),
+                    totalItems: cachedResult.totalItems,
+                    limit: itemsPerPage
                 };
-                currentTotalItems = paginationData.totalItems;
-                totalPages = 1;
+                currentTotalItems = cachedResult.totalItems;
+                totalPages = paginationData.totalPages;
                 renderFileList('', receivedData, true, searchTerm.trim(), paginationData, true);
             } else {
-                throw new Error(result?.error || `HTTP 错误 ${response.status}`);
+                console.log(`发起 AI 搜索(未缓存): "${searchTerm}"`);
+                const aiSearchUrl = `${API_ENDPOINTS.aiSearch}?query=${encodeURIComponent(searchTerm.trim())}&topK=50`;
+                const response = await fetch(aiSearchUrl, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                try {
+                    result = await response.json();
+                } catch (jsonError) {
+                    console.error("JSON 解析错误:", jsonError);
+                    result = { success: false, error: `无法解析响应: ${response.statusText}` };
+                }
+                if (response.ok && result.success) {
+                    isShowingSearchResults = true;
+                    if (result.files?.length === 0 && result.message) {
+                        searchCache.set(aiCacheKey, {
+                            files: [],
+                            totalItems: 0,
+                            message: result.message,
+                            timestamp: Date.now()
+                        });
+                        fileListElement.innerHTML = `
+                            <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                <i class="fas fa-robot" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+                                ${result.message}
+                            </li>
+                        `;
+                        updateBreadcrumb('', true, searchTerm.trim());
+                        renderPaginationControls(null);
+                        return;
+                    }
+                    const allFiles = result.files || [];
+                    const totalFound = result.totalItems || allFiles.length;
+                    searchCache.set(aiCacheKey, {
+                        files: allFiles,
+                        totalItems: totalFound,
+                        timestamp: Date.now()
+                    });
+                    console.log(`AI 搜索结果已缓存: "${searchTerm}", 共 ${totalFound} 条`);
+                    const startIndex = (currentPage - 1) * itemsPerPage;
+                    const endIndex = startIndex + itemsPerPage;
+                    receivedData = {
+                        files: allFiles.slice(startIndex, endIndex),
+                        directories: result.directories || [],
+                    };
+                    paginationData = {
+                        currentPage: currentPage,
+                        totalPages: Math.ceil(totalFound / itemsPerPage),
+                        totalItems: totalFound,
+                        limit: itemsPerPage
+                    };
+                    currentTotalItems = totalFound;
+                    totalPages = paginationData.totalPages;
+                    renderFileList('', receivedData, true, searchTerm.trim(), paginationData, true);
+                } else {
+                    throw new Error(result?.error || `HTTP 错误 ${response.status}`);
+                }
             }
         } else {
             let receivedData = { files: [], directories: [] };
