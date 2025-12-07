@@ -79,15 +79,12 @@ CREATE TABLE guestbook_likes (
 
 CREATE INDEX IF NOT EXISTS idx_files_parent_path_is_directory_name ON files(parent_path, is_directory, name);
 CREATE INDEX IF NOT EXISTS idx_files_parent_path_is_directory_uploaded ON files(parent_path, is_directory, uploaded DESC);
-CREATE INDEX IF NOT EXISTS idx_downloads_user_id ON downloads(user_id);
-CREATE INDEX IF NOT EXISTS idx_downloads_file_key ON downloads(file_key);
+CREATE INDEX IF NOT EXISTS idx_downloads_debounce ON downloads(user_id, file_key, downloaded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_list_default ON guestbook(is_hidden, is_pinned DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_list_likes ON guestbook(is_hidden, is_pinned DESC, likes DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_user_daily_limit ON guestbook(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_guestbook_user_messages ON guestbook(user_id, is_pinned DESC, created_at DESC);
--- 支持按状态筛选的索引（时间排序）
 CREATE INDEX IF NOT EXISTS idx_guestbook_status_time ON guestbook(status, is_hidden, is_pinned DESC, created_at DESC);
--- 支持按状态筛选的索引（热度排序）
 CREATE INDEX IF NOT EXISTS idx_guestbook_status_likes ON guestbook(status, is_hidden, is_pinned DESC, likes DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_files_uploaded ON files(uploaded DESC);
 
