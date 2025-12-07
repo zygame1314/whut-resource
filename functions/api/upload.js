@@ -1,8 +1,19 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
+
+async function generateEmbedding(text, env) {
+  try {
+    if (!env.AI) return null;
+    const response = await env.AI.run('@cf/baai/bge-m3', { text: [text] });
+    return response.data[0];
+  } catch (e) {
+    console.error('嵌入生成失败:', e);
+    return null;
+  }
+}
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
-  for (let i = 0; i < pathSegments.length -1; i++) {
+  for (let i = 0; i < pathSegments.length - 1; i++) {
     const segment = pathSegments[i];
     const parentPathForCurrentDir = currentPath;
     currentPath += segment + '/';
@@ -60,12 +71,12 @@ export async function onRequestPost({ request, env, waitUntil }) {
     }
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
     }
     const token = authHeader.substring(7);
     const user = await verifyToken(token, env.JWT_SECRET || 'secret');
     if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: '禁止：需要管理员访问权限。' }), { status: 403, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: false, error: '禁止：需要管理员访问权限。' }), { status: 403, headers: addCorsHeaders() });
     }
     const contentType = request.headers.get('Content-Type') || '';
     if (contentType.includes('application/json')) {
@@ -119,7 +130,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       if (parentPath) {
         await ensureDirectoryExists(DB, key, env);
       }
-      await DB.prepare(
+      const insertResult = await DB.prepare(
         'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(
         key,
@@ -134,6 +145,24 @@ export async function onRequestPost({ request, env, waitUntil }) {
         0,
         user.id
       ).run();
+
+      if (env.AI && env.VECTORIZE) {
+        waitUntil((async () => {
+          try {
+            const fileId = insertResult.meta.last_row_id;
+            const vector = await generateEmbedding(sanitizedLinkName, env);
+            if (vector && fileId) {
+              await env.VECTORIZE.insert([{
+                id: fileId.toString(),
+                values: vector,
+                metadata: { type: 'link' }
+              }]);
+            }
+          } catch (err) {
+            console.error('背景向量索引失败（链接）:', err);
+          }
+        })());
+      }
       return new Response(JSON.stringify({ success: true, message: '链接创建成功。' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -173,31 +202,49 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const key = sanitizedFilename;
     const existingFile = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(key).first();
     if (existingFile) {
-        return new Response(JSON.stringify({ success: false, error: '文件已存在。' }), { status: 409, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: false, error: '文件已存在。' }), { status: 409, headers: addCorsHeaders() });
     }
     await R2_BUCKET.put(key, file.stream(), {
-        httpMetadata: { contentType: file.type },
+      httpMetadata: { contentType: file.type },
     });
     const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
     await ensureDirectoryExists(DB, key, env);
-    await DB.prepare(
-        'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    const insertResult = await DB.prepare(
+      'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
-        key,
-        sanitizedFilename.split('/').pop(),
-        file.size,
-        new Date().toISOString(),
-        file.type,
-        parentPath,
-        false,
-        false,
-        null,
-        0,
-        user.id
+      key,
+      sanitizedFilename.split('/').pop(),
+      file.size,
+      new Date().toISOString(),
+      file.type,
+      parentPath,
+      false,
+      false,
+      null,
+      0,
+      user.id
     ).run();
+
+    if (env.AI && env.VECTORIZE) {
+      waitUntil((async () => {
+        try {
+          const fileId = insertResult.meta.last_row_id;
+          const vector = await generateEmbedding(sanitizedFilename.split('/').pop(), env);
+          if (vector && fileId) {
+            await env.VECTORIZE.insert([{
+              id: fileId.toString(),
+              values: vector,
+              metadata: { type: 'file' }
+            }]);
+          }
+        } catch (err) {
+          console.error('背景向量索引失败（文件）:', err);
+        }
+      })());
+    }
     return new Response(JSON.stringify({ success: true, message: '文件上传成功。' }), {
-        status: 200,
-        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      status: 200,
+      headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   } catch (error) {
     console.error("上传错误:", error);

@@ -1,4 +1,14 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
+async function generateEmbedding(text, env) {
+  try {
+    if (!env.AI) return null;
+    const response = await env.AI.run('@cf/baai/bge-m3', { text: [text] });
+    return response.data[0];
+  } catch (e) {
+    console.error('嵌入生成失败:', e);
+    return null;
+  }
+}
 const DEFAULT_PAGE_SIZE = 20;
 export async function onRequestGet({ request, env }) {
   const authHeader = request.headers.get('Authorization');
@@ -88,7 +98,29 @@ export async function onRequestGet({ request, env }) {
     const prefix = url.searchParams.get('prefix') || '';
     let itemsResult, totalResult;
     const useFTS = search && search.length >= 3;
-    if (useFTS) {
+    const isAISearch = search && url.searchParams.get('type') === 'ai';
+    if (isAISearch && env.AI && env.VECTORIZE) {
+      const vector = await generateEmbedding(search, env);
+      if (vector) {
+        const matches = await env.VECTORIZE.query(vector, { topK: limit });
+        const ids = matches.matches.map(m => m.id);
+        if (ids.length > 0) {
+          const placeholders = ids.map(() => '?').join(',');
+          const query = `SELECT * FROM files WHERE id IN (${placeholders})`;
+          const filesResult = await DB.prepare(query).bind(...ids).all();
+          const fileMap = new Map(filesResult.results.map(f => [String(f.id), f]));
+          const sortedFiles = ids.map(id => fileMap.get(id)).filter(f => f);
+          itemsResult = { results: sortedFiles };
+          totalResult = { total: sortedFiles.length };
+        } else {
+          itemsResult = { results: [] };
+          totalResult = { total: 0 };
+        }
+      } else {
+        itemsResult = { results: [] };
+        totalResult = { total: 0 };
+      }
+    } else if (useFTS) {
       const ftsQuery = `
         SELECT files.* FROM files
         JOIN files_fts ON files.id = files_fts.rowid
@@ -188,42 +220,42 @@ export async function onRequestPut({ request, env }) {
     }
     const fileRecord = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(key).first();
     if (!fileRecord) {
-        return new Response(JSON.stringify({ success: false, error: '文件未找到。' }), {
-            status: 404,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+      return new Response(JSON.stringify({ success: false, error: '文件未找到。' }), {
+        status: 404,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
     if (fileRecord.is_directory) {
-        return new Response(JSON.stringify({ success: false, error: '尚不支持重命名目录。' }), {
-            status: 400,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+      return new Response(JSON.stringify({ success: false, error: '尚不支持重命名目录。' }), {
+        status: 400,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
     const parentPath = fileRecord.parent_path;
     const newKey = parentPath ? `${parentPath}${newName}` : newName;
     const existing = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newKey).first();
     if (existing) {
-        return new Response(JSON.stringify({ success: false, error: '新名称的文件已存在。' }), {
-            status: 409,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+      return new Response(JSON.stringify({ success: false, error: '新名称的文件已存在。' }), {
+        status: 409,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
     const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
     if (!isLink) {
-        try {
-            const sourceObj = await R2.get(key);
-            if (sourceObj) {
-                await R2.put(newKey, sourceObj.body, {
-                    httpMetadata: { contentType: fileRecord.contentType }
-                });
-                await R2.delete(key);
-            }
-        } catch (e) {
-            return new Response(JSON.stringify({ success: false, error: 'R2重命名失败：' + e.message }), {
-                status: 500,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
+      try {
+        const sourceObj = await R2.get(key);
+        if (sourceObj) {
+          await R2.put(newKey, sourceObj.body, {
+            httpMetadata: { contentType: fileRecord.contentType }
+          });
+          await R2.delete(key);
         }
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: 'R2重命名失败：' + e.message }), {
+          status: 500,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
     }
     await DB.prepare('UPDATE files SET key = ?, name = ? WHERE key = ?').bind(newKey, newName, key).run();
     return new Response(JSON.stringify({ success: true, message: '重命名成功' }), {
@@ -270,51 +302,51 @@ export async function onRequestPost({ request, env }) {
     }
     const fileRecord = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(sourceKey).first();
     if (!fileRecord) {
-        return new Response(JSON.stringify({ success: false, error: '文件未找到。' }), {
-            status: 404,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+      return new Response(JSON.stringify({ success: false, error: '文件未找到。' }), {
+        status: 404,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
     if (fileRecord.is_directory) {
-         return new Response(JSON.stringify({ success: false, error: '尚不支持移动目录。' }), {
-            status: 400,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+      return new Response(JSON.stringify({ success: false, error: '尚不支持移动目录。' }), {
+        status: 400,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
     let newParentPath = destinationPath;
     if (newParentPath && !newParentPath.endsWith('/')) {
-        newParentPath += '/';
+      newParentPath += '/';
     }
     const newKey = newParentPath ? `${newParentPath}${fileRecord.name}` : fileRecord.name;
     if (sourceKey === newKey) {
-         return new Response(JSON.stringify({ success: false, error: '源和目标相同。' }), {
-            status: 400,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+      return new Response(JSON.stringify({ success: false, error: '源和目标相同。' }), {
+        status: 400,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
     const existing = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newKey).first();
     if (existing) {
-        return new Response(JSON.stringify({ success: false, error: '目标中文件已存在。' }), {
-            status: 409,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+      return new Response(JSON.stringify({ success: false, error: '目标中文件已存在。' }), {
+        status: 409,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
     const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
     if (!isLink) {
-        try {
-            const sourceObj = await R2.get(sourceKey);
-            if (sourceObj) {
-                await R2.put(newKey, sourceObj.body, {
-                    httpMetadata: { contentType: fileRecord.contentType }
-                });
-                await R2.delete(sourceKey);
-            }
-        } catch (e) {
-            return new Response(JSON.stringify({ success: false, error: 'R2移动失败：' + e.message }), {
-                status: 500,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
+      try {
+        const sourceObj = await R2.get(sourceKey);
+        if (sourceObj) {
+          await R2.put(newKey, sourceObj.body, {
+            httpMetadata: { contentType: fileRecord.contentType }
+          });
+          await R2.delete(sourceKey);
         }
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: 'R2移动失败：' + e.message }), {
+          status: 500,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
     }
     await DB.prepare('UPDATE files SET key = ?, parent_path = ? WHERE key = ?').bind(newKey, newParentPath, sourceKey).run();
     return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
@@ -363,41 +395,41 @@ export async function onRequestDelete({ request, env }) {
     const errors = [];
     let deletedCount = 0;
     for (const currentKey of keysToDelete) {
-        try {
-            const fileRecord = await DB.prepare('SELECT is_directory, is_link FROM files WHERE key = ?').bind(currentKey).first();
-            if (!fileRecord) {
-                continue;
-            }
-            if (fileRecord.is_directory) {
-                const children = await DB.prepare('SELECT key FROM files WHERE parent_path = ? LIMIT 1').bind(currentKey.endsWith('/') ? currentKey : currentKey + '/').first();
-                if (children) {
-                    errors.push(`目录 ${currentKey} 不为空。`);
-                    continue;
-                }
-                await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
-            } else {
-                const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
-                if (!isLink) {
-                    await R2.delete(currentKey);
-                }
-                await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
-            }
-            deletedCount++;
-        } catch (err) {
-            console.error(`删除 ${currentKey} 失败:`, err);
-            errors.push(`删除 ${currentKey} 失败：${err.message}`);
+      try {
+        const fileRecord = await DB.prepare('SELECT is_directory, is_link FROM files WHERE key = ?').bind(currentKey).first();
+        if (!fileRecord) {
+          continue;
         }
+        if (fileRecord.is_directory) {
+          const children = await DB.prepare('SELECT key FROM files WHERE parent_path = ? LIMIT 1').bind(currentKey.endsWith('/') ? currentKey : currentKey + '/').first();
+          if (children) {
+            errors.push(`目录 ${currentKey} 不为空。`);
+            continue;
+          }
+          await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
+        } else {
+          const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
+          if (!isLink) {
+            await R2.delete(currentKey);
+          }
+          await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
+        }
+        deletedCount++;
+      } catch (err) {
+        console.error(`删除 ${currentKey} 失败:`, err);
+        errors.push(`删除 ${currentKey} 失败：${err.message}`);
+      }
     }
     if (deletedCount === 0 && errors.length > 0) {
-         return new Response(JSON.stringify({ success: false, error: errors.join('; ') }), {
-            status: 500,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+      return new Response(JSON.stringify({ success: false, error: errors.join('; ') }), {
+        status: 500,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
-    return new Response(JSON.stringify({ 
-        success: true, 
-        message: `成功删除了 ${deletedCount} 个项目。`,
-        errors: errors.length > 0 ? errors : undefined
+    return new Response(JSON.stringify({
+      success: true,
+      message: `成功删除了 ${deletedCount} 个项目。`,
+      errors: errors.length > 0 ? errors : undefined
     }), {
       status: 200,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
