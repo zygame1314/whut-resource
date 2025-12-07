@@ -67,7 +67,7 @@ function updateAuthUI() {
                     <i class="fas fa-user"></i> ${escapeHtmlAuth(currentUser.nickname || currentUser.email)}
                     <span class="quota">(${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次)</span>
                 </span>
-                ${currentUser.role === 'admin' ? '<button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>' : ''}
+                ${currentUser.role === 'admin' ? '<button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button><button id="vector-sync-btn" class="secondary-btn" title="同步向量索引"><i class="fas fa-brain"></i></button>' : ''}
                 <button id="change-nickname-btn" class="secondary-btn" title="修改昵称"><i class="fas fa-id-card"></i></button>
                 <button id="change-pwd-btn" class="secondary-btn" title="修改密码"><i class="fas fa-key"></i></button>
                 <button id="logout-btn" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>
@@ -77,6 +77,7 @@ function updateAuthUI() {
             document.getElementById('change-pwd-btn').addEventListener('click', showChangePasswordModal);
             if (currentUser.role === 'admin') {
                 document.getElementById('sync-btn').addEventListener('click', syncFiles);
+                document.getElementById('vector-sync-btn').addEventListener('click', syncVectorIndex);
             }
         }
         if (uploadLink) {
@@ -334,6 +335,50 @@ async function syncFiles() {
         setTimeout(() => window.location.reload(), 2000);
     } catch (e) {
         showNotification('同步出错: ' + e.message, 'error');
+    } finally {
+        btn.innerHTML = originalIcon;
+        btn.disabled = false;
+    }
+}
+async function syncVectorIndex() {
+    const confirmed = await showConfirmation({
+        title: '向量索引同步',
+        message: '此操作将为所有文件重建 AI 搜索索引。<br><br>首次使用或有大量历史文件时需要执行此操作。<br>新上传的文件会自动添加索引，无需手动同步。<br><br>确定要开始同步吗？',
+        confirmText: '开始同步'
+    });
+    if (!confirmed) return;
+    const btn = document.getElementById('vector-sync-btn');
+    const originalIcon = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+    let offset = 0;
+    let totalProcessed = 0;
+    let totalFiles = 0;
+    try {
+        while (true) {
+            const response = await fetch(`${API_ENDPOINTS.reindex}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ offset })
+            });
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || '同步失败');
+            }
+            totalFiles = result.total;
+            totalProcessed = result.indexed;
+            btn.innerHTML = `<i class="fas fa-brain"></i> ${totalProcessed}/${totalFiles}`;
+            if (result.completed) {
+                showNotification(`向量索引同步完成！共处理 ${totalProcessed} 个文件。`, 'success');
+                break;
+            }
+            offset = result.nextOffset;
+        }
+    } catch (e) {
+        showNotification('向量索引同步出错: ' + e.message, 'error');
     } finally {
         btn.innerHTML = originalIcon;
         btn.disabled = false;

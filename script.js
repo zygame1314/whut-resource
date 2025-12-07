@@ -2035,22 +2035,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 if (searchButton && searchInput) {
+    const clearSearchBtn = document.getElementById('clear-search-btn');
     const performSearch = () => {
         const searchTerm = searchInput.value.trim();
         fetchAndDisplayFiles(searchTerm ? '' : currentPrefix, searchTerm, 1);
     };
+
+    const updateClearButton = () => {
+        if (clearSearchBtn) {
+            clearSearchBtn.style.display = searchInput.value.length > 0 ? 'flex' : 'none';
+        }
+    };
+
     searchButton.addEventListener('click', performSearch);
+
     searchInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
             performSearch();
         }
     });
+
     searchInput.addEventListener('input', () => {
+        updateClearButton();
         const searchTerm = searchInput.value.trim();
         if (searchTerm === '' && isShowingSearchResults) {
             fetchAndDisplayFiles(currentPrefix, '', 1);
         }
     });
+
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            updateClearButton();
+            searchInput.focus();
+            if (isShowingSearchResults) {
+                fetchAndDisplayFiles(currentPrefix, '', 1);
+            }
+        });
+        // Initial check
+        updateClearButton();
+    }
 }
 function updateUploadButtonLink() {
     const uploadBtn = document.getElementById('upload-btn-link');

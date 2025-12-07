@@ -164,16 +164,17 @@
                         <div class="search-box">
                             <i class="fas fa-search search-icon"></i>
                             <input type="search" id="search-input" placeholder="搜索文件、文档、资料...">
+                            <button id="clear-search-btn" class="clear-search-btn" style="display: none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <label class="ai-search-toggle" title="AI 智能搜索：使用语义理解查找相关文件，即使文件名不完全匹配">
+                                <input type="checkbox" id="ai-search-toggle">
+                                <span class="toggle-label"><i class="fas fa-magic"></i><span class="toggle-text">AI
+                                        搜索</span></span>
+                            </label>
                             <button id="search-button" class="search-btn">
                                 <i class="fas fa-arrow-right"></i>
                             </button>
-                        </div>
-                        <div class="search-options">
-                            <label class="ai-search-toggle" title="AI 智能搜索：使用语义理解查找相关文件，即使文件名不完全匹配">
-                                <input type="checkbox" id="ai-search-toggle">
-                                <span class="toggle-slider"></span>
-                                <span class="toggle-label"><i class="fas fa-magic"></i> AI 搜索</span>
-                            </label>
                         </div>
                         <div class="search-filters">
                             <button class="filter-btn active" data-filter="all">全部</button>

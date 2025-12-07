@@ -134,7 +134,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
         0,
         user.id
       ).run();
-      // 自动添加到向量索引
       if (env.AI && env.VECTORIZE && linkInsertResult.meta?.last_row_id) {
         try {
           const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [sanitizedLinkName] });
@@ -211,7 +210,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
       0,
       user.id
     ).run();
-    // 自动添加到向量索引
     if (env.AI && env.VECTORIZE && fileInsertResult.meta?.last_row_id) {
       try {
         const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [fileName] });
