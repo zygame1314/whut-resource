@@ -204,6 +204,13 @@ function showAuthModal(mode = 'login') {
                     return;
                 }
             }
+            const confirmed = await showConfirmation({
+                title: '⚠️ 最后确认',
+                message: `请仔细核对你的邮箱地址：<br><br><strong style="font-size: 1.2em; color: var(--primary-color);">${email}</strong><br><br>这是你<strong class="warning-highlight">最后的机会</strong>确认邮箱是否正确且已激活！<br><br>如果未激活导致发送失败，此邮箱将被<strong class="warning-highlight">永久封禁</strong>，无法再次注册！`,
+                confirmText: '确认无误',
+                cancelText: '我要修改'
+            });
+            if (!confirmed) return;
             sendCodeBtn.disabled = true;
             sendCodeBtn.textContent = '发送中...';
             try {

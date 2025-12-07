@@ -1377,7 +1377,7 @@
 .email-suffix {
     display: flex;
     align-items: center;
-    padding: 0 1rem 0 0;
+    padding: 0 1rem;
     color: var(--text-secondary);
     font-size: 0.95rem;
     font-weight: 500;

@@ -663,13 +663,7 @@
     opacity: 1;
 }
 
-.file-list-container.grid-view .file-list.selection-mode .file-list-item .file-checkbox {
-    top: 0.75rem;
-    left: 0.75rem;
-    margin-right: 0;
-}
-
-.file-list:not(.file-list-container.grid-view *) .file-list.selection-mode .file-checkbox {
+.file-list-container:not(.grid-view) .file-list.selection-mode .file-checkbox {
     position: static;
     margin-right: 1rem;
 }
