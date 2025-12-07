@@ -119,7 +119,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       if (parentPath) {
         await ensureDirectoryExists(DB, key, env);
       }
-      await DB.prepare(
+      const linkInsertResult = await DB.prepare(
         'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(
         key,
@@ -134,6 +134,21 @@ export async function onRequestPost({ request, env, waitUntil }) {
         0,
         user.id
       ).run();
+      // 自动添加到向量索引
+      if (env.AI && env.VECTORIZE && linkInsertResult.meta?.last_row_id) {
+        try {
+          const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [sanitizedLinkName] });
+          if (embedding?.data?.[0]) {
+            await env.VECTORIZE.upsert([{
+              id: linkInsertResult.meta.last_row_id.toString(),
+              values: embedding.data[0],
+              metadata: { name: sanitizedLinkName }
+            }]);
+          }
+        } catch (indexError) {
+          console.error('向量索引写入失败（链接）:', indexError);
+        }
+      }
       return new Response(JSON.stringify({ success: true, message: '链接创建成功。' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -180,11 +195,12 @@ export async function onRequestPost({ request, env, waitUntil }) {
     });
     const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
     await ensureDirectoryExists(DB, key, env);
-    await DB.prepare(
+    const fileName = sanitizedFilename.split('/').pop();
+    const fileInsertResult = await DB.prepare(
       'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
       key,
-      sanitizedFilename.split('/').pop(),
+      fileName,
       file.size,
       new Date().toISOString(),
       file.type,
@@ -195,6 +211,21 @@ export async function onRequestPost({ request, env, waitUntil }) {
       0,
       user.id
     ).run();
+    // 自动添加到向量索引
+    if (env.AI && env.VECTORIZE && fileInsertResult.meta?.last_row_id) {
+      try {
+        const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [fileName] });
+        if (embedding?.data?.[0]) {
+          await env.VECTORIZE.upsert([{
+            id: fileInsertResult.meta.last_row_id.toString(),
+            values: embedding.data[0],
+            metadata: { name: fileName }
+          }]);
+        }
+      } catch (indexError) {
+        console.error('向量索引写入失败（文件）:', indexError);
+      }
+    }
     return new Response(JSON.stringify({ success: true, message: '文件上传成功。' }), {
       status: 200,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

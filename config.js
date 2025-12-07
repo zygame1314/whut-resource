@@ -8,5 +8,7 @@ const API_ENDPOINTS = {
     sync: `${API_BASE}/api/sync`,
     guestbook: `${API_BASE}/api/guestbook`,
     announcements: `${API_BASE}/api/announcements`,
-    batchDownload: `${API_BASE}/api/batch-download`
+    batchDownload: `${API_BASE}/api/batch-download`,
+    aiSearch: `${API_BASE}/api/ai-search`,
+    reindex: `${API_BASE}/api/reindex`
 };

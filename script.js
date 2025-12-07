@@ -983,14 +983,15 @@ function showNotification(message, type = 'info') {
         removeNotification();
     });
 }
-function updateBreadcrumb(prefix, isSearch = false, searchTerm = '') {
+function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch = false) {
     if (!breadcrumbListElement) return;
     breadcrumbListElement.innerHTML = '';
     if (isSearch) {
         const searchItem = document.createElement('li');
         searchItem.className = 'breadcrumb-item';
         searchItem.setAttribute('aria-current', 'page');
-        searchItem.innerHTML = `<i class="fas fa-search" style="margin-right: 0.5rem;"></i>搜索结果: "${searchTerm}"`;
+        const aiBadge = isAISearch ? '<span class="ai-search-badge"><i class="fas fa-magic"></i> AI</span>' : '';
+        searchItem.innerHTML = `<i class="fas fa-search" style="margin-right: 0.5rem;"></i>搜索结果: "${searchTerm}"${aiBadge}`;
         breadcrumbListElement.appendChild(searchItem);
         return;
     }
@@ -1509,12 +1510,12 @@ async function handleBatchMove() {
         }
     }
 }
-function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = '', paginationData = null) {
+function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = '', paginationData = null, isAISearch = false) {
     fileListElement.innerHTML = '';
     const lowerLocalSearchTerm = localSearchTerm.trim().toLowerCase();
     if (isGlobalSearch) {
         isShowingSearchResults = true;
-        updateBreadcrumb('', true, localSearchTerm);
+        updateBreadcrumb('', true, localSearchTerm, isAISearch);
     } else {
         isShowingSearchResults = false;
         updateBreadcrumb(prefix);
@@ -1650,12 +1651,10 @@ function renderPaginationControls(paginationData) {
         }
     };
     controlsContainer.appendChild(prevButton);
-
     const pageInfoContainer = document.createElement('div');
     pageInfoContainer.className = 'pagination-info-container';
     pageInfoContainer.style.display = 'flex';
     pageInfoContainer.style.alignItems = 'center';
-
     const pageInput = document.createElement('input');
     pageInput.type = 'number';
     pageInput.min = 1;
@@ -1663,7 +1662,6 @@ function renderPaginationControls(paginationData) {
     pageInput.value = currentPage;
     pageInput.className = 'pagination-jump-input';
     pageInput.title = '输入页码跳转';
-
     pageInput.onchange = () => {
         let val = parseInt(pageInput.value);
         if (isNaN(val)) val = 1;
@@ -1678,16 +1676,12 @@ function renderPaginationControls(paginationData) {
     pageInput.onkeydown = (e) => {
         if (e.key === 'Enter') pageInput.blur();
     };
-
     const totalPageSpan = document.createElement('span');
     totalPageSpan.textContent = ` / ${totalPages} 页 (共 ${totalItems} 项)`;
-
     pageInfoContainer.appendChild(document.createTextNode('第 '));
     pageInfoContainer.appendChild(pageInput);
     pageInfoContainer.appendChild(totalPageSpan);
-
     controlsContainer.appendChild(pageInfoContainer);
-
     const nextButton = document.createElement('button');
     nextButton.innerHTML = '下一页 <i class="fas fa-chevron-right"></i>';
     nextButton.className = 'pagination-button';
@@ -1725,76 +1719,103 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
     if (fileListElement.offsetHeight > 0) {
         fileListElement.style.minHeight = `${fileListElement.offsetHeight}px`;
     }
+    const aiSearchToggle = document.getElementById('ai-search-toggle');
+    const useAISearch = aiSearchToggle && aiSearchToggle.checked && isGlobal;
+    const loadingMessage = useAISearch ? 'AI 正在分析语义...' : '正在加载文件列表...';
     fileListElement.innerHTML = `
         <li class="loading-item">
             <div class="loading-spinner"></div>
-            <span>正在加载文件列表...<br>(第 ${currentPage} 页)</span>
+            <span>${loadingMessage}<br>(第 ${currentPage} 页)</span>
         </li>
     `;
     renderPaginationControls(null);
-    let urlParams = new URLSearchParams();
-    if (isGlobal) {
-        console.log(`发起全局搜索: "${searchTerm}", page: ${currentPage}`);
-        urlParams.append('search', searchTerm.trim());
-        isShowingSearchResults = true;
-    } else {
-        console.log(`加载目录: "${prefix || '根目录'}", page: ${currentPage}`);
-        urlParams.append('prefix', prefix);
-        isShowingSearchResults = false;
-    }
-    urlParams.append('page', currentPage.toString());
-    urlParams.append('limit', itemsPerPage.toString());
-    const url = `${FILES_API_URL}?${urlParams.toString()}`;
     try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-        });
         let result;
-        try {
-            result = await response.json();
-        } catch (jsonError) {
-            console.error("JSON 解析错误:", jsonError);
-            result = { success: false, error: `无法解析响应: ${response.statusText}` };
-        }
-        if (response.ok && result.success) {
-            const receivedData = {
-                files: result.files || [],
-                directories: result.directories || [],
-            };
-            if (result.files) {
-                receivedData.files.forEach((file, index) => {
-                    if (result.files[index] && result.files[index].isDirectoryPlaceholder !== undefined) {
-                        file.isDirectoryPlaceholder = result.files[index].isDirectoryPlaceholder;
-                    } else {
-                        file.isDirectoryPlaceholder = false;
-                    }
-                });
+        if (useAISearch) {
+            console.log(`发起 AI 搜索: "${searchTerm}"`);
+            const aiSearchUrl = `${API_ENDPOINTS.aiSearch}?query=${encodeURIComponent(searchTerm.trim())}&topK=50`;
+            const response = await fetch(aiSearchUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            try {
+                result = await response.json();
+            } catch (jsonError) {
+                console.error("JSON 解析错误:", jsonError);
+                result = { success: false, error: `无法解析响应: ${response.statusText}` };
             }
-            const paginationData = {
-                currentPage: result.currentPage,
-                totalPages: result.totalPages,
-                totalItems: result.totalItems,
-                limit: result.limit
-            };
-            currentTotalItems = result.totalItems;
-            totalPages = result.totalPages;
-            const currentLocalSearch = searchInput ? searchInput.value.trim() : '';
-            renderFileList(isGlobal ? '' : prefix, receivedData, isGlobal, isGlobal ? searchTerm.trim() : '', paginationData);
+            if (response.ok && result.success) {
+                isShowingSearchResults = true;
+                const receivedData = {
+                    files: result.files || [],
+                    directories: result.directories || [],
+                };
+                const paginationData = {
+                    currentPage: 1,
+                    totalPages: 1,
+                    totalItems: result.totalItems || receivedData.files.length + receivedData.directories.length,
+                    limit: 50
+                };
+                currentTotalItems = paginationData.totalItems;
+                totalPages = 1;
+                renderFileList('', receivedData, true, searchTerm.trim(), paginationData, true);
+            } else {
+                throw new Error(result?.error || `HTTP 错误 ${response.status}`);
+            }
         } else {
-            const errorMessage = result?.error || `HTTP 错误 ${response.status}`;
-            console.error("获取文件列表失败:", errorMessage, result);
-            showNotification(`获取文件列表失败: ${errorMessage}`, 'error');
-            renderPaginationControls(null);
-            fileListElement.innerHTML = `
-                <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--accent-color);">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
-                    获取文件列表失败: ${errorMessage}
-                </li>
-            `;
-            updateBreadcrumb(isGlobal ? '' : prefix, isGlobal, searchTerm.trim());
+            let urlParams = new URLSearchParams();
+            if (isGlobal) {
+                console.log(`发起全局搜索: "${searchTerm}", page: ${currentPage}`);
+                urlParams.append('search', searchTerm.trim());
+                isShowingSearchResults = true;
+            } else {
+                console.log(`加载目录: "${prefix || '根目录'}", page: ${currentPage}`);
+                urlParams.append('prefix', prefix);
+                isShowingSearchResults = false;
+            }
+            urlParams.append('page', currentPage.toString());
+            urlParams.append('limit', itemsPerPage.toString());
+            const url = `${FILES_API_URL}?${urlParams.toString()}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            try {
+                result = await response.json();
+            } catch (jsonError) {
+                console.error("JSON 解析错误:", jsonError);
+                result = { success: false, error: `无法解析响应: ${response.statusText}` };
+            }
+            if (response.ok && result.success) {
+                const receivedData = {
+                    files: result.files || [],
+                    directories: result.directories || [],
+                };
+                if (result.files) {
+                    receivedData.files.forEach((file, index) => {
+                        if (result.files[index] && result.files[index].isDirectoryPlaceholder !== undefined) {
+                            file.isDirectoryPlaceholder = result.files[index].isDirectoryPlaceholder;
+                        } else {
+                            file.isDirectoryPlaceholder = false;
+                        }
+                    });
+                }
+                const paginationData = {
+                    currentPage: result.currentPage,
+                    totalPages: result.totalPages,
+                    totalItems: result.totalItems,
+                    limit: result.limit
+                };
+                currentTotalItems = result.totalItems;
+                totalPages = result.totalPages;
+                renderFileList(isGlobal ? '' : prefix, receivedData, isGlobal, isGlobal ? searchTerm.trim() : '', paginationData, false);
+            } else {
+                throw new Error(result?.error || `HTTP 错误 ${response.status}`);
+            }
         }
     } catch (error) {
         console.error("获取文件列表请求出错:", error);
