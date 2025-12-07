@@ -9,6 +9,7 @@ let currentGuestbookPage = 1;
 let totalGuestbookPages = 1;
 let currentGuestbookSort = 'time';
 let currentGuestbookFilter = 'all';
+let currentGuestbookStatus = 'all';
 const GUESTBOOK_PER_PAGE = 5;
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
@@ -214,7 +215,7 @@ async function fetchAndDisplayGuestbook(page = 1) {
         if (guestbookList) {
             guestbookList.innerHTML = '<div class="loading-spinner"></div>';
         }
-        const response = await fetch(`${GUESTBOOK_API_URL}?page=${page}&limit=${GUESTBOOK_PER_PAGE}&sort=${currentGuestbookSort}&filter=${currentGuestbookFilter}`, { headers });
+        const response = await fetch(`${GUESTBOOK_API_URL}?page=${page}&limit=${GUESTBOOK_PER_PAGE}&sort=${currentGuestbookSort}&filter=${currentGuestbookFilter}&status=${currentGuestbookStatus}`, { headers });
         if (!response.ok) throw new Error('Failed to fetch guestbook messages');
         const data = await response.json();
         const messages = data.data;
@@ -538,6 +539,15 @@ window.changeGuestbookFilter = function (filter) {
     currentGuestbookPage = 1;
     document.querySelectorAll('.guestbook-filter-btn').forEach(btn => {
         if (btn.dataset.filter === filter) btn.classList.add('active'); else btn.classList.remove('active');
+    });
+    fetchAndDisplayGuestbook(1);
+};
+window.changeGuestbookStatus = function (status) {
+    if (currentGuestbookStatus === status) return;
+    currentGuestbookStatus = status;
+    currentGuestbookPage = 1;
+    document.querySelectorAll('.guestbook-status-btn').forEach(btn => {
+        if (btn.dataset.status === status) btn.classList.add('active'); else btn.classList.remove('active');
     });
     fetchAndDisplayGuestbook(1);
 };

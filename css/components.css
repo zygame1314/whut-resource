@@ -766,6 +766,36 @@
     font-weight: 500;
 }
 
+.guestbook-status-controls {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--background);
+    padding: 0.25rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.guestbook-status-btn {
+    background: none;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.guestbook-status-btn:hover {
+    color: var(--accent-color);
+}
+
+.guestbook-status-btn.active {
+    background: var(--accent-color);
+    color: white;
+    font-weight: 500;
+}
+
 @media (max-width: 1200px) {
     .guestbook-header-top {
         flex-direction: column;

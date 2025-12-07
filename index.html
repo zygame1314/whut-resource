@@ -250,6 +250,16 @@
                                 <button class="guestbook-filter-btn" data-filter="mine"
                                     onclick="changeGuestbookFilter('mine')">我的留言</button>
                             </div>
+                            <div class="guestbook-status-controls">
+                                <button class="guestbook-status-btn active" data-status="all"
+                                    onclick="changeGuestbookStatus('all')">全部状态</button>
+                                <button class="guestbook-status-btn" data-status="unresolved"
+                                    onclick="changeGuestbookStatus('unresolved')">未解决</button>
+                                <button class="guestbook-status-btn" data-status="resolved"
+                                    onclick="changeGuestbookStatus('resolved')">已解决</button>
+                                <button class="guestbook-status-btn" data-status="rejected"
+                                    onclick="changeGuestbookStatus('rejected')">已驳回</button>
+                            </div>
                             <div class="guestbook-sort-controls">
                                 <button class="guestbook-sort-btn active" data-sort="time"
                                     onclick="changeGuestbookSort('time')">最新</button>

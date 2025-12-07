@@ -36,28 +36,50 @@ async function handleGet(request, env) {
     const limit = parseInt(url.searchParams.get('limit') || '10');
     const sort = url.searchParams.get('sort') || 'time';
     const filter = url.searchParams.get('filter') || 'all';
+    const status = url.searchParams.get('status') || 'all';
     const offset = (page - 1) * limit;
     const user = await getUser(request, env);
     const currentUserId = user ? user.id : null;
     const isAdmin = user && user.role === 'admin';
+
+    // 构建状态筛选条件
+    const validStatuses = ['unresolved', 'resolved', 'rejected'];
+    const statusCondition = validStatuses.includes(status) ? `g.status = '${status}'` : null;
+
     let total = 0;
     if (filter === 'mine') {
         if (!currentUserId) {
             total = 0;
         } else {
-            const cnt = await env.DB.prepare('SELECT COUNT(*) as total FROM guestbook WHERE user_id = ?').bind(currentUserId).first();
+            let countQuery = 'SELECT COUNT(*) as total FROM guestbook g WHERE g.user_id = ?';
+            if (statusCondition) {
+                countQuery += ` AND ${statusCondition}`;
+            }
+            const cnt = await env.DB.prepare(countQuery).bind(currentUserId).first();
             total = cnt.total;
         }
     } else {
         if (isAdmin) {
-            const cnt = await env.DB.prepare('SELECT COUNT(*) as total FROM guestbook').first();
+            let countQuery = 'SELECT COUNT(*) as total FROM guestbook g';
+            if (statusCondition) {
+                countQuery += ` WHERE ${statusCondition}`;
+            }
+            const cnt = await env.DB.prepare(countQuery).first();
             total = cnt.total;
         } else {
             if (currentUserId) {
-                const cnt = await env.DB.prepare('SELECT COUNT(*) as total FROM guestbook WHERE is_hidden = FALSE OR user_id = ?').bind(currentUserId).first();
+                let countQuery = 'SELECT COUNT(*) as total FROM guestbook g WHERE (g.is_hidden = FALSE OR g.user_id = ?)';
+                if (statusCondition) {
+                    countQuery += ` AND ${statusCondition}`;
+                }
+                const cnt = await env.DB.prepare(countQuery).bind(currentUserId).first();
                 total = cnt.total;
             } else {
-                const cnt = await env.DB.prepare('SELECT COUNT(*) as total FROM guestbook WHERE is_hidden = FALSE').first();
+                let countQuery = 'SELECT COUNT(*) as total FROM guestbook g WHERE g.is_hidden = FALSE';
+                if (statusCondition) {
+                    countQuery += ` AND ${statusCondition}`;
+                }
+                const cnt = await env.DB.prepare(countQuery).first();
                 total = cnt.total;
             }
         }
@@ -72,12 +94,16 @@ async function handleGet(request, env) {
         if (!currentUserId) {
             results = [];
         } else {
+            let whereClause = 'WHERE g.user_id = ?';
+            if (statusCondition) {
+                whereClause += ` AND ${statusCondition}`;
+            }
             query = `
                 SELECT g.*, u.nickname, u.email, u.role,
                 (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
                 FROM guestbook g
                 LEFT JOIN users u ON g.user_id = u.id
-                WHERE g.user_id = ?
+                ${whereClause}
                 ${orderByClause}
                 LIMIT ? OFFSET ?
             `;
@@ -86,11 +112,13 @@ async function handleGet(request, env) {
         }
     } else {
         if (isAdmin) {
+            let whereClause = statusCondition ? `WHERE ${statusCondition}` : '';
             query = `
                 SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
                 (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
                 FROM guestbook g
                 LEFT JOIN users u ON g.user_id = u.id
+                ${whereClause}
                 ${orderByClause}
                 LIMIT ? OFFSET ?
             `;
@@ -98,24 +126,32 @@ async function handleGet(request, env) {
             results = q.results;
         } else {
             if (currentUserId) {
+                let whereClause = 'WHERE (g.is_hidden = FALSE OR g.user_id = ?)';
+                if (statusCondition) {
+                    whereClause += ` AND ${statusCondition}`;
+                }
                 query = `
                     SELECT g.*, u.nickname, u.email, u.role,
                     (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
                     FROM guestbook g
                     LEFT JOIN users u ON g.user_id = u.id
-                    WHERE g.is_hidden = FALSE OR g.user_id = ?
+                    ${whereClause}
                     ${orderByClause}
                     LIMIT ? OFFSET ?
                 `;
                 const q = await env.DB.prepare(query).bind(currentUserId, currentUserId, limit, offset).all();
                 results = q.results;
             } else {
+                let whereClause = 'WHERE g.is_hidden = FALSE';
+                if (statusCondition) {
+                    whereClause += ` AND ${statusCondition}`;
+                }
                 query = `
                     SELECT g.*, u.nickname, u.email, u.role,
                     (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
                     FROM guestbook g
                     LEFT JOIN users u ON g.user_id = u.id
-                    WHERE g.is_hidden = FALSE
+                    ${whereClause}
                     ${orderByClause}
                     LIMIT ? OFFSET ?
                 `;
@@ -166,7 +202,7 @@ async function handlePost(request, env) {
         return new Response(JSON.stringify({ error: '内容不能为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     if (content.length > 500) {
-         return new Response(JSON.stringify({ error: '内容过长（最多500字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        return new Response(JSON.stringify({ error: '内容过长（最多500字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const result = await env.DB.prepare(
         'INSERT INTO guestbook (user_id, content) VALUES (?, ?)'
@@ -236,7 +272,7 @@ async function handlePut(request, env) {
             env.DB.prepare('UPDATE guestbook SET likes = likes + 1 WHERE id = ?').bind(id)
         ]);
     } else if (action === 'unlike') {
-         const existingLike = await env.DB.prepare('SELECT * FROM guestbook_likes WHERE user_id = ? AND guestbook_id = ?').bind(user.id, id).first();
+        const existingLike = await env.DB.prepare('SELECT * FROM guestbook_likes WHERE user_id = ? AND guestbook_id = ?').bind(user.id, id).first();
         if (!existingLike) {
             return new Response(JSON.stringify({ success: true, message: '尚未点赞' }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
