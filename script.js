@@ -26,6 +26,7 @@ const previewIframe = document.getElementById('preview-iframe');
 const closePreviewBtn = document.getElementById('close-preview');
 const FILES_API_URL = API_ENDPOINTS.files;
 const DOWNLOAD_API_BASE_URL = API_ENDPOINTS.download;
+const searchCache = new Map();
 const folderTreeElement = document.getElementById('folder-tree');
 const hotFoldersListElement = document.getElementById('hot-folders-list');
 const recentUploadsSection = document.getElementById('recent-uploads-section');
@@ -1765,57 +1766,118 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                 throw new Error(result?.error || `HTTP 错误 ${response.status}`);
             }
         } else {
-            let urlParams = new URLSearchParams();
-            if (isGlobal) {
-                console.log(`发起全局搜索: "${searchTerm}", page: ${currentPage}`);
-                urlParams.append('search', searchTerm.trim());
-                isShowingSearchResults = true;
-            } else {
-                console.log(`加载目录: "${prefix || '根目录'}", page: ${currentPage}`);
-                urlParams.append('prefix', prefix);
-                isShowingSearchResults = false;
-            }
-            urlParams.append('page', currentPage.toString());
-            urlParams.append('limit', itemsPerPage.toString());
-            const url = `${FILES_API_URL}?${urlParams.toString()}`;
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-            try {
-                result = await response.json();
-            } catch (jsonError) {
-                console.error("JSON 解析错误:", jsonError);
-                result = { success: false, error: `无法解析响应: ${response.statusText}` };
-            }
-            if (response.ok && result.success) {
-                const receivedData = {
-                    files: result.files || [],
-                    directories: result.directories || [],
-                };
-                if (result.files) {
-                    receivedData.files.forEach((file, index) => {
-                        if (result.files[index] && result.files[index].isDirectoryPlaceholder !== undefined) {
-                            file.isDirectoryPlaceholder = result.files[index].isDirectoryPlaceholder;
-                        } else {
-                            file.isDirectoryPlaceholder = false;
-                        }
+            let receivedData = { files: [], directories: [] };
+            let paginationData = {};
+            let isCacheHit = false;
+            if (isGlobal && searchTerm && searchTerm.length > 0) {
+                if (searchCache.has(searchTerm)) {
+                    console.log(`命中搜索缓存: "${searchTerm}"`);
+                    const cachedResult = searchCache.get(searchTerm);
+                    const startIndex = (currentPage - 1) * itemsPerPage;
+                    const endIndex = startIndex + itemsPerPage;
+                    receivedData = {
+                        files: cachedResult.files.slice(startIndex, endIndex),
+                        directories: []
+                    };
+                    paginationData = {
+                        currentPage: currentPage,
+                        totalPages: Math.ceil(cachedResult.totalItems / itemsPerPage),
+                        totalItems: cachedResult.totalItems,
+                        limit: itemsPerPage
+                    };
+                    currentTotalItems = cachedResult.totalItems;
+                    totalPages = paginationData.totalPages;
+                    isCacheHit = true;
+                } else {
+                    console.log(`发起全局搜索(未缓存): "${searchTerm}", fetching all items...`);
+                    const urlParams = new URLSearchParams();
+                    urlParams.append('search', searchTerm.trim());
+                    urlParams.append('page', '1');
+                    urlParams.append('limit', '1000');
+                    const url = `${FILES_API_URL}?${urlParams.toString()}`;
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                        },
                     });
+                    try {
+                        result = await response.json();
+                    } catch (jsonError) {
+                        console.error("JSON 解析错误:", jsonError);
+                        result = { success: false, error: `无法解析响应: ${response.statusText}` };
+                    }
+                    if (response.ok && result.success) {
+                        const allFiles = result.files || [];
+                        const totalFound = result.totalItems || allFiles.length;
+                        searchCache.set(searchTerm, {
+                            files: allFiles,
+                            totalItems: totalFound,
+                            timestamp: Date.now()
+                        });
+                        console.log(`搜索结果已缓存: "${searchTerm}", 共 ${totalFound} 条`);
+                        const startIndex = (currentPage - 1) * itemsPerPage;
+                        const endIndex = startIndex + itemsPerPage;
+                        receivedData = {
+                            files: allFiles.slice(startIndex, endIndex),
+                            directories: []
+                        };
+                        paginationData = {
+                            currentPage: currentPage,
+                            totalPages: Math.ceil(totalFound / itemsPerPage),
+                            totalItems: totalFound,
+                            limit: itemsPerPage
+                        };
+                        currentTotalItems = totalFound;
+                        totalPages = paginationData.totalPages;
+                        isCacheHit = true;
+                    } else {
+                        throw new Error(result?.error || `HTTP 错误 ${response.status}`);
+                    }
                 }
-                const paginationData = {
-                    currentPage: result.currentPage,
-                    totalPages: result.totalPages,
-                    totalItems: result.totalItems,
-                    limit: result.limit
-                };
-                currentTotalItems = result.totalItems;
-                totalPages = result.totalPages;
-                renderFileList(isGlobal ? '' : prefix, receivedData, isGlobal, isGlobal ? searchTerm.trim() : '', paginationData, false);
-            } else {
-                throw new Error(result?.error || `HTTP 错误 ${response.status}`);
             }
+            if (!isCacheHit) {
+                let urlParams = new URLSearchParams();
+                if (!isGlobal) {
+                    console.log(`加载目录: "${prefix || '根目录'}", page: ${currentPage}`);
+                    urlParams.append('prefix', prefix);
+                    isShowingSearchResults = false;
+                    urlParams.append('page', currentPage.toString());
+                    urlParams.append('limit', itemsPerPage.toString());
+                    const url = `${FILES_API_URL}?${urlParams.toString()}`;
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                    });
+                    try {
+                        result = await response.json();
+                    } catch (jsonError) {
+                        throw new Error(`无法解析响应`);
+                    }
+                    if (response.ok && result.success) {
+                        receivedData = {
+                            files: result.files || [],
+                            directories: result.directories || [],
+                        };
+                        paginationData = {
+                            currentPage: result.currentPage,
+                            totalPages: result.totalPages,
+                            totalItems: result.totalItems,
+                            limit: result.limit
+                        };
+                        currentTotalItems = result.totalItems;
+                        totalPages = result.totalPages;
+                    } else {
+                        throw new Error(result?.error || `HTTP 错误 ${response.status}`);
+                    }
+                }
+            }
+            if (receivedData.files) {
+                receivedData.files.forEach((file, index) => {
+                    file.isDirectoryPlaceholder = false;
+                });
+            }
+            renderFileList(isGlobal ? '' : prefix, receivedData, isGlobal, isGlobal ? searchTerm.trim() : '', paginationData, false);
         }
     } catch (error) {
         console.error("获取文件列表请求出错:", error);
@@ -2040,21 +2102,17 @@ if (searchButton && searchInput) {
         const searchTerm = searchInput.value.trim();
         fetchAndDisplayFiles(searchTerm ? '' : currentPrefix, searchTerm, 1);
     };
-
     const updateClearButton = () => {
         if (clearSearchBtn) {
             clearSearchBtn.style.display = searchInput.value.length > 0 ? 'flex' : 'none';
         }
     };
-
     searchButton.addEventListener('click', performSearch);
-
     searchInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
             performSearch();
         }
     });
-
     searchInput.addEventListener('input', () => {
         updateClearButton();
         const searchTerm = searchInput.value.trim();
@@ -2062,7 +2120,6 @@ if (searchButton && searchInput) {
             fetchAndDisplayFiles(currentPrefix, '', 1);
         }
     });
-
     if (clearSearchBtn) {
         clearSearchBtn.addEventListener('click', () => {
             searchInput.value = '';
@@ -2072,7 +2129,6 @@ if (searchButton && searchInput) {
                 fetchAndDisplayFiles(currentPrefix, '', 1);
             }
         });
-        // Initial check
         updateClearButton();
     }
 }
