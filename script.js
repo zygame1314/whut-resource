@@ -14,7 +14,6 @@ const fileListElement = document.getElementById('file-list');
 const breadcrumbListElement = document.getElementById('breadcrumb-list');
 const searchInput = document.getElementById('search-input');
 const searchButton = document.getElementById('search-button');
-const aiSearchCheckbox = document.getElementById('ai-search-checkbox');
 const themeToggle = document.getElementById('theme-toggle');
 const fileCountElement = document.getElementById('file-count');
 const totalSizeElement = document.getElementById('total-size');
@@ -1737,9 +1736,6 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
     if (isGlobal) {
         console.log(`发起全局搜索: "${searchTerm}", page: ${currentPage}`);
         urlParams.append('search', searchTerm.trim());
-        if (aiSearchCheckbox && aiSearchCheckbox.checked) {
-            urlParams.append('type', 'ai');
-        }
         isShowingSearchResults = true;
     } else {
         console.log(`加载目录: "${prefix || '根目录'}", page: ${currentPage}`);
@@ -2266,41 +2262,4 @@ function showDirectoryPicker(itemsToMove = []) {
             treeContainer.innerHTML = `<p style="color: var(--text-secondary);">${error.message}</p>`;
         }
     });
-}
-
-const reindexBtn = document.getElementById('reindex-btn');
-async function triggerReindex() {
-    const token = localStorage.getItem('authToken');
-    if (!token) return;
-
-    if (!confirm('确定要重建 AI 索引吗？这将耗费一定时间并消耗 AI 额度。')) return;
-
-    reindexBtn.disabled = true;
-    const originalIcon = reindexBtn.innerHTML;
-    reindexBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-    try {
-        const response = await fetch('/api/reindex', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-            alert(`索引重建完成！\n已处理: ${result.processed}\n成功: ${result.indexed}\n失败: ${result.failed}`);
-        } else {
-            alert('索引重建失败: ' + (result.error || '未知错误'));
-        }
-    } catch (e) {
-        alert('请求出错: ' + e.message);
-    } finally {
-        reindexBtn.disabled = false;
-        reindexBtn.innerHTML = originalIcon;
-    }
-}
-if (reindexBtn) {
-    reindexBtn.addEventListener('click', triggerReindex);
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user && user.role === 'admin') {
-        reindexBtn.style.display = 'inline-flex';
-    }
 }

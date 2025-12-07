@@ -1,14 +1,4 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
-async function generateEmbedding(text, env) {
-  try {
-    if (!env.AI) return null;
-    const response = await env.AI.run('@cf/baai/bge-m3', { text: [text] });
-    return response.data[0];
-  } catch (e) {
-    console.error('嵌入生成失败:', e);
-    return null;
-  }
-}
 const DEFAULT_PAGE_SIZE = 20;
 export async function onRequestGet({ request, env }) {
   const authHeader = request.headers.get('Authorization');
@@ -98,29 +88,7 @@ export async function onRequestGet({ request, env }) {
     const prefix = url.searchParams.get('prefix') || '';
     let itemsResult, totalResult;
     const useFTS = search && search.length >= 3;
-    const isAISearch = search && url.searchParams.get('type') === 'ai';
-    if (isAISearch && env.AI && env.VECTORIZE) {
-      const vector = await generateEmbedding(search, env);
-      if (vector) {
-        const matches = await env.VECTORIZE.query(vector, { topK: limit });
-        const ids = matches.matches.map(m => m.id);
-        if (ids.length > 0) {
-          const placeholders = ids.map(() => '?').join(',');
-          const query = `SELECT * FROM files WHERE id IN (${placeholders})`;
-          const filesResult = await DB.prepare(query).bind(...ids).all();
-          const fileMap = new Map(filesResult.results.map(f => [String(f.id), f]));
-          const sortedFiles = ids.map(id => fileMap.get(id)).filter(f => f);
-          itemsResult = { results: sortedFiles };
-          totalResult = { total: sortedFiles.length };
-        } else {
-          itemsResult = { results: [] };
-          totalResult = { total: 0 };
-        }
-      } else {
-        itemsResult = { results: [] };
-        totalResult = { total: 0 };
-      }
-    } else if (useFTS) {
+    if (useFTS) {
       const ftsQuery = `
         SELECT files.* FROM files
         JOIN files_fts ON files.id = files_fts.rowid

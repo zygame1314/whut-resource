@@ -1,15 +1,4 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
-
-async function generateEmbedding(text, env) {
-  try {
-    if (!env.AI) return null;
-    const response = await env.AI.run('@cf/baai/bge-m3', { text: [text] });
-    return response.data[0];
-  } catch (e) {
-    console.error('嵌入生成失败:', e);
-    return null;
-  }
-}
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
@@ -130,7 +119,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       if (parentPath) {
         await ensureDirectoryExists(DB, key, env);
       }
-      const insertResult = await DB.prepare(
+      await DB.prepare(
         'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(
         key,
@@ -145,24 +134,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
         0,
         user.id
       ).run();
-
-      if (env.AI && env.VECTORIZE) {
-        waitUntil((async () => {
-          try {
-            const fileId = insertResult.meta.last_row_id;
-            const vector = await generateEmbedding(sanitizedLinkName, env);
-            if (vector && fileId) {
-              await env.VECTORIZE.insert([{
-                id: fileId.toString(),
-                values: vector,
-                metadata: { type: 'link' }
-              }]);
-            }
-          } catch (err) {
-            console.error('背景向量索引失败（链接）:', err);
-          }
-        })());
-      }
       return new Response(JSON.stringify({ success: true, message: '链接创建成功。' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -209,7 +180,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     });
     const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
     await ensureDirectoryExists(DB, key, env);
-    const insertResult = await DB.prepare(
+    await DB.prepare(
       'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
       key,
@@ -224,24 +195,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
       0,
       user.id
     ).run();
-
-    if (env.AI && env.VECTORIZE) {
-      waitUntil((async () => {
-        try {
-          const fileId = insertResult.meta.last_row_id;
-          const vector = await generateEmbedding(sanitizedFilename.split('/').pop(), env);
-          if (vector && fileId) {
-            await env.VECTORIZE.insert([{
-              id: fileId.toString(),
-              values: vector,
-              metadata: { type: 'file' }
-            }]);
-          }
-        } catch (err) {
-          console.error('背景向量索引失败（文件）:', err);
-        }
-      })());
-    }
     return new Response(JSON.stringify({ success: true, message: '文件上传成功。' }), {
       status: 200,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
