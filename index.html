@@ -174,64 +174,76 @@
                             <button class="filter-btn" data-filter="doc">文档</button>
                             <button class="filter-btn" data-filter="image">图片</button>
                             <button class="filter-btn" data-filter="video">视频</button>
+                            <div class="ai-search-toggle"
+                                style="display: flex; align-items: center; margin-left: auto; gap: 8px;">
+                                <label class="switch" title="启用AI语义搜索">
+                                    <input type="checkbox" id="ai-search-checkbox">
+                                    <span class="slider round"></span>
+                                </label>
+                                <span style="font-size: 0.9em; color: var(--text-color);"><i class="fas fa-sparkles"
+                                        style="color: gold;"></i> AI搜索</span>
+                            </div>
+                            <button id="reindex-btn" class="icon-btn" title="重建 AI 索引 (仅管理员)"
+                                style="display: none; margin-left: 8px;">
+                                <i class="fas fa-database"></i>
+                            </button>
                         </div>
-                    </div>
 
-                    <nav id="breadcrumb-nav" class="breadcrumb-nav" aria-label="breadcrumb">
-                        <div class="breadcrumb-container">
-                            <i class="fas fa-home breadcrumb-home"></i>
-                            <ol id="breadcrumb-list" class="breadcrumb-list">
-                            </ol>
-                        </div>
-                        <div id="list-actions" class="list-actions">
-                            <button id="selection-mode-btn" class="primary-btn">
-                                <i class="fas fa-check-square"></i>
-                                <span>批量选择</span>
-                            </button>
-                            <button id="select-all-btn" class="primary-btn" style="display: none;">
-                                <i class="fas fa-check-double"></i>
-                                <span>全选</span>
-                            </button>
-                        </div>
-                    </nav>
+                        <nav id="breadcrumb-nav" class="breadcrumb-nav" aria-label="breadcrumb">
+                            <div class="breadcrumb-container">
+                                <i class="fas fa-home breadcrumb-home"></i>
+                                <ol id="breadcrumb-list" class="breadcrumb-list">
+                                </ol>
+                            </div>
+                            <div id="list-actions" class="list-actions">
+                                <button id="selection-mode-btn" class="primary-btn">
+                                    <i class="fas fa-check-square"></i>
+                                    <span>批量选择</span>
+                                </button>
+                                <button id="select-all-btn" class="primary-btn" style="display: none;">
+                                    <i class="fas fa-check-double"></i>
+                                    <span>全选</span>
+                                </button>
+                            </div>
+                        </nav>
 
-                    <div class="file-list-container">
-                        <ul id="file-list" class="file-list">
-                            <li class="loading-item">
-                                <div class="loading-spinner"></div>
-                                <span>正在加载文件列表...</span>
-                            </li>
-                        </ul>
-                    </div>
-                    <div id="pagination-controls" class="pagination-controls"
-                        style="display: flex; justify-content: center; align-items: center; padding: 1rem;">
-                    </div>
-                    <div id="selection-toolbar" class="selection-toolbar">
-                        <div class="selection-info">
-                            <span id="selection-count">已选择 0 项</span>
+                        <div class="file-list-container">
+                            <ul id="file-list" class="file-list">
+                                <li class="loading-item">
+                                    <div class="loading-spinner"></div>
+                                    <span>正在加载文件列表...</span>
+                                </li>
+                            </ul>
                         </div>
-                        <div class="selection-actions">
-                            <button id="batch-download-btn" class="primary-btn">
-                                <i class="fas fa-download"></i>
-                                <span>批量下载</span>
-                            </button>
-                            <button id="batch-move-btn" class="secondary-btn">
-                                <i class="fas fa-folder-tree"></i>
-                                <span>移动到...</span>
-                            </button>
-                            <button id="batch-delete-btn" class="danger-btn">
-                                <i class="fas fa-trash"></i>
-                                <span>批量删除</span>
-                            </button>
+                        <div id="pagination-controls" class="pagination-controls"
+                            style="display: flex; justify-content: center; align-items: center; padding: 1rem;">
                         </div>
-                    </div>
+                        <div id="selection-toolbar" class="selection-toolbar">
+                            <div class="selection-info">
+                                <span id="selection-count">已选择 0 项</span>
+                            </div>
+                            <div class="selection-actions">
+                                <button id="batch-download-btn" class="primary-btn">
+                                    <i class="fas fa-download"></i>
+                                    <span>批量下载</span>
+                                </button>
+                                <button id="batch-move-btn" class="secondary-btn">
+                                    <i class="fas fa-folder-tree"></i>
+                                    <span>移动到...</span>
+                                </button>
+                                <button id="batch-delete-btn" class="danger-btn">
+                                    <i class="fas fa-trash"></i>
+                                    <span>批量删除</span>
+                                </button>
+                            </div>
+                        </div>
 
-                    <div class="upload-section">
-                        <a href="upload.html" id="upload-btn-link" class="upload-btn" style="display: none;">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <span>上传资料</span>
-                        </a>
-                    </div>
+                        <div class="upload-section">
+                            <a href="upload.html" id="upload-btn-link" class="upload-btn" style="display: none;">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <span>上传资料</span>
+                            </a>
+                        </div>
                 </section>
             </div>
         </div>
