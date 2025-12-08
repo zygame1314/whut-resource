@@ -52,6 +52,17 @@ export async function onRequestGet({ request, env }) {
       return new Response(JSON.stringify({ success: true, directories: directories }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     if (action === 'getHotFolders') {
+      const now = Date.now();
+      const CACHE_DURATION = 60 * 60 * 1000;
+      if (globalThis.hotFoldersCache && (now - globalThis.hotFoldersCache.timestamp < CACHE_DURATION)) {
+        return new Response(JSON.stringify({ success: true, hotFolders: globalThis.hotFoldersCache.data }), {
+          status: 200,
+          headers: addCorsHeaders({
+            'Content-Type': 'application/json',
+            'Cache-Control': 'private, max-age=3600'
+          })
+        });
+      }
       const stmt = DB.prepare(`
         SELECT
           parent_path,
@@ -68,7 +79,17 @@ export async function onRequestGet({ request, env }) {
         name: row.parent_path.endsWith('/') ? row.parent_path.slice(0, -1).split('/').pop() : row.parent_path.split('/').pop(),
         total_downloads: row.total_downloads
       }));
-      return new Response(JSON.stringify({ success: true, hotFolders: hotFolders }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+      globalThis.hotFoldersCache = {
+        data: hotFolders,
+        timestamp: now
+      };
+      return new Response(JSON.stringify({ success: true, hotFolders: hotFolders }), {
+        status: 200,
+        headers: addCorsHeaders({
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, max-age=300'
+        })
+      });
     }
     if (action === 'recentUploads') {
       const limit = parseInt(url.searchParams.get('limit') || '6');
