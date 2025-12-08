@@ -26,7 +26,7 @@ export async function onRequestPost({ request, env }) {
         const body = await request.json().catch(() => ({}));
         const offset = parseInt(body.offset || '0');
         const forceRebuild = body.forceRebuild || false;
-        const countResult = await DB.prepare('SELECT COUNT(*) as total FROM files WHERE is_directory = FALSE').first();
+        const countResult = await DB.prepare('SELECT COUNT(*) as total FROM files').first();
         const totalFiles = countResult?.total || 0;
         if (totalFiles === 0) {
             return new Response(JSON.stringify({
@@ -41,7 +41,7 @@ export async function onRequestPost({ request, env }) {
             });
         }
         const filesResult = await DB.prepare(
-            'SELECT id, name, key FROM files WHERE is_directory = FALSE ORDER BY id LIMIT ? OFFSET ?'
+            'SELECT id, name, key, is_directory FROM files ORDER BY id LIMIT ? OFFSET ?'
         ).bind(BATCH_SIZE, offset).all();
         const files = filesResult.results || [];
         if (files.length === 0) {
@@ -118,7 +118,7 @@ export async function onRequestGet({ request, env }) {
         });
     }
     try {
-        const countResult = await DB.prepare('SELECT COUNT(*) as total FROM files WHERE is_directory = FALSE').first();
+        const countResult = await DB.prepare('SELECT COUNT(*) as total FROM files').first();
         const totalFiles = countResult?.total || 0;
         const indexInfo = await VECTORIZE.describe();
         return new Response(JSON.stringify({

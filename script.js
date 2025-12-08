@@ -1755,7 +1755,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                 const endIndex = startIndex + itemsPerPage;
                 receivedData = {
                     files: cachedResult.files.slice(startIndex, endIndex),
-                    directories: []
+                    directories: cachedResult.directories || []
                 };
                 paginationData = {
                     currentPage: currentPage,
@@ -1799,9 +1799,11 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                         return;
                     }
                     const allFiles = result.files || [];
+                    const allDirectories = result.directories || [];
                     const totalFound = result.totalItems || allFiles.length;
                     searchCache.set(aiCacheKey, {
                         files: allFiles,
+                        directories: allDirectories,
                         totalItems: totalFound,
                         timestamp: Date.now()
                     });
@@ -1848,7 +1850,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                     const endIndex = startIndex + itemsPerPage;
                     receivedData = {
                         files: cachedResult.files.slice(startIndex, endIndex),
-                        directories: []
+                        directories: cachedResult.directories || []
                     };
                     paginationData = {
                         currentPage: currentPage,
@@ -1897,9 +1899,11 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                             return;
                         }
                         const allFiles = result.files || [];
+                        const allDirectories = result.directories || [];
                         const totalFound = result.totalItems || allFiles.length;
                         searchCache.set(searchTerm, {
                             files: allFiles,
+                            directories: allDirectories,
                             totalItems: totalFound,
                             timestamp: Date.now()
                         });
@@ -1908,7 +1912,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                         const endIndex = startIndex + itemsPerPage;
                         receivedData = {
                             files: allFiles.slice(startIndex, endIndex),
-                            directories: []
+                            directories: allDirectories
                         };
                         paginationData = {
                             currentPage: currentPage,
