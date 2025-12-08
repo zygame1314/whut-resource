@@ -77,6 +77,7 @@ CREATE TABLE guestbook_likes (
     FOREIGN KEY (guestbook_id) REFERENCES guestbook(id) ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_downloads_cleanup ON downloads(downloaded_at);
 CREATE INDEX IF NOT EXISTS idx_downloads_debounce ON downloads(user_id, file_key, downloaded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_list_default ON guestbook(is_hidden, is_pinned DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_list_likes ON guestbook(is_hidden, is_pinned DESC, likes DESC, created_at DESC);
@@ -86,6 +87,8 @@ CREATE INDEX IF NOT EXISTS idx_guestbook_status_time ON guestbook(status, is_hid
 CREATE INDEX IF NOT EXISTS idx_guestbook_status_likes ON guestbook(status, is_hidden, is_pinned DESC, likes DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_files_uploaded ON files(uploaded DESC);
 CREATE INDEX IF NOT EXISTS idx_files_listing_optimized ON files(parent_path, is_directory DESC, is_link DESC, name ASC, uploaded DESC);
+CREATE INDEX IF NOT EXISTS idx_files_dir_key ON files(is_directory, key);
+CREATE INDEX IF NOT EXISTS idx_files_stats ON files(is_directory, parent_path, downloads);
 
 DROP TABLE IF EXISTS verification_codes;
 CREATE TABLE verification_codes (

@@ -100,9 +100,10 @@ async function handleGet(request, env) {
             }
             query = `
                 SELECT g.*, u.nickname, u.email, u.role,
-                (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
+                CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
                 FROM guestbook g
                 LEFT JOIN users u ON g.user_id = u.id
+                LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
                 ${whereClause}
                 ${orderByClause}
                 LIMIT ? OFFSET ?
@@ -115,9 +116,10 @@ async function handleGet(request, env) {
             let whereClause = statusCondition ? `WHERE ${statusCondition}` : '';
             query = `
                 SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
-                (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
+                CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
                 FROM guestbook g
                 LEFT JOIN users u ON g.user_id = u.id
+                LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
                 ${whereClause}
                 ${orderByClause}
                 LIMIT ? OFFSET ?
@@ -132,9 +134,10 @@ async function handleGet(request, env) {
                 }
                 query = `
                     SELECT g.*, u.nickname, u.email, u.role,
-                    (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
+                    CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
                     FROM guestbook g
                     LEFT JOIN users u ON g.user_id = u.id
+                    LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
                     ${whereClause}
                     ${orderByClause}
                     LIMIT ? OFFSET ?
@@ -148,9 +151,10 @@ async function handleGet(request, env) {
                 }
                 query = `
                     SELECT g.*, u.nickname, u.email, u.role,
-                    (SELECT COUNT(*) FROM guestbook_likes gl WHERE gl.guestbook_id = g.id AND gl.user_id = ?) as has_liked
+                    CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
                     FROM guestbook g
                     LEFT JOIN users u ON g.user_id = u.id
+                    LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
                     ${whereClause}
                     ${orderByClause}
                     LIMIT ? OFFSET ?
