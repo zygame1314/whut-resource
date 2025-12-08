@@ -85,14 +85,14 @@ export async function onRequestGet({ request, env }) {
     const limit = parseInt(url.searchParams.get('limit') || DEFAULT_PAGE_SIZE);
     const offset = (page - 1) * limit;
     const search = url.searchParams.get('search') || '';
-    if (search && search.length < 2) {
+    if (search && search.length < 3) {
       return new Response(JSON.stringify({
         success: true,
         files: [],
         directories: [],
         totalItems: 0,
         totalPages: 0,
-        message: "搜索词太短（至少2个字符）。建议开启 AI 搜索以获得更好结果。"
+        message: "搜索词太短（至少3个字符）。建议开启 AI 搜索以获得更好结果。"
       }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const prefix = url.searchParams.get('prefix') || '';
