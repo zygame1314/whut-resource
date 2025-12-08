@@ -1,6 +1,5 @@
 function startTutorial() {
     const isAuthenticated = !!localStorage.getItem('authToken');
-
     const tour = new Shepherd.Tour({
         useModalOverlay: true,
         defaultStepOptions: {
@@ -26,9 +25,7 @@ function startTutorial() {
             ]
         }
     });
-
     let steps = [];
-
     steps.push({
         id: 'intro',
         title: '欢迎来到武理资源共享平台！',
@@ -38,10 +35,8 @@ function startTutorial() {
             on: 'bottom'
         }
     });
-
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
     const isMobileNav = mobileMenuToggle && getComputedStyle(mobileMenuToggle).display !== 'none';
-
     if (!isAuthenticated) {
         if (isMobileNav) {
             steps.push({
@@ -65,7 +60,6 @@ function startTutorial() {
             });
         }
     }
-
     steps.push({
         id: 'search',
         title: '文件搜索',
@@ -75,10 +69,17 @@ function startTutorial() {
             on: 'bottom'
         }
     });
-
+    steps.push({
+        id: 'ai-search',
+        title: '✨ AI 智能搜索',
+        text: '开启这个开关，即可体验基于语义的 AI 搜索！即使记不清文件名，描述内容也能找到相关资料。',
+        attachTo: {
+            element: '.ai-search-toggle',
+            on: 'bottom'
+        }
+    });
     const mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle');
     const isMobile = mobileSidebarToggle && getComputedStyle(mobileSidebarToggle).display !== 'none';
-
     if (isMobile) {
         steps.push({
             id: 'folder-nav-mobile',
@@ -100,8 +101,15 @@ function startTutorial() {
             }
         });
     }
-
-
+    steps.push({
+        id: 'guestbook',
+        title: '留言板',
+        text: '有什么想说的？在这里分享你的看法，或者向管理员反馈问题。',
+        attachTo: {
+            element: '.guestbook-form-container',
+            on: 'bottom'
+        }
+    });
     const uploadBtn = document.getElementById('upload-btn-link');
     if (uploadBtn && uploadBtn.style.display !== 'none') {
         steps.push({
@@ -113,7 +121,6 @@ function startTutorial() {
                 on: 'top'
             }
         });
-
         steps.push({
             id: 'upload-path',
             title: '上传到哪里？',
@@ -124,7 +131,6 @@ function startTutorial() {
             }
         });
     }
-
     steps.push({
         id: 'storage-limit',
         title: '关于存储容量 (´･ω･`)',
@@ -134,7 +140,6 @@ function startTutorial() {
             on: 'bottom'
         }
     });
-
     if (document.querySelector('.download-button')) {
         steps.push({
             id: 'download',
@@ -146,7 +151,6 @@ function startTutorial() {
             }
         });
     }
-
     steps.push({
         id: 'selection-mode',
         title: '批量操作',
@@ -156,7 +160,6 @@ function startTutorial() {
             on: 'bottom'
         }
     });
-
     if (document.querySelector('.delete-button')) {
         steps.push({
             id: 'admin-delete',
@@ -179,7 +182,6 @@ function startTutorial() {
             }
         });
     }
-
     steps.push({
         id: 'finish',
         title: '教程结束！',
@@ -193,7 +195,6 @@ function startTutorial() {
             }
         ]
     });
-
     tour.addSteps(steps);
     tour.start();
 }
