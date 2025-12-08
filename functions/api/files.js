@@ -124,6 +124,7 @@ export async function onRequestGet({ request, env }) {
         SELECT * FROM files
         ${baseWhere}
         ORDER BY is_directory DESC,
+                 is_link DESC,
                  CASE WHEN is_directory = 1 THEN name END ASC,
                  CASE WHEN is_directory = 0 THEN uploaded END DESC
         LIMIT ? OFFSET ?

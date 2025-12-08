@@ -233,7 +233,7 @@ async function addWatermarkToPDF(file) {
     if (!match) {
         return file;
     }
-    const watermarkText = match[1];
+    const watermarkText = match[1] + "无偿";
     try {
         if (typeof PDFLib === 'undefined') {
             console.warn('PDFLib未加载，跳过水印添加');
