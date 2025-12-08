@@ -1401,7 +1401,7 @@ async function handleBatchDownload() {
             const iconElement = downloadBtn.querySelector('i');
             try {
                 if (iconElement) iconElement.className = 'fas fa-spinner fa-spin';
-                const downloadUrl = `${file.urlPath}`;
+                const downloadUrl = `${API_BASE}${file.urlPath}`;
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = downloadUrl;
@@ -1751,14 +1751,25 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                     `;
                     updateBreadcrumb('', true, searchTerm.trim());
                     renderPaginationControls(null);
+                    fileListElement.style.minHeight = '';
+                    updateUploadButtonLink();
+                    updateSelectAllButtonState();
                     return;
                 }
+                const allDirs = cachedResult.directories || [];
+                const allFiles = cachedResult.files || [];
+                const totalItems = allDirs.length + allFiles.length;
                 const startIndex = (currentPage - 1) * itemsPerPage;
                 const endIndex = startIndex + itemsPerPage;
-                receivedData = {
-                    files: cachedResult.files.slice(startIndex, endIndex),
-                    directories: cachedResult.directories || []
-                };
+                receivedData = { files: [], directories: [] };
+                if (startIndex < allDirs.length) {
+                    receivedData.directories = allDirs.slice(startIndex, Math.min(endIndex, allDirs.length));
+                }
+                if (endIndex > allDirs.length) {
+                    const fileStart = Math.max(0, startIndex - allDirs.length);
+                    const fileEnd = endIndex - allDirs.length;
+                    receivedData.files = allFiles.slice(fileStart, fileEnd);
+                }
                 paginationData = {
                     currentPage: currentPage,
                     totalPages: Math.ceil(cachedResult.totalItems / itemsPerPage),
@@ -1800,6 +1811,9 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                         `;
                         updateBreadcrumb('', true, searchTerm.trim());
                         renderPaginationControls(null);
+                        fileListElement.style.minHeight = '';
+                        updateUploadButtonLink();
+                        updateSelectAllButtonState();
                         return;
                     }
                     const allFiles = result.files || [];
@@ -1812,12 +1826,19 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                         timestamp: Date.now()
                     });
                     console.log(`AI 搜索结果已缓存: "${searchTerm}", 共 ${totalFound} 条`);
+                    const allDirs = allDirectories;
+                    const totalItems = allDirs.length + allFiles.length;
                     const startIndex = (currentPage - 1) * itemsPerPage;
                     const endIndex = startIndex + itemsPerPage;
-                    receivedData = {
-                        files: allFiles.slice(startIndex, endIndex),
-                        directories: result.directories || [],
-                    };
+                    receivedData = { files: [], directories: [] };
+                    if (startIndex < allDirs.length) {
+                        receivedData.directories = allDirs.slice(startIndex, Math.min(endIndex, allDirs.length));
+                    }
+                    if (endIndex > allDirs.length) {
+                        const fileStart = Math.max(0, startIndex - allDirs.length);
+                        const fileEnd = endIndex - allDirs.length;
+                        receivedData.files = allFiles.slice(fileStart, fileEnd);
+                    }
                     paginationData = {
                         currentPage: currentPage,
                         totalPages: Math.ceil(totalFound / itemsPerPage),
@@ -1935,49 +1956,101 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                 }
             }
             if (!isCacheHit) {
-                let urlParams = new URLSearchParams();
                 if (!isGlobal) {
-                    console.log(`加载目录: "${prefix || '根目录'}", page: ${currentPage}`);
-                    urlParams.append('prefix', prefix);
-                    isShowingSearchResults = false;
-                    urlParams.append('page', currentPage.toString());
-                    urlParams.append('limit', itemsPerPage.toString());
-                    const url = `${FILES_API_URL}?${urlParams.toString()}`;
-                    const response = await fetch(url, {
-                        method: 'GET',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                    });
-                    try {
-                        result = await response.json();
-                    } catch (jsonError) {
-                        throw new Error(`无法解析响应`);
-                    }
-                    if (response.ok && result.success) {
-                        receivedData = {
-                            files: result.files || [],
-                            directories: result.directories || [],
-                        };
-                        paginationData = {
-                            currentPage: result.currentPage,
-                            totalPages: result.totalPages,
-                            totalItems: result.totalItems,
-                            limit: result.limit
-                        };
-                        currentTotalItems = result.totalItems;
-                        totalPages = result.totalPages;
+                    if (directoryCache[prefix] && directoryCache[prefix].timestamp > Date.now() - 300000) {
+                        console.log(`命中目录缓存: "${prefix || '根目录'}"`);
+                        receivedData = directoryCache[prefix].data;
+                        isCacheHit = true;
                     } else {
-                        throw new Error(result?.error || `HTTP 错误 ${response.status}`);
+                        console.log(`加载目录(全量): "${prefix || '根目录'}"`);
+                        let urlParams = new URLSearchParams();
+                        urlParams.append('prefix', prefix);
+                        isShowingSearchResults = false;
+                        urlParams.append('page', '1');
+                        urlParams.append('limit', '1000');
+                        const url = `${FILES_API_URL}?${urlParams.toString()}`;
+                        const response = await fetch(url, {
+                            method: 'GET',
+                            headers: { 'Authorization': `Bearer ${token}` },
+                        });
+                        try {
+                            result = await response.json();
+                        } catch (jsonError) {
+                            throw new Error(`无法解析响应`);
+                        }
+                        if (response.ok && result.success) {
+                            receivedData = {
+                                files: result.files || [],
+                                directories: result.directories || [],
+                            };
+                            directoryCache[prefix] = {
+                                data: receivedData,
+                                timestamp: Date.now()
+                            };
+                        } else {
+                            throw new Error(result?.error || `HTTP 错误 ${response.status}`);
+                        }
                     }
+                    const allDirs = receivedData.directories || [];
+                    const allFiles = receivedData.files || [];
+                    const totalFilesAndDirs = allDirs.length + allFiles.length;
+                    const startIndex = (currentPage - 1) * itemsPerPage;
+                    const endIndex = startIndex + itemsPerPage;
+                    const displayedData = { files: [], directories: [] };
+                    if (startIndex < allDirs.length) {
+                        const dirEnd = Math.min(endIndex, allDirs.length);
+                        displayedData.directories = allDirs.slice(startIndex, dirEnd);
+                    }
+                    if (endIndex > allDirs.length) {
+                        const fileStart = Math.max(0, startIndex - allDirs.length);
+                        const fileEnd = endIndex - allDirs.length;
+                        displayedData.files = allFiles.slice(fileStart, fileEnd);
+                    }
+                    paginationData = {
+                        currentPage: currentPage,
+                        totalPages: Math.ceil(totalFilesAndDirs / itemsPerPage) || 1,
+                        totalItems: totalFilesAndDirs,
+                        limit: itemsPerPage
+                    };
+                    currentTotalItems = totalFilesAndDirs;
+                    totalPages = paginationData.totalPages;
+                    renderFileList(isGlobal ? '' : prefix, displayedData, isGlobal, isGlobal ? searchTerm.trim() : '', paginationData, false);
+                    fileListElement.style.minHeight = '';
+                    updateUploadButtonLink();
+                    updateSelectAllButtonState();
+                    return;
                 }
-            }
-            if (receivedData.files) {
-                receivedData.files.forEach((file, index) => {
-                    file.isDirectoryPlaceholder = false;
-                });
             }
             currentFetchedData = receivedData;
             currentPaginationData = paginationData;
-            renderFileList(isGlobal ? '' : prefix, receivedData, isGlobal, isGlobal ? searchTerm.trim() : '', paginationData, false);
+            const allDirs = receivedData.directories || [];
+            const allFiles = receivedData.files || [];
+            const totalItems = allDirs.length + allFiles.length;
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const slicedData = { files: [], directories: [] };
+            if (startIndex < allDirs.length) {
+                slicedData.directories = allDirs.slice(startIndex, Math.min(endIndex, allDirs.length));
+            }
+            if (endIndex > allDirs.length) {
+                const fileStart = Math.max(0, startIndex - allDirs.length);
+                const fileEnd = endIndex - allDirs.length;
+                slicedData.files = allFiles.slice(fileStart, fileEnd);
+            }
+            const finalPagination = {
+                currentPage: currentPage,
+                totalPages: Math.ceil(totalItems / itemsPerPage) || 1,
+                totalItems: totalItems,
+                limit: itemsPerPage
+            };
+            totalPages = finalPagination.totalPages;
+            currentPaginationData = finalPagination;
+            if (slicedData.files) {
+                slicedData.files.forEach((file) => {
+                    file.isDirectoryPlaceholder = false;
+                });
+            }
+            renderFileList(isGlobal ? '' : prefix, slicedData, isGlobal, isGlobal ? searchTerm.trim() : '', finalPagination, false);
         }
     } catch (error) {
         console.error("获取文件列表请求出错:", error);
