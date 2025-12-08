@@ -356,6 +356,8 @@ let currentPage = 1;
 let totalPages = 1;
 let itemsPerPage = 20;
 let currentTotalItems = 0;
+let currentFetchedData = null;
+let currentPaginationData = null;
 function initTheme() {
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -1765,6 +1767,8 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                 };
                 currentTotalItems = cachedResult.totalItems;
                 totalPages = paginationData.totalPages;
+                currentFetchedData = receivedData;
+                currentPaginationData = paginationData;
                 renderFileList('', receivedData, true, searchTerm.trim(), paginationData, true);
             } else {
                 console.log(`发起 AI 搜索(未缓存): "${searchTerm}"`);
@@ -1822,6 +1826,8 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                     };
                     currentTotalItems = totalFound;
                     totalPages = paginationData.totalPages;
+                    currentFetchedData = receivedData;
+                    currentPaginationData = paginationData;
                     renderFileList('', receivedData, true, searchTerm.trim(), paginationData, true);
                 } else {
                     throw new Error(result?.error || `HTTP 错误 ${response.status}`);
@@ -1969,6 +1975,8 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                     file.isDirectoryPlaceholder = false;
                 });
             }
+            currentFetchedData = receivedData;
+            currentPaginationData = paginationData;
             renderFileList(isGlobal ? '' : prefix, receivedData, isGlobal, isGlobal ? searchTerm.trim() : '', paginationData, false);
         }
     } catch (error) {
@@ -2103,7 +2111,20 @@ document.addEventListener('DOMContentLoaded', () => {
             filterButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentFilter = btn.dataset.filter;
-            fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage);
+            if (currentFetchedData) {
+                const aiSearchToggle = document.getElementById('ai-search-toggle');
+                const useAISearch = aiSearchToggle && aiSearchToggle.checked && isShowingSearchResults;
+                renderFileList(
+                    currentPrefix,
+                    currentFetchedData,
+                    isShowingSearchResults,
+                    isShowingSearchResults ? searchInput.value.trim() : '',
+                    currentPaginationData,
+                    useAISearch
+                );
+            } else {
+                fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage);
+            }
         });
     });
     if (closePreviewBtn && previewModal) {
@@ -2192,6 +2213,17 @@ if (searchButton && searchInput) {
     const clearSearchBtn = document.getElementById('clear-search-btn');
     const performSearch = () => {
         const searchTerm = searchInput.value.trim();
+        const aiSearchToggle = document.getElementById('ai-search-toggle');
+        const isAISearch = aiSearchToggle && aiSearchToggle.checked;
+        if (searchTerm && searchTerm.length < 2 && !isAISearch) {
+            showNotification('搜索词太短（至少2个字符）。建议开启 "AI 搜索" 进行模糊查找。', 'info');
+            const aiToggleLabel = document.querySelector('.ai-search-toggle-label');
+            if (aiToggleLabel) {
+                aiToggleLabel.classList.add('highlight-pulse');
+                setTimeout(() => aiToggleLabel.classList.remove('highlight-pulse'), 1000);
+            }
+            return;
+        }
         fetchAndDisplayFiles(searchTerm ? '' : currentPrefix, searchTerm, 1);
     };
     const updateClearButton = () => {

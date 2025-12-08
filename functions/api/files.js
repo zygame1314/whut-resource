@@ -85,10 +85,19 @@ export async function onRequestGet({ request, env }) {
     const limit = parseInt(url.searchParams.get('limit') || DEFAULT_PAGE_SIZE);
     const offset = (page - 1) * limit;
     const search = url.searchParams.get('search') || '';
+    if (search && search.length < 2) {
+      return new Response(JSON.stringify({
+        success: true,
+        files: [],
+        directories: [],
+        totalItems: 0,
+        totalPages: 0,
+        message: "搜索词太短（至少2个字符）。建议开启 AI 搜索以获得更好结果。"
+      }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const prefix = url.searchParams.get('prefix') || '';
     let itemsResult, totalResult;
-    const useFTS = search && search.length >= 3;
-    if (useFTS) {
+    if (search) {
       const ftsQuery = `
         SELECT files.* FROM files
         JOIN files_fts ON files.id = files_fts.rowid
@@ -102,24 +111,24 @@ export async function onRequestGet({ request, env }) {
         WHERE files_fts MATCH ?
       `;
       const searchQuery = `"${search.replace(/"/g, '""')}"`;
-      [itemsResult, totalResult] = await Promise.all([
-        DB.prepare(ftsQuery).bind(searchQuery, limit, offset).all(),
-        DB.prepare(ftsCountQuery).bind(searchQuery).first()
-      ]);
+      try {
+        [itemsResult, totalResult] = await Promise.all([
+          DB.prepare(ftsQuery).bind(searchQuery, limit, offset).all(),
+          DB.prepare(ftsCountQuery).bind(searchQuery).first()
+        ]);
+      } catch (e) {
+        itemsResult = { results: [] };
+        totalResult = { total: 0 };
+      }
     } else {
       const params = [];
       let baseWhere = 'WHERE 1=1';
-      if (search) {
-        baseWhere += ' AND name LIKE ?';
-        params.push(`%${search}%`);
-      } else {
-        let searchPath = prefix;
-        if (searchPath && !searchPath.endsWith('/')) {
-          searchPath += '/';
-        }
-        baseWhere += ' AND parent_path = ?';
-        params.push(searchPath);
+      let searchPath = prefix;
+      if (searchPath && !searchPath.endsWith('/')) {
+        searchPath += '/';
       }
+      baseWhere += ' AND parent_path = ?';
+      params.push(searchPath);
       const combinedQuery = `
         SELECT * FROM files
         ${baseWhere}
