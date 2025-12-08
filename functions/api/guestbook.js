@@ -41,11 +41,8 @@ async function handleGet(request, env) {
     const user = await getUser(request, env);
     const currentUserId = user ? user.id : null;
     const isAdmin = user && user.role === 'admin';
-
-    // 构建状态筛选条件
     const validStatuses = ['unresolved', 'resolved', 'rejected'];
     const statusCondition = validStatuses.includes(status) ? `g.status = '${status}'` : null;
-
     let total = 0;
     if (filter === 'mine') {
         if (!currentUserId) {
@@ -102,64 +99,80 @@ async function handleGet(request, env) {
                 SELECT g.*, u.nickname, u.email, u.role,
                 CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
                 FROM guestbook g
+                JOIN (
+                    SELECT id FROM guestbook g
+                    WHERE g.user_id = ? ${statusCondition ? `AND ${statusCondition}` : ''}
+                    ${orderByClause}
+                    LIMIT ? OFFSET ?
+                ) AS subset ON g.id = subset.id
                 LEFT JOIN users u ON g.user_id = u.id
                 LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                ${whereClause}
                 ${orderByClause}
-                LIMIT ? OFFSET ?
             `;
-            const q = await env.DB.prepare(query).bind(currentUserId, currentUserId, limit, offset).all();
+            const q = await env.DB.prepare(query).bind(currentUserId, limit, offset, currentUserId).all();
             results = q.results;
         }
     } else {
         if (isAdmin) {
-            let whereClause = statusCondition ? `WHERE ${statusCondition}` : '';
+            let whereClauseSub = statusCondition ? `WHERE ${statusCondition}` : '';
             query = `
                 SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
                 CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
                 FROM guestbook g
+                JOIN (
+                    SELECT id FROM guestbook g
+                    ${whereClauseSub}
+                    ${orderByClause}
+                    LIMIT ? OFFSET ?
+                ) AS subset ON g.id = subset.id
                 LEFT JOIN users u ON g.user_id = u.id
                 LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                ${whereClause}
                 ${orderByClause}
-                LIMIT ? OFFSET ?
             `;
-            const q = await env.DB.prepare(query).bind(currentUserId, limit, offset).all();
+            const q = await env.DB.prepare(query).bind(limit, offset, currentUserId).all();
             results = q.results;
         } else {
             if (currentUserId) {
-                let whereClause = 'WHERE (g.is_hidden = FALSE OR g.user_id = ?)';
+                let whereClauseSub = 'WHERE (g.is_hidden = FALSE OR g.user_id = ?)';
                 if (statusCondition) {
-                    whereClause += ` AND ${statusCondition}`;
+                    whereClauseSub += ` AND ${statusCondition}`;
                 }
                 query = `
                     SELECT g.*, u.nickname, u.email, u.role,
                     CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
                     FROM guestbook g
+                    JOIN (
+                        SELECT id FROM guestbook g
+                        ${whereClauseSub}
+                        ${orderByClause}
+                        LIMIT ? OFFSET ?
+                    ) AS subset ON g.id = subset.id
                     LEFT JOIN users u ON g.user_id = u.id
                     LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                    ${whereClause}
                     ${orderByClause}
-                    LIMIT ? OFFSET ?
                 `;
-                const q = await env.DB.prepare(query).bind(currentUserId, currentUserId, limit, offset).all();
+                const q = await env.DB.prepare(query).bind(currentUserId, limit, offset, currentUserId).all();
                 results = q.results;
             } else {
-                let whereClause = 'WHERE g.is_hidden = FALSE';
+                let whereClauseSub = 'WHERE g.is_hidden = FALSE';
                 if (statusCondition) {
-                    whereClause += ` AND ${statusCondition}`;
+                    whereClauseSub += ` AND ${statusCondition}`;
                 }
                 query = `
                     SELECT g.*, u.nickname, u.email, u.role,
                     CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
                     FROM guestbook g
+                    JOIN (
+                        SELECT id FROM guestbook g
+                        ${whereClauseSub}
+                        ${orderByClause}
+                        LIMIT ? OFFSET ?
+                    ) AS subset ON g.id = subset.id
                     LEFT JOIN users u ON g.user_id = u.id
                     LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                    ${whereClause}
                     ${orderByClause}
-                    LIMIT ? OFFSET ?
                 `;
-                const q = await env.DB.prepare(query).bind(currentUserId, limit, offset).all();
+                const q = await env.DB.prepare(query).bind(limit, offset, currentUserId).all();
                 results = q.results;
             }
         }
