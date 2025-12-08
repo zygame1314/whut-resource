@@ -46,10 +46,31 @@ export async function onRequestGet({ request, env }) {
       return new Response(JSON.stringify({ success: true }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     if (action === 'listAllDirs') {
+      const now = Date.now();
+      const CACHE_DURATION = 60 * 60 * 1000;
+      if (globalThis.allDirsCache && (now - globalThis.allDirsCache.timestamp < CACHE_DURATION)) {
+        return new Response(JSON.stringify({ success: true, directories: globalThis.allDirsCache.data }), {
+          status: 200,
+          headers: addCorsHeaders({
+            'Content-Type': 'application/json',
+            'Cache-Control': 'private, max-age=3600'
+          })
+        });
+      }
       const stmt = DB.prepare("SELECT key FROM files WHERE is_directory = TRUE ORDER BY key ASC");
       const { results } = await stmt.all();
       const directories = results.map(row => row.key);
-      return new Response(JSON.stringify({ success: true, directories: directories }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+      globalThis.allDirsCache = {
+        data: directories,
+        timestamp: now
+      };
+      return new Response(JSON.stringify({ success: true, directories: directories }), {
+        status: 200,
+        headers: addCorsHeaders({
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, max-age=3600'
+        })
+      });
     }
     if (action === 'getHotFolders') {
       const now = Date.now();
