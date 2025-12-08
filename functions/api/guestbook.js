@@ -32,18 +32,55 @@ async function getUser(request, env) {
 }
 async function handleGet(request, env) {
     const url = new URL(request.url);
-    const page = 1;
-    const limit = 1000;
+    const page = parseInt(url.searchParams.get('page') || '1');
+    const limit = parseInt(url.searchParams.get('limit') || '10');
     const sort = url.searchParams.get('sort') || 'time';
     const filter = url.searchParams.get('filter') || 'all';
     const status = url.searchParams.get('status') || 'all';
-    const offset = 0;
+    const offset = (page - 1) * limit;
     const user = await getUser(request, env);
     const currentUserId = user ? user.id : null;
     const isAdmin = user && user.role === 'admin';
     const validStatuses = ['unresolved', 'resolved', 'rejected'];
     const statusCondition = validStatuses.includes(status) ? `g.status = '${status}'` : null;
-    const total = 0;
+    let total = 0;
+    if (filter === 'mine') {
+        if (!currentUserId) {
+            total = 0;
+        } else {
+            let countQuery = 'SELECT COUNT(*) as total FROM guestbook g WHERE g.user_id = ?';
+            if (statusCondition) {
+                countQuery += ` AND ${statusCondition}`;
+            }
+            const cnt = await env.DB.prepare(countQuery).bind(currentUserId).first();
+            total = cnt.total;
+        }
+    } else {
+        if (isAdmin) {
+            let countQuery = 'SELECT COUNT(*) as total FROM guestbook g';
+            if (statusCondition) {
+                countQuery += ` WHERE ${statusCondition}`;
+            }
+            const cnt = await env.DB.prepare(countQuery).first();
+            total = cnt.total;
+        } else {
+            if (currentUserId) {
+                let countQuery = 'SELECT COUNT(*) as total FROM guestbook g WHERE (g.is_hidden = FALSE OR g.user_id = ?)';
+                if (statusCondition) {
+                    countQuery += ` AND ${statusCondition}`;
+                }
+                const cnt = await env.DB.prepare(countQuery).bind(currentUserId).first();
+                total = cnt.total;
+            } else {
+                let countQuery = 'SELECT COUNT(*) as total FROM guestbook g WHERE g.is_hidden = FALSE';
+                if (statusCondition) {
+                    countQuery += ` AND ${statusCondition}`;
+                }
+                const cnt = await env.DB.prepare(countQuery).first();
+                total = cnt.total;
+            }
+        }
+    }
     let orderByClause = 'ORDER BY g.is_pinned DESC, g.created_at DESC';
     if (sort === 'likes') {
         orderByClause = 'ORDER BY g.is_pinned DESC, g.likes DESC, g.created_at DESC';
@@ -61,6 +98,7 @@ async function handleGet(request, env) {
             let idQuery = `SELECT id FROM guestbook g WHERE g.user_id = ? ${statusCondition ? `AND ${statusCondition}` : ''} ${orderByClause} LIMIT ? OFFSET ?`;
             const idResult = await env.DB.prepare(idQuery).bind(currentUserId, limit, offset).all();
             const ids = idResult.results.map(r => r.id);
+
             if (ids.length === 0) {
                 results = [];
             } else {
@@ -84,6 +122,7 @@ async function handleGet(request, env) {
             let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ? OFFSET ?`;
             const idResult = await env.DB.prepare(idQuery).bind(limit, offset).all();
             const ids = idResult.results.map(r => r.id);
+
             if (ids.length === 0) {
                 results = [];
             } else {
@@ -109,6 +148,7 @@ async function handleGet(request, env) {
                 let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ? OFFSET ?`;
                 const idResult = await env.DB.prepare(idQuery).bind(currentUserId, limit, offset).all();
                 const ids = idResult.results.map(r => r.id);
+
                 if (ids.length === 0) {
                     results = [];
                 } else {
@@ -133,6 +173,7 @@ async function handleGet(request, env) {
                 let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ? OFFSET ?`;
                 const idResult = await env.DB.prepare(idQuery).bind(limit, offset).all();
                 const ids = idResult.results.map(r => r.id);
+
                 if (ids.length === 0) {
                     results = [];
                 } else {

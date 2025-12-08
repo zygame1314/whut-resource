@@ -11,7 +11,6 @@ let currentGuestbookSort = 'time';
 let currentGuestbookFilter = 'all';
 let currentGuestbookStatus = 'all';
 const GUESTBOOK_PER_PAGE = 5;
-let allGuestbookMessages = [];
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
 });
@@ -20,16 +19,8 @@ window.changeGuestbookPage = function (page) {
     if (guestbookSection) {
         guestbookSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    currentGuestbookPage = page;
-    renderGuestbookPage(page);
+    fetchAndDisplayGuestbook(page);
 };
-function renderGuestbookPage(page) {
-    const startIndex = (page - 1) * GUESTBOOK_PER_PAGE;
-    const endIndex = startIndex + GUESTBOOK_PER_PAGE;
-    const pageMessages = allGuestbookMessages.slice(startIndex, endIndex);
-    renderGuestbook(pageMessages);
-    renderGuestbookPagination();
-}
 window.changeGuestbookSort = function (sortType) {
     if (currentGuestbookSort === sortType) return;
     currentGuestbookSort = sortType;
@@ -224,15 +215,15 @@ async function fetchAndDisplayGuestbook(page = 1) {
         if (guestbookList) {
             guestbookList.innerHTML = '<div class="loading-spinner"></div>';
         }
-        const response = await fetch(`${GUESTBOOK_API_URL}?limit=1000&sort=${currentGuestbookSort}&filter=${currentGuestbookFilter}&status=${currentGuestbookStatus}`, { headers });
+        const response = await fetch(`${GUESTBOOK_API_URL}?page=${page}&limit=${GUESTBOOK_PER_PAGE}&sort=${currentGuestbookSort}&filter=${currentGuestbookFilter}&status=${currentGuestbookStatus}`, { headers });
         if (!response.ok) throw new Error('Failed to fetch guestbook messages');
         const data = await response.json();
-        allGuestbookMessages = data.data || [];
-        totalGuestbookPages = Math.ceil(allGuestbookMessages.length / GUESTBOOK_PER_PAGE) || 1;
-        if (page > totalGuestbookPages) page = totalGuestbookPages;
-        if (page < 1) page = 1;
-        currentGuestbookPage = page;
-        renderGuestbookPage(page);
+        const messages = data.data;
+        const pagination = data.pagination;
+        currentGuestbookPage = pagination.page;
+        totalGuestbookPages = pagination.totalPages;
+        renderGuestbook(messages);
+        renderGuestbookPagination();
         if (guestbookForm) guestbookForm.style.display = 'block';
         const loginPrompt = document.getElementById('guestbook-login-prompt');
         if (loginPrompt) loginPrompt.style.display = 'none';
