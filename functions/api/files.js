@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const DEFAULT_PAGE_SIZE = 20;
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet({ request, env, waitUntil }) {
   const authHeader = request.headers.get('Authorization');
   let user = null;
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -82,43 +82,31 @@ export async function onRequestGet({ request, env }) {
       });
     }
     if (action === 'listAllDirs') {
-      const now = Date.now();
-      const CACHE_DURATION = 60 * 60 * 1000;
-      if (globalThis.allDirsCache && (now - globalThis.allDirsCache.timestamp < CACHE_DURATION)) {
-        return new Response(JSON.stringify({ success: true, directories: globalThis.allDirsCache.data }), {
-          status: 200,
-          headers: addCorsHeaders({
-            'Content-Type': 'application/json',
-            'Cache-Control': 'private, max-age=3600'
-          })
-        });
+      const cache = caches.default;
+      const cacheKey = new Request(request.url);
+      const cachedResponse = await cache.match(cacheKey);
+      if (cachedResponse) {
+        return cachedResponse;
       }
       const stmt = DB.prepare("SELECT key FROM files WHERE is_directory = TRUE ORDER BY key ASC");
       const { results } = await stmt.all();
       const directories = results.map(row => row.key);
-      globalThis.allDirsCache = {
-        data: directories,
-        timestamp: now
-      };
-      return new Response(JSON.stringify({ success: true, directories: directories }), {
+      const response = new Response(JSON.stringify({ success: true, directories: directories }), {
         status: 200,
         headers: addCorsHeaders({
           'Content-Type': 'application/json',
-          'Cache-Control': 'private, max-age=3600'
+          'Cache-Control': 'public, max-age=3600'
         })
       });
+      waitUntil(cache.put(cacheKey, response.clone()));
+      return response;
     }
     if (action === 'getHotFolders') {
-      const now = Date.now();
-      const CACHE_DURATION = 60 * 60 * 1000;
-      if (globalThis.hotFoldersCache && (now - globalThis.hotFoldersCache.timestamp < CACHE_DURATION)) {
-        return new Response(JSON.stringify({ success: true, hotFolders: globalThis.hotFoldersCache.data }), {
-          status: 200,
-          headers: addCorsHeaders({
-            'Content-Type': 'application/json',
-            'Cache-Control': 'private, max-age=3600'
-          })
-        });
+      const cache = caches.default;
+      const cacheKey = new Request(request.url);
+      const cachedResponse = await cache.match(cacheKey);
+      if (cachedResponse) {
+        return cachedResponse;
       }
       const stmt = DB.prepare(`
         SELECT
@@ -136,17 +124,15 @@ export async function onRequestGet({ request, env }) {
         name: row.parent_path.endsWith('/') ? row.parent_path.slice(0, -1).split('/').pop() : row.parent_path.split('/').pop(),
         total_downloads: row.total_downloads
       }));
-      globalThis.hotFoldersCache = {
-        data: hotFolders,
-        timestamp: now
-      };
-      return new Response(JSON.stringify({ success: true, hotFolders: hotFolders }), {
+      const response = new Response(JSON.stringify({ success: true, hotFolders: hotFolders }), {
         status: 200,
         headers: addCorsHeaders({
           'Content-Type': 'application/json',
-          'Cache-Control': 'private, max-age=300'
+          'Cache-Control': 'public, max-age=300'
         })
       });
+      waitUntil(cache.put(cacheKey, response.clone()));
+      return response;
     }
     if (action === 'recentUploads') {
       const limit = parseInt(url.searchParams.get('limit') || '6');
