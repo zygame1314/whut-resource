@@ -294,18 +294,6 @@
     }
 }
 
-@keyframes magic-sparkle {
-
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.15);
-    }
-}
-
 .ai-search-badge {
     display: inline-flex;
     align-items: center;
@@ -2444,18 +2432,6 @@ textarea.form-input {
     font-size: 0.75rem;
     font-weight: 600;
     border-radius: 20px;
-}
-
-@keyframes ai-pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
 }
 
 .ai-processing {

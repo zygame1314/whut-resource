@@ -606,7 +606,29 @@ window.aiProcessGuestbook = async function (id) {
     }
     isAiProcessing = true;
     const GUESTBOOK_AI_API_URL = API_ENDPOINTS.guestbookAi;
-    showNotification('AI 正在分析留言...', 'info');
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'confirmation-modal-overlay ai-loading-overlay';
+    loadingOverlay.innerHTML = `
+        <div class="ai-loading-modal">
+            <div class="ai-loading-spinner">
+                <i class="fas fa-robot fa-spin"></i>
+            </div>
+            <h3>AI 正在分析留言</h3>
+            <p class="ai-loading-hint">正在进行内容审核与资源匹配...</p>
+            <div class="ai-loading-dots">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingOverlay);
+    const removeLoading = () => {
+        loadingOverlay.classList.add('closing');
+        loadingOverlay.addEventListener('animationend', () => {
+            if (loadingOverlay.parentNode) {
+                document.body.removeChild(loadingOverlay);
+            }
+        }, { once: true });
+    };
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(GUESTBOOK_AI_API_URL, {
@@ -620,6 +642,7 @@ window.aiProcessGuestbook = async function (id) {
                 auto_mode: false
             })
         });
+        removeLoading();
         if (!response.ok) {
             const data = await response.json();
             showNotification(data.error || 'AI 处理失败', 'error');
@@ -628,6 +651,7 @@ window.aiProcessGuestbook = async function (id) {
         const result = await response.json();
         await showAiResultModal(id, result);
     } catch (error) {
+        removeLoading();
         console.error('AI 处理错误:', error);
         showNotification('AI 处理出错', 'error');
     } finally {

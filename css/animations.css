@@ -58,6 +58,19 @@
     }
 }
 
+
+@keyframes ai-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
 @keyframes heartbeat {
 
     0%,
@@ -285,5 +298,33 @@
 
     100% {
         transform: scale(1);
+    }
+}
+
+@keyframes magic-sparkle {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.15);
+    }
+}
+
+
+@keyframes dotBounce {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0.6);
+        opacity: 0.5;
+    }
+
+    40% {
+        transform: scale(1);
+        opacity: 1;
     }
 }
