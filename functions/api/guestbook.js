@@ -224,7 +224,7 @@ async function handlePost(request, env, context) {
     }
     const todayStart = new Date().toISOString().split('T')[0] + ' 00:00:00';
     const postCountResult = await env.DB.prepare('SELECT COUNT(*) as count FROM guestbook WHERE user_id = ? AND created_at >= ?').bind(user.id, todayStart).first();
-    if (postCountResult.count >= 10) {
+    if (user.role !== 'admin' && postCountResult.count >= 10) {
         return new Response(JSON.stringify({ error: '每日限制已达到（每天10条帖子）。' }), { status: 429, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const { content } = await request.json();

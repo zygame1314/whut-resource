@@ -664,6 +664,21 @@ async function showAiResultModal(guestbookId, result) {
                     <button class="confirm-btn-cancel" data-action="cancel">取消</button>
                     <button class="confirm-btn confirm-btn-warning" data-action="hide">确认隐藏</button>
                 `;
+                buttonsHtml = `
+                    <button class="confirm-btn-cancel" data-action="cancel">取消</button>
+                    <button class="confirm-btn confirm-btn-warning" data-action="hide">确认隐藏</button>
+                `;
+                break;
+            case 'ban_user':
+                actionIcon = 'fa-user-slash';
+                actionColor = 'var(--error)';
+                actionTitle = 'AI 建议封禁用户（严重违规）';
+                actionDescription = `<div class="ai-result-reason"><strong>封禁原因：</strong>${escapeHtml(result.reason)}</div>
+                    <div class="ai-result-warning">⚠️ 将封禁用户并删除该留言，且无法恢复！</div>`;
+                buttonsHtml = `
+                    <button class="confirm-btn-cancel" data-action="cancel">取消</button>
+                    <button class="confirm-btn confirm-btn-danger" data-action="ban_and_delete">封禁并删除</button>
+                `;
                 break;
             case 'delete':
                 actionIcon = 'fa-trash-alt';
@@ -793,6 +808,36 @@ async function showAiResultModal(guestbookId, result) {
                         await applyAiDeleteAction(guestbookId);
                         closeModal();
                         fetchAndDisplayGuestbook(currentGuestbookPage);
+                    }
+                    return;
+                }
+                if (action === 'ban_and_delete') {
+                    let confirmed = false;
+                    if (typeof showConfirmation === 'function') {
+                        confirmed = await showConfirmation({
+                            title: '确认封禁并删除',
+                            message: '将永久封禁该用户并删除此留言，确定吗？',
+                            confirmText: '封禁并删除',
+                            confirmClass: 'confirm-btn-danger'
+                        });
+                    } else {
+                        confirmed = confirm('将永久封禁该用户并删除此留言，确定吗？');
+                    }
+                    if (confirmed) {
+                        try {
+                            await handleGuestbookAction(guestbookId, 'ban_user');
+                            const token = localStorage.getItem('authToken');
+                            await fetch(`${GUESTBOOK_API_URL}?id=${guestbookId}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            showNotification('用户已封禁且留言已删除', 'success');
+                            closeModal();
+                            fetchAndDisplayGuestbook(currentGuestbookPage);
+                        } catch (err) {
+                            console.error('Ban and delete failed:', err);
+                            showNotification('操作部分失败，请重试', 'error');
+                        }
                     }
                     return;
                 }

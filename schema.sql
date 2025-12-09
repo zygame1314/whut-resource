@@ -174,3 +174,17 @@ CREATE TRIGGER files_au AFTER UPDATE ON files BEGIN
   INSERT INTO files_fts(files_fts, rowid, name) VALUES('delete', old.id, old.name);
   INSERT INTO files_fts(rowid, name) VALUES (new.id, new.name);
 END;
+
+CREATE TABLE IF NOT EXISTS admin_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    action TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_id INTEGER,
+    reason TEXT,
+    details TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_logs_action ON admin_logs(action);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_target ON admin_logs(target_type, target_id);

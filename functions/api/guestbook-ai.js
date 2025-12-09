@@ -56,6 +56,23 @@ const TOOLS = [
     {
         type: 'function',
         function: {
+            name: 'ban_user',
+            description: '封禁用户并删除留言。仅当用户发布极其严重违规内容（如反动、暴恐、违法信息）时使用。此操作会永久禁止该用户发布留言。',
+            parameters: {
+                type: 'object',
+                properties: {
+                    reason: {
+                        type: 'string',
+                        description: '封禁原因（纯文本），说明为什么需要封禁'
+                    }
+                },
+                required: ['reason']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
             name: 'search_resources',
             description: '搜索资源库。当用户在留言中请求查找特定资源、课程资料、文件时使用此工具。',
             parameters: {
@@ -127,7 +144,10 @@ const SYSTEM_PROMPT = `你是一个大学资源分享网站（武汉理工大学
         前提：xx 必须看起来像一个正常的课程简称。
         若有明确对应资源，应尝试搜索，而非直接驳回。
 四、处理级别（按严重程度降序）
-    1. 级别1：删除（最严重，谨慎使用）
+    1. 级别0：封禁用户（最高级防御）
+        条件：涉及反动、暴恐、违法、严重恶意攻击系统等“大忌”内容。
+        操作：调用 ban_user。注意：绝对不能封禁【管理员】。
+    2. 级别1：删除（最严重，谨慎使用）
         条件：辱骂、人身攻击、身份冒充、恶意诱导、广告、色情、暴力、政治敏感内容。
     2. 级别2：隐藏（较严重）
         条件：引战、挑衅言论、轻微不当内容、恶意刷屏。
@@ -274,15 +294,17 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
 async function executeToolCall(functionName, args, guestbookEntry, env, autoMode) {
     switch (functionName) {
         case 'reject_message':
-            return await handleReject(guestbookEntry.id, args.reason, env, autoMode);
+            return await handleReject(guestbookEntry, args.reason, env, autoMode);
         case 'hide_message':
-            return await handleHide(guestbookEntry.id, args.reason, env, autoMode);
+            return await handleHide(guestbookEntry, args.reason, env, autoMode);
         case 'delete_message':
-            return await handleDelete(guestbookEntry.id, args.reason, env, autoMode);
+            return await handleDelete(guestbookEntry, args.reason, env, autoMode);
+        case 'ban_user':
+            return await handleBanUser(guestbookEntry, args.reason, env, autoMode);
         case 'search_resources':
             return await handleSearch(args.query, env);
         case 'mark_resolved':
-            return await handleResolve(guestbookEntry.id, args.reply, env, autoMode);
+            return await handleResolve(args.reply, null);
         case 'keep_pending':
             return {
                 success: true,
@@ -299,11 +321,16 @@ async function executeToolCall(functionName, args, guestbookEntry, env, autoMode
             };
     }
 }
-async function handleReject(guestbookId, reason, env, autoMode) {
+async function handleReject(entry, reason, env, autoMode) {
     if (autoMode) {
         await env.DB.prepare(
             'UPDATE guestbook SET status = ?, reject_reason = ? WHERE id = ?'
-        ).bind('rejected', reason, guestbookId).run();
+        ).bind('rejected', reason, entry.id).run();
+        await logAdminAction(env, 'ai_reject', 'guestbook', entry.id, reason, JSON.stringify({
+            content: entry.content,
+            nickname: entry.nickname,
+            user_id: entry.user_id
+        }));
         return {
             success: true,
             action: 'reject',
@@ -320,11 +347,15 @@ async function handleReject(guestbookId, reason, env, autoMode) {
         auto_applied: false
     };
 }
-async function handleHide(guestbookId, reason, env, autoMode) {
+async function handleHide(entry, reason, env, autoMode) {
     if (autoMode) {
         await env.DB.prepare(
             'UPDATE guestbook SET is_hidden = 1 WHERE id = ?'
-        ).bind(guestbookId).run();
+        ).bind(entry.id).run();
+        await logAdminAction(env, 'ai_hide', 'guestbook', entry.id, reason, JSON.stringify({
+            content: entry.content,
+            nickname: entry.nickname
+        }));
         return {
             success: true,
             action: 'hide',
@@ -341,11 +372,53 @@ async function handleHide(guestbookId, reason, env, autoMode) {
         auto_applied: false
     };
 }
-async function handleDelete(guestbookId, reason, env, autoMode) {
+async function handleBanUser(guestbookEntry, reason, env, autoMode) {
+    if (guestbookEntry.role === 'admin') {
+        return {
+            success: false,
+            action: 'no_action',
+            message: '无法封禁管理员',
+            reason: reason,
+            auto_applied: false
+        };
+    }
+    if (autoMode) {
+        await env.DB.batch([
+            env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id),
+            env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(guestbookEntry.id)
+        ]);
+        await logAdminAction(env, 'ai_ban_user', 'user', guestbookEntry.user_id, reason, JSON.stringify({
+            deleted_guestbook_id: guestbookEntry.id,
+            snapshot_content: guestbookEntry.content,
+            nickname: guestbookEntry.nickname
+        }));
+        return {
+            success: true,
+            action: 'ban_user',
+            message: `用户已封禁并删除留言: ${reason}`,
+            reason: reason,
+            auto_applied: true
+        };
+    }
+    return {
+        success: true,
+        action: 'ban_user',
+        message: '建议封禁用户（并删除留言）',
+        reason: reason,
+        auto_applied: false
+    };
+}
+async function handleDelete(entry, reason, env, autoMode) {
     if (autoMode) {
         await env.DB.prepare(
             'DELETE FROM guestbook WHERE id = ?'
-        ).bind(guestbookId).run();
+        ).bind(entry.id).run();
+        await logAdminAction(env, 'ai_delete', 'guestbook', entry.id, reason, JSON.stringify({
+            snapshot_content: entry.content,
+            nickname: entry.nickname,
+            user_id: entry.user_id,
+            created_at: entry.created_at
+        }));
         return {
             success: true,
             action: 'delete',
@@ -361,6 +434,15 @@ async function handleDelete(guestbookId, reason, env, autoMode) {
         reason: reason,
         auto_applied: false
     };
+}
+async function logAdminAction(env, action, targetType, targetId, reason, details) {
+    try {
+        await env.DB.prepare(
+            'INSERT INTO admin_logs (action, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)'
+        ).bind(action, targetType, targetId, reason, details).run();
+    } catch (e) {
+        console.error('Failed to log admin action:', e);
+    }
 }
 async function handleSearch(query, env) {
     const AI = env.AI;
@@ -485,10 +567,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         const functionArgs = JSON.parse(toolCall.function.arguments);
         if (functionName === 'mark_resolved') {
             return await handleResolve(
-                guestbookEntry.id,
                 functionArgs.reply,
-                env,
-                autoMode,
                 searchResults
             );
         }
