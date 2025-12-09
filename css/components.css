@@ -2269,3 +2269,218 @@ textarea.form-input {
     background: var(--background);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
+
+.icon-btn.ai-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.icon-btn.ai-btn:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.ai-result-modal {
+    max-width: 520px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.ai-result-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 1.2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.ai-result-header i {
+    font-size: 1.8rem;
+}
+
+.ai-result-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: inherit;
+}
+
+.ai-result-content {
+    margin-bottom: 1.5rem;
+    overflow-y: auto;
+    max-height: 50vh;
+    padding-right: 0.5rem;
+}
+
+.ai-result-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ai-result-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.ai-result-content::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 3px;
+}
+
+.ai-result-content::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-secondary);
+}
+
+.ai-result-reason,
+.ai-result-reply,
+.ai-result-message,
+.ai-result-note {
+    padding: 1rem;
+    background: var(--background-alt);
+    border-radius: 12px;
+    color: var(--text-primary);
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+.ai-result-reason strong,
+.ai-result-reply strong,
+.ai-result-note strong {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.ai-search-results {
+    margin-top: 1rem;
+    background: var(--background-alt);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.ai-search-results-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 0.8rem;
+}
+
+.ai-search-results-title i {
+    color: var(--primary-color);
+}
+
+.ai-search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.7rem;
+    background: var(--background);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.ai-search-result-item:last-child {
+    margin-bottom: 0;
+}
+
+.ai-search-result-item:hover {
+    border-color: var(--primary-color);
+    transform: translateX(4px);
+}
+
+.ai-search-result-item>i {
+    font-size: 1.2rem;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.ai-search-result-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.ai-search-result-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ai-search-result-path {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ai-search-result-score {
+    flex-shrink: 0;
+    padding: 0.25rem 0.6rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 20px;
+}
+
+@keyframes ai-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.ai-processing {
+    animation: ai-pulse 1.5s ease-in-out infinite;
+}
+
+.ai-result-warning {
+    margin-top: 0.8rem;
+    padding: 0.8rem;
+    background: rgba(220, 38, 38, 0.1);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: 8px;
+    color: #dc2626;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+[data-theme="dark"] .ai-result-warning {
+    background: rgba(220, 38, 38, 0.15);
+    color: #fca5a5;
+}
+
+.confirm-btn-warning {
+    background: var(--warning);
+    color: white;
+    border: none;
+    padding: 0.7rem 1.4rem;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.confirm-btn-warning:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}

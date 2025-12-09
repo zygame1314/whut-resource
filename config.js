@@ -7,6 +7,7 @@ const API_ENDPOINTS = {
     preview: `${API_BASE}/api/preview`,
     sync: `${API_BASE}/api/sync`,
     guestbook: `${API_BASE}/api/guestbook`,
+    guestbookAi: `${API_BASE}/api/guestbook-ai`,
     announcements: `${API_BASE}/api/announcements`,
     batchDownload: `${API_BASE}/api/batch-download`,
     aiSearch: `${API_BASE}/api/ai-search`,
