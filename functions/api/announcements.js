@@ -14,7 +14,7 @@ export async function onRequest(context) {
         } else if (request.method === 'DELETE') {
             return await handleDelete(request, env);
         } else {
-            return new Response('Method Not Allowed', { status: 405, headers: addCorsHeaders() });
+            return new Response('方法不允许', { status: 405, headers: addCorsHeaders() });
         }
     } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: addCorsHeaders() });
@@ -34,7 +34,7 @@ async function getUser(request, env) {
 async function handleGet(request, env) {
     const user = await getUser(request, env);
     if (!user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        return new Response(JSON.stringify({ error: '未认证' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const isAdmin = user && user.role === 'admin';
     const url = new URL(request.url);
@@ -44,7 +44,7 @@ async function handleGet(request, env) {
 
     let countQuery = 'SELECT COUNT(*) as total FROM announcements WHERE is_published = TRUE';
     let query = 'SELECT * FROM announcements WHERE is_published = TRUE ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    
+
     if (isAdmin) {
         countQuery = 'SELECT COUNT(*) as total FROM announcements';
         query = 'SELECT * FROM announcements ORDER BY created_at DESC LIMIT ? OFFSET ?';
@@ -67,7 +67,7 @@ async function handleGet(request, env) {
 async function handlePost(request, env) {
     const user = await getUser(request, env);
     if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        return new Response(JSON.stringify({ error: '未认证' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const contentLength = request.headers.get('Content-Length');
     if (contentLength && parseInt(contentLength) > 102400) {
@@ -94,7 +94,7 @@ async function handlePost(request, env) {
 async function handlePut(request, env) {
     const user = await getUser(request, env);
     if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        return new Response(JSON.stringify({ error: '未认证' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const contentLength = request.headers.get('Content-Length');
     if (contentLength && parseInt(contentLength) > 102400) {
@@ -124,12 +124,12 @@ async function handlePut(request, env) {
 async function handleDelete(request, env) {
     const user = await getUser(request, env);
     if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        return new Response(JSON.stringify({ error: '未认证' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     if (!id) {
-        return new Response(JSON.stringify({ error: 'Missing ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        return new Response(JSON.stringify({ error: '缺少ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     await env.DB.prepare('DELETE FROM announcements WHERE id = ?').bind(id).run();
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
