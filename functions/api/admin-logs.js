@@ -12,7 +12,7 @@ export async function onRequest(context) {
         if (request.method === 'GET') {
             return await handleGetLogs(request, env);
         } else if (request.method === 'DELETE') {
-            return await handleCleanupLogs(request, env);
+            return await handleCleanupLogs(env);
         } else {
             return new Response('方法不被允许', { status: 405, headers: addCorsHeaders() });
         }
@@ -48,8 +48,8 @@ async function handleGetLogs(request, env) {
         }
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
-async function handleCleanupLogs(request, env) {
-    const result = await env.DB.prepare("DELETE FROM admin_logs WHERE created_at < date('now', '-30 days')").run();
+async function handleCleanupLogs(env) {
+    const result = await env.DB.prepare("DELETE FROM admin_logs WHERE created_at < date('now', '-3 days')").run();
     return new Response(JSON.stringify({
         success: true,
         message: `清理完成。删除了 ${result.meta.changes} 条旧日志。`,
