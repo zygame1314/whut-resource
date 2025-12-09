@@ -375,7 +375,8 @@ async function handleHide(entry, reason, env, autoMode) {
         ).bind(entry.id).run();
         await logAdminAction(env, 'ai_hide', 'guestbook', entry.id, reason, JSON.stringify({
             content: entry.content,
-            nickname: entry.nickname
+            nickname: entry.nickname,
+            user_id: entry.user_id
         }));
         return {
             success: true,
@@ -411,7 +412,8 @@ async function handleBanUser(guestbookEntry, reason, env, autoMode) {
         await logAdminAction(env, 'ai_ban_user', 'user', guestbookEntry.user_id, reason, JSON.stringify({
             deleted_guestbook_id: guestbookEntry.id,
             snapshot_content: guestbookEntry.content,
-            nickname: guestbookEntry.nickname
+            nickname: guestbookEntry.nickname,
+            user_id: guestbookEntry.user_id
         }));
         return {
             success: true,
