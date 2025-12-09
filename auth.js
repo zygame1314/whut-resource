@@ -700,7 +700,8 @@ async function showAdminLogsModal() {
                     'ai_hide': 'var(--warning, #faad14)'
                 };
                 const color = actionColors[log.action] || 'var(--primary)';
-                const date = new Date(log.created_at).toLocaleString('zh-CN');
+                const utcDate = log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z';
+                const date = new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
                 return `
                     <div style="border-bottom: 1px solid var(--border-color); padding: 10px 0;">
                         <div style="display: flex; justify-content: space-between; align-items: start;">
