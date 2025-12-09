@@ -2417,6 +2417,7 @@ textarea.form-input {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: all 0.2s ease;
 }
 
 .ai-search-result-path {
@@ -2425,6 +2426,14 @@ textarea.form-input {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: all 0.2s ease;
+}
+
+.ai-search-result-item:hover .ai-search-result-name,
+.ai-search-result-item:hover .ai-search-result-path {
+    white-space: normal;
+    word-break: break-all;
+    overflow: visible;
 }
 
 .ai-search-result-score {

@@ -823,11 +823,11 @@ function renderAiSearchResults(results) {
         const score = file.similarity_score ? `${(file.similarity_score * 100).toFixed(0)}%` : '';
         const icon = file.is_directory ? 'fa-folder' : 'fa-file';
         return `
-            <div class="ai-search-result-item">
+            <div class="ai-search-result-item" title="${escapeHtml(path)}">
                 <i class="fas ${icon}"></i>
                 <div class="ai-search-result-info">
-                    <span class="ai-search-result-name">${escapeHtml(file.name)}</span>
-                    <span class="ai-search-result-path">${escapeHtml(path)}</span>
+                    <span class="ai-search-result-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                    <span class="ai-search-result-path" title="${escapeHtml(path)}">${escapeHtml(path)}</span>
                 </div>
                 ${score ? `<span class="ai-search-result-score">${score}</span>` : ''}
             </div>

@@ -61,11 +61,14 @@ function updateAuthUI() {
     const authSection = document.getElementById('auth-section');
     const uploadLink = document.getElementById('upload-btn-link');
     if (currentUser) {
+        const quotaDisplay = currentUser.role === 'admin'
+            ? '<i class="fas fa-infinity"></i> 无限'
+            : `${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次`;
         if (authSection) {
             authSection.innerHTML = `
                 <span class="user-info">
                     <i class="fas fa-user"></i> ${escapeHtmlAuth(currentUser.nickname || currentUser.email)}
-                    <span class="quota">(${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次)</span>
+                    <span class="quota">(${quotaDisplay})</span>
                 </span>
                 ${currentUser.role === 'admin' ? '<button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button><button id="vector-sync-btn" class="secondary-btn" title="同步向量索引" style="margin-left: 5px"><i class="fas fa-brain"></i></button>' : ''}
                 <button id="change-nickname-btn" class="secondary-btn" title="修改昵称"><i class="fas fa-id-card"></i></button>
