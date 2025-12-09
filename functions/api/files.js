@@ -128,7 +128,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
         status: 200,
         headers: addCorsHeaders({
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=300'
+          'Cache-Control': 'public, max-age=3600'
         })
       });
       waitUntil(cache.put(cacheKey, response.clone()));
