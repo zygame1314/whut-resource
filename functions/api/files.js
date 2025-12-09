@@ -278,10 +278,13 @@ export async function onRequestPut({ request, env }) {
       }
     }
     await DB.batch([
-      DB.prepare('PRAGMA foreign_keys = OFF'),
-      DB.prepare('UPDATE files SET key = ?, name = ? WHERE key = ?').bind(newKey, newName, key),
+      DB.prepare(`
+        INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+        SELECT ?, ?, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id
+        FROM files WHERE key = ?
+      `).bind(newKey, newName, key),
       DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, key),
-      DB.prepare('PRAGMA foreign_keys = ON'),
+      DB.prepare('DELETE FROM files WHERE key = ?').bind(key)
     ]);
     return new Response(JSON.stringify({ success: true, message: '重命名成功' }), {
       status: 200,
@@ -374,10 +377,13 @@ export async function onRequestPost({ request, env }) {
       }
     }
     await DB.batch([
-      DB.prepare('PRAGMA foreign_keys = OFF'),
-      DB.prepare('UPDATE files SET key = ?, parent_path = ? WHERE key = ?').bind(newKey, newParentPath, sourceKey),
+      DB.prepare(`
+        INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+        SELECT ?, name, size, uploaded, contentType, ?, is_directory, is_link, link_url, downloads, uploader_id
+        FROM files WHERE key = ?
+      `).bind(newKey, newParentPath, sourceKey),
       DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
-      DB.prepare('PRAGMA foreign_keys = ON'),
+      DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey)
     ]);
     return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
       status: 200,
