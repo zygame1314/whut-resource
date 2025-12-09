@@ -743,3 +743,4 @@ async function showAdminLogsModal() {
 
     loadLogs(currentPage);
 }
+document.addEventListener('DOMContentLoaded', checkAuth);
