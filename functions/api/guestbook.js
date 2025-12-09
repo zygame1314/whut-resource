@@ -13,7 +13,7 @@ export async function onRequest(context) {
         } else if (request.method === 'DELETE') {
             return await handleDelete(request, env);
         } else if (request.method === 'PUT') {
-            return await handlePut(request, env);
+            return await handlePut(request, env, context);
         } else {
             return new Response('方法不允许', { status: 405, headers: addCorsHeaders() });
         }
@@ -274,7 +274,7 @@ async function handleDelete(request, env) {
     await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(id).run();
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
-async function handlePut(request, env) {
+async function handlePut(request, env, context) {
     const user = await getUser(request, env);
     if (!user) {
         return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -304,7 +304,21 @@ async function handlePut(request, env) {
         if (user.role !== 'admin' && guestbookEntry.user_id !== user.id) {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        await env.DB.prepare('UPDATE guestbook SET content = ? WHERE id = ?').bind(content.trim(), id).run();
+        await env.DB.prepare('UPDATE guestbook SET content = ?, status = ?, reject_reason = NULL WHERE id = ?').bind(content.trim(), 'unresolved', id).run();
+        if (context && context.waitUntil) {
+            context.waitUntil((async () => {
+                try {
+                    const updatedEntry = await env.DB.prepare(
+                        'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
+                    ).bind(id).first();
+                    if (updatedEntry) {
+                        await processWithAIAgent(updatedEntry, env, true);
+                    }
+                } catch (err) {
+                    console.error('Auto AI process failed for edited message:', err);
+                }
+            })());
+        }
         return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     if (action === 'like') {

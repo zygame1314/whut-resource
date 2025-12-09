@@ -122,6 +122,9 @@ const TOOLS = [
         }
     }
 ];
+const AUTO_MODE_TOOLS = TOOLS.filter(tool =>
+    !['search_resources', 'mark_resolved'].includes(tool.function.name)
+);
 const SYSTEM_PROMPT = `你是一个大学资源分享网站（武汉理工大学）的留言板 AI 助手。你的职责是分析用户留言并决定如何处理。
 重要提示：所有回复内容（如驳回原因、回复消息、备注）必须使用纯文本，严禁使用Markdown格式（不要用**、#、- 等符号）。
 一、核心原则与背景
@@ -235,6 +238,10 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         用户昵称：${guestbookEntry.nickname || '匿名用户'}
         留言内容：${guestbookEntry.content}
         提交时间：${guestbookEntry.created_at}`;
+    const toolsToUse = autoMode ? AUTO_MODE_TOOLS : TOOLS;
+    const systemPromptToUse = autoMode
+        ? SYSTEM_PROMPT + `\n\n【自动审核模式】当前为自动审核模式，你只需要检查内容是否合规。对于违规内容，使用相应的处理工具（驳回/隐藏/删除/封禁）。对于合规的正常请求（如求资源），直接使用 keep_pending 工具保持待处理状态，等待管理员人工处理。不要尝试搜索资源。`
+        : SYSTEM_PROMPT;
     const response = await fetch(SILICONFLOW_API_URL, {
         method: 'POST',
         headers: {
@@ -244,10 +251,10 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         body: JSON.stringify({
             model: MODEL_NAME,
             messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'system', content: systemPromptToUse },
                 { role: 'user', content: userMessage }
             ],
-            tools: TOOLS,
+            tools: toolsToUse,
             tool_choice: 'auto',
             temperature: 0.7,
             max_tokens: 1024
