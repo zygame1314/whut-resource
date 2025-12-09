@@ -277,6 +277,7 @@ export async function onRequestPut({ request, env }) {
         });
       }
     }
+    await DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, key).run();
     await DB.prepare('UPDATE files SET key = ?, name = ? WHERE key = ?').bind(newKey, newName, key).run();
     return new Response(JSON.stringify({ success: true, message: '重命名成功' }), {
       status: 200,
@@ -368,6 +369,7 @@ export async function onRequestPost({ request, env }) {
         });
       }
     }
+    await DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey).run();
     await DB.prepare('UPDATE files SET key = ?, parent_path = ? WHERE key = ?').bind(newKey, newParentPath, sourceKey).run();
     return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
       status: 200,
