@@ -440,8 +440,9 @@ async function logAdminAction(env, action, targetType, targetId, reason, details
         await env.DB.prepare(
             'INSERT INTO admin_logs (action, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)'
         ).bind(action, targetType, targetId, reason, details).run();
+        await env.DB.prepare("DELETE FROM admin_logs WHERE created_at < date('now', '-30 days')").run();
     } catch (e) {
-        console.error('Failed to log admin action:', e);
+        console.error('记录管理员操作失败:', e);
     }
 }
 async function handleSearch(query, env) {

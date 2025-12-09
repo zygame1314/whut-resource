@@ -70,7 +70,11 @@ function updateAuthUI() {
                     <i class="fas fa-user"></i> ${escapeHtmlAuth(currentUser.nickname || currentUser.email)}
                     <span class="quota">(${quotaDisplay})</span>
                 </span>
-                ${currentUser.role === 'admin' ? '<button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button><button id="vector-sync-btn" class="secondary-btn" title="同步向量索引" style="margin-left: 5px"><i class="fas fa-brain"></i></button>' : ''}
+                ${currentUser.role === 'admin' ? `
+                    <button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>
+                    <button id="vector-sync-btn" class="secondary-btn" title="同步向量索引" style="margin-left: 5px"><i class="fas fa-brain"></i></button>
+                    <button id="admin-logs-btn" class="secondary-btn" title="查看留言板操作日志" style="margin-left: 5px"><i class="fas fa-history"></i></button>
+                ` : ''}
                 <button id="change-nickname-btn" class="secondary-btn" title="修改昵称"><i class="fas fa-id-card"></i></button>
                 <button id="change-pwd-btn" class="secondary-btn" title="修改密码"><i class="fas fa-key"></i></button>
                 <button id="logout-btn" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>
@@ -81,6 +85,7 @@ function updateAuthUI() {
             if (currentUser.role === 'admin') {
                 document.getElementById('sync-btn').addEventListener('click', syncFiles);
                 document.getElementById('vector-sync-btn').addEventListener('click', syncVectorIndex);
+                document.getElementById('admin-logs-btn').addEventListener('click', showAdminLogsModal);
             }
         }
         if (uploadLink) {
@@ -639,4 +644,102 @@ function showChangePasswordModal() {
         }
     };
 }
-document.addEventListener('DOMContentLoaded', checkAuth);
+async function showAdminLogsModal() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal admin-logs-modal'; // You might need CSS for this class to make it wider
+    modal.style.cssText = 'display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000;';
+    modal.innerHTML = `
+        <div class="auth-box" style="width: 90%; max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 class="auth-title" style="margin: 0;">AI 操作日志</h2>
+                <button id="close-modal" class="close-modal-btn" style="position: static;"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="logs-container" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
+                <div class="loading-spinner"></div>
+            </div>
+            <div id="logs-pagination" class="pagination-controls" style="margin-top: 1rem; display: flex; justify-content: center;"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    const closeBtn = modal.querySelector('#close-modal');
+    closeBtn.onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    let currentPage = 1;
+    const loadLogs = async (page) => {
+        const container = modal.querySelector('#logs-container');
+        const pagination = modal.querySelector('#logs-pagination');
+        container.innerHTML = '<div class="loading-spinner"></div>';
+
+        try {
+            const res = await fetch(`${API_BASE}/api/admin-logs?page=${page}&limit=20`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+
+            if (!data.success) throw new Error(data.error);
+
+            if (data.data.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-secondary);">暂无日志</div>';
+                pagination.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = data.data.map(log => {
+                let detailsHtml = '';
+                try {
+                    const details = JSON.parse(log.details);
+                    // Format details nicely
+                    if (details.snapshot_content) {
+                        detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: var(--text-secondary); background: var(--bg-secondary); padding: 5px; border-radius: 4px;"><strong>原始内容:</strong> ${escapeHtmlAuth(details.snapshot_content)}</div>`;
+                    }
+                    if (details.nickname) {
+                        detailsHtml += `<div style="font-size: 0.8em; color: var(--text-secondary);">用户昵称: ${escapeHtmlAuth(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
+                    }
+                } catch (e) {
+                    detailsHtml = `<div style="font-size: 0.8em; color: var(--text-secondary);">${escapeHtmlAuth(log.details)}</div>`;
+                }
+
+                const actionColors = {
+                    'ai_delete': 'var(--error, #ff4d4f)',
+                    'ai_ban_user': 'var(--error, #ff4d4f)',
+                    'ai_reject': 'var(--warning, #faad14)',
+                    'ai_hide': 'var(--warning, #faad14)'
+                };
+                const color = actionColors[log.action] || 'var(--primary)';
+                const date = new Date(log.created_at).toLocaleString('zh-CN');
+
+                return `
+                    <div style="border-bottom: 1px solid var(--border-color); padding: 10px 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <span style="font-weight: bold; color: ${color};">${log.action}</span>
+                            <span style="font-size: 0.8em; color: var(--text-secondary);">${date}</span>
+                        </div>
+                        <div style="margin: 5px 0;">${escapeHtmlAuth(log.reason)}</div>
+                        ${detailsHtml}
+                    </div>
+                `;
+            }).join('');
+
+            // Simple Pagination
+            const totalPages = data.pagination.totalPages;
+            let paginationHtml = '';
+            if (page > 1) paginationHtml += `<button class="page-btn" onclick="document.getElementById('logs-next-page').dataset.page = ${page - 1}">上一页</button>`;
+            paginationHtml += `<span style="margin: 0 10px;">${page} / ${totalPages}</span>`;
+            if (page < totalPages) paginationHtml += `<button class="page-btn" id="logs-next-page" data-page="${page + 1}">下一页</button>`;
+
+            pagination.innerHTML = paginationHtml;
+
+            const nextBtn = pagination.querySelector('#logs-next-page');
+            const prevBtn = pagination.querySelector('button:first-child');
+            if (nextBtn) nextBtn.onclick = () => loadLogs(page + 1);
+            if (prevBtn && prevBtn.textContent === '上一页') prevBtn.onclick = () => loadLogs(page - 1);
+
+        } catch (e) {
+            container.innerHTML = `<div style="color: red;">加载失败: ${e.message}</div>`;
+        }
+    };
+
+    loadLogs(currentPage);
+}
