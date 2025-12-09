@@ -863,7 +863,7 @@ async function showAiResultModal(guestbookId, result) {
 }
 function renderAiSearchResults(results) {
     if (!results || results.length === 0) return '';
-    const items = results.slice(0, 5).map(file => {
+    const items = results.map(file => {
         const path = file.parent_path ? `${file.parent_path}/${file.name}` : file.name;
         const score = file.similarity_score ? `${(file.similarity_score * 100).toFixed(0)}%` : '';
         const icon = file.is_directory ? 'fa-folder' : 'fa-file';
