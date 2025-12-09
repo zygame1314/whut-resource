@@ -1,4 +1,5 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
+import { processWithAIAgent } from './guestbook-ai.js';
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -8,7 +9,7 @@ export async function onRequest(context) {
         if (request.method === 'GET') {
             return await handleGet(request, env);
         } else if (request.method === 'POST') {
-            return await handlePost(request, env);
+            return await handlePost(request, env, context);
         } else if (request.method === 'DELETE') {
             return await handleDelete(request, env);
         } else if (request.method === 'PUT') {
@@ -98,7 +99,6 @@ async function handleGet(request, env) {
             let idQuery = `SELECT id FROM guestbook g WHERE g.user_id = ? ${statusCondition ? `AND ${statusCondition}` : ''} ${orderByClause} LIMIT ? OFFSET ?`;
             const idResult = await env.DB.prepare(idQuery).bind(currentUserId, limit, offset).all();
             const ids = idResult.results.map(r => r.id);
-
             if (ids.length === 0) {
                 results = [];
             } else {
@@ -122,7 +122,6 @@ async function handleGet(request, env) {
             let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ? OFFSET ?`;
             const idResult = await env.DB.prepare(idQuery).bind(limit, offset).all();
             const ids = idResult.results.map(r => r.id);
-
             if (ids.length === 0) {
                 results = [];
             } else {
@@ -148,7 +147,6 @@ async function handleGet(request, env) {
                 let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ? OFFSET ?`;
                 const idResult = await env.DB.prepare(idQuery).bind(currentUserId, limit, offset).all();
                 const ids = idResult.results.map(r => r.id);
-
                 if (ids.length === 0) {
                     results = [];
                 } else {
@@ -173,7 +171,6 @@ async function handleGet(request, env) {
                 let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ? OFFSET ?`;
                 const idResult = await env.DB.prepare(idQuery).bind(limit, offset).all();
                 const ids = idResult.results.map(r => r.id);
-
                 if (ids.length === 0) {
                     results = [];
                 } else {
@@ -213,7 +210,7 @@ async function handleGet(request, env) {
         }
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
-async function handlePost(request, env) {
+async function handlePost(request, env, context) {
     const user = await getUser(request, env);
     if (!user) {
         return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -240,7 +237,22 @@ async function handlePost(request, env) {
     const result = await env.DB.prepare(
         'INSERT INTO guestbook (user_id, content) VALUES (?, ?)'
     ).bind(user.id, content.trim()).run();
-    return new Response(JSON.stringify({ success: true, id: result.meta.last_row_id }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    const newId = result.meta.last_row_id;
+    if (context && context.waitUntil) {
+        context.waitUntil((async () => {
+            try {
+                const newEntry = await env.DB.prepare(
+                    'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
+                ).bind(newId).first();
+                if (newEntry) {
+                    await processWithAIAgent(newEntry, env, true);
+                }
+            } catch (err) {
+                console.error('Auto AI process failed:', err);
+            }
+        })());
+    }
+    return new Response(JSON.stringify({ success: true, id: newId }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handleDelete(request, env) {
     const user = await getUser(request, env);
