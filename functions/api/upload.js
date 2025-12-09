@@ -136,7 +136,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
       ).run();
       if (env.AI && env.VECTORIZE && linkInsertResult.meta?.last_row_id) {
         try {
-          // 使用完整路径(key)作为嵌入文本
           const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [key] });
           if (embedding?.data?.[0]) {
             await env.VECTORIZE.upsert([{
@@ -216,7 +215,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
     ).run();
     if (env.AI && env.VECTORIZE && fileInsertResult.meta?.last_row_id) {
       try {
-        // 使用完整路径(key)作为嵌入文本
         const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [key] });
         if (embedding?.data?.[0]) {
           await env.VECTORIZE.upsert([{
