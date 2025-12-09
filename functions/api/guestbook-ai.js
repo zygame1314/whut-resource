@@ -399,7 +399,7 @@ async function handleSearch(query, env) {
                 query: query
             };
         }
-        const MIN_SCORE = 0.7;
+        const MIN_SCORE = 0.45;
         const validMatches = vectorResults.matches.filter(m => m.score >= MIN_SCORE);
         if (validMatches.length === 0) {
             return {
