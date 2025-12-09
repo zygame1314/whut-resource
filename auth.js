@@ -715,14 +715,14 @@ async function showAdminLogsModal() {
             }).join('');
             const totalPages = data.pagination.totalPages;
             let paginationHtml = '';
-            if (page > 1) paginationHtml += `<button class="page-btn" onclick="document.getElementById('logs-next-page').dataset.page = ${page - 1}">上一页</button>`;
-            paginationHtml += `<span style="margin: 0 10px;">${page} / ${totalPages}</span>`;
-            if (page < totalPages) paginationHtml += `<button class="page-btn" id="logs-next-page" data-page="${page + 1}">下一页</button>`;
+            if (page > 1) paginationHtml += `<button class="pagination-button" id="logs-prev-page"><i class="fas fa-chevron-left"></i> 上一页</button>`;
+            paginationHtml += `<span class="pagination-info">${page} / ${totalPages}</span>`;
+            if (page < totalPages) paginationHtml += `<button class="pagination-button" id="logs-next-page">下一页 <i class="fas fa-chevron-right"></i></button>`;
             pagination.innerHTML = paginationHtml;
             const nextBtn = pagination.querySelector('#logs-next-page');
-            const prevBtn = pagination.querySelector('button:first-child');
+            const prevBtn = pagination.querySelector('#logs-prev-page');
             if (nextBtn) nextBtn.onclick = () => loadLogs(page + 1);
-            if (prevBtn && prevBtn.textContent === '上一页') prevBtn.onclick = () => loadLogs(page - 1);
+            if (prevBtn) prevBtn.onclick = () => loadLogs(page - 1);
         } catch (e) {
             container.innerHTML = `<div style="color: red;">加载失败: ${e.message}</div>`;
         }
