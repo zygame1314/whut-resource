@@ -217,8 +217,8 @@ async function processWithAIAgent(guestbookEntry, env, autoMode) {
         throw new Error('未配置 SILICONFLOW_API_KEY');
     }
     const userMessage = `用户昵称：${guestbookEntry.nickname || '匿名用户'}
-留言内容：${guestbookEntry.content}
-提交时间：${guestbookEntry.created_at}`;
+        留言内容：${guestbookEntry.content}
+        提交时间：${guestbookEntry.created_at}`;
     const response = await fetch(SILICONFLOW_API_URL, {
         method: 'POST',
         headers: {
@@ -399,7 +399,7 @@ async function handleSearch(query, env) {
                 query: query
             };
         }
-        const MIN_SCORE = 0.5;
+        const MIN_SCORE = 0.7;
         const validMatches = vectorResults.matches.filter(m => m.score >= MIN_SCORE);
         if (validMatches.length === 0) {
             return {
