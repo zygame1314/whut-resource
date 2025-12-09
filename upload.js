@@ -129,30 +129,6 @@ async function uploadLink() {
         uploadSubmitBtn.innerHTML = '<i class="fas fa-plus"></i><span>添加链接</span>';
     }
 }
-function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    updateThemeIcon(savedTheme);
-}
-function updateThemeIcon(theme) {
-    if (themeToggle) {
-        const icon = themeToggle.querySelector('i');
-        if (icon) {
-            icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-        }
-    }
-}
-function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeIcon(newTheme);
-    document.body.style.transition = 'background-color 0.3s ease, color 0.3s ease';
-    setTimeout(() => {
-        document.body.style.transition = '';
-    }, 300);
-}
 function createParticleBackground() {
     const particlesContainer = document.getElementById('particles-background');
     if (!particlesContainer) return;
@@ -816,13 +792,9 @@ async function initUploadPathSelector() {
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
-    initTheme();
     createParticleBackground();
     initUploadPathSelector();
     initLinkUpload();
-    if (themeToggle) {
-        themeToggle.addEventListener('click', toggleTheme);
-    }
     if (fileDropZone) {
         fileDropZone.addEventListener('click', () => {
             fileInput.click();
@@ -903,18 +875,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (uploadForm) {
         uploadForm.addEventListener('submit', handleUpload);
-    }
-    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-    const navActions = document.querySelector('.nav-actions');
-    if (mobileMenuToggle && navActions) {
-        mobileMenuToggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            navActions.classList.toggle('active');
-        });
-        document.addEventListener('click', (e) => {
-            if (navActions.classList.contains('active') && !navActions.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
-                navActions.classList.remove('active');
-            }
-        });
     }
 });

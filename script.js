@@ -358,30 +358,6 @@ let itemsPerPage = 20;
 let currentTotalItems = 0;
 let currentFetchedData = null;
 let currentPaginationData = null;
-function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    updateThemeIcon(savedTheme);
-}
-function updateThemeIcon(theme) {
-    if (themeToggle) {
-        const icon = themeToggle.querySelector('i');
-        if (icon) {
-            icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-        }
-    }
-}
-function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeIcon(newTheme);
-    document.body.style.transition = 'background-color 0.3s ease, color 0.3s ease';
-    setTimeout(() => {
-        document.body.style.transition = '';
-    }, 300);
-}
 function createParticleBackground() {
     const particlesContainer = document.getElementById('particles-background');
     if (!particlesContainer) return;
@@ -2102,7 +2078,6 @@ document.addEventListener('authRestored', () => {
     }
 });
 document.addEventListener('DOMContentLoaded', () => {
-    initTheme();
     createParticleBackground();
     if (fileListElement) {
         fileListElement.innerHTML = `
@@ -2117,9 +2092,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPaginationControls(null);
     fetchAndRenderRecentUploads();
     fetchFileStats();
-    if (themeToggle) {
-        themeToggle.addEventListener('click', toggleTheme);
-    }
     const tutorialBtn = document.getElementById('tutorial-btn');
     if (tutorialBtn) {
         tutorialBtn.addEventListener('click', () => {
@@ -2265,19 +2237,6 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebar.addEventListener('click', (e) => {
             if (e.target.closest('.go-to-folder-btn') || e.target.closest('.hot-folder-item')) {
                 closeSidebar();
-            }
-        });
-    }
-    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-    const navActions = document.querySelector('.nav-actions');
-    if (mobileMenuToggle && navActions) {
-        mobileMenuToggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            navActions.classList.toggle('active');
-        });
-        document.addEventListener('click', (e) => {
-            if (navActions.classList.contains('active') && !navActions.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
-                navActions.classList.remove('active');
             }
         });
     }

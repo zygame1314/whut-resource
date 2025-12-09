@@ -62,7 +62,7 @@ function updateAuthUI() {
     const uploadLink = document.getElementById('upload-btn-link');
     if (currentUser) {
         const quotaDisplay = currentUser.role === 'admin'
-            ? '<i class="fas fa-infinity"></i> 无限'
+            ? '无限'
             : `${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次`;
         if (authSection) {
             authSection.innerHTML = `
@@ -72,8 +72,8 @@ function updateAuthUI() {
                 </span>
                 ${currentUser.role === 'admin' ? `
                     <button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>
-                    <button id="vector-sync-btn" class="secondary-btn" title="同步向量索引" style="margin-left: 5px"><i class="fas fa-brain"></i></button>
-                    <button id="admin-logs-btn" class="secondary-btn" title="查看留言板操作日志" style="margin-left: 5px"><i class="fas fa-history"></i></button>
+                    <button id="vector-sync-btn" class="secondary-btn" title="同步向量索引"><i class="fas fa-brain"></i></button>
+                    <button id="admin-logs-btn" class="secondary-btn" title="查看AI操作日志"><i class="fas fa-history"></i></button>
                 ` : ''}
                 <button id="change-nickname-btn" class="secondary-btn" title="修改昵称"><i class="fas fa-id-card"></i></button>
                 <button id="change-pwd-btn" class="secondary-btn" title="修改密码"><i class="fas fa-key"></i></button>
@@ -646,7 +646,7 @@ function showChangePasswordModal() {
 }
 async function showAdminLogsModal() {
     const modal = document.createElement('div');
-    modal.className = 'auth-modal admin-logs-modal'; // You might need CSS for this class to make it wider
+    modal.className = 'auth-modal admin-logs-modal';
     modal.style.cssText = 'display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000;';
     modal.innerHTML = `
         <div class="auth-box" style="width: 90%; max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
@@ -661,36 +661,29 @@ async function showAdminLogsModal() {
         </div>
     `;
     document.body.appendChild(modal);
-
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
     let currentPage = 1;
     const loadLogs = async (page) => {
         const container = modal.querySelector('#logs-container');
         const pagination = modal.querySelector('#logs-pagination');
         container.innerHTML = '<div class="loading-spinner"></div>';
-
         try {
             const res = await fetch(`${API_BASE}/api/admin-logs?page=${page}&limit=20`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
-
             if (!data.success) throw new Error(data.error);
-
             if (data.data.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: var(--text-secondary);">暂无日志</div>';
                 pagination.innerHTML = '';
                 return;
             }
-
             container.innerHTML = data.data.map(log => {
                 let detailsHtml = '';
                 try {
                     const details = JSON.parse(log.details);
-                    // Format details nicely
                     if (details.snapshot_content) {
                         detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: var(--text-secondary); background: var(--bg-secondary); padding: 5px; border-radius: 4px;"><strong>原始内容:</strong> ${escapeHtmlAuth(details.snapshot_content)}</div>`;
                     }
@@ -700,7 +693,6 @@ async function showAdminLogsModal() {
                 } catch (e) {
                     detailsHtml = `<div style="font-size: 0.8em; color: var(--text-secondary);">${escapeHtmlAuth(log.details)}</div>`;
                 }
-
                 const actionColors = {
                     'ai_delete': 'var(--error, #ff4d4f)',
                     'ai_ban_user': 'var(--error, #ff4d4f)',
@@ -709,7 +701,6 @@ async function showAdminLogsModal() {
                 };
                 const color = actionColors[log.action] || 'var(--primary)';
                 const date = new Date(log.created_at).toLocaleString('zh-CN');
-
                 return `
                     <div style="border-bottom: 1px solid var(--border-color); padding: 10px 0;">
                         <div style="display: flex; justify-content: space-between; align-items: start;">
@@ -721,26 +712,54 @@ async function showAdminLogsModal() {
                     </div>
                 `;
             }).join('');
-
-            // Simple Pagination
             const totalPages = data.pagination.totalPages;
             let paginationHtml = '';
             if (page > 1) paginationHtml += `<button class="page-btn" onclick="document.getElementById('logs-next-page').dataset.page = ${page - 1}">上一页</button>`;
             paginationHtml += `<span style="margin: 0 10px;">${page} / ${totalPages}</span>`;
             if (page < totalPages) paginationHtml += `<button class="page-btn" id="logs-next-page" data-page="${page + 1}">下一页</button>`;
-
             pagination.innerHTML = paginationHtml;
-
             const nextBtn = pagination.querySelector('#logs-next-page');
             const prevBtn = pagination.querySelector('button:first-child');
             if (nextBtn) nextBtn.onclick = () => loadLogs(page + 1);
             if (prevBtn && prevBtn.textContent === '上一页') prevBtn.onclick = () => loadLogs(page - 1);
-
         } catch (e) {
             container.innerHTML = `<div style="color: red;">加载失败: ${e.message}</div>`;
         }
     };
-
     loadLogs(currentPage);
 }
-document.addEventListener('DOMContentLoaded', checkAuth);
+document.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        const icon = themeToggle.querySelector('i');
+        if (icon) {
+            icon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        }
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            const iconEl = themeToggle.querySelector('i');
+            if (iconEl) {
+                iconEl.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        });
+    }
+    checkAuth();
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const navActions = document.querySelector('.nav-actions');
+    if (mobileMenuToggle && navActions) {
+        mobileMenuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navActions.classList.toggle('active');
+        });
+        document.addEventListener('click', (e) => {
+            if (navActions.classList.contains('active') && !navActions.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                navActions.classList.remove('active');
+            }
+        });
+    }
+});
