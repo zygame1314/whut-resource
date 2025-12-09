@@ -45,6 +45,42 @@ export async function onRequestGet({ request, env }) {
       await DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ? AND is_link = TRUE').bind(key).run();
       return new Response(JSON.stringify({ success: true }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    if (action === 'updateLinkUrl') {
+      if (!user || user.role !== 'admin') {
+        return new Response(JSON.stringify({ success: false, error: '未授权：需要管理员权限。' }), {
+          status: 401,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const key = url.searchParams.get('key');
+      const newUrl = url.searchParams.get('newUrl');
+      if (!key || !newUrl) {
+        return new Response(JSON.stringify({ success: false, error: '缺少key或newUrl参数' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      try {
+        new URL(newUrl);
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: '无效的URL格式' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const fileRecord = await DB.prepare('SELECT * FROM files WHERE key = ? AND is_link = TRUE').bind(key).first();
+      if (!fileRecord) {
+        return new Response(JSON.stringify({ success: false, error: '链接未找到' }), {
+          status: 404,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      await DB.prepare('UPDATE files SET link_url = ? WHERE key = ?').bind(newUrl, key).run();
+      return new Response(JSON.stringify({ success: true, message: '链接地址已更新' }), {
+        status: 200,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
+    }
     if (action === 'listAllDirs') {
       const now = Date.now();
       const CACHE_DURATION = 60 * 60 * 1000;

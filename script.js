@@ -554,6 +554,55 @@ async function openLink(fileKey, linkUrl, openBtn) {
         }
     }
 }
+async function editLinkUrl(fileKey, currentUrl) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("无法编辑：未获取到验证令牌。请重新登录。", 'error');
+        return;
+    }
+    let newUrl;
+    try {
+        newUrl = await showPrompt({
+            title: '编辑链接地址',
+            message: '请输入新的链接地址：',
+            initialValue: currentUrl || '',
+            placeholder: 'https://',
+            confirmText: '保存',
+            cancelText: '取消'
+        });
+    } catch (e) {
+        return;
+    }
+    newUrl = newUrl.trim();
+    if (!newUrl) {
+        showNotification('链接地址不能为空', 'warning');
+        return;
+    }
+    if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+        showNotification('链接地址必须以http://或https://开头', 'warning');
+        return;
+    }
+    try {
+        const apiUrl = `${FILES_API_URL}?action=updateLinkUrl&key=${encodeURIComponent(fileKey)}&newUrl=${encodeURIComponent(newUrl)}`;
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showNotification('链接地址已更新', 'success');
+            if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
+            fetchAndDisplayFiles(currentPrefix, '', currentPage);
+        } else {
+            showNotification(result.error || '更新链接失败', 'error');
+        }
+    } catch (error) {
+        console.error(`编辑链接 ${fileKey} 出错:`, error);
+        showNotification(`编辑链接出错: ${error.message}`, 'error');
+    }
+}
 async function downloadFile(fileKey, downloadBtn) {
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -1087,6 +1136,11 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             ${downloadButtonHTML}
         ` : ''}
         ${(typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') ? `
+        ${isLink ? `
+        <button class="edit-link-button" title="编辑链接地址">
+          <i class="fas fa-link"></i>
+        </button>
+        ` : ''}
         <button class="rename-button" title="重命名">
           <i class="fas fa-pencil-alt"></i>
         </button>
@@ -1145,6 +1199,13 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const moveBtn = fileActionsDiv.querySelector('.move-button');
     if (moveBtn) {
         moveBtn.onclick = () => moveItem(item.key, item.name, isDirectory);
+    }
+    const editLinkBtn = fileActionsDiv.querySelector('.edit-link-button');
+    if (editLinkBtn) {
+        editLinkBtn.onclick = (e) => {
+            e.stopPropagation();
+            editLinkUrl(item.key, item.link_url);
+        };
     }
     if (isDirectory) {
         fileItemDiv.style.cursor = 'pointer';

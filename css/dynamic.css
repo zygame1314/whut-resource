@@ -81,6 +81,25 @@
     box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
 }
 
+.edit-link-button {
+    background: transparent;
+    border: 1px solid var(--info-color);
+    color: var(--info-color);
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.8rem;
+    margin-right: 0.5rem;
+}
+
+.edit-link-button:hover {
+    background: var(--info-color);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+}
+
 .notification {
     animation: slideInRight 0.3s ease;
 }
@@ -329,16 +348,16 @@
     background: var(--background-alt);
 }
 
-#directory-picker-tree > .folder-tree-list {
+#directory-picker-tree>.folder-tree-list {
     padding-left: 0;
 }
 
-#directory-picker-tree > .folder-tree-list::before {
+#directory-picker-tree>.folder-tree-list::before {
     display: none;
 }
 
-#directory-picker-tree > .folder-tree-list > .folder-tree-node::before,
-#directory-picker-tree > .folder-tree-list > .folder-tree-node::after {
+#directory-picker-tree>.folder-tree-list>.folder-tree-node::before,
+#directory-picker-tree>.folder-tree-list>.folder-tree-node::after {
     display: none;
 }
 
