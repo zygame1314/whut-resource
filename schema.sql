@@ -114,6 +114,35 @@ CREATE TABLE password_reset_codes (
 CREATE INDEX IF NOT EXISTS idx_password_reset_codes_email ON password_reset_codes(email);
 
 
+DROP TABLE IF EXISTS pending_registrations;
+CREATE TABLE pending_registrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    nickname TEXT,
+    verify_code TEXT NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_pending_reg_code ON pending_registrations(verify_code);
+CREATE INDEX IF NOT EXISTS idx_pending_reg_student ON pending_registrations(student_id);
+CREATE INDEX IF NOT EXISTS idx_pending_reg_expires ON pending_registrations(expires_at);
+
+
+DROP TABLE IF EXISTS pending_resets;
+CREATE TABLE pending_resets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    new_password_hash TEXT NOT NULL,
+    verify_code TEXT NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_pending_reset_code ON pending_resets(verify_code);
+CREATE INDEX IF NOT EXISTS idx_pending_reset_email ON pending_resets(email);
+CREATE INDEX IF NOT EXISTS idx_pending_reset_expires ON pending_resets(expires_at);
+
+
 DROP TABLE IF EXISTS system_stats;
 CREATE TABLE IF NOT EXISTS system_stats (
     id INTEGER PRIMARY KEY CHECK (id = 1),

@@ -2469,3 +2469,201 @@ textarea.form-input {
     filter: brightness(1.1);
     transform: translateY(-1px);
 }
+
+
+.step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 1.5rem;
+}
+
+.step-indicator .step {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    background: var(--background-alt);
+    color: var(--text-secondary);
+    border: 2px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.step-indicator .step.done {
+    background: var(--success, #52c41a);
+    color: white;
+    border-color: var(--success, #52c41a);
+}
+
+.step-indicator .step.active {
+    background: var(--primary-gradient);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.2);
+}
+
+.step-indicator .step-line {
+    width: 40px;
+    height: 3px;
+    background: var(--border-color);
+}
+
+.verify-code-display {
+    text-align: center;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(102, 126, 234, 0.1));
+    border-radius: 16px;
+    margin-bottom: 1.5rem;
+    border: 1px dashed var(--primary-color);
+}
+
+.verify-code-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.verify-code {
+    font-size: 1.8rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: var(--primary-color);
+    letter-spacing: 2px;
+    user-select: all;
+}
+
+.verify-steps {
+    background: var(--background-alt);
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+.verify-steps h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.verify-steps h4 i {
+    color: var(--primary-color);
+}
+
+.verify-steps ol {
+    margin: 0;
+    padding-left: 1.5rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+.verify-steps ol li {
+    margin-bottom: 0.5rem;
+}
+
+.verify-steps ol li strong {
+    color: var(--primary-color);
+    background: rgba(var(--primary-rgb), 0.1);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.verify-steps ol li code {
+    background: var(--background);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
+}
+
+.verify-steps ol li .icon-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+    vertical-align: middle;
+    margin-left: 0.3rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.verify-steps ol li .icon-btn:hover {
+    color: var(--primary-color);
+    background: transparent;
+    transform: none;
+}
+
+.verify-status {
+    text-align: center;
+    padding: 1rem;
+    background: rgba(var(--primary-rgb), 0.05);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.verify-status i {
+    margin-right: 0.5rem;
+    color: var(--primary-color);
+}
+
+.verify-timer {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.verify-timer span {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-family: monospace;
+}
+
+.success-display {
+    text-align: center;
+    padding: 2rem;
+}
+
+.success-display i {
+    margin-bottom: 1rem;
+}
+
+.success-display h3 {
+    margin: 0.5rem 0;
+    color: var(--success, #52c41a);
+    font-size: 1.5rem;
+}
+
+.success-display p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+[data-theme="dark"] .verify-code-display {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(155, 89, 182, 0.15));
+    border-color: rgba(102, 126, 234, 0.4);
+}
+
+[data-theme="dark"] .verify-steps {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .verify-steps ol li code {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .verify-status {
+    background: rgba(102, 126, 234, 0.1);
+}

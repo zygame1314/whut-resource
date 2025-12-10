@@ -112,67 +112,186 @@ function showAuthModal(mode = 'login') {
     modal.className = 'auth-modal';
     const isLogin = mode === 'login';
     const title = isLogin ? '登录' : '注册';
-    modal.innerHTML = `
-        <div class="auth-box">
-            <button id="close-modal" class="close-modal-btn">
-                <i class="fas fa-times"></i>
-            </button>
-            <h2 class="auth-title">${title}</h2>
-            <form id="auth-form">
-                <div class="form-group">
-                    <label>${isLogin ? '邮箱' : '校园卡号'}</label>
-                    ${isLogin ? `
-                    <input type="email" id="auth-email" required class="form-control" placeholder="请输入学校邮箱">
-                    ` : `
-                    <div class="email-input-group">
-                        <input type="text" id="auth-email" required class="form-control" placeholder="6位卡号" maxlength="6" pattern="\\d{6}" inputmode="numeric">
-                        <span class="email-suffix">@whut.edu.cn</span>
+    if (isLogin) {
+        modal.innerHTML = `
+            <div class="auth-box">
+                <button id="close-modal" class="close-modal-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+                <h2 class="auth-title">${title}</h2>
+                <form id="auth-form">
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" id="auth-email" required class="form-control" placeholder="请输入学校邮箱">
                     </div>
-                    `}
-                </div>
-                ${!isLogin ? `
-                <div class="form-group">
-                    <label>昵称</label>
-                    <input type="text" id="auth-nickname" class="form-control" placeholder="请输入昵称">
-                </div>
-                <div class="form-group">
-                    <label>验证码</label>
-                    <div class="checkbox-group warning">
-                        <label>
-                            <div class="warning-title"><i class="fas fa-exclamation-triangle"></i> 警告</div>
-                            <div class="warning-check-row">
-                                <input type="checkbox" id="confirm-activation">
-                                <span>我已确认：我已经登录过 whut.edu.cn 邮箱系统并成功激活邮箱。</span>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码">
+                    </div>
+                    <button type="submit" class="primary-btn full-width">${title}</button>
+                </form>
+                <p class="auth-footer">
+                    没有账号? <a href="#" id="switch-mode">去注册</a> | <a href="#" id="forgot-password">忘记密码?</a>
+                </p>
+            </div>
+        `;
+    } else {
+        modal.innerHTML = `
+            <div class="auth-box">
+                <button id="close-modal" class="close-modal-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+                <h2 class="auth-title">${title}</h2>
+                <!-- 第一步：填写信息 -->
+                <div id="register-step-1">
+                    <form id="register-form-step1">
+                        <div class="form-group">
+                            <label>校园卡号</label>
+                            <div class="email-input-group">
+                                <input type="text" id="auth-email" required class="form-control" placeholder="6位卡号" maxlength="6" pattern="\\d{6}" inputmode="numeric">
+                                <span class="email-suffix">@whut.edu.cn</span>
                             </div>
-                            <div class="warning-text">
-                                如果不激活，验证码将发送失败。系统将<strong class="warning-highlight">永久封禁</strong>你的账号！
+                        </div>
+                        <div class="form-group">
+                            <label>昵称（可选）</label>
+                            <input type="text" id="auth-nickname" class="form-control" placeholder="请输入昵称" maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label>密码</label>
+                            <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码（至少6位）" minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group warning">
+                                <label>
+                                    <div class="warning-title"><i class="fas fa-info-circle"></i> 重要说明</div>
+                                    <div class="warning-check-row">
+                                        <input type="checkbox" id="confirm-activation" required>
+                                        <span>我已激活学校邮箱，并能使用该邮箱<strong>发送</strong>邮件。</span>
+                                    </div>
+                                </label>
                             </div>
-                        </label>
-                    </div>
-                    <div class="input-group">
-                        <input type="text" id="auth-code" placeholder="6位验证码" class="form-control">
-                        <button type="button" id="send-code-btn" class="send-code-btn" disabled title="请先勾选确认框">发送验证码</button>
-                    </div>
-                    <!-- Cloudflare Turnstile Widget -->
-                    <div id="turnstile-widget" style="margin-top: 10px;"></div>
+                            <!-- Cloudflare Turnstile Widget -->
+                            <div id="turnstile-widget" style="margin-top: 10px;"></div>
+                        </div>
+                        <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
+                    </form>
                 </div>
-                ` : ''}
-                <div class="form-group">
-                    <label>密码</label>
-                    <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码">
+                <!-- 第二步：发送验证邮件 -->
+                <div id="register-step-2" style="display: none;">
+                    <div class="verify-instructions">
+                        <div class="step-indicator">
+                            <span class="step done">1</span>
+                            <span class="step-line"></span>
+                            <span class="step active">2</span>
+                            <span class="step-line"></span>
+                            <span class="step">3</span>
+                        </div>
+                        <div class="verify-code-display">
+                            <div class="verify-code-label">你的验证码</div>
+                            <div class="verify-code" id="display-verify-code">Verify-XXXXXX</div>
+                            <button type="button" id="copy-code-btn" class="secondary-btn" style="margin-top: 10px;">
+                                <i class="fas fa-copy"></i> 复制验证码
+                            </button>
+                        </div>
+                        <div class="verify-steps">
+                            <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
+                            <ol>
+                                <li>打开你的学校邮箱 <strong id="display-user-email">xxxxxx@whut.edu.cn</strong></li>
+                                <li>新建一封邮件</li>
+                                <li>收件人填写：<strong id="display-bot-email">email-bot@haoli.site</strong>
+                                    <button type="button" id="copy-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button>
+                                </li>
+                                <li>邮件主题填写上方的验证码 <code>Verify-XXXXXX</code></li>
+                                <li>发送邮件，等待系统自动激活</li>
+                            </ol>
+                        </div>
+                        <div class="verify-status" id="verify-status">
+                            <i class="fas fa-spinner fa-spin"></i> 正在等待你发送验证邮件...
+                            <div class="verify-timer">剩余时间：<span id="verify-countdown">30:00</span></div>
+                        </div>
+                        <button type="button" id="back-to-step1" class="secondary-btn full-width" style="margin-top: 15px;">
+                            <i class="fas fa-arrow-left"></i> 返回修改信息
+                        </button>
+                    </div>
                 </div>
-                <button type="submit" class="primary-btn full-width">${title}</button>
-            </form>
-            <p class="auth-footer">
-                ${isLogin ? '没有账号? <a href="#" id="switch-mode">去注册</a> | <a href="#" id="forgot-password">忘记密码?</a>' : '已有账号? <a href="#" id="switch-mode">去登录</a>'}
-            </p>
-        </div>
-    `;
+                <!-- 第三步：激活成功 -->
+                <div id="register-step-3" style="display: none;">
+                    <div class="success-display">
+                        <i class="fas fa-check-circle" style="font-size: 64px; color: var(--success, #52c41a);"></i>
+                        <h3>注册成功！</h3>
+                        <p>你的账户已激活，现在可以登录了。</p>
+                        <button type="button" id="go-login-btn" class="primary-btn full-width">
+                            <i class="fas fa-sign-in-alt"></i> 去登录
+                        </button>
+                    </div>
+                </div>
+                <p class="auth-footer">
+                    已有账号? <a href="#" id="switch-mode">去登录</a>
+                </p>
+            </div>
+        `;
+    }
     document.body.appendChild(modal);
-    const form = modal.querySelector('#auth-form');
     const closeBtn = modal.querySelector('#close-modal');
     const switchLink = modal.querySelector('#switch-mode');
-    if (!isLogin) {
+    closeBtn.onclick = () => {
+        if (window.registerPollingTimer) {
+            clearInterval(window.registerPollingTimer);
+        }
+        modal.remove();
+    };
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            if (window.registerPollingTimer) {
+                clearInterval(window.registerPollingTimer);
+            }
+            modal.remove();
+        }
+    };
+    switchLink.onclick = (e) => {
+        e.preventDefault();
+        if (window.registerPollingTimer) {
+            clearInterval(window.registerPollingTimer);
+        }
+        modal.remove();
+        showAuthModal(isLogin ? 'register' : 'login');
+    };
+    if (isLogin) {
+        const form = modal.querySelector('#auth-form');
+        const forgotPasswordLink = modal.querySelector('#forgot-password');
+        if (forgotPasswordLink) {
+            forgotPasswordLink.onclick = (e) => {
+                e.preventDefault();
+                modal.remove();
+                showForgotPasswordModal();
+            };
+        }
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            try {
+                const res = await fetch(AUTH_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'login', email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    token = data.token;
+                    localStorage.setItem('authToken', token);
+                    currentUser = data.user;
+                    updateAuthUI();
+                    modal.remove();
+                    window.location.reload();
+                } else {
+                    showNotification(data.error, 'error');
+                }
+            } catch (err) {
+                showNotification('Error: ' + err.message, 'error');
+            }
+        };
+    } else {
         let turnstileWidgetId;
         if (window.turnstile) {
             turnstileWidgetId = turnstile.render('#turnstile-widget', {
@@ -182,24 +301,31 @@ function showAuthModal(mode = 'login') {
                 },
             });
         }
-        const sendCodeBtn = modal.querySelector('#send-code-btn');
-        const confirmActivationCheckbox = modal.querySelector('#confirm-activation');
-        if (confirmActivationCheckbox) {
-            confirmActivationCheckbox.addEventListener('change', () => {
-                if (sendCodeBtn.textContent.includes('s') && !sendCodeBtn.textContent.includes('发送')) {
-                    return;
-                }
-                sendCodeBtn.disabled = !confirmActivationCheckbox.checked;
-                sendCodeBtn.title = sendCodeBtn.disabled ? "请先勾选确认框" : "";
-            });
-        }
-        sendCodeBtn.onclick = async () => {
+        const step1Form = modal.querySelector('#register-form-step1');
+        const step1Div = modal.querySelector('#register-step-1');
+        const step2Div = modal.querySelector('#register-step-2');
+        const step3Div = modal.querySelector('#register-step-3');
+        const backBtn = modal.querySelector('#back-to-step1');
+        const goLoginBtn = modal.querySelector('#go-login-btn');
+        let currentStudentId = '';
+        step1Form.onsubmit = async (e) => {
+            e.preventDefault();
             const studentId = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const nickname = document.getElementById('auth-nickname').value.trim();
+            const confirmCheckbox = document.getElementById('confirm-activation');
             if (!studentId || !/^\d{6}$/.test(studentId)) {
                 showNotification('请输入6位校园卡号', 'error');
                 return;
             }
-            const email = studentId + '@whut.edu.cn';
+            if (!password || password.length < 6) {
+                showNotification('密码至少需要6个字符', 'error');
+                return;
+            }
+            if (!confirmCheckbox.checked) {
+                showNotification('请先确认你已激活学校邮箱', 'error');
+                return;
+            }
             const invalidIds = ['123456', '654321', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '114514'];
             if (invalidIds.includes(studentId)) {
                 showNotification('同学，这个卡号要是真的是你的，我当场把服务器吃了。请填写真实卡号！', 'error');
@@ -213,100 +339,102 @@ function showAuthModal(mode = 'login') {
                     return;
                 }
             }
-            const confirmed = await showConfirmation({
-                title: '⚠️ 最后确认',
-                message: `请仔细核对你的邮箱地址：<br><br><strong style="font-size: 1.2em; color: var(--primary-color);">${email}</strong><br><br>这是你<strong class="warning-highlight">最后的机会</strong>确认邮箱是否正确且已激活！<br><br>如果未激活导致发送失败，此邮箱将被<strong class="warning-highlight">永久封禁</strong>，无法再次注册！`,
-                confirmText: '确认无误',
-                cancelText: '我要修改'
-            });
-            if (!confirmed) return;
-            sendCodeBtn.disabled = true;
-            sendCodeBtn.textContent = '发送中...';
+            const getCodeBtn = modal.querySelector('#get-code-btn');
+            getCodeBtn.disabled = true;
+            getCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
             try {
                 const res = await fetch(AUTH_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'send-code', email, cfToken })
+                    body: JSON.stringify({
+                        action: 'prepare-register',
+                        studentId,
+                        password,
+                        nickname,
+                        cfToken
+                    })
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showNotification('验证码已发送，请查收邮件', 'success');
-                    let countdown = 60;
-                    const timer = setInterval(() => {
-                        sendCodeBtn.textContent = `${countdown}s`;
-                        countdown--;
-                        if (countdown < 0) {
-                            clearInterval(timer);
-                            sendCodeBtn.disabled = confirmActivationCheckbox ? !confirmActivationCheckbox.checked : false;
-                            sendCodeBtn.textContent = '发送验证码';
-                            if (sendCodeBtn.disabled) sendCodeBtn.title = "请先勾选确认框";
+                    currentStudentId = studentId;
+                    step1Div.style.display = 'none';
+                    step2Div.style.display = 'block';
+                    modal.querySelector('#display-verify-code').textContent = data.verifyCode;
+                    modal.querySelector('#display-user-email').textContent = `${studentId}@whut.edu.cn`;
+                    modal.querySelector('#display-bot-email').textContent = data.botEmail;
+                    modal.querySelector('.verify-steps ol li:nth-child(4) code').textContent = data.verifyCode;
+                    modal.querySelector('#copy-code-btn').onclick = () => {
+                        navigator.clipboard.writeText(data.verifyCode);
+                        showNotification('验证码已复制', 'success');
+                    };
+                    modal.querySelector('#copy-bot-btn').onclick = () => {
+                        navigator.clipboard.writeText(data.botEmail);
+                        showNotification('收信地址已复制', 'success');
+                    };
+                    let remainingSeconds = data.expiresIn * 60;
+                    const countdownEl = modal.querySelector('#verify-countdown');
+                    const countdownTimer = setInterval(() => {
+                        remainingSeconds--;
+                        const mins = Math.floor(remainingSeconds / 60);
+                        const secs = remainingSeconds % 60;
+                        countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                        if (remainingSeconds <= 0) {
+                            clearInterval(countdownTimer);
+                            modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
                         }
                     }, 1000);
+                    window.registerPollingTimer = setInterval(async () => {
+                        try {
+                            const statusRes = await fetch(AUTH_API_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'check-register-status', studentId: currentStudentId })
+                            });
+                            const statusData = await statusRes.json();
+                            if (statusData.success && statusData.activated) {
+                                clearInterval(window.registerPollingTimer);
+                                clearInterval(countdownTimer);
+                                step2Div.style.display = 'none';
+                                step3Div.style.display = 'block';
+                                showNotification('账户激活成功！', 'success');
+                            } else if (statusData.expired) {
+                                clearInterval(window.registerPollingTimer);
+                                clearInterval(countdownTimer);
+                                modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
+                            }
+                        } catch (err) {
+                            console.error('轮询状态失败:', err);
+                        }
+                    }, 3000);
                 } else {
                     showNotification(data.error, 'error');
-                    sendCodeBtn.disabled = confirmActivationCheckbox ? !confirmActivationCheckbox.checked : false;
-                    sendCodeBtn.textContent = '发送验证码';
-                    if (sendCodeBtn.disabled) sendCodeBtn.title = "请先勾选确认框";
+                    getCodeBtn.disabled = false;
+                    getCodeBtn.innerHTML = '获取验证码';
                 }
-            } catch (e) {
-                showNotification('发送失败: ' + e.message, 'error');
-                sendCodeBtn.disabled = confirmActivationCheckbox ? !confirmActivationCheckbox.checked : false;
-                sendCodeBtn.textContent = '发送验证码';
-                if (sendCodeBtn.disabled) sendCodeBtn.title = "请先勾选确认框";
+            } catch (err) {
+                showNotification('请求失败: ' + err.message, 'error');
+                getCodeBtn.disabled = false;
+                getCodeBtn.innerHTML = '获取验证码';
             }
         };
-    }
-    closeBtn.onclick = () => modal.remove();
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-    switchLink.onclick = (e) => {
-        e.preventDefault();
-        modal.remove();
-        showAuthModal(isLogin ? 'register' : 'login');
-    };
-    if (isLogin) {
-        const forgotPasswordLink = modal.querySelector('#forgot-password');
-        if (forgotPasswordLink) {
-            forgotPasswordLink.onclick = (e) => {
-                e.preventDefault();
-                modal.remove();
-                showForgotPasswordModal();
-            };
-        }
-    }
-    form.onsubmit = async (e) => {
-        e.preventDefault();
-        const emailInput = document.getElementById('auth-email').value.trim();
-        const email = isLogin ? emailInput : (emailInput + '@whut.edu.cn');
-        const password = document.getElementById('auth-password').value;
-        const code = !isLogin ? document.getElementById('auth-code').value : undefined;
-        const nickname = !isLogin ? document.getElementById('auth-nickname').value : undefined;
-        try {
-            const res = await fetch(AUTH_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: mode, email, password, code, nickname })
-            });
-            const data = await res.json();
-            if (data.success) {
-                if (isLogin) {
-                    token = data.token;
-                    localStorage.setItem('authToken', token);
-                    currentUser = data.user;
-                    updateAuthUI();
-                    modal.remove();
-                    window.location.reload();
-                } else {
-                    showNotification(data.message, 'success');
-                    modal.remove();
-                    showAuthModal('login');
-                }
-            } else {
-                showNotification(data.error, 'error');
+        backBtn.onclick = () => {
+            if (window.registerPollingTimer) {
+                clearInterval(window.registerPollingTimer);
             }
-        } catch (err) {
-            showNotification('Error: ' + err.message, 'error');
-        }
-    };
+            step2Div.style.display = 'none';
+            step1Div.style.display = 'block';
+            const getCodeBtn = modal.querySelector('#get-code-btn');
+            getCodeBtn.disabled = false;
+            getCodeBtn.innerHTML = '获取验证码';
+            if (window.turnstile && turnstileWidgetId) {
+                turnstile.reset(turnstileWidgetId);
+            }
+        };
+        goLoginBtn.onclick = () => {
+            modal.remove();
+            showAuthModal('login');
+        };
+    }
 }
 function formatSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -462,26 +590,73 @@ function showForgotPasswordModal() {
                 <i class="fas fa-times"></i>
             </button>
             <h2 class="auth-title">找回密码</h2>
-            <form id="forgot-pwd-form">
-                <div class="form-group">
-                    <label>邮箱 (@whut.edu.cn)</label>
-                    <input type="email" id="reset-email" required class="form-control" placeholder="请输入注册时使用的邮箱">
-                </div>
-                <div class="form-group">
-                    <label>验证码</label>
-                    <div class="input-group">
-                        <input type="text" id="reset-code" placeholder="6位验证码" class="form-control">
-                        <button type="button" id="send-reset-code-btn" class="send-code-btn">发送验证码</button>
+            <!-- 第一步：填写信息 -->
+            <div id="reset-step-1">
+                <form id="reset-form-step1">
+                    <div class="form-group">
+                        <label>邮箱 (@whut.edu.cn)</label>
+                        <input type="email" id="reset-email" required class="form-control" placeholder="请输入注册时使用的邮箱">
                     </div>
-                    <!-- Cloudflare Turnstile Widget -->
-                    <div id="turnstile-reset-widget" style="margin-top: 10px;"></div>
+                    <div class="form-group">
+                        <label>新密码</label>
+                        <input type="password" id="reset-new-password" required class="form-control" placeholder="请输入新密码（至少6位）" minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <!-- Cloudflare Turnstile Widget -->
+                        <div id="turnstile-reset-widget"></div>
+                    </div>
+                    <button type="submit" id="get-reset-code-btn" class="primary-btn full-width">获取验证码</button>
+                </form>
+            </div>
+            <!-- 第二步：发送验证邮件 -->
+            <div id="reset-step-2" style="display: none;">
+                <div class="verify-instructions">
+                    <div class="step-indicator">
+                        <span class="step done">1</span>
+                        <span class="step-line"></span>
+                        <span class="step active">2</span>
+                        <span class="step-line"></span>
+                        <span class="step">3</span>
+                    </div>
+                    <div class="verify-code-display">
+                        <div class="verify-code-label">你的验证码</div>
+                        <div class="verify-code" id="display-reset-code">Reset-XXXXXX</div>
+                        <button type="button" id="copy-reset-code-btn" class="secondary-btn" style="margin-top: 10px;">
+                            <i class="fas fa-copy"></i> 复制验证码
+                        </button>
+                    </div>
+                    <div class="verify-steps">
+                        <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
+                        <ol>
+                            <li>打开你的学校邮箱 <strong id="display-reset-user-email">xxx@whut.edu.cn</strong></li>
+                            <li>新建一封邮件</li>
+                            <li>收件人填写：<strong id="display-reset-bot-email">email-bot@haoli.site</strong>
+                                <button type="button" id="copy-reset-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button>
+                            </li>
+                            <li>邮件主题填写上方的验证码 <code>Reset-XXXXXX</code></li>
+                            <li>发送邮件，等待系统自动重置密码</li>
+                        </ol>
+                    </div>
+                    <div class="verify-status" id="reset-verify-status">
+                        <i class="fas fa-spinner fa-spin"></i> 正在等待你发送验证邮件...
+                        <div class="verify-timer">剩余时间：<span id="reset-countdown">30:00</span></div>
+                    </div>
+                    <button type="button" id="back-to-reset-step1" class="secondary-btn full-width" style="margin-top: 15px;">
+                        <i class="fas fa-arrow-left"></i> 返回修改信息
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label>新密码</label>
-                    <input type="password" id="reset-new-password" required class="form-control" placeholder="请输入新密码（至少6位）">
+            </div>
+            <!-- 第三步：重置成功 -->
+            <div id="reset-step-3" style="display: none;">
+                <div class="success-display">
+                    <i class="fas fa-check-circle" style="font-size: 64px; color: var(--success, #52c41a);"></i>
+                    <h3>密码重置成功！</h3>
+                    <p>你的密码已更新，现在可以使用新密码登录了。</p>
+                    <button type="button" id="go-login-after-reset-btn" class="primary-btn full-width">
+                        <i class="fas fa-sign-in-alt"></i> 去登录
+                    </button>
                 </div>
-                <button type="submit" class="primary-btn full-width">重置密码</button>
-            </form>
+            </div>
             <p class="auth-footer">
                 <a href="#" id="back-to-login">返回登录</a>
             </p>
@@ -489,11 +664,26 @@ function showForgotPasswordModal() {
     `;
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
-    closeBtn.onclick = () => modal.remove();
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     const backToLoginLink = modal.querySelector('#back-to-login');
+    closeBtn.onclick = () => {
+        if (window.resetPollingTimer) {
+            clearInterval(window.resetPollingTimer);
+        }
+        modal.remove();
+    };
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            if (window.resetPollingTimer) {
+                clearInterval(window.resetPollingTimer);
+            }
+            modal.remove();
+        }
+    };
     backToLoginLink.onclick = (e) => {
         e.preventDefault();
+        if (window.resetPollingTimer) {
+            clearInterval(window.resetPollingTimer);
+        }
         modal.remove();
         showAuthModal('login');
     };
@@ -506,12 +696,24 @@ function showForgotPasswordModal() {
             },
         });
     }
-    const sendCodeBtn = modal.querySelector('#send-reset-code-btn');
-    sendCodeBtn.onclick = async () => {
-        const email = document.getElementById('reset-email').value;
+    const step1Form = modal.querySelector('#reset-form-step1');
+    const step1Div = modal.querySelector('#reset-step-1');
+    const step2Div = modal.querySelector('#reset-step-2');
+    const step3Div = modal.querySelector('#reset-step-3');
+    const backBtn = modal.querySelector('#back-to-reset-step1');
+    const goLoginBtn = modal.querySelector('#go-login-after-reset-btn');
+    let currentEmail = '';
+    step1Form.onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('reset-email').value.trim();
+        const newPassword = document.getElementById('reset-new-password').value;
         const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
         if (!email || !emailRegex.test(email)) {
             showNotification('请输入有效的学校邮箱地址', 'error');
+            return;
+        }
+        if (!newPassword || newPassword.length < 6) {
+            showNotification('新密码至少需要6个字符', 'error');
             return;
         }
         let cfToken = '';
@@ -522,65 +724,95 @@ function showForgotPasswordModal() {
                 return;
             }
         }
-        sendCodeBtn.disabled = true;
-        sendCodeBtn.textContent = '发送中...';
+        const getCodeBtn = modal.querySelector('#get-reset-code-btn');
+        getCodeBtn.disabled = true;
+        getCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
         try {
             const res = await fetch(AUTH_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'send-reset-code', email, cfToken })
+                body: JSON.stringify({
+                    action: 'prepare-reset',
+                    email,
+                    newPassword,
+                    cfToken
+                })
             });
             const data = await res.json();
             if (data.success) {
-                showNotification('验证码已发送，请查收邮件', 'success');
-                let countdown = 60;
-                const timer = setInterval(() => {
-                    sendCodeBtn.textContent = `${countdown}s`;
-                    countdown--;
-                    if (countdown < 0) {
-                        clearInterval(timer);
-                        sendCodeBtn.disabled = false;
-                        sendCodeBtn.textContent = '发送验证码';
+                currentEmail = email;
+                step1Div.style.display = 'none';
+                step2Div.style.display = 'block';
+                modal.querySelector('#display-reset-code').textContent = data.verifyCode;
+                modal.querySelector('#display-reset-user-email').textContent = email;
+                modal.querySelector('#display-reset-bot-email').textContent = data.botEmail;
+                modal.querySelector('.verify-steps ol li:nth-child(4) code').textContent = data.verifyCode;
+                modal.querySelector('#copy-reset-code-btn').onclick = () => {
+                    navigator.clipboard.writeText(data.verifyCode);
+                    showNotification('验证码已复制', 'success');
+                };
+                modal.querySelector('#copy-reset-bot-btn').onclick = () => {
+                    navigator.clipboard.writeText(data.botEmail);
+                    showNotification('收信地址已复制', 'success');
+                };
+                let remainingSeconds = data.expiresIn * 60;
+                const countdownEl = modal.querySelector('#reset-countdown');
+                const countdownTimer = setInterval(() => {
+                    remainingSeconds--;
+                    const mins = Math.floor(remainingSeconds / 60);
+                    const secs = remainingSeconds % 60;
+                    countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                    if (remainingSeconds <= 0) {
+                        clearInterval(countdownTimer);
+                        modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
                     }
                 }, 1000);
+                window.resetPollingTimer = setInterval(async () => {
+                    try {
+                        const statusRes = await fetch(AUTH_API_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'check-reset-status', email: currentEmail })
+                        });
+                        const statusData = await statusRes.json();
+                        if (statusData.success && statusData.completed && !statusData.pending) {
+                            clearInterval(window.resetPollingTimer);
+                            clearInterval(countdownTimer);
+                            step2Div.style.display = 'none';
+                            step3Div.style.display = 'block';
+                            showNotification('密码重置成功！', 'success');
+                        }
+                    } catch (err) {
+                        console.error('轮询状态失败:', err);
+                    }
+                }, 3000);
             } else {
                 showNotification(data.error, 'error');
-                sendCodeBtn.disabled = false;
-                sendCodeBtn.textContent = '发送验证码';
-            }
-        } catch (e) {
-            showNotification('发送失败: ' + e.message, 'error');
-            sendCodeBtn.disabled = false;
-            sendCodeBtn.textContent = '发送验证码';
-        }
-    };
-    const form = modal.querySelector('#forgot-pwd-form');
-    form.onsubmit = async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('reset-email').value;
-        const code = document.getElementById('reset-code').value;
-        const newPassword = document.getElementById('reset-new-password').value;
-        if (newPassword.length < 6) {
-            showNotification('新密码至少需要6个字符', 'error');
-            return;
-        }
-        try {
-            const res = await fetch(AUTH_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'reset-password', email, code, password: newPassword })
-            });
-            const data = await res.json();
-            if (data.success) {
-                showNotification(data.message, 'success');
-                modal.remove();
-                showAuthModal('login');
-            } else {
-                showNotification(data.error, 'error');
+                getCodeBtn.disabled = false;
+                getCodeBtn.innerHTML = '获取验证码';
             }
         } catch (err) {
-            showNotification('重置失败: ' + err.message, 'error');
+            showNotification('请求失败: ' + err.message, 'error');
+            getCodeBtn.disabled = false;
+            getCodeBtn.innerHTML = '获取验证码';
         }
+    };
+    backBtn.onclick = () => {
+        if (window.resetPollingTimer) {
+            clearInterval(window.resetPollingTimer);
+        }
+        step2Div.style.display = 'none';
+        step1Div.style.display = 'block';
+        const getCodeBtn = modal.querySelector('#get-reset-code-btn');
+        getCodeBtn.disabled = false;
+        getCodeBtn.innerHTML = '获取验证码';
+        if (window.turnstile && turnstileWidgetId) {
+            turnstile.reset(turnstileWidgetId);
+        }
+    };
+    goLoginBtn.onclick = () => {
+        modal.remove();
+        showAuthModal('login');
     };
 }
 function showChangePasswordModal() {
