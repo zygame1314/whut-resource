@@ -198,8 +198,7 @@ function showAuthModal(mode = 'login') {
                             <ol>
                                 <li>打开你的学校邮箱 <strong id="display-user-email">xxxxxx@whut.edu.cn</strong></li>
                                 <li>新建一封邮件</li>
-                                <li>收件人填写：<strong id="display-bot-email">email-bot@haoli.site</strong>
-                                    <button type="button" id="copy-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button>
+                                <li>收件人填写：<span class="copy-target"><strong id="display-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span>
                                 </li>
                                 <li>邮件主题填写上方的验证码 <code>Verify-XXXXXX</code></li>
                                 <li>发送邮件，等待系统自动激活</li>
@@ -217,7 +216,7 @@ function showAuthModal(mode = 'login') {
                 <!-- 第三步：激活成功 -->
                 <div id="register-step-3" style="display: none;">
                     <div class="success-display">
-                        <i class="fas fa-check-circle" style="font-size: 64px; color: var(--success, #52c41a);"></i>
+                        <i class="fas fa-check-circle"></i>
                         <h3>注册成功！</h3>
                         <p>你的账户已激活，现在可以登录了。</p>
                         <button type="button" id="go-login-btn" class="primary-btn full-width">
@@ -630,8 +629,7 @@ function showForgotPasswordModal() {
                         <ol>
                             <li>打开你的学校邮箱 <strong id="display-reset-user-email">xxx@whut.edu.cn</strong></li>
                             <li>新建一封邮件</li>
-                            <li>收件人填写：<strong id="display-reset-bot-email">email-bot@haoli.site</strong>
-                                <button type="button" id="copy-reset-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button>
+                            <li>收件人填写：<span class="copy-target"><strong id="display-reset-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-reset-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span>
                             </li>
                             <li>邮件主题填写上方的验证码 <code>Reset-XXXXXX</code></li>
                             <li>发送邮件，等待系统自动重置密码</li>
@@ -649,7 +647,7 @@ function showForgotPasswordModal() {
             <!-- 第三步：重置成功 -->
             <div id="reset-step-3" style="display: none;">
                 <div class="success-display">
-                    <i class="fas fa-check-circle" style="font-size: 64px; color: var(--success, #52c41a);"></i>
+                    <i class="fas fa-check-circle"></i>
                     <h3>密码重置成功！</h3>
                     <p>你的密码已更新，现在可以使用新密码登录了。</p>
                     <button type="button" id="go-login-after-reset-btn" class="primary-btn full-width">

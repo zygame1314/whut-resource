@@ -92,27 +92,6 @@ CREATE INDEX IF NOT EXISTS idx_files_listing_optimized ON files(parent_path, is_
 CREATE INDEX IF NOT EXISTS idx_files_dir_key ON files(is_directory, key);
 CREATE INDEX IF NOT EXISTS idx_files_stats ON files(is_directory, parent_path, downloads);
 
-DROP TABLE IF EXISTS verification_codes;
-CREATE TABLE verification_codes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL,
-    code TEXT NOT NULL,
-    expires_at DATETIME NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_verification_codes_email ON verification_codes(email);
-
-
-DROP TABLE IF EXISTS password_reset_codes;
-CREATE TABLE password_reset_codes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL,
-    code TEXT NOT NULL,
-    expires_at DATETIME NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_password_reset_codes_email ON password_reset_codes(email);
-
 
 DROP TABLE IF EXISTS pending_registrations;
 CREATE TABLE pending_registrations (

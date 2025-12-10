@@ -1,5 +1,4 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders } from '../utils.js';
-import { sendEmail } from '../smtp.js';
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
@@ -172,48 +171,6 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({ success: true, completed: false, pending: true }), { status: 200, headers: addCorsHeaders() });
       }
       return new Response(JSON.stringify({ success: true, completed: true, message: '密码重置完成或请求已过期。' }), { status: 200, headers: addCorsHeaders() });
-    }
-    if (action === 'register') {
-      const studentIdEmailRegex = /^\d{6}@whut\.edu\.cn$/;
-      if (!email || !studentIdEmailRegex.test(email)) {
-        return new Response(JSON.stringify({ success: false, error: '为防止重复注册，请使用6位校园卡号邮箱（如 123456@whut.edu.cn）。' }), { status: 400, headers: addCorsHeaders() });
-      }
-      const studentId = email.split('@')[0];
-      const invalidIds = ['123456', '654321', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '114514'];
-      if (invalidIds.includes(studentId)) {
-        return new Response(JSON.stringify({ success: false, error: '同学，这个卡号要是真的是你的，我当场把服务器吃了。请填写真实卡号！' }), { status: 400, headers: addCorsHeaders() });
-      }
-      if (!password || password.length < 6) {
-        return new Response(JSON.stringify({ success: false, error: '密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });
-      }
-      const { code, nickname } = body;
-      if (!code) {
-        return new Response(JSON.stringify({ success: false, error: '需要验证码。' }), { status: 400, headers: addCorsHeaders() });
-      }
-      let sanitizedNickname = nickname ? nickname.trim() : email.split('@')[0];
-      if (sanitizedNickname.length > 20) {
-        return new Response(JSON.stringify({ success: false, error: '昵称过长（最多20字符）。' }), { status: 400, headers: addCorsHeaders() });
-      }
-      if (sanitizedNickname.length === 0) {
-        sanitizedNickname = email.split('@')[0];
-      }
-      const validCode = await env.DB.prepare('SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1')
-        .bind(email, code, new Date().toISOString())
-        .first();
-      if (!validCode) {
-        return new Response(JSON.stringify({ success: false, error: '验证码无效或已过期。' }), { status: 400, headers: addCorsHeaders() });
-      }
-      const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
-      if (existing) {
-        return new Response(JSON.stringify({ success: false, error: '用户已存在。' }), { status: 400, headers: addCorsHeaders() });
-      }
-      const passwordHash = await hashPassword(password, env.SALT);
-      const role = 'user';
-      await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role) VALUES (?, ?, ?, ?)')
-        .bind(email, sanitizedNickname, passwordHash, role)
-        .run();
-      await env.DB.prepare('DELETE FROM verification_codes WHERE email = ?').bind(email).run();
-      return new Response(JSON.stringify({ success: true, message: '注册成功。请登录。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'change-nickname') {
       const { newNickname } = body;

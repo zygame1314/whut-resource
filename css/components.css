@@ -2566,6 +2566,7 @@ textarea.form-input {
 
 .verify-steps ol li {
     margin-bottom: 0.5rem;
+    line-height: 2;
 }
 
 .verify-steps ol li strong {
@@ -2574,6 +2575,19 @@ textarea.form-input {
     padding: 0.15rem 0.4rem;
     border-radius: 4px;
     font-family: monospace;
+    white-space: nowrap;
+}
+
+.verify-steps ol li strong+.icon-btn {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.verify-steps ol li .copy-target {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
 }
 
 .verify-steps ol li code {
@@ -2583,6 +2597,8 @@ textarea.form-input {
     font-size: 0.9em;
     color: var(--primary-color);
     border: 1px solid var(--border-color);
+    white-space: nowrap;
+    display: inline-block;
 }
 
 .verify-steps ol li .icon-btn {
@@ -2634,10 +2650,16 @@ textarea.form-input {
 .success-display {
     text-align: center;
     padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-.success-display i {
+.success-display>i {
+    display: block;
     margin-bottom: 1rem;
+    font-size: 64px;
+    color: var(--success, #52c41a);
 }
 
 .success-display h3 {
