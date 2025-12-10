@@ -196,7 +196,7 @@ function showAuthModal(mode = 'login') {
                         <div class="verify-steps">
                             <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
                             <ol>
-                                <li>打开你的学校邮箱 <strong id="display-user-email">xxxxxx@whut.edu.cn</strong></li>
+                                <li>打开你的学校邮箱 <strong id="display-user-email">xxxxxx@whut.edu.cn</strong><br><small style="color: var(--warning, #e67e22);">⚠️ 如果你使用的是姓名别名邮箱，请在发件人处切换为6位学号邮箱</small></li>
                                 <li>新建一封邮件</li>
                                 <li>收件人填写：<span class="copy-target"><strong id="display-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span>
                                 </li>
@@ -409,11 +409,17 @@ function showAuthModal(mode = 'login') {
                     showNotification(data.error, 'error');
                     getCodeBtn.disabled = false;
                     getCodeBtn.innerHTML = '获取验证码';
+                    if (window.turnstile && turnstileWidgetId) {
+                        turnstile.reset(turnstileWidgetId);
+                    }
                 }
             } catch (err) {
                 showNotification('请求失败: ' + err.message, 'error');
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
+                if (window.turnstile && turnstileWidgetId) {
+                    turnstile.reset(turnstileWidgetId);
+                }
             }
         };
         backBtn.onclick = () => {
@@ -627,7 +633,7 @@ function showForgotPasswordModal() {
                     <div class="verify-steps">
                         <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
                         <ol>
-                            <li>打开你的学校邮箱 <strong id="display-reset-user-email">xxx@whut.edu.cn</strong></li>
+                            <li>打开你的学校邮箱 <strong id="display-reset-user-email">xxx@whut.edu.cn</strong><br><small style="color: var(--warning, #e67e22);">⚠️ 请确保使用注册时的邮箱发送，如有别名请切换</small></li>
                             <li>新建一封邮件</li>
                             <li>收件人填写：<span class="copy-target"><strong id="display-reset-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-reset-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span>
                             </li>
@@ -788,11 +794,17 @@ function showForgotPasswordModal() {
                 showNotification(data.error, 'error');
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
+                if (window.turnstile && turnstileWidgetId) {
+                    turnstile.reset(turnstileWidgetId);
+                }
             }
         } catch (err) {
             showNotification('请求失败: ' + err.message, 'error');
             getCodeBtn.disabled = false;
             getCodeBtn.innerHTML = '获取验证码';
+            if (window.turnstile && turnstileWidgetId) {
+                turnstile.reset(turnstileWidgetId);
+            }
         }
     };
     backBtn.onclick = () => {
