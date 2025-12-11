@@ -233,7 +233,12 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         提交时间：${guestbookEntry.created_at}`;
     const toolsToUse = autoMode ? AUTO_MODE_TOOLS : TOOLS;
     const systemPromptToUse = autoMode
-        ? SYSTEM_PROMPT + `\n\n【自动审核模式】当前为自动审核模式，你只需要检查内容是否合规。对于违规内容，使用相应的处理工具（驳回/隐藏/删除/封禁）。对于合规的正常请求（如求资源），直接使用 keep_pending 工具保持待处理状态，等待管理员人工处理。不要尝试搜索资源。`
+        ? SYSTEM_PROMPT + `\n\n【自动审核模式】当前为自动审核模式，你只需要检查内容是否合规，不要尝试搜索资源。
+            处理规则：
+            1. 违规内容 -> 使用相应工具（驳回/隐藏/删除/封禁）
+            2. 模糊/不完整请求 -> 仍需驳回（如：仅课程名无类型、表述不清、含无关内容）
+            3. 表述清晰完整的资源请求（含具体课程名+资源类型）-> keep_pending 等待人工处理
+            注意：主提示词中的规则在自动模式下同样适用！`
         : SYSTEM_PROMPT;
     const response = await fetch(GROQ_API_URL, {
         method: 'POST',
