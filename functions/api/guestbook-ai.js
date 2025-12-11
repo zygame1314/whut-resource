@@ -1,6 +1,15 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
-const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const MODEL_NAME = 'THUDM/GLM-Z1-9B-0414';
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const TOOL_USE_MODELS = [
+    'moonshotai/kimi-k2-instruct-0905',
+    'openai/gpt-oss-20b',
+    'openai/gpt-oss-120b',
+    'qwen/qwen3-32b',
+    'meta-llama/llama-4-scout-17b-16e-instruct',
+];
+function getRandomModel() {
+    return TOOL_USE_MODELS[Math.floor(Math.random() * TOOL_USE_MODELS.length)];
+}
 const TOOLS = [
     {
         type: 'function',
@@ -167,18 +176,15 @@ const SYSTEM_PROMPT = `你是一个大学资源分享网站（武汉理工大学
 四、关键优化：搜索关键词提取（Search Query Optimization）
     在调用 search_resources 时，必须极度精简关键词。向量搜索对长难句效果极差。
     规则：只提取【课程核心名称】或【特定文件名】。去除所有修饰词、需求词。
-
     正确示范：
     - 用户：“求遗传学往年真题或其它复习资料” -> 搜索：“遗传学” （只搜课程名，向量会自动匹配真题/资料）
     - 用户：“有没有那个高级语言程序设计的期末试卷” -> 搜索：“高级语言程序设计”
     - 用户：“求李航的统计学习方法pdf” -> 搜索：“统计学习方法”
     - 用户：“找一下微积分下册的课件” -> 搜索：“微积分下册”
-
     错误示范（严禁出现）：
     - 搜索：“求遗传学往年真题” (带了“求”、“真题”，干扰匹配)
     - 搜索：“复习资料” (太宽泛)
     - 搜索：“遗传学或其它复习资料” (包含连接词)
-
 五、处理级别（按严重程度降序）
     1. 级别0：封禁用户（最高级防御）
         条件：
@@ -266,9 +272,9 @@ async function getUser(request, env) {
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }
 export async function processWithAIAgent(guestbookEntry, env, autoMode) {
-    const SILICONFLOW_API_KEY = env.SILICONFLOW_API_KEY;
-    if (!SILICONFLOW_API_KEY) {
-        throw new Error('未配置 SILICONFLOW_API_KEY');
+    const GROQ_API_KEY = env.GROQ_API_KEY;
+    if (!GROQ_API_KEY) {
+        throw new Error('未配置 GROQ_API_KEY');
     }
     const roleTag = guestbookEntry.role === 'admin' ? '【管理员】' : '【普通用户】';
     const userMessage = `用户身份：${roleTag}
@@ -279,14 +285,14 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
     const systemPromptToUse = autoMode
         ? SYSTEM_PROMPT + `\n\n【自动审核模式】当前为自动审核模式，你只需要检查内容是否合规。对于违规内容，使用相应的处理工具（驳回/隐藏/删除/封禁）。对于合规的正常请求（如求资源），直接使用 keep_pending 工具保持待处理状态，等待管理员人工处理。不要尝试搜索资源。`
         : SYSTEM_PROMPT;
-    const response = await fetch(SILICONFLOW_API_URL, {
+    const response = await fetch(GROQ_API_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SILICONFLOW_API_KEY}`
+            'Authorization': `Bearer ${GROQ_API_KEY}`
         },
         body: JSON.stringify({
-            model: MODEL_NAME,
+            model: getRandomModel(),
             messages: [
                 { role: 'system', content: systemPromptToUse },
                 { role: 'user', content: userMessage }
@@ -299,7 +305,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
     });
     if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`硅基流动 API 调用失败: ${response.status} - ${errorText}`);
+        throw new Error(`Groq API 调用失败: ${response.status} - ${errorText}`);
     }
     const aiResponse = await response.json();
     const message = aiResponse.choices?.[0]?.message;
@@ -322,7 +328,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
                 guestbookEntry,
                 toolResult.searchResults,
                 env,
-                SILICONFLOW_API_KEY,
+                GROQ_API_KEY,
                 autoMode
             );
         }
@@ -582,25 +588,23 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
     const secondPrompt = `根据用户的留言请求，我已经搜索到了以下相关资源：
         ${resourceList}
         用户原始留言：${guestbookEntry.content}
-        
         请进行智能匹配判断：
         1. 【核心学科必须一致】：必须确保资源的"核心学科/课程名"与用户请求一致。如果学科完全不沾边（如求"遗传学"搜出"计算机"），必须拒绝。
         2. 【宽容的后缀/变体匹配】：
            - 只要学科对上了，即使文件名后缀、扩展名不同（如用户求pdf实际是doc）也算匹配。
            - 忽略细微的后缀字母或版本差异（如"A卷"/"B卷"、"版本1"/"版本2"），这些通常也是用户有用的参考资料。
            - 只要资源属于同一个课程/主题，就应视为"已找到"并提供给用户。
-
         请决策：
         - 匹配成功（Resource Found）：使用 mark_resolved，并告知用户找到了相关资源（列出名称）。
         - 匹配失败（Mismatch）：使用 keep_pending，说明搜索结果与请求学科不符。`;
-    const response = await fetch(SILICONFLOW_API_URL, {
+    const response = await fetch(GROQ_API_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-            model: MODEL_NAME,
+            model: getRandomModel(),
             messages: [
                 { role: 'system', content: SYSTEM_PROMPT },
                 { role: 'user', content: secondPrompt }
