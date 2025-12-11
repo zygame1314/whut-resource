@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const MODEL_NAME = 'Qwen/Qwen3-8B';
+const MODEL_NAME = 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B';
 const TOOLS = [
     {
         type: 'function',
@@ -294,8 +294,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
             tools: toolsToUse,
             tool_choice: 'auto',
             temperature: 0.7,
-            max_tokens: 1024,
-            enable_thinking: false
+            max_tokens: 1024
         })
     });
     if (!response.ok) {
@@ -609,8 +608,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
             tools: TOOLS,
             tool_choice: 'auto',
             temperature: 0.7,
-            max_tokens: 1024,
-            enable_thinking: false
+            max_tokens: 1024
         })
     });
     if (!response.ok) {
