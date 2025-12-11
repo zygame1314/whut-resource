@@ -35,7 +35,7 @@ const refreshRecentUploadsBtn = document.getElementById('refresh-recent-uploads'
 async function fetchAndRenderHotFolders() {
     const token = localStorage.getItem('authToken');
     if (!token || !hotFoldersListElement) return;
-    hotFoldersListElement.innerHTML = '<div class="loading-spinner" style="margin: 20px auto;"></div>';
+    hotFoldersListElement.innerHTML = '<div class="loading-spinner"></div>';
     try {
         const response = await fetch(`${FILES_API_URL}?action=getHotFolders`, {
             headers: { 'Authorization': `Bearer ${token}` }
