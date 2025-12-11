@@ -2,7 +2,8 @@ import { verifyToken, addCorsHeaders } from '../utils.js';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const TOOL_USE_MODELS = [
     'openai/gpt-oss-20b',
-    'openai/gpt-oss-120b'
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-safeguard-20b'
 ];
 function getRandomModel() {
     return TOOL_USE_MODELS[Math.floor(Math.random() * TOOL_USE_MODELS.length)];
