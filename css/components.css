@@ -323,6 +323,8 @@
     border-top: 2px solid var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
+    margin: 0 auto;
+    display: block;
 }
 
 .download-button {
