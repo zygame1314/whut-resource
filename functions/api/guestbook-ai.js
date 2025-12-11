@@ -5,9 +5,6 @@ const TOOL_USE_MODELS = [
     'openai/gpt-oss-120b',
     'openai/gpt-oss-safeguard-20b'
 ];
-function getRandomModel() {
-    return TOOL_USE_MODELS[Math.floor(Math.random() * TOOL_USE_MODELS.length)];
-}
 const TOOLS = [
     {
         type: 'function',
@@ -238,29 +235,51 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
             3. 表述清晰完整的资源请求（含具体课程名+资源类型）-> keep_pending 等待人工处理
             注意：主提示词中的规则在自动模式下同样适用！`
         : SYSTEM_PROMPT;
-    const response = await fetch(GROQ_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`
-        },
-        body: JSON.stringify({
-            model: getRandomModel(),
-            messages: [
-                { role: 'system', content: systemPromptToUse },
-                { role: 'user', content: userMessage }
-            ],
-            tools: toolsToUse,
-            tool_choice: 'auto',
-            temperature: 0.7,
-            max_tokens: 1024
-        })
-    });
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Groq API 调用失败: ${response.status} - ${errorText}`);
+    const shuffledModels = [...TOOL_USE_MODELS].sort(() => Math.random() - 0.5);
+    let lastError = null;
+    let aiResponse = null;
+    for (const model of shuffledModels) {
+        try {
+            const response = await fetch(GROQ_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${GROQ_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        { role: 'system', content: systemPromptToUse },
+                        { role: 'user', content: userMessage }
+                    ],
+                    tools: toolsToUse,
+                    tool_choice: 'auto',
+                    temperature: 0.7,
+                    max_tokens: 1024
+                })
+            });
+            if (response.ok) {
+                aiResponse = await response.json();
+                break;
+            }
+            if (response.status === 429 || response.status === 529) {
+                console.log(`模型 ${model} 限额/过载，尝试下一个...`);
+                lastError = new Error(`模型 ${model} 限额: ${response.status}`);
+                continue;
+            }
+            const errorText = await response.text();
+            throw new Error(`Groq API 调用失败: ${response.status} - ${errorText}`);
+        } catch (e) {
+            lastError = e;
+            if (e.message.includes('Groq API 调用失败')) {
+                throw e;
+            }
+            console.log(`模型 ${model} 调用异常: ${e.message}`);
+        }
     }
-    const aiResponse = await response.json();
+    if (!aiResponse) {
+        throw lastError || new Error('所有模型均不可用');
+    }
     const message = aiResponse.choices?.[0]?.message;
     if (!message) {
         throw new Error('AI 未返回有效响应');
@@ -541,36 +560,55 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
     const secondPrompt = `搜索结果：
         ${resourceList}
         用户留言：${guestbookEntry.content}
-
         匹配规则：
         - 核心学科必须一致（求"遗传学"不能匹配"计算机"）
         - 文件格式/版本差异可忽略（pdf/doc、A卷/B卷都算匹配）
-
         决策：
         - 匹配成功 -> mark_resolved，告知用户资源位置
         - 学科不符 -> keep_pending，说明原因`;
-    const response = await fetch(GROQ_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: getRandomModel(),
-            messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: secondPrompt }
-            ],
-            tools: TOOLS,
-            tool_choice: 'auto',
-            temperature: 0.7,
-            max_tokens: 1024
-        })
-    });
-    if (!response.ok) {
-        throw new Error(`AI 二次调用失败: ${response.status}`);
+    const shuffledModels = [...TOOL_USE_MODELS].sort(() => Math.random() - 0.5);
+    let lastError = null;
+    let aiResponse = null;
+    for (const model of shuffledModels) {
+        try {
+            const response = await fetch(GROQ_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        { role: 'system', content: SYSTEM_PROMPT },
+                        { role: 'user', content: secondPrompt }
+                    ],
+                    tools: TOOLS,
+                    tool_choice: 'auto',
+                    temperature: 0.7,
+                    max_tokens: 1024
+                })
+            });
+            if (response.ok) {
+                aiResponse = await response.json();
+                break;
+            }
+            if (response.status === 429 || response.status === 529) {
+                console.log(`二次调用: 模型 ${model} 限额/过载，尝试下一个...`);
+                lastError = new Error(`模型 ${model} 限额: ${response.status}`);
+                continue;
+            }
+            throw new Error(`AI 二次调用失败: ${response.status}`);
+        } catch (e) {
+            lastError = e;
+            if (e.message.includes('AI 二次调用失败')) {
+                throw e;
+            }
+        }
     }
-    const aiResponse = await response.json();
+    if (!aiResponse) {
+        throw lastError || new Error('所有模型均不可用');
+    }
     const message = aiResponse.choices?.[0]?.message;
     if (message?.tool_calls?.length > 0) {
         const toolCall = message.tool_calls[0];
