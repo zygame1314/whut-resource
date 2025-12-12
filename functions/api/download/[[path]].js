@@ -69,9 +69,12 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ success: false, error: '链接已过期。' }), { status: 410, headers: addCorsHeaders() });
     }
     if (userId) {
-      const user = await env.DB.prepare('SELECT id, role, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(userId).first();
+      const user = await env.DB.prepare('SELECT id, role, is_banned, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(userId).first();
       if (!user) {
         return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders() });
+      }
+      if (user.is_banned) {
+        return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法下载文件。' }), { status: 403, headers: addCorsHeaders() });
       }
       const today = new Date().toISOString().split('T')[0];
       const recentDuplicate = await env.DB.prepare(
@@ -126,9 +129,12 @@ export async function onRequest(context) {
     if (!userPayload) {
       return new Response(JSON.stringify({ success: false, error: '未授权：令牌无效。' }), { status: 401, headers: addCorsHeaders() });
     }
-    const user = await env.DB.prepare('SELECT id, role, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(userPayload.id).first();
+    const user = await env.DB.prepare('SELECT id, role, is_banned, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(userPayload.id).first();
     if (!user) {
       return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders() });
+    }
+    if (user.is_banned) {
+      return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法下载文件。' }), { status: 403, headers: addCorsHeaders() });
     }
     const today = new Date().toISOString().split('T')[0];
     if (Array.isArray(path)) {

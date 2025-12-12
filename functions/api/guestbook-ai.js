@@ -61,7 +61,7 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'ban_user',
-            description: '封禁用户并删除留言。仅当用户发布极其严重违规内容（如反动、暴恐、违法信息）时使用。此操作会永久禁止该用户发布留言。',
+            description: '封禁用户并删除留言。仅当用户发布极其严重违规内容（如反动、暴恐、违法信息）时使用。此操作会使该账号彻底失效：无法发布留言、无法下载文件。',
             parameters: {
                 type: 'object',
                 properties: {

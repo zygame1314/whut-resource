@@ -33,6 +33,13 @@ export async function onRequest(context) {
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
+  const userInfo = await env.DB.prepare('SELECT is_banned FROM users WHERE id = ?').bind(user.id).first();
+  if (userInfo && userInfo.is_banned) {
+    return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法预览文件。' }), {
+      status: 403,
+      headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
+  }
   const R2_BUCKET = env.R2_bucket;
   if (!R2_BUCKET) {
     console.error("服务器配置错误：未找到 R2 绑定 'R2_bucket'。");
@@ -43,9 +50,9 @@ export async function onRequest(context) {
   }
   const url = new URL(request.url);
   const key = url.searchParams.get('key');
-    const isOfficePreview = url.searchParams.get('office') === 'true';
-    const isInline = url.searchParams.get('inline') === 'true';
-    const previewType = url.searchParams.get('type');
+  const isOfficePreview = url.searchParams.get('office') === 'true';
+  const isInline = url.searchParams.get('inline') === 'true';
+  const previewType = url.searchParams.get('type');
   if (!key) {
     return new Response(JSON.stringify({
       success: false,
@@ -68,32 +75,32 @@ export async function onRequest(context) {
     if (previewType === 'text') {
       const userInfo = await env.DB.prepare('SELECT id, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(user.id).first();
       if (!userInfo) {
-          return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
       }
       const today = new Date().toISOString().split('T')[0];
       let quotaUpdated = false;
       if (userInfo.last_download_date !== today) {
-          await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
-          quotaUpdated = true;
+        await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
+        quotaUpdated = true;
       } else {
-          const result = await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ? AND quota_used < quota_limit').bind(user.id).run();
-          if (result.success && result.meta.changes > 0) {
-              quotaUpdated = true;
-          }
+        const result = await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ? AND quota_used < quota_limit').bind(user.id).run();
+        if (result.success && result.meta.changes > 0) {
+          quotaUpdated = true;
+        }
       }
       if (!quotaUpdated) {
-          return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
       }
       context.waitUntil((async () => {
-          try {
-              await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
-              const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-              await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
-                  .bind(user.id, key, ip, object.size)
-                  .run();
-          } catch (e) {
-              console.error("更新统计信息时出错:", e);
-          }
+        try {
+          await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
+          const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+          await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
+            .bind(user.id, key, ip, object.size)
+            .run();
+        } catch (e) {
+          console.error("更新统计信息时出错:", e);
+        }
       })());
       const textContent = await object.text();
       return new Response(JSON.stringify({

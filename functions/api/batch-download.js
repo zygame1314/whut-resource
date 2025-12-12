@@ -34,6 +34,13 @@ export async function onRequestPost({ request, env }) {
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
+  const userInfo = await env.DB.prepare('SELECT is_banned FROM users WHERE id = ?').bind(user.id).first();
+  if (userInfo && userInfo.is_banned) {
+    return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法下载文件。' }), {
+      status: 403,
+      headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
+  }
   const R2_BUCKET = env.R2_bucket;
   if (!R2_BUCKET) {
     return new Response(JSON.stringify({ success: false, error: '服务器配置错误（R2绑定）。' }), {
@@ -66,24 +73,24 @@ export async function onRequestPost({ request, env }) {
   }
   const allFileKeysToProcess = new Set();
   for (const key of keys) {
-      const isDirectory = key.endsWith('/');
-      if (isDirectory) {
-          const filesInDirStmt = DB.prepare('SELECT key FROM files WHERE key LIKE ? AND is_directory = FALSE');
-          const { results: filesInDir } = await filesInDirStmt.bind(`${key}%`).all();
-          if (filesInDir) {
-              for (const file of filesInDir) {
-                  allFileKeysToProcess.add(file.key);
-              }
-          }
-      } else {
-          allFileKeysToProcess.add(key);
+    const isDirectory = key.endsWith('/');
+    if (isDirectory) {
+      const filesInDirStmt = DB.prepare('SELECT key FROM files WHERE key LIKE ? AND is_directory = FALSE');
+      const { results: filesInDir } = await filesInDirStmt.bind(`${key}%`).all();
+      if (filesInDir) {
+        for (const file of filesInDir) {
+          allFileKeysToProcess.add(file.key);
+        }
       }
+    } else {
+      allFileKeysToProcess.add(key);
+    }
   }
-  if (allFileKeysToProcess.size === 0 && keys.length > 0) { 
-       return new Response(JSON.stringify({ success: false, error: '选择的项目中没有可下载的文件。' }), {
-          status: 404, 
-          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-      });
+  if (allFileKeysToProcess.size === 0 && keys.length > 0) {
+    return new Response(JSON.stringify({ success: false, error: '选择的项目中没有可下载的文件。' }), {
+      status: 404,
+      headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
   }
   try {
     const secret = env.PREVIEW_SECRET || 'default-secret';
