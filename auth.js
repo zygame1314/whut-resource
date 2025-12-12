@@ -63,7 +63,7 @@ async function checkAuth() {
             logout();
         }
     } catch (e) {
-        console.error("Auth check failed", e);
+        console.error("认证检查失败", e);
         logout();
     }
     updateAuthUI();
@@ -368,9 +368,19 @@ function showAuthModal(mode = 'login') {
                 showNotification('请先确认你已激活学校邮箱', 'error');
                 return;
             }
-            const invalidIds = ['123456', '654321', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '114514'];
-            if (invalidIds.includes(studentId)) {
-                showNotification('同学，这个卡号要是真的是你的，我当场把服务器吃了。请填写真实卡号！', 'error');
+            const isSimpleId = (id) => {
+                if (/^(\d)\1+$/.test(id)) return true;
+                const seq = '01234567890123456789';
+                const revSeq = '98765432109876543210';
+                if (seq.includes(id) || revSeq.includes(id)) return true;
+                if (/^(\d{2})\1\1$/.test(id)) return true;
+                if (/^(\d{3})\1$/.test(id)) return true;
+                if (/^(\d)\1(\d)\2(\d)\3$/.test(id)) return true;
+                if (/^(\d)\1\1(\d)\2\2$/.test(id)) return true;
+                return ['114514'].includes(id);
+            };
+            if (isSimpleId(studentId)) {
+                showNotification('请不要使用简单卡号注册', 'error');
                 return;
             }
             let cfToken = '';
@@ -493,9 +503,9 @@ function formatSize(bytes) {
 }
 async function syncFiles() {
     const confirmed = await showConfirmation({
-        title: '高风险操作确认',
-        message: '⚠️ 警告：全量同步非常消耗服务器资源！<br><br>正常上传/删除无需使用此功能。<br>仅在你直接操作过 R2 存储桶（如批量上传/改名）导致数据不一致时才使用。<br><br>确定要执行全量同步吗？这可能需要几十秒甚至更久。',
-        confirmText: '我明白，开始同步'
+        title: 'R2文件同步',
+        message: '此操作将全量同步 R2 存储桶。<br><br>正常上传/删除无需使用此功能。<br>仅在你直接操作过 R2 存储桶（如批量上传/改名）导致数据不一致时才使用。<br><br>确定要执行全量同步吗？这可能需要几十秒甚至更久。',
+        confirmText: '开始同步'
     });
     if (!confirmed) return;
     const btn = document.getElementById('sync-btn');
@@ -513,7 +523,7 @@ async function syncFiles() {
         });
         const result = await response.json();
         if (!result.success) {
-            throw new Error(result.error || 'Unknown error');
+            throw new Error(result.error || '未知错误');
         }
         showNotification(result.message, 'success');
         setTimeout(() => window.location.reload(), 2000);

@@ -2116,7 +2116,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
     updateSelectAllButtonState();
 }
 document.addEventListener('authSuccess', () => {
-    console.log("验证成功 (authSuccess event received)，开始加载根目录文件列表...");
+    console.log("验证成功，开始加载根目录文件列表...");
     fetchAndDisplayFiles('', '', 1);
     fetchFileStats();
     fetchAndBuildFolderTree();
@@ -2128,7 +2128,7 @@ document.addEventListener('authSuccess', () => {
     }
 });
 document.addEventListener('authRestored', () => {
-    console.log("从 localStorage 恢复验证状态 (authRestored event received)，开始加载根目录文件列表...");
+    console.log("恢复验证状态，开始加载根目录文件列表...");
     fetchAndDisplayFiles('', '', 1);
     fetchFileStats();
     fetchAndBuildFolderTree();
@@ -2152,15 +2152,13 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBreadcrumb('');
     currentPrefix = '';
     renderPaginationControls(null);
-    fetchAndRenderRecentUploads();
-    fetchFileStats();
     const tutorialBtn = document.getElementById('tutorial-btn');
     if (tutorialBtn) {
         tutorialBtn.addEventListener('click', () => {
             if (typeof startTutorial === 'function') {
                 startTutorial();
             } else {
-                console.error('Tutorial function not found.');
+                console.error('教程函数未找到');
                 showNotification('无法加载教程，请刷新页面重试。', 'error');
             }
         });
@@ -2169,13 +2167,13 @@ document.addEventListener('DOMContentLoaded', () => {
         fileListElement.addEventListener('click', (event) => {
             const targetLi = event.target.closest('li.empty-state');
             if (targetLi && targetLi.textContent.includes('请先完成验证以查看文件')) {
-                console.log('Empty state clicked, attempting to show auth modal');
+                console.log('点击空状态，尝试显示认证模态');
                 if (typeof showAuthModal === 'function') {
                     showAuthModal('login');
                 } else if (typeof window.showAuthModal === 'function') {
                     window.showAuthModal('login');
                 } else {
-                    console.error('showAuthModal is not defined');
+                    console.error('showAuthModal 未定义');
                     if (typeof showNotification === 'function') {
                         showNotification('无法打开登录窗口，请刷新页面重试', 'error');
                     }

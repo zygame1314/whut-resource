@@ -31,9 +31,19 @@ export async function onRequestPost({ request, env }) {
       if (!studentId || !/^\d{6}$/.test(studentId)) {
         return new Response(JSON.stringify({ success: false, error: '请输入6位校园卡号。' }), { status: 400, headers: addCorsHeaders() });
       }
-      const invalidIds = ['123456', '654321', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '114514'];
-      if (invalidIds.includes(studentId)) {
-        return new Response(JSON.stringify({ success: false, error: '同学，这个卡号要是真的是你的，我当场把服务器吃了。请填写真实卡号！' }), { status: 400, headers: addCorsHeaders() });
+      const isSimpleId = (id) => {
+        if (/^(\d)\1+$/.test(id)) return true;
+        const seq = '01234567890123456789';
+        const revSeq = '98765432109876543210';
+        if (seq.includes(id) || revSeq.includes(id)) return true;
+        if (/^(\d{2})\1\1$/.test(id)) return true;
+        if (/^(\d{3})\1$/.test(id)) return true;
+        if (/^(\d)\1(\d)\2(\d)\3$/.test(id)) return true;
+        if (/^(\d)\1\1(\d)\2\2$/.test(id)) return true;
+        return ['114514'].includes(id);
+      };
+      if (isSimpleId(studentId)) {
+        return new Response(JSON.stringify({ success: false, error: '请不要使用简单卡号注册' }), { status: 400, headers: addCorsHeaders() });
       }
       const email = `${studentId}@whut.edu.cn`;
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
