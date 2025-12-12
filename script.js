@@ -678,19 +678,52 @@ async function deleteFile(key, isDirectory) {
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
+        fetchAndBuildFolderTree();
     };
     try {
-        const confirmed = await showConfirmation({
-            title: '确认删除',
-            message: `你确定要永久删除 "${key}" 吗？<br><b>此操作不可逆！</b>`,
-            confirmText: '永久删除',
-            confirmClass: 'confirm-btn-danger'
-        });
-        if (!confirmed) {
-            showNotification('删除操作已取消', 'info');
-            return;
+        const displayName = key.endsWith('/') ? key.slice(0, -1).split('/').pop() : key.split('/').pop();
+        if (isDirectory) {
+            const firstConfirm = await showConfirmation({
+                title: '⚠️ 删除文件夹',
+                message: `你确定要永久删除文件夹 "<b>${displayName}</b>" 及其<b>所有内容</b>吗？<br><br><span style="color: var(--accent-color);">⚠️ 这将删除该文件夹内的所有文件和子文件夹！<br>此操作不可逆！</span>`,
+                confirmText: '继续删除',
+                confirmClass: 'confirm-btn-danger'
+            });
+            if (!firstConfirm) {
+                showNotification('删除操作已取消', 'info');
+                return;
+            }
+            let inputName;
+            try {
+                inputName = await showPrompt({
+                    title: '🔐 二次确认删除',
+                    message: `请输入文件夹名称 "<b>${displayName}</b>" 以确认删除：`,
+                    placeholder: '输入文件夹名称',
+                    confirmText: '永久删除',
+                    cancelText: '取消'
+                });
+            } catch (e) {
+                showNotification('删除操作已取消', 'info');
+                return;
+            }
+            if (inputName !== displayName) {
+                showNotification('文件夹名称不匹配，删除操作已取消', 'warning');
+                return;
+            }
+            await performDelete();
+        } else {
+            const confirmed = await showConfirmation({
+                title: '确认删除',
+                message: `你确定要永久删除 "${key}" 吗？<br><b>此操作不可逆！</b>`,
+                confirmText: '永久删除',
+                confirmClass: 'confirm-btn-danger'
+            });
+            if (!confirmed) {
+                showNotification('删除操作已取消', 'info');
+                return;
+            }
+            await performDelete();
         }
-        await performDelete();
     } catch (error) {
         if (error.message !== '用户取消验证' && error.message !== 'User cancelled') {
             showNotification(`删除操作失败: ${error.message}`, 'error');
@@ -1328,6 +1361,8 @@ async function handleBatchDelete() {
         showNotification('没有选择任何项目', 'info');
         return;
     }
+    const directoryKeys = Array.from(selectedDirectoryKeys);
+    const hasDirectories = directoryKeys.length > 0;
     const performBatchDelete = async () => {
         const token = localStorage.getItem('authToken');
         if (!token) {
@@ -1347,7 +1382,7 @@ async function handleBatchDelete() {
         if (!response.ok || !result.success) {
             throw new Error(result.error || '批量删除失败，请稍后重试');
         }
-        showNotification(`成功删除了 ${keysToDelete.length} 个项目`, 'success');
+        showNotification(result.message || `成功删除了 ${keysToDelete.length} 个项目`, 'success');
         keysToDelete.forEach(key => {
             const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
             if (directoryCache[parentPrefix]) {
@@ -1360,11 +1395,19 @@ async function handleBatchDelete() {
         fetchAndDisplayFiles(currentPrefix, '', 1).then(() => {
             if (isSelectionMode) toggleSelectionMode();
         });
+        fetchAndBuildFolderTree();
     };
     try {
+        let confirmMessage = `你确定要永久删除选中的 ${keysToDelete.length} 个项目吗？<br><b>此操作不可逆！</b>`;
+        let confirmTitle = '确认批量删除';
+        if (hasDirectories) {
+            confirmTitle = '⚠️ 确认批量删除（包含文件夹）';
+            confirmMessage = `你确定要永久删除选中的 ${keysToDelete.length} 个项目吗？<br><br>` +
+                `<span style="color: var(--accent-color);">⚠️ 其中包含 ${directoryKeys.length} 个文件夹，这将删除文件夹内的所有内容！<br>此操作不可逆！</span>`;
+        }
         const confirmed = await showConfirmation({
-            title: '确认批量删除',
-            message: `你确定要永久删除选中的 ${keysToDelete.length} 个项目吗？<br><b>此操作不可逆！</b>`,
+            title: confirmTitle,
+            message: confirmMessage,
             confirmText: '永久删除',
             confirmClass: 'confirm-btn-danger'
         });
@@ -1540,6 +1583,7 @@ async function handleBatchMove() {
         fetchAndDisplayFiles(currentPrefix, '', 1).then(() => {
             if (isSelectionMode) toggleSelectionMode();
         });
+        fetchAndBuildFolderTree();
     };
     try {
         await performBatchMove();
@@ -2392,6 +2436,7 @@ async function moveItem(key, currentName, isDirectory) {
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
         if (directoryCache[destinationPath]) delete directoryCache[destinationPath];
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
+        fetchAndBuildFolderTree();
     };
     try {
         await performMove();
@@ -2445,6 +2490,9 @@ async function renameFile(key, currentName, isDirectory) {
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
+        if (isDirectory) {
+            fetchAndBuildFolderTree();
+        }
     };
     try {
         await performRename();

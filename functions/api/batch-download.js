@@ -71,21 +71,15 @@ export async function onRequestPost({ request, env }) {
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
-  const allFileKeysToProcess = new Set();
   for (const key of keys) {
-    const isDirectory = key.endsWith('/');
-    if (isDirectory) {
-      const filesInDirStmt = DB.prepare('SELECT key FROM files WHERE key LIKE ? AND is_directory = FALSE');
-      const { results: filesInDir } = await filesInDirStmt.bind(`${key}%`).all();
-      if (filesInDir) {
-        for (const file of filesInDir) {
-          allFileKeysToProcess.add(file.key);
-        }
-      }
-    } else {
-      allFileKeysToProcess.add(key);
+    if (key.endsWith('/')) {
+      return new Response(JSON.stringify({ success: false, error: '不支持下载文件夹，请选择具体文件进行下载。' }), {
+        status: 400,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
   }
+  const allFileKeysToProcess = new Set(keys);
   if (allFileKeysToProcess.size === 0 && keys.length > 0) {
     return new Response(JSON.stringify({ success: false, error: '选择的项目中没有可下载的文件。' }), {
       status: 404,

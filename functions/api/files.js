@@ -267,13 +267,70 @@ export async function onRequestPut({ request, env }) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
-    if (fileRecord.is_directory) {
-      return new Response(JSON.stringify({ success: false, error: '尚不支持重命名目录。' }), {
-        status: 400,
+    const parentPath = fileRecord.parent_path || '';
+    const isDirectory = fileRecord.is_directory === 1 || fileRecord.is_directory === true;
+    if (isDirectory) {
+      const oldFolderKey = key;
+      const oldFolderPath = key.endsWith('/') ? key : key + '/';
+      const newFolderKey = parentPath ? `${parentPath}${newName}/` : `${newName}/`;
+      if (oldFolderKey === newFolderKey || oldFolderPath === newFolderKey) {
+        return new Response(JSON.stringify({ success: false, error: '新名称与原名称相同。' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const existingFolder = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newFolderKey).first();
+      if (existingFolder) {
+        return new Response(JSON.stringify({ success: false, error: '新名称的文件夹已存在。' }), {
+          status: 409,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const { results: childItems } = await DB.prepare('SELECT * FROM files WHERE key LIKE ?').bind(`${oldFolderPath}%`).all();
+      const batchOperations = [];
+      batchOperations.push(
+        DB.prepare(`
+          INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(newFolderKey, newName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, parentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
+      );
+      batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(oldFolderKey));
+      for (const child of childItems || []) {
+        const relativePath = child.key.substring(oldFolderPath.length);
+        const newChildKey = `${newFolderKey}${relativePath}`;
+        const newChildParentPath = newChildKey.includes('/')
+          ? newChildKey.substring(0, newChildKey.lastIndexOf('/') + 1)
+          : '';
+        const isChildLink = child.is_link === 1 || child.is_link === true;
+        const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
+        if (!isChildLink && !isChildDirectory) {
+          try {
+            const sourceObj = await R2.get(child.key);
+            if (sourceObj) {
+              await R2.put(newChildKey, sourceObj.body, {
+                httpMetadata: { contentType: child.contentType }
+              });
+              await R2.delete(child.key);
+            }
+          } catch (e) {
+            console.error(`R2重命名子项失败: ${child.key}`, e);
+          }
+        }
+        batchOperations.push(
+          DB.prepare(`
+            INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(newChildKey, child.name, child.size, child.uploaded, child.contentType, newChildParentPath, child.is_directory, child.is_link, child.link_url, child.downloads, child.uploader_id)
+        );
+        batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+        batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
+      }
+      await DB.batch(batchOperations);
+      return new Response(JSON.stringify({ success: true, message: '文件夹重命名成功' }), {
+        status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
-    const parentPath = fileRecord.parent_path;
     const newKey = parentPath ? `${parentPath}${newName}` : newName;
     const existing = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newKey).first();
     if (existing) {
@@ -357,15 +414,78 @@ export async function onRequestPost({ request, env }) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
-    if (fileRecord.is_directory) {
-      return new Response(JSON.stringify({ success: false, error: '尚不支持移动目录。' }), {
-        status: 400,
-        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-      });
-    }
     let newParentPath = destinationPath;
     if (newParentPath && !newParentPath.endsWith('/')) {
       newParentPath += '/';
+    }
+    const isDirectory = fileRecord.is_directory === 1 || fileRecord.is_directory === true;
+    if (isDirectory) {
+      const oldFolderPath = sourceKey.endsWith('/') ? sourceKey : sourceKey + '/';
+      const folderName = fileRecord.name;
+      const newFolderKey = newParentPath ? `${newParentPath}${folderName}/` : `${folderName}/`;
+      if (newFolderKey.startsWith(oldFolderPath)) {
+        return new Response(JSON.stringify({ success: false, error: '不能将文件夹移动到其自身或子目录中。' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      if (sourceKey === newFolderKey || oldFolderPath === newFolderKey) {
+        return new Response(JSON.stringify({ success: false, error: '源和目标相同。' }), {
+          status: 400,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const existingFolder = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newFolderKey).first();
+      if (existingFolder) {
+        return new Response(JSON.stringify({ success: false, error: '目标中已存在同名文件夹。' }), {
+          status: 409,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const { results: childItems } = await DB.prepare('SELECT * FROM files WHERE key LIKE ?').bind(`${oldFolderPath}%`).all();
+      const batchOperations = [];
+      batchOperations.push(
+        DB.prepare(`
+          INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(newFolderKey, folderName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, newParentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
+      );
+      batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey));
+      for (const child of childItems || []) {
+        const relativePath = child.key.substring(oldFolderPath.length);
+        const newChildKey = `${newFolderKey}${relativePath}`;
+        const newChildParentPath = newChildKey.includes('/')
+          ? newChildKey.substring(0, newChildKey.lastIndexOf('/') + 1)
+          : '';
+        const isChildLink = child.is_link === 1 || child.is_link === true;
+        const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
+        if (!isChildLink && !isChildDirectory) {
+          try {
+            const sourceObj = await R2.get(child.key);
+            if (sourceObj) {
+              await R2.put(newChildKey, sourceObj.body, {
+                httpMetadata: { contentType: child.contentType }
+              });
+              await R2.delete(child.key);
+            }
+          } catch (e) {
+            console.error(`R2移动子项失败: ${child.key}`, e);
+          }
+        }
+        batchOperations.push(
+          DB.prepare(`
+            INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(newChildKey, child.name, child.size, child.uploaded, child.contentType, newChildParentPath, child.is_directory, child.is_link, child.link_url, child.downloads, child.uploader_id)
+        );
+        batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+        batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
+      }
+      await DB.batch(batchOperations);
+      return new Response(JSON.stringify({ success: true, message: '文件夹移动成功' }), {
+        status: 200,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
     }
     const newKey = newParentPath ? `${newParentPath}${fileRecord.name}` : fileRecord.name;
     if (sourceKey === newKey) {
@@ -459,20 +579,37 @@ export async function onRequestDelete({ request, env }) {
           continue;
         }
         if (fileRecord.is_directory) {
-          const children = await DB.prepare('SELECT key FROM files WHERE parent_path = ? LIMIT 1').bind(currentKey.endsWith('/') ? currentKey : currentKey + '/').first();
-          if (children) {
-            errors.push(`目录 ${currentKey} 不为空。`);
-            continue;
+          const folderPath = currentKey.endsWith('/') ? currentKey : currentKey + '/';
+          const { results: childItems } = await DB.prepare('SELECT key, is_link, is_directory FROM files WHERE key LIKE ?').bind(`${folderPath}%`).all();
+          for (const child of childItems || []) {
+            const isChildLink = child.is_link === 1 || child.is_link === true;
+            const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
+            if (!isChildLink && !isChildDirectory) {
+              try {
+                await R2.delete(child.key);
+              } catch (e) {
+                console.error(`R2删除子项失败: ${child.key}`, e);
+              }
+            }
+          }
+          if (childItems && childItems.length > 0) {
+            const childKeys = childItems.map(c => c.key);
+            for (let i = 0; i < childKeys.length; i += 100) {
+              const batch = childKeys.slice(i, i + 100);
+              const placeholders = batch.map(() => '?').join(',');
+              await DB.prepare(`DELETE FROM files WHERE key IN (${placeholders})`).bind(...batch).run();
+            }
           }
           await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
+          deletedCount += (childItems?.length || 0) + 1;
         } else {
           const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
           if (!isLink) {
             await R2.delete(currentKey);
           }
           await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
+          deletedCount++;
         }
-        deletedCount++;
       } catch (err) {
         console.error(`删除 ${currentKey} 失败:`, err);
         errors.push(`删除 ${currentKey} 失败：${err.message}`);
