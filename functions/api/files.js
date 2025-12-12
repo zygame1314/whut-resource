@@ -286,10 +286,21 @@ export async function onRequestPut({ request, env }) {
           headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
       }
-      const { results: childItems } = await DB.prepare('SELECT * FROM files WHERE key LIKE ?').bind(`${oldFolderPath}%`).all();
+      const { results: childItems } = await DB.prepare('SELECT * FROM files WHERE key LIKE ? AND key != ?').bind(`${oldFolderPath}%`, oldFolderPath).all();
+      const batchOperations = [];
+      batchOperations.push(
+        DB.prepare(`
+          INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(newFolderKey, newName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, parentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
+      );
+      batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(oldFolderKey));
       for (const child of childItems || []) {
         const relativePath = child.key.substring(oldFolderPath.length);
         const newChildKey = `${newFolderKey}${relativePath}`;
+        const newChildParentPath = newChildKey.includes('/')
+          ? newChildKey.substring(0, newChildKey.lastIndexOf('/') + 1)
+          : '';
         const isChildLink = child.is_link === 1 || child.is_link === true;
         const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
         if (!isChildLink && !isChildDirectory) {
@@ -305,35 +316,16 @@ export async function onRequestPut({ request, env }) {
             console.error(`R2重命名子项失败: ${child.key}`, e);
           }
         }
-      }
-      const deleteOperations = [];
-      deleteOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(oldFolderKey));
-      for (const child of childItems || []) {
-        deleteOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
-      }
-      await DB.batch(deleteOperations);
-      const insertOperations = [];
-      insertOperations.push(
-        DB.prepare(`
-          INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(newFolderKey, newName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, parentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
-      );
-      for (const child of childItems || []) {
-        const relativePath = child.key.substring(oldFolderPath.length);
-        const newChildKey = `${newFolderKey}${relativePath}`;
-        const newChildParentPath = newChildKey.includes('/')
-          ? newChildKey.substring(0, newChildKey.lastIndexOf('/') + 1)
-          : '';
-        insertOperations.push(
+        batchOperations.push(
           DB.prepare(`
             INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).bind(newChildKey, child.name, child.size, child.uploaded, child.contentType, newChildParentPath, child.is_directory, child.is_link, child.link_url, child.downloads, child.uploader_id)
         );
-        insertOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+        batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+        batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
       }
-      await DB.batch(insertOperations);
+      await DB.batch(batchOperations);
       return new Response(JSON.stringify({ success: true, message: '文件夹重命名成功' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -450,10 +442,21 @@ export async function onRequestPost({ request, env }) {
           headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
       }
-      const { results: childItems } = await DB.prepare('SELECT * FROM files WHERE key LIKE ?').bind(`${oldFolderPath}%`).all();
+      const { results: childItems } = await DB.prepare('SELECT * FROM files WHERE key LIKE ? AND key != ?').bind(`${oldFolderPath}%`, oldFolderPath).all();
+      const batchOperations = [];
+      batchOperations.push(
+        DB.prepare(`
+          INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(newFolderKey, folderName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, newParentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
+      );
+      batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey));
       for (const child of childItems || []) {
         const relativePath = child.key.substring(oldFolderPath.length);
         const newChildKey = `${newFolderKey}${relativePath}`;
+        const newChildParentPath = newChildKey.includes('/')
+          ? newChildKey.substring(0, newChildKey.lastIndexOf('/') + 1)
+          : '';
         const isChildLink = child.is_link === 1 || child.is_link === true;
         const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
         if (!isChildLink && !isChildDirectory) {
@@ -469,35 +472,16 @@ export async function onRequestPost({ request, env }) {
             console.error(`R2移动子项失败: ${child.key}`, e);
           }
         }
-      }
-      const deleteOperations = [];
-      deleteOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey));
-      for (const child of childItems || []) {
-        deleteOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
-      }
-      await DB.batch(deleteOperations);
-      const insertOperations = [];
-      insertOperations.push(
-        DB.prepare(`
-          INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(newFolderKey, folderName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, newParentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
-      );
-      for (const child of childItems || []) {
-        const relativePath = child.key.substring(oldFolderPath.length);
-        const newChildKey = `${newFolderKey}${relativePath}`;
-        const newChildParentPath = newChildKey.includes('/')
-          ? newChildKey.substring(0, newChildKey.lastIndexOf('/') + 1)
-          : '';
-        insertOperations.push(
+        batchOperations.push(
           DB.prepare(`
             INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).bind(newChildKey, child.name, child.size, child.uploaded, child.contentType, newChildParentPath, child.is_directory, child.is_link, child.link_url, child.downloads, child.uploader_id)
         );
-        insertOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+        batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+        batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
       }
-      await DB.batch(insertOperations);
+      await DB.batch(batchOperations);
       return new Response(JSON.stringify({ success: true, message: '文件夹移动成功' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

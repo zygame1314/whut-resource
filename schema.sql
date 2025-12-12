@@ -91,7 +91,6 @@ CREATE INDEX IF NOT EXISTS idx_files_recent_uploads ON files(is_directory, uploa
 CREATE INDEX IF NOT EXISTS idx_files_listing_optimized ON files(parent_path, is_directory DESC, is_link DESC, name ASC, uploaded DESC);
 CREATE INDEX IF NOT EXISTS idx_files_dir_key ON files(is_directory, key);
 CREATE INDEX IF NOT EXISTS idx_files_stats ON files(is_directory, parent_path, downloads);
-CREATE INDEX IF NOT EXISTS idx_files_key_prefix ON files(key);
 
 
 DROP TABLE IF EXISTS pending_registrations;
