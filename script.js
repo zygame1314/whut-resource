@@ -639,7 +639,8 @@ async function downloadFile(fileKey, downloadBtn) {
         }
     } catch (error) {
         console.error(`下载 ${fileKey} 请求出错:`, error);
-        showNotification(`下载错误: ${error.message}`, 'error');
+        const errorMsg = error.message.replace('预览', '下载');
+        showNotification(`下载错误: ${errorMsg}`, 'error');
     } finally {
         if (downloadBtn) {
             downloadBtn.disabled = false;

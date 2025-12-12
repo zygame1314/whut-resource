@@ -10,6 +10,24 @@ function escapeHtmlAuth(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+function initPasswordToggles(container) {
+    const toggles = container.querySelectorAll('.password-toggle');
+    toggles.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            const input = container.querySelector(`#${targetId}`);
+            if (!input) return;
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        });
+    });
+}
 async function checkAuth() {
     if (!token) {
         updateAuthUI();
@@ -126,7 +144,12 @@ function showAuthModal(mode = 'login') {
                     </div>
                     <div class="form-group">
                         <label>密码</label>
-                        <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码">
+                        <div class="password-input-wrapper">
+                            <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码">
+                            <button type="button" class="password-toggle" data-target="auth-password" title="显示/隐藏密码">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <button type="submit" class="primary-btn full-width">${title}</button>
                 </form>
@@ -158,7 +181,21 @@ function showAuthModal(mode = 'login') {
                         </div>
                         <div class="form-group">
                             <label>密码</label>
-                            <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码（至少6位）" minlength="6">
+                            <div class="password-input-wrapper">
+                                <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码（至少6位）" minlength="6">
+                                <button type="button" class="password-toggle" data-target="auth-password" title="显示/隐藏密码">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>确认密码</label>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="auth-password-confirm" required class="form-control" placeholder="请再次输入密码" minlength="6">
+                                <button type="button" class="password-toggle" data-target="auth-password-confirm" title="显示/隐藏密码">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="form-group">
                             <div class="checkbox-group warning">
@@ -255,6 +292,7 @@ function showAuthModal(mode = 'login') {
         modal.remove();
         showAuthModal(isLogin ? 'register' : 'login');
     };
+    initPasswordToggles(modal);
     if (isLogin) {
         const form = modal.querySelector('#auth-form');
         const forgotPasswordLink = modal.querySelector('#forgot-password');
@@ -319,6 +357,11 @@ function showAuthModal(mode = 'login') {
             }
             if (!password || password.length < 6) {
                 showNotification('密码至少需要6个字符', 'error');
+                return;
+            }
+            const passwordConfirm = document.getElementById('auth-password-confirm').value;
+            if (password !== passwordConfirm) {
+                showNotification('两次输入的密码不一致', 'error');
                 return;
             }
             if (!confirmCheckbox.checked) {
@@ -604,7 +647,21 @@ function showForgotPasswordModal() {
                     </div>
                     <div class="form-group">
                         <label>新密码</label>
-                        <input type="password" id="reset-new-password" required class="form-control" placeholder="请输入新密码（至少6位）" minlength="6">
+                        <div class="password-input-wrapper">
+                            <input type="password" id="reset-new-password" required class="form-control" placeholder="请输入新密码（至少6位）" minlength="6">
+                            <button type="button" class="password-toggle" data-target="reset-new-password" title="显示/隐藏密码">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>确认新密码</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="reset-new-password-confirm" required class="form-control" placeholder="请再次输入新密码" minlength="6">
+                            <button type="button" class="password-toggle" data-target="reset-new-password-confirm" title="显示/隐藏密码">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <!-- Cloudflare Turnstile Widget -->
@@ -667,6 +724,7 @@ function showForgotPasswordModal() {
         </div>
     `;
     document.body.appendChild(modal);
+    initPasswordToggles(modal);
     const closeBtn = modal.querySelector('#close-modal');
     const backToLoginLink = modal.querySelector('#back-to-login');
     closeBtn.onclick = () => {
@@ -718,6 +776,11 @@ function showForgotPasswordModal() {
         }
         if (!newPassword || newPassword.length < 6) {
             showNotification('新密码至少需要6个字符', 'error');
+            return;
+        }
+        const newPasswordConfirm = document.getElementById('reset-new-password-confirm').value;
+        if (newPassword !== newPasswordConfirm) {
+            showNotification('两次输入的密码不一致', 'error');
             return;
         }
         let cfToken = '';
@@ -837,11 +900,21 @@ function showChangePasswordModal() {
             <form id="change-pwd-form">
                 <div class="form-group">
                     <label>旧密码</label>
-                    <input type="password" id="old-password" required class="form-control" placeholder="请输入旧密码">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="old-password" required class="form-control" placeholder="请输入旧密码">
+                        <button type="button" class="password-toggle" data-target="old-password" title="显示/隐藏密码">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>新密码</label>
-                    <input type="password" id="new-password" required class="form-control" placeholder="请输入新密码">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="new-password" required class="form-control" placeholder="请输入新密码">
+                        <button type="button" class="password-toggle" data-target="new-password" title="显示/隐藏密码">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="primary-btn full-width">确认修改</button>
             </form>
@@ -850,6 +923,7 @@ function showChangePasswordModal() {
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
+    initPasswordToggles(modal);
     const form = modal.querySelector('#change-pwd-form');
     form.onsubmit = async (e) => {
         e.preventDefault();

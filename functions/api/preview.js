@@ -35,7 +35,7 @@ export async function onRequest(context) {
   }
   const userInfo = await env.DB.prepare('SELECT is_banned FROM users WHERE id = ?').bind(user.id).first();
   if (userInfo && userInfo.is_banned) {
-    return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法预览文件。' }), {
+    return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法访问文件。' }), {
       status: 403,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
