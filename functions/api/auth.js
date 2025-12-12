@@ -219,11 +219,11 @@ export async function onRequestPost({ request, env }) {
     if (action === 'login') {
       const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
       if (!user) {
-        return new Response(JSON.stringify({ success: false, error: '凭据无效。' }), { status: 401, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '用户名或密码错误。' }), { status: 401, headers: addCorsHeaders() });
       }
       const isValid = await verifyPasswordHash(password, user.password_hash, env.SALT);
       if (!isValid) {
-        return new Response(JSON.stringify({ success: false, error: '凭据无效。' }), { status: 401, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '用户名或密码错误。' }), { status: 401, headers: addCorsHeaders() });
       }
       const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
       const today = new Date().toISOString().split('T')[0];

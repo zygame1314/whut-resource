@@ -49,12 +49,12 @@ window.confirmBanUser = async function (id) {
     if (typeof showConfirmation === 'function') {
         confirmed = await showConfirmation({
             title: '封禁用户',
-            message: '确定要封禁发布这条留言的用户吗？该用户将无法再发布留言。',
+            message: '确定要封禁发布这条留言的用户吗？该用户将无法再使用网站功能。',
             confirmText: '封禁',
             confirmClass: 'confirm-btn-danger'
         });
     } else {
-        confirmed = confirm('确定要封禁发布这条留言的用户吗？该用户将无法再发布留言。');
+        confirmed = confirm('确定要封禁发布这条留言的用户吗？该用户将无法再使用网站功能。');
     }
     if (confirmed) {
         handleGuestbookAction(id, 'ban_user');
@@ -65,12 +65,12 @@ window.confirmUnbanUser = async function (id) {
     if (typeof showConfirmation === 'function') {
         confirmed = await showConfirmation({
             title: '解封用户',
-            message: '确定要解封这位用户吗？该用户将恢复发布留言的权限。',
+            message: '确定要解封这位用户吗？该用户将恢复使用网站功能的权限。',
             confirmText: '解封',
             confirmClass: 'confirm-btn-primary'
         });
     } else {
-        confirmed = confirm('确定要解封这位用户吗？该用户将恢复发布留言的权限。');
+        confirmed = confirm('确定要解封这位用户吗？该用户将恢复使用网站功能的权限。');
     }
     if (confirmed) {
         handleGuestbookAction(id, 'unban_user');
