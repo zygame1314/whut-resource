@@ -296,7 +296,7 @@ function getFileIcon(fileName) {
     return iconMap[ext] || 'fas fa-file';
 }
 function validateFile(file) {
-    const maxSize = 300 * 1024 * 1024;
+    const maxSize = 100 * 1024 * 1024;
     const allowedTypes = [
         'application/pdf',
         'application/msword',

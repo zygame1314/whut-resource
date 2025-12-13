@@ -173,9 +173,9 @@ export async function onRequestPost({ request, env, waitUntil }) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
-    const MAX_FILE_SIZE = 300 * 1024 * 1024;
+    const MAX_FILE_SIZE = 100 * 1024 * 1024;
     if (file.size > MAX_FILE_SIZE) {
-      return new Response(JSON.stringify({ success: false, error: '文件大小超过300MB限制。' }), {
+      return new Response(JSON.stringify({ success: false, error: '文件大小超过100MB限制。' }), {
         status: 413,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
