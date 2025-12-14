@@ -287,14 +287,16 @@ async function showResolvePrompt() {
         const hasDirectories = directories.length > 0;
         const pathSelectorHtml = hasDirectories ? `
             <div class="resolve-path-selector">
+                <label class="resolve-label"><i class="fas fa-folder-open"></i> 资源目录（可选）</label>
                 <div class="path-dropdown-wrapper">
                     <button type="button" id="resolve-path-btn" class="path-dropdown-btn">
-                        <span class="selected-path">选择目录（可选）</span>
+                        <span class="selected-path">点击选择目录</span>
                         <i class="fas fa-chevron-down"></i>
                     </button>
                     <div id="resolve-path-dropdown" class="path-dropdown-menu">
                         <div class="path-dropdown-header">
                             <span>选择资源目录</span>
+                            <button type="button" id="clear-path-btn" class="clear-path-btn" title="清除选择"><i class="fas fa-times"></i></button>
                         </div>
                         <div id="resolve-path-tree-container" class="path-tree-container"></div>
                     </div>
@@ -304,10 +306,11 @@ async function showResolvePrompt() {
         modalOverlay.innerHTML = `
             <div class="confirmation-modal resolve-modal">
                 <h3><i class="fas fa-check-circle" style="color: var(--success);"></i> 标记为已解决</h3>
-                <p>可选：填写备注信息（如资源位置、处理说明等）</p>
+                <p>可选填写资源目录和备注信息</p>
                 ${pathSelectorHtml}
                 <div class="prompt-input-container">
-                    <textarea id="resolve-path-input" placeholder="备注（可选），如填写目录路径则可点击跳转" rows="2"></textarea>
+                    <label class="resolve-label"><i class="fas fa-comment"></i> 备注（可选）</label>
+                    <textarea id="resolve-note-input" placeholder="如：这是去年的资料、祝考试顺利等" rows="2"></textarea>
                 </div>
                 <div class="confirmation-buttons">
                     <button class="confirm-btn-cancel">取消</button>
@@ -316,10 +319,11 @@ async function showResolvePrompt() {
             </div>
         `;
         document.body.appendChild(modalOverlay);
-        const input = modalOverlay.querySelector('#resolve-path-input');
+        const noteInput = modalOverlay.querySelector('#resolve-note-input');
         const pathBtn = modalOverlay.querySelector('#resolve-path-btn');
         const pathDropdown = modalOverlay.querySelector('#resolve-path-dropdown');
         const pathTreeContainer = modalOverlay.querySelector('#resolve-path-tree-container');
+        const clearPathBtn = modalOverlay.querySelector('#clear-path-btn');
         if (pathTreeContainer && hasDirectories) {
             const ul = document.createElement('ul');
             ul.className = 'path-tree-list root';
@@ -343,11 +347,22 @@ async function showResolvePrompt() {
                     });
                     treeItem.classList.add('selected');
                     selectedPath = treeItem.dataset.path;
-                    input.value = selectedPath;
                     pathBtn.querySelector('.selected-path').textContent = selectedPath || '根目录';
                     pathDropdown.classList.remove('open');
                     pathBtn.classList.remove('open');
                 }
+            });
+        }
+        if (clearPathBtn) {
+            clearPathBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectedPath = '';
+                pathBtn.querySelector('.selected-path').textContent = '点击选择目录';
+                pathTreeContainer?.querySelectorAll('.path-tree-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                pathDropdown.classList.remove('open');
+                pathBtn.classList.remove('open');
             });
         }
         if (pathBtn && pathDropdown) {
@@ -358,7 +373,7 @@ async function showResolvePrompt() {
                 pathBtn.classList.toggle('open');
             });
         }
-        input.focus();
+        noteInput.focus();
         const closeModal = (value) => {
             modalOverlay.classList.add('closing');
             modalOverlay.addEventListener('animationend', () => {
@@ -372,12 +387,18 @@ async function showResolvePrompt() {
                 }
             }, { once: true });
         };
-        modalOverlay.querySelector('.confirm-btn').addEventListener('click', () => closeModal(input.value || ''));
+        modalOverlay.querySelector('.confirm-btn').addEventListener('click', () => {
+            const path = selectedPath.trim();
+            const note = noteInput.value.trim();
+            if (path || note) {
+                closeModal(JSON.stringify({ path: path || null, note: note || null }));
+            } else {
+                closeModal('');
+            }
+        });
         modalOverlay.querySelector('.confirm-btn-cancel').addEventListener('click', () => closeModal(null));
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                closeModal(input.value || '');
-            } else if (e.key === 'Escape') {
+        noteInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
                 closeModal(null);
             }
         });
@@ -599,7 +620,7 @@ function renderResolveNote(note) {
             html += `<div class="resolve-note"><i class="fas fa-folder-open"></i> 资源位置：<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safePath}</a></div>`;
         }
         if (remark) {
-            html += `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 备注：${escapeHtml(remark)}</div>`;
+            html += `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 管理员备注：${escapeHtml(remark)}</div>`;
         }
         return html;
     }
@@ -609,7 +630,7 @@ function renderResolveNote(note) {
         const escapedPath = note.trim().replace(/'/g, "\\'").replace(/"/g, '\\"');
         return `<div class="resolve-note"><i class="fas fa-folder-open"></i> 资源位置：<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safeNote}</a></div>`;
     } else {
-        return `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 备注：${safeNote}</div>`;
+        return `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 管理员备注：${safeNote}</div>`;
     }
 }
 window.navigateToPath = function (path) {

@@ -1414,6 +1414,44 @@
     font-weight: 600;
     color: var(--text-secondary);
     font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.resolve-path-selector .clear-path-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(220, 53, 69, 0.1);
+    border: none;
+    border-radius: 8px;
+    color: #dc3545;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.75rem;
+}
+
+.resolve-path-selector .clear-path-btn:hover {
+    background: rgba(220, 53, 69, 0.2);
+    transform: scale(1.05);
+}
+
+.resolve-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.resolve-label i {
+    color: var(--success);
+    font-size: 0.9rem;
 }
 
 .resolve-path-selector .path-tree-container {
