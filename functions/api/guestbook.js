@@ -244,11 +244,11 @@ async function handlePost(request, env, context) {
                 const newEntry = await env.DB.prepare(
                     'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                 ).bind(newId).first();
-                if (newEntry) {
+                if (newEntry && newEntry.role !== 'admin') {
                     await processWithAIAgent(newEntry, env, true);
                 }
             } catch (err) {
-                console.error('Auto AI process failed:', err);
+                console.error('自动AI处理失败:', err);
             }
         })());
     }
@@ -311,11 +311,11 @@ async function handlePut(request, env, context) {
                     const updatedEntry = await env.DB.prepare(
                         'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                     ).bind(id).first();
-                    if (updatedEntry) {
+                    if (updatedEntry && user.role !== 'admin') {
                         await processWithAIAgent(updatedEntry, env, true);
                     }
                 } catch (err) {
-                    console.error('Auto AI process failed for edited message:', err);
+                    console.error('自动AI处理失败:', err);
                 }
             })());
         }

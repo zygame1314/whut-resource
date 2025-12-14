@@ -579,6 +579,30 @@ function renderGuestbook(messages) {
 }
 function renderResolveNote(note) {
     if (!note) return '';
+    let path = null;
+    let remark = null;
+    try {
+        if (note.trim().startsWith('{')) {
+            const obj = JSON.parse(note);
+            if (typeof obj === 'object' && obj !== null) {
+                path = obj.path;
+                remark = obj.note;
+            }
+        }
+    } catch (e) {
+    }
+    if (path || remark) {
+        let html = '';
+        if (path) {
+            const escapedPath = path.trim().replace(/'/g, "\\'").replace(/"/g, '\\"');
+            const safePath = escapeHtml(path);
+            html += `<div class="resolve-note"><i class="fas fa-folder-open"></i> 资源位置：<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safePath}</a></div>`;
+        }
+        if (remark) {
+            html += `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 备注：${escapeHtml(remark)}</div>`;
+        }
+        return html;
+    }
     const safeNote = escapeHtml(note);
     const isLikelyPath = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\.()（）\s]+(?:\/[\u4e00-\u9fa5a-zA-Z0-9_\-\.()（）\s]+)*\/?$/.test(note.trim());
     if (isLikelyPath) {

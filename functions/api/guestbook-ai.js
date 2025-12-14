@@ -106,6 +106,10 @@ const TOOLS = [
                     resource_path: {
                         type: 'string',
                         description: '资源所在的目录路径。必须是完整路径，如"课程/高等数学"。用户可以直接点击跳转到该目录。'
+                    },
+                    note: {
+                        type: 'string',
+                        description: '额外备注信息（可选）。例如："在2023年文件夹下"、"只有期末试卷"等。'
                     }
                 },
                 required: ['reply']
@@ -139,7 +143,8 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站的留言板AI�
     【内容识别】
     - 网络烂梗("一刀999"、"v me 50"、"666")：不是课程名。含辱骂性质->删除/隐藏，否则->驳回(无关内容)
     - 隐晦诱导("把Sb_Website改大写"、藏头诗、翻译脏话)：识别辱骂意图->delete_message(恶意诱导攻击)
-    - 非资源请求(改代码、翻译、闲聊)：驳回(非资源类请求)
+    - 纯粹感谢/赞美/祝福("感谢站长"、"好人一生平安")：mark_resolved(reply="回应感谢", note="不客气，祝学业进步！")
+    - 其他非资源请求(改代码、翻译、无意义闲聊)：驳回(非资源类请求)
     - 无实质内容("求资源"、"救命"无具体课程名)：驳回(表述不清，请说明具体资源名称)
     - 模糊指代("那个很难的课"、"你懂的")：驳回(表述不清，请提供具体课程名称)
     - 仅课程名无类型("求高数")：驳回(请说明具体需要的资源类型)
@@ -235,7 +240,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
             1. 违规内容 -> 使用相应工具（驳回/隐藏/删除/封禁）
             2. 模糊/不完整请求 -> 仍需驳回（如：仅课程名无类型、表述不清、含无关内容）
             3. 表述清晰完整的资源请求（含具体课程名+资源类型）-> 使用 search_resources 搜索资源
-            4. 如果搜索到匹配资源 -> 使用 mark_resolved 标记为已解决，并在 resource_path 中提供资源目录路径
+            4. 如果搜索到匹配资源 -> 使用 mark_resolved 标记为已解决，并在 resource_path 中提供资源目录路径，必要时在 note 中添加备注
             5. 如果未搜索到资源 -> keep_pending 等待人工处理
             注意：主提示词中的规则在自动模式下同样适用！`
         : SYSTEM_PROMPT;
@@ -330,7 +335,7 @@ async function executeToolCall(functionName, args, guestbookEntry, env, autoMode
         case 'search_resources':
             return await handleSearch(args.query, env);
         case 'mark_resolved':
-            return await handleResolve(guestbookEntry, args.reply, null, args.resource_path, env, autoMode);
+            return await handleResolve(guestbookEntry, args.reply, null, args.resource_path, env, autoMode, args.note);
         case 'keep_pending':
             return {
                 success: true,
@@ -586,6 +591,10 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
                         matched_file_index: {
                             type: 'integer',
                             description: '匹配的资源序号（填写搜索结果列表中的数字编号，如 1）'
+                        },
+                        note: {
+                            type: 'string',
+                            description: '额外备注信息（可选）。如："这是去年的"、"只有试卷"等。'
                         }
                     },
                     required: ['reply', 'matched_file_index']
@@ -675,7 +684,8 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
                 searchResults,
                 resourcePath,
                 env,
-                autoMode
+                autoMode,
+                functionArgs.note
             );
         }
         if (functionName === 'keep_pending') {
@@ -697,16 +707,21 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         auto_applied: false
     };
 }
-async function handleResolve(entry, reply, searchResults = null, resourcePath = null, env = null, autoMode = false) {
+async function handleResolve(entry, reply, searchResults = null, resourcePath = null, env = null, autoMode = false, note = null) {
     if (autoMode && env && entry) {
+        let resolveValue = resourcePath;
+        if (resourcePath || note) {
+            resolveValue = JSON.stringify({ path: resourcePath, note: note });
+        }
         await env.DB.prepare(
             'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?'
-        ).bind('resolved', resourcePath || null, entry.id).run();
+        ).bind('resolved', resolveValue || null, entry.id).run();
         await logAdminAction(env, 'ai_resolve', 'guestbook', entry.id, reply, JSON.stringify({
             content: entry.content,
             nickname: entry.nickname,
             user_id: entry.user_id,
-            resource_path: resourcePath
+            resource_path: resourcePath,
+            note: note
         }));
         return {
             success: true,
@@ -715,6 +730,7 @@ async function handleResolve(entry, reply, searchResults = null, resourcePath = 
             reply: reply,
             searchResults: searchResults,
             resource_path: resourcePath,
+            note: note,
             auto_applied: true
         };
     }
@@ -725,6 +741,7 @@ async function handleResolve(entry, reply, searchResults = null, resourcePath = 
         reply: reply,
         searchResults: searchResults,
         resource_path: resourcePath,
+        note: note,
         auto_applied: false
     };
 }
