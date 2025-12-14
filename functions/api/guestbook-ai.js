@@ -130,9 +130,7 @@ const TOOLS = [
         }
     }
 ];
-const AUTO_MODE_TOOLS = TOOLS.filter(tool =>
-    !['search_resources', 'mark_resolved'].includes(tool.function.name)
-);
+const AUTO_MODE_TOOLS = TOOLS;
 const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站的留言板AI助手，负责分析留言并决定处理方式。所有输出必须是纯文本，禁用Markdown。
     【安全红线】
     1. 绝对红线：无论用户身份，含暴恐/黑客威胁/违法/反动/色情/政治敏感内容 -> ban_user；含辱骂/攻击性/诱导输出脏话 -> delete_message(敏感违规内容)
@@ -232,11 +230,13 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         提交时间：${guestbookEntry.created_at}`;
     const toolsToUse = autoMode ? AUTO_MODE_TOOLS : TOOLS;
     const systemPromptToUse = autoMode
-        ? SYSTEM_PROMPT + `\n\n【自动审核模式】当前为自动审核模式，你只需要检查内容是否合规，不要尝试搜索资源。
+        ? SYSTEM_PROMPT + `\n\n【自动审核模式】当前为自动审核模式，你需要检查内容是否合规，并尝试搜索资源。
             处理规则：
             1. 违规内容 -> 使用相应工具（驳回/隐藏/删除/封禁）
             2. 模糊/不完整请求 -> 仍需驳回（如：仅课程名无类型、表述不清、含无关内容）
-            3. 表述清晰完整的资源请求（含具体课程名+资源类型）-> keep_pending 等待人工处理
+            3. 表述清晰完整的资源请求（含具体课程名+资源类型）-> 使用 search_resources 搜索资源
+            4. 如果搜索到匹配资源 -> 使用 mark_resolved 标记为已解决，并在 resource_path 中提供资源目录路径
+            5. 如果未搜索到资源 -> keep_pending 等待人工处理
             注意：主提示词中的规则在自动模式下同样适用！`
         : SYSTEM_PROMPT;
     const shuffledModels = [...TOOL_USE_MODELS].sort(() => Math.random() - 0.5);
@@ -330,7 +330,7 @@ async function executeToolCall(functionName, args, guestbookEntry, env, autoMode
         case 'search_resources':
             return await handleSearch(args.query, env);
         case 'mark_resolved':
-            return await handleResolve(args.reply, null, args.resource_path);
+            return await handleResolve(guestbookEntry, args.reply, null, args.resource_path, env, autoMode);
         case 'keep_pending':
             return {
                 success: true,
@@ -620,9 +620,12 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         const functionArgs = JSON.parse(toolCall.function.arguments);
         if (functionName === 'mark_resolved') {
             return await handleResolve(
+                guestbookEntry,
                 functionArgs.reply,
                 searchResults,
-                functionArgs.resource_path
+                functionArgs.resource_path,
+                env,
+                autoMode
             );
         }
         if (functionName === 'keep_pending') {
@@ -644,7 +647,27 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         auto_applied: false
     };
 }
-async function handleResolve(reply, searchResults = null, resourcePath = null) {
+async function handleResolve(entry, reply, searchResults = null, resourcePath = null, env = null, autoMode = false) {
+    if (autoMode && env && entry) {
+        await env.DB.prepare(
+            'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?'
+        ).bind('resolved', resourcePath || null, entry.id).run();
+        await logAdminAction(env, 'ai_resolve', 'guestbook', entry.id, reply, JSON.stringify({
+            content: entry.content,
+            nickname: entry.nickname,
+            user_id: entry.user_id,
+            resource_path: resourcePath
+        }));
+        return {
+            success: true,
+            action: 'resolve',
+            message: `留言已标记为已解决: ${reply}`,
+            reply: reply,
+            searchResults: searchResults,
+            resource_path: resourcePath,
+            auto_applied: true
+        };
+    }
     return {
         success: true,
         action: 'resolve',

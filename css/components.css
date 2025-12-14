@@ -1231,6 +1231,158 @@
     margin-right: 0.5rem;
 }
 
+.resolve-note {
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.08) 0%, rgba(40, 167, 69, 0.12) 100%);
+    border-left: 3px solid #28a745;
+    border-radius: 0 8px 8px 0;
+    color: #28a745;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.resolve-note i {
+    flex-shrink: 0;
+}
+
+.resolve-note-text {
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.08) 0%, rgba(0, 123, 255, 0.12) 100%);
+    border-left-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.resolve-note-link {
+    color: #28a745;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    background: rgba(40, 167, 69, 0.1);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: pointer;
+}
+
+.resolve-note-link:hover {
+    background: rgba(40, 167, 69, 0.2);
+    text-decoration: none;
+    transform: translateX(2px);
+}
+
+.resolve-note-link::after {
+    content: '\f061';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    font-size: 0.7rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.resolve-note-link:hover::after {
+    opacity: 1;
+}
+
+.ai-result-path {
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.08) 0%, rgba(40, 167, 69, 0.12) 100%);
+    border-left: 3px solid #28a745;
+    border-radius: 0 8px 8px 0;
+    color: #28a745;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ai-result-path i {
+    flex-shrink: 0;
+}
+
+.ai-result-path strong {
+    font-weight: 600;
+}
+
+.resolve-modal {
+    max-width: 550px;
+}
+
+.resolve-modal h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--success);
+    margin-bottom: 0.5rem;
+}
+
+.resolve-modal h3 i {
+    font-size: 1.2rem;
+}
+
+.resolve-modal p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.resolve-dir-select-wrapper {
+    margin-bottom: 1rem;
+}
+
+.resolve-dir-select-wrapper label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+}
+
+.resolve-dir-select {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.resolve-dir-select:focus {
+    outline: none;
+    border-color: var(--success);
+}
+
+.resolve-dir-select:hover {
+    border-color: var(--success);
+}
+
+.resolve-modal .prompt-input-container {
+    margin-bottom: 1rem;
+}
+
+.resolve-modal .form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease;
+}
+
+.resolve-modal .form-control:focus {
+    outline: none;
+    border-color: var(--success);
+}
+
 .reject-modal {
     max-width: 500px;
 }

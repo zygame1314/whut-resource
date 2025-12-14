@@ -1010,8 +1010,12 @@ async function showAdminLogsModal() {
                 let detailsHtml = '';
                 try {
                     const details = JSON.parse(log.details);
-                    if (details.snapshot_content) {
-                        detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: var(--text-secondary); background: var(--bg-secondary); padding: 5px; border-radius: 4px;"><strong>原始内容:</strong> ${escapeHtmlAuth(details.snapshot_content)}</div>`;
+                    const originalContent = details.snapshot_content || details.content;
+                    if (originalContent) {
+                        detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: var(--text-secondary); background: var(--bg-secondary); padding: 5px; border-radius: 4px;"><strong>原始内容:</strong> ${escapeHtmlAuth(originalContent)}</div>`;
+                    }
+                    if (details.resource_path) {
+                        detailsHtml += `<div style="font-size: 0.8em; color: var(--success);">资源路径: ${escapeHtmlAuth(details.resource_path)}</div>`;
                     }
                     if (details.nickname) {
                         detailsHtml += `<div style="font-size: 0.8em; color: var(--text-secondary);">用户昵称: ${escapeHtmlAuth(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
@@ -1023,7 +1027,8 @@ async function showAdminLogsModal() {
                     'ai_delete': 'var(--error, #ff4d4f)',
                     'ai_ban_user': 'var(--error, #ff4d4f)',
                     'ai_reject': 'var(--warning, #faad14)',
-                    'ai_hide': 'var(--warning, #faad14)'
+                    'ai_hide': 'var(--warning, #faad14)',
+                    'ai_resolve': 'var(--success, #52c41a)'
                 };
                 const color = actionColors[log.action] || 'var(--primary)';
                 const utcDate = log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z';

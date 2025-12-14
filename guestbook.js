@@ -189,6 +189,121 @@ function showRejectPrompt() {
         });
     });
 }
+window.resolveGuestbook = async function (id) {
+    let resolvePath = null;
+    try {
+        resolvePath = await showResolvePrompt();
+    } catch (e) {
+        return;
+    }
+    if (resolvePath === null) return;
+    resolvePath = resolvePath ? resolvePath.trim() : null;
+    try {
+        const token = localStorage.getItem('authToken');
+        const body = { id, action: 'resolve' };
+        if (resolvePath) {
+            body.resolve_note = resolvePath;
+        }
+        const response = await fetch(GUESTBOOK_API_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(body)
+        });
+        if (response.ok) {
+            showNotification('留言已标记为已解决', 'success');
+            fetchAndDisplayGuestbook(currentGuestbookPage);
+        } else {
+            const data = await response.json();
+            showNotification(data.error || '操作失败', 'error');
+        }
+    } catch (error) {
+        console.error('Resolve guestbook error:', error);
+        showNotification('操作出错', 'error');
+    }
+};
+async function showResolvePrompt() {
+    const token = localStorage.getItem('authToken');
+    let directories = [];
+    try {
+        const response = await fetch(`${API_ENDPOINTS.files}?action=listAllDirs`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (result.success && result.directories) {
+            directories = result.directories.map(d => d.endsWith('/') ? d.slice(0, -1) : d);
+        }
+    } catch (e) {
+        console.warn('获取目录列表失败:', e);
+    }
+    return new Promise((resolve, reject) => {
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'confirmation-modal-overlay';
+        const dirOptionsHtml = directories.length > 0
+            ? `<div class="resolve-dir-select-wrapper">
+                <label>从目录列表选择：</label>
+                <select id="resolve-dir-select" class="resolve-dir-select">
+                    <option value="">-- 不选择 / 手动输入 --</option>
+                    ${directories.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('')}
+                </select>
+               </div>`
+            : '';
+        modalOverlay.innerHTML = `
+            <div class="confirmation-modal resolve-modal">
+                <h3><i class="fas fa-check-circle" style="color: var(--success);"></i> 标记为已解决</h3>
+                <p>可选：填写备注信息（如资源位置、处理说明等）</p>
+                ${dirOptionsHtml}
+                <div class="prompt-input-container">
+                    <input type="text" id="resolve-path-input" placeholder="备注（可选），如填写目录路径则可点击跳转" class="form-control">
+                </div>
+                <div class="confirmation-buttons">
+                    <button class="confirm-btn-cancel">取消</button>
+                    <button class="confirm-btn confirm-btn-primary">确认解决</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modalOverlay);
+        const input = modalOverlay.querySelector('#resolve-path-input');
+        const dirSelect = modalOverlay.querySelector('#resolve-dir-select');
+        input.focus();
+        if (dirSelect) {
+            dirSelect.addEventListener('change', () => {
+                if (dirSelect.value) {
+                    input.value = dirSelect.value;
+                }
+            });
+        }
+        const closeModal = (value) => {
+            modalOverlay.classList.add('closing');
+            modalOverlay.addEventListener('animationend', () => {
+                if (modalOverlay.parentNode) {
+                    document.body.removeChild(modalOverlay);
+                }
+                if (value !== null) {
+                    resolve(value);
+                } else {
+                    reject(new Error('User cancelled'));
+                }
+            }, { once: true });
+        };
+        modalOverlay.querySelector('.confirm-btn').addEventListener('click', () => closeModal(input.value || ''));
+        modalOverlay.querySelector('.confirm-btn-cancel').addEventListener('click', () => closeModal(null));
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                closeModal(input.value || '');
+            } else if (e.key === 'Escape') {
+                closeModal(null);
+            }
+        });
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                closeModal(null);
+            }
+        });
+    });
+}
 function initGuestbook() {
     if (guestbookForm) {
         guestbookForm.addEventListener('submit', handleGuestbookSubmit);
@@ -273,7 +388,7 @@ function renderGuestbook(messages) {
                     <button class="icon-btn small ${pinClass}" onclick="handleGuestbookAction(${msg.id}, '${pinAction}')" title="${pinTitle}">
                         <i class="${pinIcon}"></i>
                     </button>
-                    <button class="icon-btn small ${statusClass}" onclick="handleGuestbookAction(${msg.id}, '${statusAction}')" title="${statusTitle}">
+                    <button class="icon-btn small ${statusClass}" onclick="${msg.status === 'resolved' ? `handleGuestbookAction(${msg.id}, 'unresolve')` : `resolveGuestbook(${msg.id})`}" title="${statusTitle}">
                         <i class="${statusIcon}"></i>
                     </button>
                     <button class="icon-btn small ${rejectClass}" onclick="${msg.status === 'rejected' ? `handleGuestbookAction(${msg.id}, 'unreject')` : `rejectGuestbook(${msg.id})`}" title="${rejectTitle}">
@@ -319,8 +434,12 @@ function renderGuestbook(messages) {
         const avatarColor = getAvatarColor(nickname);
         let statusBadge = '';
         let rejectReasonHtml = '';
+        let resolveNoteHtml = '';
         if (msg.status === 'resolved') {
             statusBadge = '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>';
+            if (msg.resolve_note) {
+                resolveNoteHtml = renderResolveNote(msg.resolve_note);
+            }
         } else if (msg.status === 'rejected') {
             statusBadge = '<span class="status-badge rejected"><i class="fas fa-times"></i> 已驳回</span>';
             if (msg.reject_reason) {
@@ -357,6 +476,7 @@ function renderGuestbook(messages) {
                     </div>
                     <div class="guestbook-content">${escapeHtml(msg.content)}</div>
                     ${rejectReasonHtml}
+                    ${resolveNoteHtml}
                     <div class="guestbook-footer">
                         <button class="like-btn ${likedClass}" onclick="${likeAction}">
                             <i class="${likeIcon}"></i> <span>${msg.likes}</span>
@@ -367,6 +487,30 @@ function renderGuestbook(messages) {
         `;
     }).join('');
 }
+function renderResolveNote(note) {
+    if (!note) return '';
+    const safeNote = escapeHtml(note);
+    const isLikelyPath = /^[\u4e00-\u9fa5a-zA-Z0-9_\-]+(\/[\u4e00-\u9fa5a-zA-Z0-9_\-]+)*\/?$/.test(note.trim());
+    if (isLikelyPath) {
+        const escapedPath = note.trim().replace(/'/g, "\\'").replace(/"/g, '\\"');
+        return `<div class="resolve-note"><i class="fas fa-folder-open"></i> 资源位置：<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safeNote}</a></div>`;
+    } else {
+        return `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 备注：${safeNote}</div>`;
+    }
+}
+window.navigateToPath = function (path) {
+    const fileExplorer = document.getElementById('file-list');
+    if (fileExplorer) {
+        fileExplorer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (typeof fetchAndDisplayFiles === 'function') {
+        const normalizedPath = path.endsWith('/') ? path : path + '/';
+        fetchAndDisplayFiles(normalizedPath);
+        showNotification(`正在跳转到目录：${path}`, 'info');
+    } else {
+        showNotification('无法导航到目录', 'error');
+    }
+};
 function getAvatarColor(name) {
     const colors = [
         'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)',
@@ -725,6 +869,9 @@ async function showAiResultModal(guestbookId, result) {
                 } else {
                     actionDescription = `<div class="ai-result-reply">${escapeHtml(result.reply)}</div>`;
                 }
+                if (result.resource_path) {
+                    actionDescription += `<div class="ai-result-path"><i class="fas fa-folder-open"></i> 资源目录：<strong>${escapeHtml(result.resource_path)}</strong></div>`;
+                }
                 buttonsHtml = `
                     <button class="confirm-btn-cancel" data-action="cancel">取消</button>
                     <button class="confirm-btn confirm-btn-primary" data-action="apply">确认解决</button>
@@ -802,16 +949,16 @@ async function showAiResultModal(guestbookId, result) {
                 }
                 if (action === 'apply') {
                     if (result.action === 'reject') {
-                        await applyAiAction(guestbookId, 'reject', result.reason);
+                        await applyAiAction(guestbookId, 'reject', result.reason, null);
                     } else if (result.action === 'resolve') {
-                        await applyAiAction(guestbookId, 'resolve', null);
+                        await applyAiAction(guestbookId, 'resolve', null, result.resource_path || null);
                     }
                     closeModal();
                     fetchAndDisplayGuestbook(currentGuestbookPage);
                     return;
                 }
                 if (action === 'hide') {
-                    await applyAiAction(guestbookId, 'hide', null);
+                    await applyAiAction(guestbookId, 'hide', null, null);
                     closeModal();
                     fetchAndDisplayGuestbook(currentGuestbookPage);
                     return;
@@ -866,7 +1013,7 @@ async function showAiResultModal(guestbookId, result) {
                     return;
                 }
                 if (action === 'resolve') {
-                    await applyAiAction(guestbookId, 'resolve', null);
+                    await applyAiAction(guestbookId, 'resolve', null, null);
                     closeModal();
                     fetchAndDisplayGuestbook(currentGuestbookPage);
                     return;
@@ -909,12 +1056,15 @@ function renderAiSearchResults(results) {
         </div>
     `;
 }
-async function applyAiAction(guestbookId, action, reason) {
+async function applyAiAction(guestbookId, action, reason, resolveNote) {
     try {
         const token = localStorage.getItem('authToken');
         const body = { id: guestbookId, action: action };
         if (action === 'reject' && reason) {
             body.reject_reason = reason;
+        }
+        if (action === 'resolve' && resolveNote) {
+            body.resolve_note = resolveNote;
         }
         const response = await fetch(API_ENDPOINTS.guestbook, {
             method: 'PUT',
