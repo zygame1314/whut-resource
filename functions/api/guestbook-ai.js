@@ -568,8 +568,48 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         - 核心学科必须一致（求"遗传学"不能匹配"计算机"）
         - 文件格式/版本差异可忽略（pdf/doc、A卷/B卷都算匹配）
         决策：
-        - 匹配成功 -> mark_resolved，在reply中告知用户资源名称，并在resource_path中提供资源所在目录的完整路径（去掉文件名，只保留目录部分。如文件路径为"课程/高等数学/期末真题.pdf"，则resource_path应为"课程/高等数学"）
+        - 匹配成功 -> mark_resolved，填写 matched_file_index（即搜索结果列表中的序号，如 1）
         - 学科不符 -> keep_pending，说明原因`;
+    const searchTools = [
+        {
+            type: 'function',
+            function: {
+                name: 'mark_resolved',
+                description: '标记留言为已解决。当从搜索结果中找到匹配资源时使用。',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        reply: {
+                            type: 'string',
+                            description: '回复消息（纯文本），告诉用户资源已找到'
+                        },
+                        matched_file_index: {
+                            type: 'integer',
+                            description: '匹配的资源序号（填写搜索结果列表中的数字编号，如 1）'
+                        }
+                    },
+                    required: ['reply', 'matched_file_index']
+                }
+            }
+        },
+        {
+            type: 'function',
+            function: {
+                name: 'keep_pending',
+                description: '保持留言待处理状态。当搜索结果都不匹配时使用。',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        note: {
+                            type: 'string',
+                            description: '备注原因'
+                        }
+                    },
+                    required: ['note']
+                }
+            }
+        }
+    ];
     const shuffledModels = [...TOOL_USE_MODELS].sort(() => Math.random() - 0.5);
     let lastError = null;
     let aiResponse = null;
@@ -587,7 +627,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
                         { role: 'system', content: SYSTEM_PROMPT },
                         { role: 'user', content: secondPrompt }
                     ],
-                    tools: TOOLS,
+                    tools: searchTools,
                     tool_choice: 'auto',
                     temperature: 0.7,
                     max_tokens: 1024
@@ -619,11 +659,21 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         const functionName = toolCall.function.name;
         const functionArgs = JSON.parse(toolCall.function.arguments);
         if (functionName === 'mark_resolved') {
+            const idx = functionArgs.matched_file_index;
+            let resourcePath = null;
+            if (idx && typeof idx === 'number' && idx > 0 && idx <= searchResults.length) {
+                const file = searchResults[idx - 1];
+                if (file.is_directory) {
+                    resourcePath = file.parent_path ? `${file.parent_path}/${file.name}` : file.name;
+                } else {
+                    resourcePath = file.parent_path;
+                }
+            }
             return await handleResolve(
                 guestbookEntry,
                 functionArgs.reply,
                 searchResults,
-                functionArgs.resource_path,
+                resourcePath,
                 env,
                 autoMode
             );
