@@ -102,6 +102,10 @@ const TOOLS = [
                     reply: {
                         type: 'string',
                         description: '回复消息（纯文本，不用markdown），告诉用户资源位置'
+                    },
+                    resource_path: {
+                        type: 'string',
+                        description: '资源所在的目录路径。必须是完整路径，如"课程/高等数学"。用户可以直接点击跳转到该目录。'
                     }
                 },
                 required: ['reply']
@@ -326,7 +330,7 @@ async function executeToolCall(functionName, args, guestbookEntry, env, autoMode
         case 'search_resources':
             return await handleSearch(args.query, env);
         case 'mark_resolved':
-            return await handleResolve(args.reply, null);
+            return await handleResolve(args.reply, null, args.resource_path);
         case 'keep_pending':
             return {
                 success: true,
@@ -564,7 +568,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         - 核心学科必须一致（求"遗传学"不能匹配"计算机"）
         - 文件格式/版本差异可忽略（pdf/doc、A卷/B卷都算匹配）
         决策：
-        - 匹配成功 -> mark_resolved，告知用户资源位置
+        - 匹配成功 -> mark_resolved，在reply中告知用户资源名称，并在resource_path中提供资源所在目录的完整路径（去掉文件名，只保留目录部分。如文件路径为"课程/高等数学/期末真题.pdf"，则resource_path应为"课程/高等数学"）
         - 学科不符 -> keep_pending，说明原因`;
     const shuffledModels = [...TOOL_USE_MODELS].sort(() => Math.random() - 0.5);
     let lastError = null;
@@ -617,7 +621,8 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         if (functionName === 'mark_resolved') {
             return await handleResolve(
                 functionArgs.reply,
-                searchResults
+                searchResults,
+                functionArgs.resource_path
             );
         }
         if (functionName === 'keep_pending') {
@@ -639,13 +644,14 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         auto_applied: false
     };
 }
-async function handleResolve(reply, searchResults = null) {
+async function handleResolve(reply, searchResults = null, resourcePath = null) {
     return {
         success: true,
         action: 'resolve',
         message: '建议标记为已解决',
         reply: reply,
         searchResults: searchResults,
+        resource_path: resourcePath,
         auto_applied: false
     };
 }

@@ -63,6 +63,7 @@ CREATE TABLE guestbook (
     is_pinned BOOLEAN DEFAULT FALSE,
     status TEXT DEFAULT 'unresolved',
     reject_reason TEXT DEFAULT NULL,
+    resolve_note TEXT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

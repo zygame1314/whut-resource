@@ -356,7 +356,8 @@ async function handlePut(request, env, context) {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const status = action === 'resolve' ? 'resolved' : 'unresolved';
-        await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL WHERE id = ?').bind(status, id).run();
+        const resolveNote = action === 'resolve' ? (body.resolve_note || null) : null;
+        await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?').bind(status, resolveNote, id).run();
     } else if (action === 'reject') {
         if (user.role !== 'admin') {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
