@@ -1020,7 +1020,7 @@
 .path-tree-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.8rem;
     padding: 0.5rem 0.8rem;
     border-radius: 8px;
     cursor: pointer;
@@ -1059,7 +1059,6 @@
 }
 
 .path-folder-name {
-    flex: 1;
     font-size: 0.9rem;
     overflow: hidden;
     text-overflow: ellipsis;
