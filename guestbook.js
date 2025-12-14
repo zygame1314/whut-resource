@@ -182,7 +182,7 @@ function showRejectPrompt() {
                 closeModal(null);
             }
         });
-        modalOverlay.addEventListener('click', (e) => {
+        modalOverlay.addEventListener('mousedown', (e) => {
             if (e.target === modalOverlay) {
                 closeModal(null);
             }
@@ -238,25 +238,76 @@ async function showResolvePrompt() {
     } catch (e) {
         console.warn('获取目录列表失败:', e);
     }
+    function buildDirectoryTree(dirs) {
+        const tree = {};
+        dirs.forEach(dir => {
+            const parts = dir.split('/');
+            let current = tree;
+            parts.forEach(part => {
+                if (!current[part]) {
+                    current[part] = {};
+                }
+                current = current[part];
+            });
+        });
+        return tree;
+    }
+    function renderPathTreeNode(name, children, path, isRoot = false) {
+        const fullPath = isRoot ? '' : path;
+        const hasChildren = Object.keys(children).length > 0;
+        const li = document.createElement('li');
+        li.className = 'path-tree-node';
+        const nodeContent = document.createElement('div');
+        nodeContent.className = 'path-tree-item';
+        nodeContent.dataset.path = fullPath;
+        nodeContent.innerHTML = `
+            <i class="fas fa-chevron-right path-toggle-icon ${hasChildren ? '' : 'invisible'}"></i>
+            <i class="fas ${isRoot ? 'fa-home' : 'fa-folder'} path-folder-icon"></i>
+            <span class="path-folder-name">${escapeHtml(name)}</span>
+        `;
+        li.appendChild(nodeContent);
+        if (hasChildren) {
+            const sublist = document.createElement('ul');
+            sublist.className = 'path-tree-list';
+            sublist.style.display = isRoot ? 'block' : 'none';
+            const sortedKeys = Object.keys(children).sort();
+            sortedKeys.forEach(key => {
+                const childPath = isRoot ? key : path + '/' + key;
+                sublist.appendChild(renderPathTreeNode(key, children[key], childPath, false));
+            });
+            li.appendChild(sublist);
+        }
+        return li;
+    }
     return new Promise((resolve, reject) => {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'confirmation-modal-overlay';
-        const dirOptionsHtml = directories.length > 0
-            ? `<div class="resolve-dir-select-wrapper">
-                <label>从目录列表选择：</label>
-                <select id="resolve-dir-select" class="resolve-dir-select">
-                    <option value="">-- 不选择 / 手动输入 --</option>
-                    ${directories.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('')}
-                </select>
-               </div>`
-            : '';
+        let selectedPath = '';
+        const tree = buildDirectoryTree(directories);
+        const hasDirectories = directories.length > 0;
+        const pathSelectorHtml = hasDirectories ? `
+            <div class="resolve-path-selector">
+                <div class="path-dropdown-wrapper">
+                    <button type="button" id="resolve-path-btn" class="path-dropdown-btn">
+                        <span class="selected-path">选择目录（可选）</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div id="resolve-path-dropdown" class="path-dropdown-menu">
+                        <div class="path-dropdown-header">
+                            <span>选择资源目录</span>
+                        </div>
+                        <div id="resolve-path-tree-container" class="path-tree-container"></div>
+                    </div>
+                </div>
+            </div>
+        ` : '';
         modalOverlay.innerHTML = `
             <div class="confirmation-modal resolve-modal">
                 <h3><i class="fas fa-check-circle" style="color: var(--success);"></i> 标记为已解决</h3>
                 <p>可选：填写备注信息（如资源位置、处理说明等）</p>
-                ${dirOptionsHtml}
+                ${pathSelectorHtml}
                 <div class="prompt-input-container">
-                    <input type="text" id="resolve-path-input" placeholder="备注（可选），如填写目录路径则可点击跳转" class="form-control">
+                    <textarea id="resolve-path-input" placeholder="备注（可选），如填写目录路径则可点击跳转" rows="2"></textarea>
                 </div>
                 <div class="confirmation-buttons">
                     <button class="confirm-btn-cancel">取消</button>
@@ -266,15 +317,48 @@ async function showResolvePrompt() {
         `;
         document.body.appendChild(modalOverlay);
         const input = modalOverlay.querySelector('#resolve-path-input');
-        const dirSelect = modalOverlay.querySelector('#resolve-dir-select');
-        input.focus();
-        if (dirSelect) {
-            dirSelect.addEventListener('change', () => {
-                if (dirSelect.value) {
-                    input.value = dirSelect.value;
+        const pathBtn = modalOverlay.querySelector('#resolve-path-btn');
+        const pathDropdown = modalOverlay.querySelector('#resolve-path-dropdown');
+        const pathTreeContainer = modalOverlay.querySelector('#resolve-path-tree-container');
+        if (pathTreeContainer && hasDirectories) {
+            const ul = document.createElement('ul');
+            ul.className = 'path-tree-list root';
+            ul.appendChild(renderPathTreeNode('根目录', tree, '', true));
+            pathTreeContainer.appendChild(ul);
+            pathTreeContainer.addEventListener('click', (e) => {
+                const toggleIcon = e.target.closest('.path-toggle-icon');
+                const treeItem = e.target.closest('.path-tree-item');
+                if (toggleIcon && !toggleIcon.classList.contains('invisible')) {
+                    e.stopPropagation();
+                    const parentLi = toggleIcon.closest('.path-tree-node');
+                    const sublist = parentLi.querySelector(':scope > .path-tree-list');
+                    if (sublist) {
+                        const isExpanded = sublist.style.display !== 'none';
+                        sublist.style.display = isExpanded ? 'none' : 'block';
+                        toggleIcon.style.transform = isExpanded ? '' : 'rotate(90deg)';
+                    }
+                } else if (treeItem) {
+                    pathTreeContainer.querySelectorAll('.path-tree-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    treeItem.classList.add('selected');
+                    selectedPath = treeItem.dataset.path;
+                    input.value = selectedPath;
+                    pathBtn.querySelector('.selected-path').textContent = selectedPath || '根目录';
+                    pathDropdown.classList.remove('open');
+                    pathBtn.classList.remove('open');
                 }
             });
         }
+        if (pathBtn && pathDropdown) {
+            pathBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                pathDropdown.classList.toggle('open');
+                pathBtn.classList.toggle('open');
+            });
+        }
+        input.focus();
         const closeModal = (value) => {
             modalOverlay.classList.add('closing');
             modalOverlay.addEventListener('animationend', () => {
@@ -297,9 +381,15 @@ async function showResolvePrompt() {
                 closeModal(null);
             }
         });
-        modalOverlay.addEventListener('click', (e) => {
+        modalOverlay.addEventListener('mousedown', (e) => {
             if (e.target === modalOverlay) {
                 closeModal(null);
+            }
+        });
+        modalOverlay.addEventListener('click', (e) => {
+            if (pathDropdown && !pathDropdown.contains(e.target) && !pathBtn?.contains(e.target)) {
+                pathDropdown.classList.remove('open');
+                pathBtn?.classList.remove('open');
             }
         });
     });
@@ -490,7 +580,7 @@ function renderGuestbook(messages) {
 function renderResolveNote(note) {
     if (!note) return '';
     const safeNote = escapeHtml(note);
-    const isLikelyPath = /^[\u4e00-\u9fa5a-zA-Z0-9_\-]+(\/[\u4e00-\u9fa5a-zA-Z0-9_\-]+)*\/?$/.test(note.trim());
+    const isLikelyPath = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\.()（）\s]+(?:\/[\u4e00-\u9fa5a-zA-Z0-9_\-\.()（）\s]+)*\/?$/.test(note.trim());
     if (isLikelyPath) {
         const escapedPath = note.trim().replace(/'/g, "\\'").replace(/"/g, '\\"');
         return `<div class="resolve-note"><i class="fas fa-folder-open"></i> 资源位置：<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safeNote}</a></div>`;
@@ -1025,7 +1115,7 @@ async function showAiResultModal(guestbookId, result) {
                 }
             });
         });
-        modalOverlay.addEventListener('click', (e) => {
+        modalOverlay.addEventListener('mousedown', (e) => {
             if (e.target === modalOverlay) {
                 closeModal();
             }

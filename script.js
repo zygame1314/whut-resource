@@ -924,7 +924,7 @@ function showConfirmation({
         };
         modalOverlay.querySelector('.confirm-btn').addEventListener('click', () => closeModal(true));
         modalOverlay.querySelector('.confirm-btn-cancel').addEventListener('click', () => closeModal(false));
-        modalOverlay.addEventListener('click', (e) => {
+        modalOverlay.addEventListener('mousedown', (e) => {
             if (e.target === modalOverlay) {
                 closeModal(false);
             }
@@ -983,7 +983,7 @@ function showPrompt({
                 closeModal(null);
             }
         });
-        modalOverlay.addEventListener('click', (e) => {
+        modalOverlay.addEventListener('mousedown', (e) => {
             if (e.target === modalOverlay) {
                 closeModal(null);
             }
@@ -2609,7 +2609,7 @@ function showDirectoryPicker(itemsToMove = []) {
         confirmBtn.addEventListener('click', () => closeModal(selectedPath));
         modalOverlay.querySelector('.confirm-btn-cancel').addEventListener('click', () => closeModal(null));
         modalOverlay.querySelector('.close-btn').addEventListener('click', () => closeModal(null));
-        modalOverlay.addEventListener('click', (e) => {
+        modalOverlay.addEventListener('mousedown', (e) => {
             if (e.target === modalOverlay) closeModal(null);
         });
         try {

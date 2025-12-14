@@ -599,7 +599,7 @@ function showChangeNicknameModal() {
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.onmousedown = (e) => { if (e.target === modal) modal.remove(); };
     const form = modal.querySelector('#change-nickname-form');
     form.onsubmit = async (e) => {
         e.preventDefault();
@@ -989,7 +989,7 @@ async function showAdminLogsModal() {
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.onmousedown = (e) => { if (e.target === modal) modal.remove(); };
     let currentPage = 1;
     const loadLogs = async (page) => {
         const container = modal.querySelector('#logs-container');

@@ -36,6 +36,32 @@
     --transition-normal: 0.3s ease;
     --transition-slow: 0.5s ease;
     --bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --primary-rgb: 0, 123, 255;
+    --success: var(--success-color);
+    --warning: var(--warning-color);
+
+    --text-muted: #95a5a6;
+    --text-tertiary: #aab7b8;
+
+    --border-radius-small: 8px;
+    --border-radius-medium: 12px;
+    --border-radius-large: 16px;
+
+    --background-secondary: var(--background-alt);
+    --background-hover: rgba(0, 0, 0, 0.03);
+
+    --button-bg: var(--background);
+    --button-text: var(--text-primary);
+    --button-border: var(--border-color);
+    --button-hover-bg: var(--background-alt);
+
+    --primary-light-trans: rgba(0, 123, 255, 0.1);
+
+    --card-bg: var(--background);
+    --card-shadow: var(--shadow-medium);
+    --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.05);
+    --shadow-large: var(--shadow-heavy);
 }
 
 [data-theme="dark"] {
@@ -45,6 +71,19 @@
     --text-primary: var(--dark-text);
     --text-secondary: var(--dark-text-secondary);
     --border-color: var(--dark-border);
+
+    --background-secondary: var(--dark-bg-alt);
+    --background-hover: rgba(255, 255, 255, 0.05);
+
+    --button-bg: var(--dark-bg-alt);
+    --button-text: var(--dark-text);
+    --button-border: var(--dark-border);
+    --button-hover-bg: rgba(255, 255, 255, 0.05);
+
+    --card-bg: var(--dark-bg-alt);
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --text-muted: #888888;
+    --text-tertiary: #666666;
 }
 
 * {
@@ -141,9 +180,21 @@ a:focus-visible {
 
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
     -webkit-box-shadow: 0 0 0 30px var(--background) inset !important;
     -webkit-text-fill-color: var(--text-primary) !important;
-    transition: background-color 5000s ease-in-out 0s;
+    transition: background-color 5000s ease-in-out 0s,
+        box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+input:-webkit-autofill:focus {
+    -webkit-box-shadow:
+        0 0 0 30px var(--background) inset,
+        0 0 0 4px rgba(var(--primary-rgb), 0.12),
+        0 4px 16px rgba(var(--primary-rgb), 0.15) !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    transition: background-color 5000s ease-in-out 0s,
+        box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
