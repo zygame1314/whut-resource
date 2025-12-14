@@ -95,21 +95,17 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'mark_resolved',
-            description: '标记留言为已解决。当已经找到用户需要的资源时使用。',
+            description: '标记留言为已解决。用于非资源类请求的直接解决（如感谢回应），或无需提供具体路径的场景。',
             parameters: {
                 type: 'object',
                 properties: {
                     reply: {
                         type: 'string',
-                        description: '回复消息（纯文本，不用markdown），告诉用户资源位置'
-                    },
-                    resource_path: {
-                        type: 'string',
-                        description: '资源所在的目录路径。必须是完整路径，如"课程/高等数学"。用户可以直接点击跳转到该目录。'
+                        description: '回复消息（纯文本，不用markdown）。'
                     },
                     note: {
                         type: 'string',
-                        description: '额外备注信息（可选）。例如："在2023年文件夹下"、"只有期末试卷"等。'
+                        description: '额外备注信息。'
                     }
                 },
                 required: ['reply']
@@ -239,9 +235,10 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
             处理规则：
             1. 违规内容 -> 使用相应工具（驳回/隐藏/删除/封禁）
             2. 模糊/不完整请求 -> 仍需驳回（如：仅课程名无类型、表述不清、含无关内容）
-            3. 表述清晰完整的资源请求（含具体课程名+资源类型）-> 使用 search_resources 搜索资源
-            4. 如果搜索到匹配资源 -> 使用 mark_resolved 标记为已解决，并在 resource_path 中提供资源目录路径，必要时在 note 中添加备注
-            5. 如果未搜索到资源 -> keep_pending 等待人工处理
+            3. 纯粹感谢/祝福 -> 使用 mark_resolved 直接回复（填写 reply 和 note），无需搜索。
+            4. 表述清晰完整的资源请求（含具体课程名+资源类型）-> 使用 search_resources 搜索资源
+            5. 如果搜索到匹配资源（通过二次调用判断） -> 使用 mark_resolved 标记为已解决，必须提供 matched_file_index，强烈建议在 note 中填写版本/年份等说明。
+            6. 如果未搜索到资源 -> keep_pending 等待人工处理
             注意：主提示词中的规则在自动模式下同样适用！`
         : SYSTEM_PROMPT;
     const shuffledModels = [...TOOL_USE_MODELS].sort(() => Math.random() - 0.5);
@@ -335,7 +332,7 @@ async function executeToolCall(functionName, args, guestbookEntry, env, autoMode
         case 'search_resources':
             return await handleSearch(args.query, env);
         case 'mark_resolved':
-            return await handleResolve(guestbookEntry, args.reply, null, args.resource_path, env, autoMode, args.note);
+            return await handleResolve(guestbookEntry, args.reply, null, null, env, autoMode, args.note);
         case 'keep_pending':
             return {
                 success: true,
@@ -573,7 +570,10 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         - 核心学科必须一致（求"遗传学"不能匹配"计算机"）
         - 文件格式/版本差异可忽略（pdf/doc、A卷/B卷都算匹配）
         决策：
-        - 匹配成功 -> mark_resolved，填写 matched_file_index（即搜索结果列表中的序号，如 1）
+        - 匹配成功 -> mark_resolved
+            - matched_file_index: 填搜索结果序号（如 1）
+            - reply: 简短回复用户资源已找到
+            - note: 填写额外说明。例如："这是去年的版本"、"包含复习资料和试卷"、"祝考试顺利！"等。
         - 学科不符 -> keep_pending，说明原因`;
     const searchTools = [
         {
