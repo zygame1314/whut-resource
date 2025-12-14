@@ -986,6 +986,9 @@ async function showAiResultModal(guestbookId, result) {
                 if (result.resource_path) {
                     actionDescription += `<div class="ai-result-path"><i class="fas fa-folder-open"></i> 资源目录：<strong>${escapeHtml(result.resource_path)}</strong></div>`;
                 }
+                if (result.note) {
+                    actionDescription += `<div class="ai-result-note" style="margin-top:8px; color:var(--text-secondary);"><strong>备注：</strong>${escapeHtml(result.note)}</div>`;
+                }
                 buttonsHtml = `
                     <button class="confirm-btn-cancel" data-action="cancel">取消</button>
                     <button class="confirm-btn confirm-btn-primary" data-action="apply">确认解决</button>
@@ -1065,7 +1068,11 @@ async function showAiResultModal(guestbookId, result) {
                     if (result.action === 'reject') {
                         await applyAiAction(guestbookId, 'reject', result.reason, null);
                     } else if (result.action === 'resolve') {
-                        await applyAiAction(guestbookId, 'resolve', null, result.resource_path || null);
+                        let resolveValue = result.resource_path || null;
+                        if (result.resource_path || result.note) {
+                            resolveValue = JSON.stringify({ path: result.resource_path, note: result.note });
+                        }
+                        await applyAiAction(guestbookId, 'resolve', null, resolveValue);
                     }
                     closeModal();
                     fetchAndDisplayGuestbook(currentGuestbookPage);
