@@ -206,10 +206,7 @@ async function addWatermarkToPDF(file) {
         return file;
     }
     const match = file.name.match(/【(.+?)】/);
-    if (!match) {
-        return file;
-    }
-    const watermarkText = match[1] + "无偿";
+    const watermarkText = match ? (match[1] + "无偿") : "武理资源共享平台";
     try {
         if (typeof PDFLib === 'undefined') {
             console.warn('PDFLib未加载，跳过水印添加');
@@ -217,14 +214,16 @@ async function addWatermarkToPDF(file) {
         }
         showNotification(`正在为 "${file.name}" 添加水印...`, 'info');
         const arrayBuffer = await file.arrayBuffer();
-        const { PDFDocument, rgb, degrees } = PDFLib;
+        const { PDFDocument } = PDFLib;
         const pdfDoc = await PDFDocument.load(arrayBuffer);
         const pages = pdfDoc.getPages();
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const fontSize = 40;
-        canvas.width = 300;
-        canvas.height = 150;
+        const textWidth = watermarkText.length * fontSize;
+        const diagonal = Math.sqrt(2) * textWidth;
+        canvas.width = Math.max(400, diagonal + 40);
+        canvas.height = Math.max(200, diagonal / 2 + 40);
         ctx.font = `${fontSize}px "Microsoft YaHei", sans-serif`;
         ctx.fillStyle = 'rgba(128, 128, 128, 0.3)';
         ctx.textBaseline = 'middle';
