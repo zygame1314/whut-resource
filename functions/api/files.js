@@ -1,8 +1,5 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const DEFAULT_PAGE_SIZE = 20;
-function escapeLikePattern(pattern) {
-  return pattern.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-}
 export async function onRequestGet({ request, env, waitUntil }) {
   const authHeader = request.headers.get('Authorization');
   let user = null;
@@ -289,8 +286,8 @@ export async function onRequestPut({ request, env }) {
           headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
       }
-      const escapedOldPath = escapeLikePattern(oldFolderPath);
-      const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key LIKE ? ESCAPE '\\' AND key != ?").bind(`${escapedOldPath}%`, oldFolderPath).all();
+      const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
+      const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ?").bind(oldFolderPath, endKey, oldFolderPath).all();
       const batchOperations = [];
       batchOperations.push(
         DB.prepare(`
@@ -446,8 +443,8 @@ export async function onRequestPost({ request, env }) {
           headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
       }
-      const escapedOldPath = escapeLikePattern(oldFolderPath);
-      const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key LIKE ? ESCAPE '\\' AND key != ?").bind(`${escapedOldPath}%`, oldFolderPath).all();
+      const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
+      const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ?").bind(oldFolderPath, endKey, oldFolderPath).all();
       const batchOperations = [];
       batchOperations.push(
         DB.prepare(`
@@ -585,8 +582,8 @@ export async function onRequestDelete({ request, env }) {
         }
         if (fileRecord.is_directory) {
           const folderPath = currentKey.endsWith('/') ? currentKey : currentKey + '/';
-          const escapedPath = escapeLikePattern(folderPath);
-          const { results: childItems } = await DB.prepare("SELECT key, is_link, is_directory FROM files WHERE key LIKE ? ESCAPE '\\'").bind(`${escapedPath}%`).all();
+          const endKey = folderPath.substring(0, folderPath.length - 1) + '0';
+          const { results: childItems } = await DB.prepare("SELECT key, is_link, is_directory FROM files WHERE key >= ? AND key < ?").bind(folderPath, endKey).all();
           for (const child of childItems || []) {
             const isChildLink = child.is_link === 1 || child.is_link === true;
             const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
