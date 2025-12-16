@@ -559,8 +559,10 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
             auto_applied: false
         };
     }
+    const normalizePath = (p) => p ? p.replace(/\/+/g, '/').replace(/^\/|\/$/, '') : '';
     const resourceList = searchResults.slice(0, 5).map((f, i) => {
-        const path = f.parent_path ? `${f.parent_path}/${f.name}` : f.name;
+        const parentPath = normalizePath(f.parent_path);
+        const path = parentPath ? `${parentPath}/${f.name}` : f.name;
         return `${i + 1}. ${f.name} (路径: ${path}, 相似度: ${(f.similarity_score * 100).toFixed(1)}%)`;
     }).join('\n');
     const secondPrompt = `搜索结果：
@@ -672,10 +674,12 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
             let resourcePath = null;
             if (idx && typeof idx === 'number' && idx > 0 && idx <= searchResults.length) {
                 const file = searchResults[idx - 1];
+                const normalizePath = (p) => p ? p.replace(/\/+/g, '/').replace(/^\/|\/$/, '') : '';
                 if (file.is_directory) {
-                    resourcePath = file.parent_path ? `${file.parent_path}/${file.name}` : file.name;
+                    const parentPath = normalizePath(file.parent_path);
+                    resourcePath = parentPath ? `${parentPath}/${file.name}` : file.name;
                 } else {
-                    resourcePath = file.parent_path;
+                    resourcePath = normalizePath(file.parent_path);
                 }
             }
             return await handleResolve(

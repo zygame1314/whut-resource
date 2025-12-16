@@ -639,9 +639,10 @@ window.navigateToPath = function (path) {
         fileExplorer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     if (typeof fetchAndDisplayFiles === 'function') {
-        const normalizedPath = path.endsWith('/') ? path : path + '/';
+        let cleanPath = path.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+        const normalizedPath = cleanPath ? cleanPath + '/' : '/';
         fetchAndDisplayFiles(normalizedPath);
-        showNotification(`正在跳转到目录：${path}`, 'info');
+        showNotification(`正在跳转到目录：${cleanPath || '根目录'}`, 'info');
     } else {
         showNotification('无法导航到目录', 'error');
     }
