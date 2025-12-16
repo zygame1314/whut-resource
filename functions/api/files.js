@@ -583,7 +583,7 @@ export async function onRequestDelete({ request, env }) {
         if (fileRecord.is_directory) {
           const folderPath = currentKey.endsWith('/') ? currentKey : currentKey + '/';
           const endKey = folderPath.substring(0, folderPath.length - 1) + '0';
-          const { results: childItems } = await DB.prepare("SELECT key, is_link, is_directory FROM files WHERE key >= ? AND key < ?").bind(folderPath, endKey).all();
+          const { results: childItems } = await DB.prepare("SELECT key, is_link, is_directory FROM files WHERE key >= ? AND key < ? AND key != ?").bind(folderPath, endKey, folderPath).all();
           for (const child of childItems || []) {
             const isChildLink = child.is_link === 1 || child.is_link === true;
             const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
