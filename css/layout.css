@@ -103,7 +103,7 @@
     background: var(--background-secondary);
     padding: 1.5rem;
     border-radius: var(--border-radius-large);
-    max-height: 800px;
+    max-height: 900px;
     overflow-y: auto;
     position: sticky;
     top: 90px;

@@ -41,24 +41,7 @@ async function checkAuth() {
         if (data.success) {
             currentUser = data.user;
             window.currentUser = currentUser;
-            if (typeof fetchAndDisplayFiles === 'function') {
-                fetchAndDisplayFiles('');
-            }
-            if (typeof fetchAndRenderHotFolders === 'function') {
-                fetchAndRenderHotFolders();
-            }
-            if (typeof fetchAndBuildFolderTree === 'function') {
-                fetchAndBuildFolderTree();
-            }
-            if (typeof fetchAndRenderRecentUploads === 'function') {
-                fetchAndRenderRecentUploads();
-            }
-            if (typeof fetchFileStats === 'function') {
-                fetchFileStats();
-            }
-            if (typeof checkAdminPermission === 'function') {
-                checkAdminPermission();
-            }
+            document.dispatchEvent(new Event('authSuccess'));
         } else {
             logout();
         }

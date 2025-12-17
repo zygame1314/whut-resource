@@ -2166,9 +2166,28 @@ document.addEventListener('authSuccess', () => {
     fetchAndBuildFolderTree();
     fetchAndRenderHotFolders();
     fetchAndRenderRecentUploads();
+    if (typeof checkAdminPermission === 'function') {
+        checkAdminPermission();
+    }
     const uploadBtnLink = document.getElementById('upload-btn-link');
     if (uploadBtnLink) {
         uploadBtnLink.style.display = 'inline-flex';
+    }
+    if (!localStorage.getItem('hasSeenTutorial')) {
+        setTimeout(async () => {
+            if (typeof showConfirmation === 'function') {
+                const shouldStart = await showConfirmation({
+                    title: '👋 欢迎来到武理资源共享平台',
+                    message: '检测到你可能是初次访问，建议你查看新手教程已了解如何全功能使用本站。<br><br>是否立即开启教程？',
+                    confirmText: '🚀 开启教程',
+                    cancelText: '暂不需要'
+                });
+                localStorage.setItem('hasSeenTutorial', 'true');
+                if (shouldStart && typeof startTutorial === 'function') {
+                    startTutorial();
+                }
+            }
+        }, 1500);
     }
 });
 document.addEventListener('authRestored', () => {
