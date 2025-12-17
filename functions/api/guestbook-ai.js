@@ -1,10 +1,6 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const TOOL_USE_MODELS = [
-    'openai/gpt-oss-20b',
-    'openai/gpt-oss-120b',
-    'openai/gpt-oss-safeguard-20b'
-];
+const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
+const MODEL = 'gpt-oss-120b';
 const TOOLS = [
     {
         type: 'function',
@@ -220,9 +216,9 @@ async function getUser(request, env) {
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }
 export async function processWithAIAgent(guestbookEntry, env, autoMode) {
-    const GROQ_API_KEY = env.GROQ_API_KEY;
-    if (!GROQ_API_KEY) {
-        throw new Error('未配置 GROQ_API_KEY');
+    const CEREBRAS_API_KEY = env.CEREBRAS_API_KEY;
+    if (!CEREBRAS_API_KEY) {
+        throw new Error('未配置 CEREBRAS_API_KEY');
     }
     const roleTag = guestbookEntry.role === 'admin' ? '【管理员】' : '【普通用户】';
     const userMessage = `用户身份：${roleTag}
@@ -241,51 +237,29 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
             6. 如果未搜索到资源 -> keep_pending 等待人工处理
             注意：主提示词中的规则在自动模式下同样适用！`
         : SYSTEM_PROMPT;
-    const shuffledModels = [...TOOL_USE_MODELS].sort(() => Math.random() - 0.5);
-    let lastError = null;
-    let aiResponse = null;
-    for (const model of shuffledModels) {
-        try {
-            const response = await fetch(GROQ_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${GROQ_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        { role: 'system', content: systemPromptToUse },
-                        { role: 'user', content: userMessage }
-                    ],
-                    tools: toolsToUse,
-                    tool_choice: 'auto',
-                    temperature: 0.7,
-                    max_tokens: 1024
-                })
-            });
-            if (response.ok) {
-                aiResponse = await response.json();
-                break;
-            }
-            if (response.status === 429 || response.status === 529) {
-                console.log(`模型 ${model} 限额/过载，尝试下一个...`);
-                lastError = new Error(`模型 ${model} 限额: ${response.status}`);
-                continue;
-            }
-            const errorText = await response.text();
-            throw new Error(`Groq API 调用失败: ${response.status} - ${errorText}`);
-        } catch (e) {
-            lastError = e;
-            if (e.message.includes('Groq API 调用失败')) {
-                throw e;
-            }
-            console.log(`模型 ${model} 调用异常: ${e.message}`);
-        }
+    const response = await fetch(CEREBRAS_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${CEREBRAS_API_KEY}`
+        },
+        body: JSON.stringify({
+            model: MODEL,
+            messages: [
+                { role: 'system', content: systemPromptToUse },
+                { role: 'user', content: userMessage }
+            ],
+            tools: toolsToUse,
+            tool_choice: 'auto',
+            temperature: 0.7,
+            max_tokens: 1024
+        })
+    });
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Cerebras API 调用失败: ${response.status} - ${errorText}`);
     }
-    if (!aiResponse) {
-        throw lastError || new Error('所有模型均不可用');
-    }
+    const aiResponse = await response.json();
     const message = aiResponse.choices?.[0]?.message;
     if (!message) {
         throw new Error('AI 未返回有效响应');
@@ -306,7 +280,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
                 guestbookEntry,
                 toolResult.searchResults,
                 env,
-                GROQ_API_KEY,
+                CEREBRAS_API_KEY,
                 autoMode
             );
         }
@@ -621,49 +595,29 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
             }
         }
     ];
-    const shuffledModels = [...TOOL_USE_MODELS].sort(() => Math.random() - 0.5);
-    let lastError = null;
-    let aiResponse = null;
-    for (const model of shuffledModels) {
-        try {
-            const response = await fetch(GROQ_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        { role: 'system', content: SYSTEM_PROMPT },
-                        { role: 'user', content: secondPrompt }
-                    ],
-                    tools: searchTools,
-                    tool_choice: 'auto',
-                    temperature: 0.7,
-                    max_tokens: 1024
-                })
-            });
-            if (response.ok) {
-                aiResponse = await response.json();
-                break;
-            }
-            if (response.status === 429 || response.status === 529) {
-                console.log(`二次调用: 模型 ${model} 限额/过载，尝试下一个...`);
-                lastError = new Error(`模型 ${model} 限额: ${response.status}`);
-                continue;
-            }
-            throw new Error(`AI 二次调用失败: ${response.status}`);
-        } catch (e) {
-            lastError = e;
-            if (e.message.includes('AI 二次调用失败')) {
-                throw e;
-            }
-        }
+    const response = await fetch(CEREBRAS_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: MODEL,
+            messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: secondPrompt }
+            ],
+            tools: searchTools,
+            tool_choice: 'auto',
+            temperature: 0.7,
+            max_tokens: 1024
+        })
+    });
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Cerebras API 二次调用失败: ${response.status} - ${errorText}`);
     }
-    if (!aiResponse) {
-        throw lastError || new Error('所有模型均不可用');
-    }
+    const aiResponse = await response.json();
     const message = aiResponse.choices?.[0]?.message;
     if (message?.tool_calls?.length > 0) {
         const toolCall = message.tool_calls[0];
