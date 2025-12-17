@@ -328,3 +328,15 @@
         opacity: 1;
     }
 }
+
+@keyframes nodeGlow {
+
+    0%,
+    100% {
+        filter: drop-shadow(0 0 8px var(--primary-color));
+    }
+
+    50% {
+        filter: drop-shadow(0 0 20px var(--primary-color));
+    }
+}

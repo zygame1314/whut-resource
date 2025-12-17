@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/pages.css">
     <link rel="stylesheet" href="css/dynamic.css">
+    <link rel="stylesheet" href="css/graph.css">
     <link rel="stylesheet" href="https://cdn.jsdmirror.com/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdmirror.com/npm/shepherd.js@10.0.1/dist/css/shepherd.css" />
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -110,6 +111,11 @@
                     <div class="sidebar-cache-notice">
                         <i class="fas fa-info-circle"></i> 此处数据每小时刷新一次
                     </div>
+                    <div class="sidebar-divider"></div>
+                    <button id="open-graph-btn" class="graph-view-btn" onclick="openKnowledgeGraph()">
+                        <i class="fas fa-project-diagram"></i>
+                        <span>知识图谱</span>
+                    </button>
                 </aside>
 
                 <section id="file-explorer" class="file-explorer">
@@ -425,6 +431,7 @@
     <script src="script.js"></script>
     <script src="announcements.js"></script>
     <script src="guestbook.js"></script>
+    <script src="graph.js"></script>
     <script src="auth.js"></script>
 </body>
 

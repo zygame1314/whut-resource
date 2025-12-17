@@ -298,6 +298,9 @@ async function showResolvePrompt() {
                             <span>选择资源目录</span>
                             <button type="button" id="clear-path-btn" class="clear-path-btn" title="清除选择"><i class="fas fa-times"></i></button>
                         </div>
+                        <div class="path-search-wrapper" style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color, #eee);">
+                            <input type="text" id="resolve-path-search" placeholder="搜索目录..." style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color, #ddd); border-radius: 4px; background: var(--bg-secondary, #fafafa); color: var(--text-primary, #333);">
+                        </div>
                         <div id="resolve-path-tree-container" class="path-tree-container"></div>
                     </div>
                 </div>
@@ -324,6 +327,7 @@ async function showResolvePrompt() {
         const pathDropdown = modalOverlay.querySelector('#resolve-path-dropdown');
         const pathTreeContainer = modalOverlay.querySelector('#resolve-path-tree-container');
         const clearPathBtn = modalOverlay.querySelector('#clear-path-btn');
+        const searchInput = modalOverlay.querySelector('#resolve-path-search');
         if (pathTreeContainer && hasDirectories) {
             const ul = document.createElement('ul');
             ul.className = 'path-tree-list root';
@@ -353,6 +357,41 @@ async function showResolvePrompt() {
                 }
             });
         }
+        if (searchInput) {
+            searchInput.addEventListener('click', (e) => e.stopPropagation());
+            searchInput.addEventListener('input', (e) => {
+                const keyword = e.target.value.toLowerCase().trim();
+                const items = pathTreeContainer.querySelectorAll('.path-tree-item');
+                if (!keyword) {
+                    pathTreeContainer.querySelectorAll('.path-tree-node').forEach(node => {
+                        node.style.display = '';
+                    });
+                    return;
+                }
+                pathTreeContainer.querySelectorAll('.path-tree-node').forEach(node => {
+                    node.style.display = 'none';
+                });
+                items.forEach(item => {
+                    const text = item.querySelector('.path-folder-name').textContent.toLowerCase();
+                    if (text.includes(keyword)) {
+                        let currentNode = item.closest('.path-tree-node');
+                        while (currentNode) {
+                            currentNode.style.display = '';
+                            const parentList = currentNode.closest('.path-tree-list');
+                            if (parentList) {
+                                parentList.style.display = 'block';
+                                const parentNode = parentList.closest('.path-tree-node');
+                                if (parentNode) {
+                                    const toggle = parentNode.querySelector('.path-toggle-icon');
+                                    if (toggle) toggle.style.transform = 'rotate(90deg)';
+                                }
+                            }
+                            currentNode = currentNode.parentElement.closest('.path-tree-node');
+                        }
+                    }
+                });
+            });
+        }
         if (clearPathBtn) {
             clearPathBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -371,6 +410,9 @@ async function showResolvePrompt() {
                 e.stopPropagation();
                 pathDropdown.classList.toggle('open');
                 pathBtn.classList.toggle('open');
+                if (pathDropdown.classList.contains('open') && searchInput) {
+                    setTimeout(() => searchInput.focus(), 100);
+                }
             });
         }
         noteInput.focus();

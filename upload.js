@@ -756,12 +756,61 @@ async function initUploadPathSelector() {
         });
     }
     if (uploadPathBtn && uploadPathDropdown) {
+        let searchInput = uploadPathDropdown.querySelector('.path-search-input');
+        if (!searchInput) {
+            const dropdownHeader = uploadPathDropdown.querySelector('.path-dropdown-header');
+            if (dropdownHeader) {
+                const searchContainer = document.createElement('div');
+                searchContainer.className = 'path-search-wrapper';
+                searchContainer.style.padding = '0.5rem 1rem';
+                searchContainer.style.borderBottom = '1px solid var(--border-color, #eee)';
+                searchContainer.innerHTML = '<input type="text" class="path-search-input" placeholder="搜索目录..." style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color, #ddd); border-radius: 4px; background: var(--bg-secondary, #fafafa); color: var(--text-primary, #333);">';
+                dropdownHeader.insertAdjacentElement('afterend', searchContainer);
+                searchInput = searchContainer.querySelector('input');
+                searchInput.addEventListener('click', (e) => e.stopPropagation());
+                searchInput.addEventListener('input', (e) => {
+                    const keyword = e.target.value.toLowerCase().trim();
+                    const items = pathTreeContainer.querySelectorAll('.path-tree-item');
+                    if (!keyword) {
+                        pathTreeContainer.querySelectorAll('.path-tree-node').forEach(node => {
+                            node.style.display = '';
+                        });
+                        return;
+                    }
+                    pathTreeContainer.querySelectorAll('.path-tree-node').forEach(node => {
+                        node.style.display = 'none';
+                    });
+                    items.forEach(item => {
+                        const text = item.querySelector('.path-folder-name').textContent.toLowerCase();
+                        if (text.includes(keyword)) {
+                            let currentNode = item.closest('.path-tree-node');
+                            while (currentNode) {
+                                currentNode.style.display = '';
+                                const parentList = currentNode.closest('.path-tree-list');
+                                if (parentList) {
+                                    parentList.style.display = 'block';
+                                    const parentNode = parentList.closest('.path-tree-node');
+                                    if (parentNode) {
+                                        const toggle = parentNode.querySelector('.path-toggle-icon');
+                                        if (toggle) toggle.style.transform = 'rotate(90deg)';
+                                    }
+                                }
+                                currentNode = currentNode.parentElement.closest('.path-tree-node');
+                            }
+                        }
+                    });
+                });
+            }
+        }
         uploadPathBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             const isOpen = uploadPathDropdown.classList.contains('open');
             uploadPathDropdown.classList.toggle('open');
             uploadPathBtn.classList.toggle('open');
+            if (!isOpen && searchInput) {
+                setTimeout(() => searchInput.focus(), 100);
+            }
             if (!isOpen && uploadPath) {
                 const pathParts = uploadPath.split('/').filter(Boolean);
                 let currentPath = '';
