@@ -2178,7 +2178,7 @@ document.addEventListener('authSuccess', () => {
             if (typeof showConfirmation === 'function') {
                 const shouldStart = await showConfirmation({
                     title: '👋 欢迎来到武理资源共享平台',
-                    message: '检测到你可能是初次访问，建议你查看新手教程已了解如何全功能使用本站。<br><br>是否立即开启教程？',
+                    message: '检测到你可能是初次访问，建议你查看新手教程以了解如何全功能使用本站。<br><br>是否立即开启教程？',
                     confirmText: '🚀 开启教程',
                     cancelText: '暂不需要'
                 });
