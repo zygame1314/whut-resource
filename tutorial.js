@@ -112,8 +112,8 @@ function startTutorial() {
         if (isMobile) {
             steps.push({
                 id: 'folder-nav-mobile',
-                title: '文件夹导航 & 知识图谱',
-                text: '在移动端，文件夹导航是收起来的。点击这个按钮可以随时打开或关闭它！里面还藏着知识图谱入口哦✨',
+                title: '文件夹导航',
+                text: '在移动端，文件夹导航是收起来的。点击这个按钮可以随时打开或关闭它！',
                 attachTo: {
                     element: '#mobile-sidebar-toggle',
                     on: 'bottom'

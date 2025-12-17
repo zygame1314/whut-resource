@@ -479,54 +479,6 @@ class KnowledgeGraph {
             document.addEventListener('mousemove', moveHandler);
             document.addEventListener('mouseup', upHandler);
         });
-        let longPressTimer = null;
-        let hasMoved = false;
-        element.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const touch = e.touches[0];
-            hasMoved = false;
-            startDrag(touch.clientX, touch.clientY);
-            longPressTimer = setTimeout(() => {
-                if (!hasMoved) {
-                    this.showTooltip(node, {
-                        clientX: touch.clientX,
-                        clientY: touch.clientY
-                    }, true);
-                }
-            }, 400);
-            const moveHandler = (moveEvent) => {
-                moveEvent.preventDefault();
-                const t = moveEvent.touches[0];
-                const dx = t.clientX - this.dragStartPos.x;
-                const dy = t.clientY - this.dragStartPos.y;
-                if (Math.sqrt(dx * dx + dy * dy) > 10) {
-                    hasMoved = true;
-                    if (longPressTimer) {
-                        clearTimeout(longPressTimer);
-                        longPressTimer = null;
-                    }
-                    this.tooltip.classList.remove('visible');
-                }
-                moveDrag(t.clientX, t.clientY);
-            };
-            const endHandler = (endEvent) => {
-                if (longPressTimer) {
-                    clearTimeout(longPressTimer);
-                    longPressTimer = null;
-                }
-                document.removeEventListener('touchmove', moveHandler);
-                document.removeEventListener('touchend', endHandler);
-                document.removeEventListener('touchcancel', endHandler);
-                const t = endEvent.changedTouches[0];
-                this.tooltip.classList.remove('visible');
-                this.clearHighlight();
-                endDrag(t.clientX, t.clientY);
-            };
-            document.addEventListener('touchmove', moveHandler, { passive: false });
-            document.addEventListener('touchend', endHandler);
-            document.addEventListener('touchcancel', endHandler);
-        }, { passive: false });
     }
     initCanvasInteraction() {
         let isPanning = false;
@@ -560,33 +512,6 @@ class KnowledgeGraph {
                 isPanning = false;
                 this.svg.style.cursor = 'grab';
             }
-        });
-        this.svg.addEventListener('touchstart', (e) => {
-            if (e.target.tagName === 'svg' || e.target === this.g || e.target.closest('.links-layer')) {
-                if (e.touches.length === 1) {
-                    isPanning = true;
-                    const touch = e.touches[0];
-                    startX = touch.clientX;
-                    startY = touch.clientY;
-                    startTranslateX = this.zoomState.translateX;
-                    startTranslateY = this.zoomState.translateY;
-                }
-            }
-        }, { passive: true });
-        document.addEventListener('touchmove', (e) => {
-            if (!isPanning || e.touches.length !== 1) return;
-            const touch = e.touches[0];
-            const dx = touch.clientX - startX;
-            const dy = touch.clientY - startY;
-            this.zoomState.translateX = startTranslateX + dx;
-            this.zoomState.translateY = startTranslateY + dy;
-            this.updateTransform();
-        }, { passive: true });
-        document.addEventListener('touchend', () => {
-            isPanning = false;
-        });
-        document.addEventListener('touchcancel', () => {
-            isPanning = false;
         });
     }
     getSvgPoint(clientX, clientY) {

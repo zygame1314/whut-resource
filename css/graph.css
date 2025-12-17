@@ -416,47 +416,8 @@
 }
 
 @media (max-width: 1200px) {
-    .graph-container {
-        width: 100vw;
-        height: 100vh;
-        border-radius: 0;
-    }
-
-    .graph-header {
-        flex-direction: column;
-        gap: 1rem;
-        padding: 1rem;
-    }
-
-    .graph-controls {
-        width: 100%;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-
-    .graph-search-input {
-        width: 150px;
-    }
-
-    .graph-legend {
-        top: auto;
-        bottom: 5rem;
-        right: 0.5rem;
-        left: 0.5rem;
-        font-size: 0.7rem;
-    }
-
-    .graph-stats {
-        left: 0.5rem;
-        right: auto;
-        bottom: 0.5rem;
-        font-size: 0.7rem;
-        gap: 1rem;
-    }
-
-    .graph-zoom-controls {
-        bottom: 0.5rem;
-        right: 0.5rem;
+    .graph-view-btn {
+        display: none !important;
     }
 }
 
