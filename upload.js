@@ -762,9 +762,7 @@ async function initUploadPathSelector() {
             if (dropdownHeader) {
                 const searchContainer = document.createElement('div');
                 searchContainer.className = 'path-search-wrapper';
-                searchContainer.style.padding = '0.5rem 1rem';
-                searchContainer.style.borderBottom = '1px solid var(--border-color, #eee)';
-                searchContainer.innerHTML = '<input type="text" class="path-search-input" placeholder="搜索目录..." style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color, #ddd); border-radius: 4px; background: var(--bg-secondary, #fafafa); color: var(--text-primary, #333);">';
+                searchContainer.innerHTML = '<input type="text" class="path-search-input" placeholder="搜索目录...">';
                 dropdownHeader.insertAdjacentElement('afterend', searchContainer);
                 searchInput = searchContainer.querySelector('input');
                 searchInput.addEventListener('click', (e) => e.stopPropagation());

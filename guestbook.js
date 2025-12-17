@@ -298,8 +298,8 @@ async function showResolvePrompt() {
                             <span>选择资源目录</span>
                             <button type="button" id="clear-path-btn" class="clear-path-btn" title="清除选择"><i class="fas fa-times"></i></button>
                         </div>
-                        <div class="path-search-wrapper" style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color, #eee);">
-                            <input type="text" id="resolve-path-search" placeholder="搜索目录..." style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color, #ddd); border-radius: 4px; background: var(--bg-secondary, #fafafa); color: var(--text-primary, #333);">
+                        <div class="path-search-wrapper">
+                            <input type="text" id="resolve-path-search" class="path-search-input" placeholder="搜索目录...">
                         </div>
                         <div id="resolve-path-tree-container" class="path-tree-container"></div>
                     </div>
