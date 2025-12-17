@@ -33,6 +33,35 @@ async function getUser(request, env) {
 }
 async function handleGet(request, env) {
     const url = new URL(request.url);
+    const action = url.searchParams.get('action');
+    if (action === 'banned_users') {
+        const user = await getUser(request, env);
+        if (!user || user.role !== 'admin') {
+            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const bannedUsers = await env.DB.prepare(`
+            SELECT id, email, nickname, created_at 
+            FROM users 
+            WHERE is_banned = 1 
+            ORDER BY created_at DESC
+        `).all();
+        return new Response(JSON.stringify({
+            success: true,
+            users: bannedUsers.results
+        }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (action === 'unban_user') {
+        const user = await getUser(request, env);
+        if (!user || user.role !== 'admin') {
+            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const userId = url.searchParams.get('user_id');
+        if (!userId) {
+            return new Response(JSON.stringify({ error: '缺少用户ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        await env.DB.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(parseInt(userId)).run();
+        return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
     const sort = url.searchParams.get('sort') || 'time';

@@ -92,6 +92,7 @@ function updateAuthUI() {
                     <button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>
                     <button id="vector-sync-btn" class="secondary-btn" title="同步向量索引"><i class="fas fa-brain"></i></button>
                     <button id="admin-logs-btn" class="secondary-btn" title="查看AI操作日志"><i class="fas fa-history"></i></button>
+                    <button id="banned-users-btn" class="secondary-btn" title="封禁用户管理"><i class="fas fa-user-lock"></i></button>
                 ` : ''}
                 <button id="change-nickname-btn" class="secondary-btn" title="修改昵称"><i class="fas fa-id-card"></i></button>
                 <button id="change-pwd-btn" class="secondary-btn" title="修改密码"><i class="fas fa-key"></i></button>
@@ -104,6 +105,7 @@ function updateAuthUI() {
                 document.getElementById('sync-btn').addEventListener('click', syncFiles);
                 document.getElementById('vector-sync-btn').addEventListener('click', syncVectorIndex);
                 document.getElementById('admin-logs-btn').addEventListener('click', showAdminLogsModal);
+                document.getElementById('banned-users-btn').addEventListener('click', showBannedUsersModal);
             }
         }
         if (uploadLink) {
@@ -1059,6 +1061,98 @@ async function showAdminLogsModal() {
         }
     };
     loadLogs(currentPage);
+}
+async function showBannedUsersModal() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal banned-users-modal';
+    modal.style.cssText = 'display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000;';
+    modal.innerHTML = `
+        <div class="auth-box" style="width: 90%; max-width: 600px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 class="auth-title" style="margin: 0;"><i class="fas fa-user-lock" style="margin-right: 8px;"></i>封禁用户管理</h2>
+                <button id="close-modal" class="close-modal-btn" style="position: static;"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="banned-users-container" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    const closeBtn = modal.querySelector('#close-modal');
+    closeBtn.onclick = () => modal.remove();
+    modal.onmousedown = (e) => { if (e.target === modal) modal.remove(); };
+    const loadBannedUsers = async () => {
+        const container = modal.querySelector('#banned-users-container');
+        container.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const res = await fetch(`${API_ENDPOINTS.guestbook}?action=banned_users`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error);
+            if (!data.users || data.users.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 2rem;"><i class="fas fa-check-circle" style="font-size: 2rem; color: var(--success); margin-bottom: 1rem; display: block;"></i>暂无被封禁的用户</div>';
+                return;
+            }
+            container.innerHTML = data.users.map(user => {
+                const nickname = user.nickname || '未设置昵称';
+                const email = escapeHtmlAuth(user.email);
+                const utcDate = user.created_at.endsWith('Z') ? user.created_at : user.created_at + 'Z';
+                const createdAt = new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+                return `
+                    <div class="banned-user-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); gap: 10px;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: bold; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtmlAuth(nickname)}</div>
+                            <div style="font-size: 0.85em; color: var(--text-secondary);">${email}</div>
+                            <div style="font-size: 0.75em; color: var(--text-secondary);">注册于: ${createdAt}</div>
+                        </div>
+                        <button class="primary-btn small unban-btn" data-user-id="${user.id}" style="flex-shrink: 0; white-space: nowrap;">
+                            <i class="fas fa-user-check"></i> 解封
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            container.querySelectorAll('.unban-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const userId = btn.dataset.userId;
+                    const userItem = btn.closest('.banned-user-item');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    try {
+                        const res = await fetch(`${API_ENDPOINTS.guestbook}?action=unban_user&user_id=${userId}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            userItem.style.transition = 'opacity 0.3s, transform 0.3s';
+                            userItem.style.opacity = '0';
+                            userItem.style.transform = 'translateX(20px)';
+                            setTimeout(() => {
+                                userItem.remove();
+                                if (container.querySelectorAll('.banned-user-item').length === 0) {
+                                    container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 2rem;"><i class="fas fa-check-circle" style="font-size: 2rem; color: var(--success); margin-bottom: 1rem; display: block;"></i>暂无被封禁的用户</div>';
+                                }
+                            }, 300);
+                            if (typeof showNotification === 'function') {
+                                showNotification('用户已解封', 'success');
+                            }
+                        } else {
+                            throw new Error(data.error || '解封失败');
+                        }
+                    } catch (err) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-user-check"></i> 解封';
+                        if (typeof showNotification === 'function') {
+                            showNotification('解封失败: ' + err.message, 'error');
+                        }
+                    }
+                });
+            });
+        } catch (e) {
+            container.innerHTML = `<div style="color: var(--error); text-align: center; padding: 1rem;">加载失败: ${e.message}</div>`;
+        }
+    };
+    loadBannedUsers();
 }
 document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('theme') || 'light';

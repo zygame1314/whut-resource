@@ -11,6 +11,7 @@ CREATE TABLE users (
     is_banned BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_users_banned ON users(is_banned, created_at DESC);
 
 DROP TABLE IF EXISTS files;
 CREATE TABLE files (
