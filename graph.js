@@ -104,8 +104,8 @@ class KnowledgeGraph {
                             <span>二级目录</span>
                         </div>
                         <div class="graph-legend-item">
-                            <span class="graph-legend-color" style="background: #FFD93D;"></span>
-                            <span>三级目录</span>
+                            <span class="graph-legend-color" style="background: #FF6B6B;"></span>
+                            <span>三级及更深</span>
                         </div>
                     </div>
                     <div class="graph-zoom-controls">
@@ -174,6 +174,9 @@ class KnowledgeGraph {
         document.body.style.overflow = '';
         this.hideTooltip();
         this.stopSimulation();
+        if (document.fullscreenElement) {
+            document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+        }
     }
     async loadData() {
         const loading = document.getElementById('graph-loading');
