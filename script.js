@@ -352,6 +352,7 @@ let isShowingSearchResults = false;
 let isSelectionMode = false;
 let selectedItems = new Set();
 let selectedDirectoryKeys = new Set();
+let selectedLinkKeys = new Set();
 let currentPage = 1;
 let totalPages = 1;
 let itemsPerPage = 20;
@@ -1297,6 +1298,7 @@ function toggleSelectionMode() {
         }
         selectedItems.clear();
         selectedDirectoryKeys.clear();
+        selectedLinkKeys.clear();
         document.querySelectorAll('.file-checkbox').forEach(cb => cb.checked = false);
         document.querySelectorAll('.file-list-item.selected').forEach(item => item.classList.remove('selected'));
     }
@@ -1305,16 +1307,23 @@ function toggleSelectionMode() {
 function handleItemSelection(checkbox, item) {
     const listItem = checkbox.closest('.file-list-item');
     const isDirectory = !!item.isDirectory;
+    const isLink = !!item.isLink;
     if (checkbox.checked) {
         selectedItems.add(item.key);
         if (isDirectory) {
             selectedDirectoryKeys.add(item.key);
+        }
+        if (isLink) {
+            selectedLinkKeys.add(item.key);
         }
         listItem.classList.add('selected');
     } else {
         selectedItems.delete(item.key);
         if (isDirectory) {
             selectedDirectoryKeys.delete(item.key);
+        }
+        if (isLink) {
+            selectedLinkKeys.delete(item.key);
         }
         listItem.classList.remove('selected');
     }
@@ -1452,9 +1461,16 @@ async function handleBatchDownload() {
         return;
     }
     const directoryKeys = selectedKeys.filter(key => selectedDirectoryKeys.has(key));
-    const fileKeys = selectedKeys.filter(key => !selectedDirectoryKeys.has(key));
+    const linkKeys = selectedKeys.filter(key => selectedLinkKeys.has(key));
+    const fileKeys = selectedKeys.filter(key => !selectedDirectoryKeys.has(key) && !selectedLinkKeys.has(key));
     if (fileKeys.length === 0) {
-        showNotification('批量下载暂不支持文件夹，请选择文件后重试。', 'warning');
+        if (directoryKeys.length > 0 && linkKeys.length > 0) {
+            showNotification('批量下载不支持文件夹和外部链接，请选择文件后重试。', 'warning');
+        } else if (directoryKeys.length > 0) {
+            showNotification('批量下载暂不支持文件夹，请选择文件后重试。', 'warning');
+        } else {
+            showNotification('批量下载不支持外部链接，请选择文件后重试。', 'warning');
+        }
         return;
     }
     const token = localStorage.getItem('authToken');
@@ -1469,10 +1485,17 @@ async function handleBatchDownload() {
     }
     downloadBtn.disabled = true;
     downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="download-progress-text">获取链接...</span>';
+    const skippedMessages = [];
     if (directoryKeys.length > 0) {
-        showNotification(`已跳过 ${directoryKeys.length} 个文件夹，暂不支持批量下载。`, 'info');
+        skippedMessages.push(`${directoryKeys.length} 个文件夹`);
     }
-    showNotification(`正在为 ${fileKeys.length} 个项目生成下载链接...`, 'info');
+    if (linkKeys.length > 0) {
+        skippedMessages.push(`${linkKeys.length} 个外部链接`);
+    }
+    if (skippedMessages.length > 0) {
+        showNotification(`已跳过 ${skippedMessages.join('和')}，不支持批量下载。`, 'info');
+    }
+    showNotification(`正在为 ${fileKeys.length} 个文件生成下载链接...`, 'info');
     try {
         const response = await fetch(API_ENDPOINTS.batchDownload, {
             method: 'POST',
