@@ -415,7 +415,7 @@
     stroke-width: 1px;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 768px) {
     .graph-view-btn {
         display: none !important;
     }

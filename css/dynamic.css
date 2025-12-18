@@ -26,76 +26,89 @@
 }
 
 .delete-button {
-    background: transparent;
-    border: 1px solid var(--accent-color);
-    color: var(--accent-color);
-    padding: 0.4rem 0.8rem;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--accent-color);
+    border: none;
+    color: white;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .delete-button:hover {
-    background: var(--accent-color);
-    color: white;
+    background: #c0392b;
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
 }
 
 .rename-button {
-    background: transparent;
-    border: 1px solid var(--primary-color);
-    color: var(--primary-color);
-    padding: 0.4rem 0.8rem;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--primary-color);
+    border: none;
+    color: white;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 0.8rem;
-    margin-right: 0.5rem;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .rename-button:hover {
-    background: var(--primary-color);
-    color: white;
+    background: var(--primary-dark);
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
 }
 
 .move-button {
-    background: transparent;
-    border: 1px solid var(--secondary-color);
-    color: var(--secondary-color);
-    padding: 0.4rem 0.8rem;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--secondary-color);
+    border: none;
+    color: white;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 0.8rem;
-    margin-right: 0.5rem;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .move-button:hover {
-    background: var(--secondary-color);
-    color: white;
+    background: #e67e22;
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
 }
 
 .edit-link-button {
-    background: transparent;
-    border: 1px solid var(--info-color);
-    color: var(--info-color);
-    padding: 0.4rem 0.8rem;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--info-color);
+    border: none;
+    color: white;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 0.8rem;
-    margin-right: 0.5rem;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .edit-link-button:hover {
-    background: var(--info-color);
-    color: white;
+    background: #2980b9;
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
 }
@@ -414,6 +427,7 @@
     gap: 0.5rem;
     margin-top: 1rem;
     border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
 }
 
 .pagination-button {
@@ -862,7 +876,7 @@
     flex-shrink: 0;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 768px) {
     .upload-stats {
         gap: 1rem;
     }

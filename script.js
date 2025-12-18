@@ -613,8 +613,7 @@ async function downloadFile(fileKey, downloadBtn) {
     if (downloadBtn) {
         originalBtnContent = downloadBtn.innerHTML;
         downloadBtn.disabled = true;
-        downloadBtn.classList.add('downloading');
-        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="download-progress-text">准备下载...</span>';
+        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     }
     try {
         const previewApiUrl = `${API_ENDPOINTS.preview}?key=${encodeURIComponent(fileKey)}&expiresIn=86400`;
@@ -645,11 +644,7 @@ async function downloadFile(fileKey, downloadBtn) {
         if (downloadBtn) {
             downloadBtn.disabled = false;
             downloadBtn.classList.remove('downloading');
-            if (originalBtnContent) {
-                downloadBtn.innerHTML = originalBtnContent;
-            } else {
-                downloadBtn.innerHTML = '<i class="fas fa-download"></i> 下载';
-            }
+            downloadBtn.innerHTML = originalBtnContent || '<i class="fas fa-download"></i>';
         }
     }
 }
@@ -1146,30 +1141,31 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         if (previewDisabled) {
             previewButtonHTML = `<button class="preview-button" disabled title="${disabledTitle}">
                                    <i class="fas fa-eye-slash"></i>
-                                   预览
                                </button>`;
         } else {
-            previewButtonHTML = `<button class="preview-button">
+            previewButtonHTML = `<button class="preview-button" title="预览">
                                    <i class="fas fa-eye"></i>
-                                   预览
                                </button>`;
         }
-        downloadButtonHTML = `<button class="download-button">
+        downloadButtonHTML = `<button class="download-button" title="下载">
                 <i class="fas fa-download"></i>
-                下载
             </button>`;
     } else if (isLink) {
-        downloadButtonHTML = `<button class="open-link-button">
+        downloadButtonHTML = `<button class="open-link-button" title="打开链接">
                 <i class="fas fa-external-link-alt"></i>
-                打开链接
             </button>`;
     }
+    const isAdmin = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin';
     fileActionsDiv.innerHTML = `
-        ${!isDirectory ? `
+        ${isDirectory ? `
+            <button class="enter-folder-button" title="进入文件夹">
+                <i class="fas fa-folder-open"></i>
+            </button>
+        ` : `
             ${previewButtonHTML}
             ${downloadButtonHTML}
-        ` : ''}
-        ${(typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') ? `
+        `}
+        ${isAdmin ? `
         ${isLink ? `
         <button class="edit-link-button" title="编辑链接地址">
           <i class="fas fa-link"></i>
@@ -1239,6 +1235,14 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         editLinkBtn.onclick = (e) => {
             e.stopPropagation();
             editLinkUrl(item.key, item.link_url);
+        };
+    }
+    const enterFolderBtn = fileActionsDiv.querySelector('.enter-folder-button');
+    if (enterFolderBtn) {
+        enterFolderBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (searchInput) searchInput.value = '';
+            fetchAndDisplayFiles(item.key);
         };
     }
     if (isDirectory) {
@@ -1801,8 +1805,15 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
     } else {
         currentPage = page;
     }
-    if (fileListElement.offsetHeight > 0) {
-        fileListElement.style.minHeight = `${fileListElement.offsetHeight}px`;
+    const fileExplorer = document.getElementById('file-list');
+    if (fileExplorer) {
+        const headerOffset = 80;
+        const elementPosition = fileExplorer.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+        window.scrollTo({
+            top: offsetPosition,
+            behavior: "smooth"
+        });
     }
     const aiSearchToggle = document.getElementById('ai-search-toggle');
     const useAISearch = aiSearchToggle && aiSearchToggle.checked && isGlobal;
@@ -2211,6 +2222,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 请先完成验证以查看文件
             </li>
         `;
+        fileListElement.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
     }
     updateBreadcrumb('');
     currentPrefix = '';
@@ -2647,3 +2661,69 @@ function showDirectoryPicker(itemsToMove = []) {
         }
     });
 }
+(function () {
+    const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    if (!isTouchDevice) return;
+    let longPressTimer;
+    const longPressDuration = 500;
+    let isLongPress = false;
+    let startX, startY;
+    function hideAllActions() {
+        const fileListContainer = document.querySelector('.file-list-container');
+        if (fileListContainer) {
+            const allItems = fileListContainer.querySelectorAll('.file-list-item.actions-visible');
+            allItems.forEach(item => item.classList.remove('actions-visible'));
+        }
+    }
+    document.addEventListener('click', function (e) {
+        const fileListContainer = document.querySelector('.file-list-container');
+        if (!fileListContainer) return;
+        const clickedAction = e.target.closest('.file-actions');
+        if (clickedAction) return;
+        if (isLongPress) {
+            e.stopPropagation();
+            e.preventDefault();
+            isLongPress = false;
+            return;
+        }
+        hideAllActions();
+    }, true);
+    document.addEventListener('touchstart', function (e) {
+        const fileListContainer = document.querySelector('.file-list-container');
+        if (!fileListContainer) return;
+        const item = e.target.closest('.file-list-item');
+        if (item && !item.classList.contains('loading-item') && !item.classList.contains('empty-state') && !item.classList.contains('back-item') && !e.target.closest('.file-actions')) {
+            isLongPress = false;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            longPressTimer = setTimeout(() => {
+                isLongPress = true;
+                if (navigator.vibrate) navigator.vibrate(50);
+                hideAllActions();
+                item.classList.add('actions-visible');
+            }, longPressDuration);
+        }
+    }, { passive: true });
+    document.addEventListener('touchmove', function (e) {
+        if (longPressTimer) {
+            const moveX = e.touches[0].clientX;
+            const moveY = e.touches[0].clientY;
+            if (Math.abs(moveX - startX) > 10 || Math.abs(moveY - startY) > 10) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        }
+    }, { passive: true });
+    document.addEventListener('touchend', function (e) {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    });
+    document.addEventListener('touchcancel', function (e) {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    });
+})();

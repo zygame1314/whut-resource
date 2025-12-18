@@ -189,6 +189,18 @@ function startTutorial() {
                 }
             });
         }
+        const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        if (isTouchDevice) {
+            steps.push({
+                id: 'mobile-actions',
+                title: '📱 移动端操作提示',
+                text: '在移动端，文件的操作菜单（下载、删除、重命名等）需要<strong>长按文件条目</strong>才会出现哦！这是因为手机没有鼠标悬停效果。',
+                attachTo: {
+                    element: '.file-list',
+                    on: 'top'
+                }
+            });
+        }
         steps.push({
             id: 'selection-mode',
             title: '批量操作',
