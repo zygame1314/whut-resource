@@ -446,6 +446,11 @@
     margin: 0 0.5rem;
 }
 
+#guestbook-pagination {
+    border-top: none;
+    padding-top: 0;
+}
+
 .upload-hero {
     padding: 2rem 1rem;
 }

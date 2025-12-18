@@ -633,7 +633,7 @@ async function downloadFile(fileKey, downloadBtn) {
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            showNotification('已开始下载，请查看右上角下载进度。', 'success');
+            showNotification('已开始下载。', 'success');
         } else {
             throw new Error(result.error || '获取下载链接失败');
         }
