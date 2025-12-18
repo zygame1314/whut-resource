@@ -1185,6 +1185,22 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     li.appendChild(checkbox);
     li.appendChild(fileItemDiv);
     li.appendChild(fileActionsDiv);
+    const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    if (isTouchDevice) {
+        const mobileToggle = document.createElement('button');
+        mobileToggle.className = 'mobile-actions-toggle';
+        mobileToggle.title = '更多操作';
+        mobileToggle.innerHTML = '<i class="fas fa-ellipsis-v"></i>';
+        mobileToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const allVisibleItems = document.querySelectorAll('.file-list-item.actions-visible');
+            allVisibleItems.forEach(item => {
+                if (item !== li) item.classList.remove('actions-visible');
+            });
+            li.classList.toggle('actions-visible');
+        });
+        li.appendChild(mobileToggle);
+    }
     const pathElement = li.querySelector('.file-path.clickable');
     if (pathElement) {
         pathElement.addEventListener('click', (e) => {
@@ -2664,10 +2680,6 @@ function showDirectoryPicker(itemsToMove = []) {
 (function () {
     const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
     if (!isTouchDevice) return;
-    let longPressTimer;
-    const longPressDuration = 500;
-    let isLongPress = false;
-    let startX, startY;
     function hideAllActions() {
         const fileListContainer = document.querySelector('.file-list-container');
         if (fileListContainer) {
@@ -2679,51 +2691,8 @@ function showDirectoryPicker(itemsToMove = []) {
         const fileListContainer = document.querySelector('.file-list-container');
         if (!fileListContainer) return;
         const clickedAction = e.target.closest('.file-actions');
-        if (clickedAction) return;
-        if (isLongPress) {
-            e.stopPropagation();
-            e.preventDefault();
-            isLongPress = false;
-            return;
-        }
+        const clickedToggle = e.target.closest('.mobile-actions-toggle');
+        if (clickedAction || clickedToggle) return;
         hideAllActions();
     }, true);
-    document.addEventListener('touchstart', function (e) {
-        const fileListContainer = document.querySelector('.file-list-container');
-        if (!fileListContainer) return;
-        const item = e.target.closest('.file-list-item');
-        if (item && !item.classList.contains('loading-item') && !item.classList.contains('empty-state') && !item.classList.contains('back-item') && !e.target.closest('.file-actions')) {
-            isLongPress = false;
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
-            longPressTimer = setTimeout(() => {
-                isLongPress = true;
-                if (navigator.vibrate) navigator.vibrate(50);
-                hideAllActions();
-                item.classList.add('actions-visible');
-            }, longPressDuration);
-        }
-    }, { passive: true });
-    document.addEventListener('touchmove', function (e) {
-        if (longPressTimer) {
-            const moveX = e.touches[0].clientX;
-            const moveY = e.touches[0].clientY;
-            if (Math.abs(moveX - startX) > 10 || Math.abs(moveY - startY) > 10) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-        }
-    }, { passive: true });
-    document.addEventListener('touchend', function (e) {
-        if (longPressTimer) {
-            clearTimeout(longPressTimer);
-            longPressTimer = null;
-        }
-    });
-    document.addEventListener('touchcancel', function (e) {
-        if (longPressTimer) {
-            clearTimeout(longPressTimer);
-            longPressTimer = null;
-        }
-    });
 })();

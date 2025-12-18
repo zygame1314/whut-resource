@@ -389,11 +389,9 @@
     top: 6px;
     right: 6px;
     margin-top: 0;
-    justify-content: flex-end;
     width: auto;
     max-width: calc(100% - 12px);
     display: flex;
-    gap: 4px;
     flex-wrap: wrap;
     opacity: 0;
     transition: opacity 0.2s ease, transform 0.2s ease;
@@ -413,7 +411,12 @@
     pointer-events: auto;
 }
 
+.mobile-actions-toggle {
+    display: none;
+}
+
 @media (hover: none) and (pointer: coarse) {
+
     .file-list-container.grid-view .file-list-item:hover .file-actions {
         opacity: 0;
         pointer-events: none;
@@ -423,6 +426,47 @@
         opacity: 1;
         transform: translateY(0);
         pointer-events: auto;
+    }
+
+    .mobile-actions-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: var(--background-alt);
+        color: var(--text-secondary);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+        position: absolute;
+        left: 6px;
+        top: 6px;
+        transform: none;
+        z-index: 5;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .mobile-actions-toggle:hover,
+    .mobile-actions-toggle:active {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .file-list-item.actions-visible .mobile-actions-toggle {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .file-list-container.grid-view .mobile-actions-toggle {
+        left: 6px;
+        top: 6px;
+    }
+
+    .file-list li.actions-visible .file-actions {
+        right: 0.5rem;
     }
 }
 
