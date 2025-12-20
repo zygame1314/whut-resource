@@ -428,6 +428,17 @@
         pointer-events: auto;
     }
 
+    .file-list-container:not(.grid-view) .file-list li:hover .file-actions {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .file-list-container:not(.grid-view) .file-list li.actions-visible .file-actions {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+        pointer-events: auto;
+    }
+
     .mobile-actions-toggle {
         display: flex;
         align-items: center;
@@ -463,6 +474,21 @@
     .file-list-container.grid-view .mobile-actions-toggle {
         left: 6px;
         top: 6px;
+    }
+
+    .file-list-container:not(.grid-view) .mobile-actions-toggle {
+        position: absolute;
+        right: 8px;
+        left: auto;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    @media (max-width: 768px) {
+        .file-list-container:not(.grid-view) .mobile-actions-toggle {
+            top: 8px;
+            transform: none;
+        }
     }
 
     .file-list li.actions-visible .file-actions {
