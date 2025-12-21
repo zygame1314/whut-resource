@@ -312,8 +312,8 @@
 
 .file-list li {
     display: flex;
+    position: relative;
     align-items: center;
-    justify-content: space-between;
     padding: 0.6rem 0.8rem;
     margin-bottom: 0.25rem;
     background: var(--background);
@@ -439,10 +439,6 @@
     font-size: 0.8rem;
     color: var(--text-secondary);
     line-height: 1.4;
-}
-
-.file-list li {
-    position: relative;
 }
 
 .file-list .file-actions {
