@@ -207,18 +207,32 @@ DROP TABLE IF EXISTS guestbook_stats;
 CREATE TABLE IF NOT EXISTS guestbook_stats (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     total_messages_all_time INTEGER DEFAULT 0,
+    current_messages_count INTEGER DEFAULT 0,
     last_cleanup_at DATETIME,
     last_cleanup_count INTEGER DEFAULT 0
 );
 
-INSERT OR IGNORE INTO guestbook_stats (id, total_messages_all_time) 
-SELECT 1, COUNT(*) FROM guestbook;
+INSERT OR REPLACE INTO guestbook_stats (id, total_messages_all_time, current_messages_count) 
+SELECT 1, 
+       COALESCE((SELECT total_messages_all_time FROM guestbook_stats WHERE id = 1), COUNT(*)),
+       COUNT(*) 
+FROM guestbook;
 
 DROP TRIGGER IF EXISTS update_guestbook_stats_insert;
 CREATE TRIGGER update_guestbook_stats_insert
 AFTER INSERT ON guestbook
 BEGIN
     UPDATE guestbook_stats 
-    SET total_messages_all_time = total_messages_all_time + 1
+    SET total_messages_all_time = total_messages_all_time + 1,
+        current_messages_count = current_messages_count + 1
+    WHERE id = 1;
+END;
+
+DROP TRIGGER IF EXISTS update_guestbook_stats_delete;
+CREATE TRIGGER update_guestbook_stats_delete
+AFTER DELETE ON guestbook
+BEGIN
+    UPDATE guestbook_stats 
+    SET current_messages_count = current_messages_count - 1
     WHERE id = 1;
 END;

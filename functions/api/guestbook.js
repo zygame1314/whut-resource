@@ -56,16 +56,15 @@ async function handleGet(request, env) {
         if (!user || user.role !== 'admin') {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        await env.DB.prepare('INSERT OR IGNORE INTO guestbook_stats (id, total_messages_all_time) SELECT 1, COUNT(*) FROM guestbook').run();
+        await env.DB.prepare('INSERT OR IGNORE INTO guestbook_stats (id, total_messages_all_time, current_messages_count) SELECT 1, COUNT(*), COUNT(*) FROM guestbook').run();
         const stats = await env.DB.prepare('SELECT * FROM guestbook_stats WHERE id = 1').first();
-        const currentCount = await env.DB.prepare('SELECT COUNT(*) as count FROM guestbook').first();
         return new Response(JSON.stringify({
             success: true,
             stats: {
                 total_messages_all_time: stats.total_messages_all_time,
                 last_cleanup_at: stats.last_cleanup_at,
                 last_cleanup_count: stats.last_cleanup_count,
-                current_messages_count: currentCount.count
+                current_messages_count: stats.current_messages_count
             }
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
