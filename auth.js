@@ -202,14 +202,14 @@ function showAuthModal(mode = 'login') {
                         <div class="verify-code-display">
                             <div class="verify-code-label">你的验证码</div>
                             <div class="verify-code" id="display-verify-code">Verify-XXXXXX</div>
-                            <button type="button" id="copy-code-btn" class="secondary-btn" style="margin-top: 10px;">
+                            <button type="button" id="copy-code-btn" class="secondary-btn verify-action-btn">
                                 <i class="fas fa-copy"></i> 复制验证码
                             </button>
                         </div>
                         <div class="verify-steps">
                             <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
                             <ol>
-                                <li>打开你的学校邮箱 <strong id="display-user-email">xxxxxx@whut.edu.cn</strong><br><small style="color: var(--warning, #e67e22);">⚠️ 如果你使用的是姓名别名邮箱，请在发件人处切换为6位学号邮箱</small></li>
+                                <li>打开你的学校邮箱 <strong id="display-user-email">xxxxxx@whut.edu.cn</strong><br><small class="verify-warning-text">⚠️ 如果你使用的是姓名别名邮箱，请在发件人处切换为6位学号邮箱</small></li>
                                 <li>新建一封邮件</li>
                                 <li>收件人填写：<span class="copy-target"><strong id="display-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span>
                                 </li>
@@ -218,10 +218,13 @@ function showAuthModal(mode = 'login') {
                             </ol>
                         </div>
                         <div class="verify-status" id="verify-status">
-                            <i class="fas fa-spinner fa-spin"></i> 正在等待你发送验证邮件...
+                            <i class="fas fa-envelope"></i> 发送邮件后，请点击下方按钮验证
                             <div class="verify-timer">剩余时间：<span id="verify-countdown">30:00</span></div>
                         </div>
-                        <button type="button" id="back-to-step1" class="secondary-btn full-width" style="margin-top: 15px;">
+                        <button type="button" id="check-verify-btn" class="primary-btn full-width verify-action-btn">
+                            <i class="fas fa-check-circle"></i> 我已发送邮件
+                        </button>
+                        <button type="button" id="back-to-step1" class="secondary-btn full-width verify-action-btn">
                             <i class="fas fa-arrow-left"></i> 返回修改信息
                         </button>
                     </div>
@@ -411,7 +414,10 @@ function showAuthModal(mode = 'login') {
                             modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
                         }
                     }, 1000);
-                    window.registerPollingTimer = setInterval(async () => {
+                    const checkVerifyBtn = modal.querySelector('#check-verify-btn');
+                    checkVerifyBtn.onclick = async () => {
+                        checkVerifyBtn.disabled = true;
+                        checkVerifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 验证中...';
                         try {
                             const statusRes = await fetch(AUTH_API_URL, {
                                 method: 'POST',
@@ -420,20 +426,26 @@ function showAuthModal(mode = 'login') {
                             });
                             const statusData = await statusRes.json();
                             if (statusData.success && statusData.activated) {
-                                clearInterval(window.registerPollingTimer);
                                 clearInterval(countdownTimer);
                                 step2Div.style.display = 'none';
                                 step3Div.style.display = 'block';
                                 showNotification('账户激活成功！', 'success');
                             } else if (statusData.expired) {
-                                clearInterval(window.registerPollingTimer);
                                 clearInterval(countdownTimer);
                                 modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
+                                checkVerifyBtn.style.display = 'none';
+                            } else {
+                                showNotification('暂未收到验证邮件，请确认已发送后重试', 'warning');
+                                checkVerifyBtn.disabled = false;
+                                checkVerifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> 我已发送邮件';
                             }
                         } catch (err) {
-                            console.error('轮询状态失败:', err);
+                            console.error('检查状态失败:', err);
+                            showNotification('检查失败，请稍后重试', 'error');
+                            checkVerifyBtn.disabled = false;
+                            checkVerifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> 我已发送邮件';
                         }
-                    }, 3000);
+                    };
                 } else {
                     showNotification(data.error, 'error');
                     getCodeBtn.disabled = false;
@@ -669,14 +681,14 @@ function showForgotPasswordModal() {
                     <div class="verify-code-display">
                         <div class="verify-code-label">你的验证码</div>
                         <div class="verify-code" id="display-reset-code">Reset-XXXXXX</div>
-                        <button type="button" id="copy-reset-code-btn" class="secondary-btn" style="margin-top: 10px;">
+                        <button type="button" id="copy-reset-code-btn" class="secondary-btn verify-action-btn">
                             <i class="fas fa-copy"></i> 复制验证码
                         </button>
                     </div>
                     <div class="verify-steps">
                         <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
                         <ol>
-                            <li>打开你的学校邮箱 <strong id="display-reset-user-email">xxx@whut.edu.cn</strong><br><small style="color: var(--warning, #e67e22);">⚠️ 请确保使用注册时的邮箱发送，如有别名请切换</small></li>
+                            <li>打开你的学校邮箱 <strong id="display-reset-user-email">xxx@whut.edu.cn</strong><br><small class="verify-warning-text">⚠️ 请确保使用注册时的邮箱发送，如有别名请切换</small></li>
                             <li>新建一封邮件</li>
                             <li>收件人填写：<span class="copy-target"><strong id="display-reset-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-reset-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span>
                             </li>
@@ -685,10 +697,13 @@ function showForgotPasswordModal() {
                         </ol>
                     </div>
                     <div class="verify-status" id="reset-verify-status">
-                        <i class="fas fa-spinner fa-spin"></i> 正在等待你发送验证邮件...
+                        <i class="fas fa-envelope"></i> 发送邮件后，请点击下方按钮验证
                         <div class="verify-timer">剩余时间：<span id="reset-countdown">30:00</span></div>
                     </div>
-                    <button type="button" id="back-to-reset-step1" class="secondary-btn full-width" style="margin-top: 15px;">
+                    <button type="button" id="check-reset-verify-btn" class="primary-btn full-width verify-action-btn">
+                        <i class="fas fa-check-circle"></i> 我已发送邮件
+                    </button>
+                    <button type="button" id="back-to-reset-step1" class="secondary-btn full-width verify-action-btn">
                         <i class="fas fa-arrow-left"></i> 返回修改信息
                     </button>
                 </div>
@@ -820,7 +835,10 @@ function showForgotPasswordModal() {
                         modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
                     }
                 }, 1000);
-                window.resetPollingTimer = setInterval(async () => {
+                const checkResetVerifyBtn = modal.querySelector('#check-reset-verify-btn');
+                checkResetVerifyBtn.onclick = async () => {
+                    checkResetVerifyBtn.disabled = true;
+                    checkResetVerifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 验证中...';
                     try {
                         const statusRes = await fetch(AUTH_API_URL, {
                             method: 'POST',
@@ -829,16 +847,26 @@ function showForgotPasswordModal() {
                         });
                         const statusData = await statusRes.json();
                         if (statusData.success && statusData.completed && !statusData.pending) {
-                            clearInterval(window.resetPollingTimer);
                             clearInterval(countdownTimer);
                             step2Div.style.display = 'none';
                             step3Div.style.display = 'block';
                             showNotification('密码重置成功！', 'success');
+                        } else if (statusData.expired) {
+                            clearInterval(countdownTimer);
+                            modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
+                            checkResetVerifyBtn.style.display = 'none';
+                        } else {
+                            showNotification('暂未收到验证邮件，请确认已发送后重试', 'warning');
+                            checkResetVerifyBtn.disabled = false;
+                            checkResetVerifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> 我已发送邮件';
                         }
                     } catch (err) {
-                        console.error('轮询状态失败:', err);
+                        console.error('检查状态失败:', err);
+                        showNotification('检查失败，请稍后重试', 'error');
+                        checkResetVerifyBtn.disabled = false;
+                        checkResetVerifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> 我已发送邮件';
                     }
-                }, 3000);
+                };
             } else {
                 showNotification(data.error, 'error');
                 getCodeBtn.disabled = false;

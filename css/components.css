@@ -2155,6 +2155,12 @@
     padding-right: 3rem;
 }
 
+.password-input-wrapper .form-control::-ms-reveal,
+.password-input-wrapper .form-control::-ms-clear,
+.password-input-wrapper .form-control::-webkit-credentials-auto-fill-button {
+    display: none;
+}
+
 .password-toggle {
     position: absolute;
     right: 0.5rem;
@@ -2664,7 +2670,6 @@
     }
 }
 
-/* 公告管理模态框样式 */
 #announcement-modal .modal-content {
     height: auto;
     max-height: 90vh;
@@ -3462,4 +3467,12 @@ textarea.form-input {
 
 [data-theme="dark"] .verify-status {
     background: rgba(102, 126, 234, 0.1);
+}
+
+.verify-action-btn {
+    margin-top: 1rem;
+}
+
+.verify-warning-text {
+    color: var(--warning, #e67e22);
 }
