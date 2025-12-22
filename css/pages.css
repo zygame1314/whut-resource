@@ -1010,7 +1010,7 @@
 
 .guestbook-title-row {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     flex-wrap: wrap;
     gap: 1rem;
@@ -1042,7 +1042,7 @@
     padding: 0.2rem 0.6rem;
     border-radius: 20px;
     font-size: 0.8rem;
-    font-weight: 500;
+    font-weight: 600;
     border: 1px solid rgba(var(--primary-rgb), 0.2);
     cursor: default;
     transition: all 0.2s;
@@ -1054,16 +1054,40 @@
 }
 
 .guestbook-intro {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     color: var(--text-secondary);
-    line-height: 1.5;
+    line-height: 1.6;
     margin: 0;
+    padding: 0.75rem 1.2rem;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.04) 0%, rgba(var(--primary-rgb), 0.08) 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(var(--primary-rgb), 0.1);
+    text-align: center;
+    position: relative;
+}
+
+.guestbook-intro::before {
+    content: '\f05a';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    margin-right: 0.5rem;
+    color: var(--primary-color);
+    opacity: 0.7;
 }
 
 .guestbook-intro a {
     color: var(--primary-color);
     text-decoration: none;
-    border-bottom: 1px dashed var(--primary-color);
+    font-weight: 600;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    background: rgba(var(--primary-rgb), 0.08);
+    transition: all 0.2s ease;
+}
+
+.guestbook-intro a:hover {
+    background: var(--primary-color);
+    color: white;
 }
 
 .guestbook-toolbar {
@@ -1260,15 +1284,18 @@
 
     .status-filters {
         width: 100%;
-        justify-content: flex-start;
+        justify-content: center;
         overflow-x: auto;
         overflow-y: hidden;
-        padding-bottom: 6px;
+        padding: 0.25rem 0.5rem 6px;
         -webkit-overflow-scrolling: touch;
         flex-wrap: nowrap;
         gap: 0.3rem;
         scrollbar-width: thin;
         scrollbar-color: var(--border-color) transparent;
+        background: var(--background);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
     }
 
     .status-filters::-webkit-scrollbar {
