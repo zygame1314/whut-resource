@@ -30,9 +30,13 @@ export async function onRequestPost({ request, env }) {
         const statements = [];
         const validKeys = new Set();
         const dirPaths = new Set();
+        let totalSystemFiles = 0;
+        let totalSystemSize = 0;
         for (const object of allR2Objects) {
             const key = object.key;
             if (key.endsWith('/')) continue;
+            totalSystemFiles++;
+            totalSystemSize += object.size;
             validKeys.add(key);
             const name = key.split('/').pop();
             const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
@@ -118,15 +122,23 @@ export async function onRequestPost({ request, env }) {
                 console.error('清理向量索引失败:', e);
             }
         }
+        await DB.prepare(`
+            INSERT INTO system_stats (id, total_files, total_size) VALUES (1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+            total_files = excluded.total_files,
+            total_size = excluded.total_size
+        `).bind(totalSystemFiles, totalSystemSize).run();
         return new Response(JSON.stringify({
             success: true,
-            message: `同步完成。R2文件数: ${allR2Objects.length}, 目录数: ${dirPaths.size}, 链接数: ${linkResults.length}, 数据库操作数: ${statements.length} (含 ${filesToDelete.length} 个删除, 已清理 ${deletedVectorsCount} 个向量索引)`,
+            message: `同步完成。R2文件数: ${allR2Objects.length}, 目录数: ${dirPaths.size}, 链接数: ${linkResults.length}, 数据库操作数: ${statements.length} (含 ${filesToDelete.length} 个删除, 已清理 ${deletedVectorsCount} 个向量索引)。全局统计已更新。`,
             syncedStats: {
                 files: allR2Objects.length,
                 dirs: dirPaths.size,
                 links: linkResults.length,
                 deleted: filesToDelete.length,
-                deletedVectors: deletedVectorsCount
+                deletedVectors: deletedVectorsCount,
+                systemTotalFiles: totalSystemFiles,
+                systemTotalSize: totalSystemSize
             }
         }), { status: 200, headers: addCorsHeaders() });
     } catch (e) {
