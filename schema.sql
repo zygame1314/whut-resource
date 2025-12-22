@@ -139,6 +139,7 @@ SELECT 1, COUNT(*), COALESCE(SUM(size), 0) FROM files;
 DROP TRIGGER IF EXISTS update_stats_after_insert;
 CREATE TRIGGER update_stats_after_insert
 AFTER INSERT ON files
+WHEN NEW.is_directory = FALSE
 BEGIN
     UPDATE system_stats 
     SET total_files = total_files + 1,
@@ -150,6 +151,7 @@ END;
 DROP TRIGGER IF EXISTS update_stats_after_delete;
 CREATE TRIGGER update_stats_after_delete
 AFTER DELETE ON files
+WHEN OLD.is_directory = FALSE
 BEGIN
     UPDATE system_stats 
     SET total_files = total_files - 1,

@@ -130,15 +130,15 @@ export async function onRequestPost({ request, env }) {
         `).bind(totalSystemFiles, totalSystemSize).run();
         return new Response(JSON.stringify({
             success: true,
-            message: `同步完成。R2文件数: ${allR2Objects.length}, 目录数: ${dirPaths.size}, 链接数: ${linkResults.length}, 数据库操作数: ${statements.length} (含 ${filesToDelete.length} 个删除, 已清理 ${deletedVectorsCount} 个向量索引)。全局统计已更新。`,
+            message: `同步完成。R2对象数: ${allR2Objects.length}, 实际文件数: ${totalSystemFiles}, 目录数: ${dirPaths.size}, 链接数: ${linkResults.length}, 数据库操作数: ${statements.length} (含 ${filesToDelete.length} 个删除, 已清理 ${deletedVectorsCount} 个向量索引)`,
             syncedStats: {
-                files: allR2Objects.length,
+                r2Objects: allR2Objects.length,
+                files: totalSystemFiles,
                 dirs: dirPaths.size,
                 links: linkResults.length,
                 deleted: filesToDelete.length,
                 deletedVectors: deletedVectorsCount,
-                systemTotalFiles: totalSystemFiles,
-                systemTotalSize: totalSystemSize
+                totalSize: totalSystemSize
             }
         }), { status: 200, headers: addCorsHeaders() });
     } catch (e) {
