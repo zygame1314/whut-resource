@@ -199,3 +199,23 @@ CREATE TABLE IF NOT EXISTS admin_logs (
 CREATE INDEX IF NOT EXISTS idx_admin_logs_action ON admin_logs(action);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_target ON admin_logs(target_type, target_id);
+
+DROP TABLE IF EXISTS guestbook_stats;
+CREATE TABLE IF NOT EXISTS guestbook_stats (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    total_messages_all_time INTEGER DEFAULT 0,
+    last_cleanup_at DATETIME,
+    last_cleanup_count INTEGER DEFAULT 0
+);
+
+INSERT OR IGNORE INTO guestbook_stats (id, total_messages_all_time) 
+SELECT 1, COUNT(*) FROM guestbook;
+
+DROP TRIGGER IF EXISTS update_guestbook_stats_insert;
+CREATE TRIGGER update_guestbook_stats_insert
+AFTER INSERT ON guestbook
+BEGIN
+    UPDATE guestbook_stats 
+    SET total_messages_all_time = total_messages_all_time + 1
+    WHERE id = 1;
+END;

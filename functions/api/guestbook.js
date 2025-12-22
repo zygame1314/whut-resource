@@ -1,5 +1,6 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 import { processWithAIAgent } from './guestbook-ai.js';
+const CLEANUP_DAYS = 30;
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -48,6 +49,24 @@ async function handleGet(request, env) {
         return new Response(JSON.stringify({
             success: true,
             users: bannedUsers.results
+        }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (action === 'stats') {
+        const user = await getUser(request, env);
+        if (!user || user.role !== 'admin') {
+            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        await env.DB.prepare('INSERT OR IGNORE INTO guestbook_stats (id, total_messages_all_time) SELECT 1, COUNT(*) FROM guestbook').run();
+        const stats = await env.DB.prepare('SELECT * FROM guestbook_stats WHERE id = 1').first();
+        const currentCount = await env.DB.prepare('SELECT COUNT(*) as count FROM guestbook').first();
+        return new Response(JSON.stringify({
+            success: true,
+            stats: {
+                total_messages_all_time: stats.total_messages_all_time,
+                last_cleanup_at: stats.last_cleanup_at,
+                last_cleanup_count: stats.last_cleanup_count,
+                current_messages_count: currentCount.count
+            }
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     if (action === 'unban_user') {
@@ -280,6 +299,7 @@ async function handlePost(request, env, context) {
                 console.error('自动AI处理失败:', err);
             }
         })());
+        context.waitUntil(checkAndCleanup(env));
     }
     return new Response(JSON.stringify({ success: true, id: newId }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
@@ -428,4 +448,26 @@ async function handlePut(request, env, context) {
         return new Response(JSON.stringify({ error: '无效操作' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+}
+async function checkAndCleanup(env) {
+    try {
+        const stats = await env.DB.prepare('SELECT last_cleanup_at FROM guestbook_stats WHERE id = 1').first();
+        const lastCleanup = stats && stats.last_cleanup_at ? new Date(stats.last_cleanup_at + 'Z').getTime() : 0;
+        const now = Date.now();
+        if (now - lastCleanup < 86400000 && lastCleanup !== 0) {
+            return;
+        }
+        const result = await env.DB.prepare(`DELETE FROM guestbook WHERE created_at < datetime('now', '-${CLEANUP_DAYS} days')`).run();
+        const deletedCount = result.meta.changes;
+        await env.DB.prepare(`
+            UPDATE guestbook_stats 
+            SET last_cleanup_at = datetime('now'), last_cleanup_count = ? 
+            WHERE id = 1
+        `).bind(deletedCount).run();
+        if (deletedCount > 0) {
+            console.log(`Auto cleanup: deleted ${deletedCount} messages older than ${CLEANUP_DAYS} days.`);
+        }
+    } catch (err) {
+        console.error('Auto cleanup failed:', err);
+    }
 }
