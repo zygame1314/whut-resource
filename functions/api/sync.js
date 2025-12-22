@@ -27,43 +27,24 @@ export async function onRequestPost({ request, env }) {
             truncated = list.truncated;
             cursor = list.cursor;
         }
-        const statements = [];
+        const { results: existingFiles } = await DB.prepare(
+            'SELECT id, key, size, uploaded, is_directory, is_link FROM files'
+        ).all();
+        const existingMap = new Map();
+        for (const file of existingFiles) {
+            existingMap.set(file.key, {
+                id: file.id,
+                size: file.size,
+                uploaded: file.uploaded,
+                is_directory: file.is_directory,
+                is_link: file.is_link
+            });
+        }
+        const { results: linkResults } = await DB.prepare('SELECT key, parent_path FROM files WHERE is_link = TRUE').all();
         const validKeys = new Set();
         const dirPaths = new Set();
         let totalSystemFiles = 0;
         let totalSystemSize = 0;
-        for (const object of allR2Objects) {
-            const key = object.key;
-            if (key.endsWith('/')) continue;
-            totalSystemFiles++;
-            totalSystemSize += object.size;
-            validKeys.add(key);
-            const name = key.split('/').pop();
-            const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
-            const size = object.size;
-            const uploaded = object.uploaded.toISOString();
-            const contentType = object.httpMetadata?.contentType || 'application/octet-stream';
-            statements.push(DB.prepare(
-                `INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads, uploader_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT(key) DO UPDATE SET
-             size=excluded.size,
-             uploaded=excluded.uploaded,
-             contentType=excluded.contentType,
-             parent_path=excluded.parent_path`
-            ).bind(key, name, size, uploaded, contentType, parentPath, false, 0, user.id));
-            if (parentPath) {
-                let currentPath = parentPath;
-                while (currentPath) {
-                    dirPaths.add(currentPath);
-                    if (currentPath.endsWith('/')) currentPath = currentPath.slice(0, -1);
-                    const lastSlash = currentPath.lastIndexOf('/');
-                    if (lastSlash === -1) break;
-                    currentPath = currentPath.substring(0, lastSlash + 1);
-                }
-            }
-        }
-        const { results: linkResults } = await DB.prepare('SELECT key, parent_path FROM files WHERE is_link = TRUE').all();
         for (const link of linkResults) {
             validKeys.add(link.key);
             if (link.parent_path) {
@@ -77,22 +58,66 @@ export async function onRequestPost({ request, env }) {
                 }
             }
         }
+        const statements = [];
+        let insertedFiles = 0;
+        let updatedFiles = 0;
+        let skippedFiles = 0;
+        for (const object of allR2Objects) {
+            const key = object.key;
+            if (key.endsWith('/')) continue;
+            totalSystemFiles++;
+            totalSystemSize += object.size;
+            validKeys.add(key);
+            const name = key.split('/').pop();
+            const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
+            const size = object.size;
+            const uploaded = object.uploaded.toISOString();
+            const contentType = object.httpMetadata?.contentType || 'application/octet-stream';
+            if (parentPath) {
+                let currentPath = parentPath;
+                while (currentPath) {
+                    dirPaths.add(currentPath);
+                    if (currentPath.endsWith('/')) currentPath = currentPath.slice(0, -1);
+                    const lastSlash = currentPath.lastIndexOf('/');
+                    if (lastSlash === -1) break;
+                    currentPath = currentPath.substring(0, lastSlash + 1);
+                }
+            }
+            const existing = existingMap.get(key);
+            if (existing) {
+                const existingUploaded = existing.uploaded ? new Date(existing.uploaded).toISOString() : null;
+                if (existing.size === size && existingUploaded === uploaded) {
+                    skippedFiles++;
+                    continue;
+                }
+                statements.push(DB.prepare(
+                    `UPDATE files SET size=?, uploaded=?, contentType=?, parent_path=? WHERE key=?`
+                ).bind(size, uploaded, contentType, parentPath, key));
+                updatedFiles++;
+            } else {
+                statements.push(DB.prepare(
+                    `INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads, uploader_id)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                ).bind(key, name, size, uploaded, contentType, parentPath, false, 0, user.id));
+                insertedFiles++;
+            }
+        }
+        let insertedDirs = 0;
         for (const dirPath of dirPaths) {
             validKeys.add(dirPath);
+            if (existingMap.has(dirPath)) {
+                continue;
+            }
             const parts = dirPath.split('/').filter(p => p);
             const dirName = parts[parts.length - 1];
             const parentDir = parts.length > 1 ? parts.slice(0, parts.length - 1).join('/') + '/' : '';
             statements.push(DB.prepare(
                 `INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT(key) DO UPDATE SET
-             uploaded=excluded.uploaded,
-             parent_path=excluded.parent_path,
-             is_directory=excluded.is_directory`
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
             ).bind(dirPath, dirName, 0, new Date().toISOString(), 'inode/directory', parentDir, true, 0));
+            insertedDirs++;
         }
-        const { results } = await DB.prepare('SELECT id, key FROM files WHERE is_link = FALSE OR is_link IS NULL').all();
-        const filesToDelete = results.filter(r => !validKeys.has(r.key));
+        const filesToDelete = existingFiles.filter(r => !r.is_link && !validKeys.has(r.key));
         const vectorIdsToDelete = [];
         for (const file of filesToDelete) {
             statements.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(file.key));
@@ -101,12 +126,10 @@ export async function onRequestPost({ request, env }) {
             }
         }
         const BATCH_SIZE = 50;
-        let processedCount = 0;
         for (let i = 0; i < statements.length; i += BATCH_SIZE) {
             const chunk = statements.slice(i, i + BATCH_SIZE);
             if (chunk.length > 0) {
                 await DB.batch(chunk);
-                processedCount += chunk.length;
             }
         }
         let deletedVectorsCount = 0;
@@ -130,15 +153,20 @@ export async function onRequestPost({ request, env }) {
         `).bind(totalSystemFiles, totalSystemSize).run();
         return new Response(JSON.stringify({
             success: true,
-            message: `同步完成。R2对象数: ${allR2Objects.length}, 实际文件数: ${totalSystemFiles}, 目录数: ${dirPaths.size}, 链接数: ${linkResults.length}, 数据库操作数: ${statements.length} (含 ${filesToDelete.length} 个删除, 已清理 ${deletedVectorsCount} 个向量索引)`,
+            message: `增量同步完成。新增: ${insertedFiles}, 更新: ${updatedFiles}, 跳过: ${skippedFiles}, 新目录: ${insertedDirs}, 删除: ${filesToDelete.length}`,
             syncedStats: {
                 r2Objects: allR2Objects.length,
                 files: totalSystemFiles,
                 dirs: dirPaths.size,
                 links: linkResults.length,
+                inserted: insertedFiles,
+                updated: updatedFiles,
+                skipped: skippedFiles,
+                insertedDirs: insertedDirs,
                 deleted: filesToDelete.length,
                 deletedVectors: deletedVectorsCount,
-                totalSize: totalSystemSize
+                totalSize: totalSystemSize,
+                totalOperations: statements.length
             }
         }), { status: 200, headers: addCorsHeaders() });
     } catch (e) {
