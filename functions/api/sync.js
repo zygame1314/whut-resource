@@ -59,28 +59,6 @@ export async function onRequestPost({ request, env }) {
                 }
             }
         }
-        for (const dirPath of dirPaths) {
-            validKeys.add(dirPath);
-            const parts = dirPath.split('/').filter(p => p);
-            const dirName = parts[parts.length - 1];
-            const parentDir = parts.length > 1 ? parts.slice(0, parts.length - 1).join('/') + '/' : '';
-            statements.push(DB.prepare(
-                `INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT(key) DO UPDATE SET
-             uploaded=excluded.uploaded,
-             parent_path=excluded.parent_path`
-            ).bind(dirPath, dirName, 0, new Date().toISOString(), 'inode/directory', parentDir, true, 0));
-        }
-        const { results } = await DB.prepare('SELECT id, key FROM files WHERE is_link = FALSE OR is_link IS NULL').all();
-        const filesToDelete = results.filter(r => !validKeys.has(r.key));
-        const vectorIdsToDelete = [];
-        for (const file of filesToDelete) {
-            statements.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(file.key));
-            if (file.id) {
-                vectorIdsToDelete.push(file.id.toString());
-            }
-        }
         const { results: linkResults } = await DB.prepare('SELECT key, parent_path FROM files WHERE is_link = TRUE').all();
         for (const link of linkResults) {
             validKeys.add(link.key);
@@ -93,6 +71,29 @@ export async function onRequestPost({ request, env }) {
                     if (lastSlash === -1) break;
                     currentPath = currentPath.substring(0, lastSlash + 1);
                 }
+            }
+        }
+        for (const dirPath of dirPaths) {
+            validKeys.add(dirPath);
+            const parts = dirPath.split('/').filter(p => p);
+            const dirName = parts[parts.length - 1];
+            const parentDir = parts.length > 1 ? parts.slice(0, parts.length - 1).join('/') + '/' : '';
+            statements.push(DB.prepare(
+                `INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET
+             uploaded=excluded.uploaded,
+             parent_path=excluded.parent_path,
+             is_directory=excluded.is_directory`
+            ).bind(dirPath, dirName, 0, new Date().toISOString(), 'inode/directory', parentDir, true, 0));
+        }
+        const { results } = await DB.prepare('SELECT id, key FROM files WHERE is_link = FALSE OR is_link IS NULL').all();
+        const filesToDelete = results.filter(r => !validKeys.has(r.key));
+        const vectorIdsToDelete = [];
+        for (const file of filesToDelete) {
+            statements.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(file.key));
+            if (file.id) {
+                vectorIdsToDelete.push(file.id.toString());
             }
         }
         const BATCH_SIZE = 50;
