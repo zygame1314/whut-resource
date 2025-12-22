@@ -1,5 +1,39 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const DEFAULT_PAGE_SIZE = 20;
+async function deleteVectorIndexes(env, fileIds) {
+  if (!env.VECTORIZE || !fileIds || fileIds.length === 0) return;
+  try {
+    const idsToDelete = fileIds.map(id => id.toString());
+    await env.VECTORIZE.deleteByIds(idsToDelete);
+    console.log(`已删除 ${idsToDelete.length} 个向量索引`);
+  } catch (error) {
+    console.error('删除向量索引失败:', error);
+  }
+}
+async function createVectorIndexes(env, files) {
+  if (!env.AI || !env.VECTORIZE || !files || files.length === 0) return;
+  try {
+    const textsToEmbed = files.map(f => f.key);
+    const embeddingResponse = await env.AI.run('@cf/baai/bge-m3', {
+      text: textsToEmbed
+    });
+    if (!embeddingResponse?.data || embeddingResponse.data.length !== files.length) {
+      throw new Error('嵌入生成失败或数量不匹配');
+    }
+    const vectors = files.map((file, index) => ({
+      id: file.id.toString(),
+      values: embeddingResponse.data[index],
+      metadata: {
+        name: file.name,
+        path: file.key
+      }
+    }));
+    await env.VECTORIZE.upsert(vectors);
+    console.log(`已创建 ${vectors.length} 个向量索引`);
+  } catch (error) {
+    console.error('创建向量索引失败:', error);
+  }
+}
 export async function onRequestGet({ request, env, waitUntil }) {
   const authHeader = request.headers.get('Authorization');
   let user = null;
@@ -326,7 +360,15 @@ export async function onRequestPut({ request, env }) {
         batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
         batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
       }
+      const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
       await DB.batch(batchOperations);
+      await deleteVectorIndexes(env, oldFileIds);
+      const newFolderPathForQuery = newFolderKey;
+      const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
+      const { results: newFiles } = await DB.prepare(
+        "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
+      ).bind(newFolderKey, newFolderKey, newEndKey).all();
+      await createVectorIndexes(env, newFiles || []);
       return new Response(JSON.stringify({ success: true, message: '文件夹重命名成功' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -357,6 +399,7 @@ export async function onRequestPut({ request, env }) {
         });
       }
     }
+    const oldFileId = fileRecord.id;
     await DB.batch([
       DB.prepare(`
         INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
@@ -366,6 +409,11 @@ export async function onRequestPut({ request, env }) {
       DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, key),
       DB.prepare('DELETE FROM files WHERE key = ?').bind(key)
     ]);
+    await deleteVectorIndexes(env, [oldFileId]);
+    const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
+    if (newFileRecord) {
+      await createVectorIndexes(env, [newFileRecord]);
+    }
     return new Response(JSON.stringify({ success: true, message: '重命名成功' }), {
       status: 200,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -483,7 +531,15 @@ export async function onRequestPost({ request, env }) {
         batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
         batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
       }
+      const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
       await DB.batch(batchOperations);
+      await deleteVectorIndexes(env, oldFileIds);
+      const newFolderPathForQuery = newFolderKey;
+      const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
+      const { results: newFiles } = await DB.prepare(
+        "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
+      ).bind(newFolderKey, newFolderKey, newEndKey).all();
+      await createVectorIndexes(env, newFiles || []);
       return new Response(JSON.stringify({ success: true, message: '文件夹移动成功' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -520,6 +576,7 @@ export async function onRequestPost({ request, env }) {
         });
       }
     }
+    const oldFileId = fileRecord.id;
     await DB.batch([
       DB.prepare(`
         INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
@@ -529,6 +586,11 @@ export async function onRequestPost({ request, env }) {
       DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
       DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey)
     ]);
+    await deleteVectorIndexes(env, [oldFileId]);
+    const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
+    if (newFileRecord) {
+      await createVectorIndexes(env, [newFileRecord]);
+    }
     return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
       status: 200,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -576,14 +638,14 @@ export async function onRequestDelete({ request, env }) {
     let deletedCount = 0;
     for (const currentKey of keysToDelete) {
       try {
-        const fileRecord = await DB.prepare('SELECT is_directory, is_link FROM files WHERE key = ?').bind(currentKey).first();
+        const fileRecord = await DB.prepare('SELECT id, is_directory, is_link FROM files WHERE key = ?').bind(currentKey).first();
         if (!fileRecord) {
           continue;
         }
         if (fileRecord.is_directory) {
           const folderPath = currentKey.endsWith('/') ? currentKey : currentKey + '/';
           const endKey = folderPath.substring(0, folderPath.length - 1) + '0';
-          const { results: childItems } = await DB.prepare("SELECT key, is_link, is_directory FROM files WHERE key >= ? AND key < ? AND key != ?").bind(folderPath, endKey, folderPath).all();
+          const { results: childItems } = await DB.prepare("SELECT id, key, is_link, is_directory FROM files WHERE key >= ? AND key < ? AND key != ?").bind(folderPath, endKey, folderPath).all();
           for (const child of childItems || []) {
             const isChildLink = child.is_link === 1 || child.is_link === true;
             const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
@@ -595,6 +657,7 @@ export async function onRequestDelete({ request, env }) {
               }
             }
           }
+          const fileIdsToDeleteVector = [fileRecord.id, ...(childItems || []).map(c => c.id)];
           if (childItems && childItems.length > 0) {
             const childKeys = childItems.map(c => c.key);
             for (let i = 0; i < childKeys.length; i += 100) {
@@ -604,13 +667,16 @@ export async function onRequestDelete({ request, env }) {
             }
           }
           await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
+          await deleteVectorIndexes(env, fileIdsToDeleteVector);
           deletedCount += (childItems?.length || 0) + 1;
         } else {
+          const fileIdToDelete = fileRecord.id;
           const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
           if (!isLink) {
             await R2.delete(currentKey);
           }
           await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
+          await deleteVectorIndexes(env, [fileIdToDelete]);
           deletedCount++;
         }
       } catch (err) {
