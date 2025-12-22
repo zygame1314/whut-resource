@@ -264,6 +264,16 @@
     color: var(--text-primary);
     font-size: 1rem;
     box-sizing: border-box;
+    font-family: inherit;
+}
+
+textarea#prompt-input {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.5;
+}
+
+input#prompt-input {
     text-align: center;
 }
 
@@ -302,6 +312,32 @@
     font-size: 1.5rem;
     color: var(--text-secondary);
     cursor: pointer;
+}
+
+.directory-picker-search-wrapper {
+    margin-bottom: 0.75rem;
+}
+
+.directory-picker-search-input {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--background-alt);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.directory-picker-search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.directory-picker-search-input::placeholder {
+    color: var(--text-secondary);
 }
 
 .directory-picker-tree {

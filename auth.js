@@ -1,15 +1,6 @@
 const AUTH_API_URL = API_ENDPOINTS.auth;
 let currentUser = null;
 let token = localStorage.getItem('authToken');
-function escapeHtmlAuth(text) {
-    if (!text) return '';
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
 function initPasswordToggles(container) {
     const toggles = container.querySelectorAll('.password-toggle');
     toggles.forEach(btn => {
@@ -68,7 +59,7 @@ function updateAuthUI() {
         if (authSection) {
             authSection.innerHTML = `
                 <span class="user-info">
-                    <i class="fas fa-user"></i> ${escapeHtmlAuth(currentUser.nickname || currentUser.email)}
+                    <i class="fas fa-user"></i> ${escapeHtml(currentUser.nickname || currentUser.email)}
                     <span class="quota">(${quotaDisplay})</span>
                 </span>
                 ${currentUser.role === 'admin' ? `
@@ -575,7 +566,7 @@ function showChangeNicknameModal() {
             <form id="change-nickname-form">
                 <div class="form-group">
                     <label>新昵称</label>
-                    <input type="text" id="new-nickname" required class="form-control" placeholder="请输入新昵称" value="${escapeHtmlAuth(currentUser.nickname || '')}" maxlength="20">
+                    <input type="text" id="new-nickname" required class="form-control" placeholder="请输入新昵称" value="${escapeHtml(currentUser.nickname || '')}" maxlength="20">
                 </div>
                 <button type="submit" class="primary-btn full-width">确认修改</button>
             </form>
@@ -997,16 +988,16 @@ async function showAdminLogsModal() {
                     const details = JSON.parse(log.details);
                     const originalContent = details.snapshot_content || details.content;
                     if (originalContent) {
-                        detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: var(--text-secondary); background: var(--bg-secondary); padding: 5px; border-radius: 4px;"><strong>原始内容:</strong> ${escapeHtmlAuth(originalContent)}</div>`;
+                        detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: var(--text-secondary); background: var(--bg-secondary); padding: 5px; border-radius: 4px;"><strong>原始内容:</strong> ${escapeHtml(originalContent)}</div>`;
                     }
                     if (details.resource_path) {
-                        detailsHtml += `<div style="font-size: 0.8em; color: var(--success);">资源路径: ${escapeHtmlAuth(details.resource_path)}</div>`;
+                        detailsHtml += `<div style="font-size: 0.8em; color: var(--success);">资源路径: ${escapeHtml(details.resource_path)}</div>`;
                     }
                     if (details.nickname) {
-                        detailsHtml += `<div style="font-size: 0.8em; color: var(--text-secondary);">用户昵称: ${escapeHtmlAuth(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
+                        detailsHtml += `<div style="font-size: 0.8em; color: var(--text-secondary);">用户昵称: ${escapeHtml(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
                     }
                 } catch (e) {
-                    detailsHtml = `<div style="font-size: 0.8em; color: var(--text-secondary);">${escapeHtmlAuth(log.details)}</div>`;
+                    detailsHtml = `<div style="font-size: 0.8em; color: var(--text-secondary);">${escapeHtml(log.details)}</div>`;
                 }
                 const actionColors = {
                     'ai_delete': 'var(--error, #ff4d4f)',
@@ -1024,7 +1015,7 @@ async function showAdminLogsModal() {
                             <span style="font-weight: bold; color: ${color};">${log.action}</span>
                             <span style="font-size: 0.8em; color: var(--text-secondary);">${date}</span>
                         </div>
-                        <div style="margin: 5px 0;">${escapeHtmlAuth(log.reason)}</div>
+                        <div style="margin: 5px 0;">${escapeHtml(log.reason)}</div>
                         ${detailsHtml}
                     </div>
                 `;
@@ -1079,13 +1070,13 @@ async function showBannedUsersModal() {
             }
             container.innerHTML = data.users.map(user => {
                 const nickname = user.nickname || '未设置昵称';
-                const email = escapeHtmlAuth(user.email);
+                const email = escapeHtml(user.email);
                 const utcDate = user.created_at.endsWith('Z') ? user.created_at : user.created_at + 'Z';
                 const createdAt = new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
                 return `
                     <div class="banned-user-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); gap: 10px;">
                         <div style="flex: 1; min-width: 0;">
-                            <div style="font-weight: bold; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtmlAuth(nickname)}</div>
+                            <div style="font-weight: bold; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(nickname)}</div>
                             <div style="font-size: 0.85em; color: var(--text-secondary);">${email}</div>
                             <div style="font-size: 0.75em; color: var(--text-secondary);">注册于: ${createdAt}</div>
                         </div>

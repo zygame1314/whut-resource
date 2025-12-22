@@ -360,36 +360,16 @@ async function showResolvePrompt() {
         if (searchInput) {
             searchInput.addEventListener('click', (e) => e.stopPropagation());
             searchInput.addEventListener('input', (e) => {
-                const keyword = e.target.value.toLowerCase().trim();
-                const items = pathTreeContainer.querySelectorAll('.path-tree-item');
-                if (!keyword) {
-                    pathTreeContainer.querySelectorAll('.path-tree-node').forEach(node => {
-                        node.style.display = '';
+                if (typeof filterTreeByKeyword === 'function') {
+                    filterTreeByKeyword(pathTreeContainer, e.target.value, {
+                        nodeSelector: '.path-tree-node',
+                        itemSelector: '.path-tree-item',
+                        nameSelector: '.path-folder-name',
+                        listSelector: '.path-tree-list',
+                        toggleSelector: '.path-toggle-icon',
+                        useTransform: true
                     });
-                    return;
                 }
-                pathTreeContainer.querySelectorAll('.path-tree-node').forEach(node => {
-                    node.style.display = 'none';
-                });
-                items.forEach(item => {
-                    const text = item.querySelector('.path-folder-name').textContent.toLowerCase();
-                    if (text.includes(keyword)) {
-                        let currentNode = item.closest('.path-tree-node');
-                        while (currentNode) {
-                            currentNode.style.display = '';
-                            const parentList = currentNode.closest('.path-tree-list');
-                            if (parentList) {
-                                parentList.style.display = 'block';
-                                const parentNode = parentList.closest('.path-tree-node');
-                                if (parentNode) {
-                                    const toggle = parentNode.querySelector('.path-toggle-icon');
-                                    if (toggle) toggle.style.transform = 'rotate(90deg)';
-                                }
-                            }
-                            currentNode = currentNode.parentElement.closest('.path-tree-node');
-                        }
-                    }
-                });
             });
         }
         if (clearPathBtn) {
@@ -532,7 +512,7 @@ function renderGuestbook(messages) {
             const rejectIcon = msg.status === 'rejected' ? 'fas fa-times-circle' : 'far fa-times-circle';
             const rejectTitle = msg.status === 'rejected' ? '取消驳回' : '驳回留言';
             const rejectClass = msg.status === 'rejected' ? 'danger' : '';
-            const escapedContent = escapeHtml(msg.content).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+            const encodedContent = btoa(encodeURIComponent(msg.content));
             adminControls = `
                 <div class="guestbook-admin-controls">
                     <button class="icon-btn small ai-btn" onclick="aiProcessGuestbook(${msg.id})" title="AI 分析处理">
@@ -550,7 +530,7 @@ function renderGuestbook(messages) {
                     <button class="icon-btn small ${visibilityClass}" onclick="toggleGuestbookVisibility(${msg.id}, ${msg.is_hidden})" title="${visibilityTitle}">
                         <i class="${visibilityIcon}"></i>
                     </button>
-                    <button class="icon-btn small" onclick="editGuestbook(${msg.id}, '${escapedContent}')" title="编辑留言">
+                    <button class="icon-btn small" onclick="editGuestbook(${msg.id}, '${encodedContent}')" title="编辑留言">
                         <i class="fas fa-edit"></i>
                     </button>
                     ${msg.is_banned ? `
@@ -569,10 +549,10 @@ function renderGuestbook(messages) {
             `;
         }
         if (isAuthor && !isAdmin) {
-            const escapedContent = escapeHtml(msg.content).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+            const encodedContent = btoa(encodeURIComponent(msg.content));
             authorControls = `
                 <div class="guestbook-author-controls">
-                    <button class="icon-btn small" onclick="editGuestbook(${msg.id}, '${escapedContent}')" title="编辑留言">
+                    <button class="icon-btn small" onclick="editGuestbook(${msg.id}, '${encodedContent}')" title="编辑留言">
                         <i class="fas fa-edit"></i>
                     </button>
                     <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
@@ -876,12 +856,17 @@ window.changeGuestbookStatus = function (status) {
     });
     fetchAndDisplayGuestbook(1);
 };
-window.editGuestbook = async function (id, currentContent = '') {
-    const decoded = currentContent.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+window.editGuestbook = async function (id, encodedContent = '') {
+    let decoded = '';
+    try {
+        decoded = decodeURIComponent(atob(encodedContent));
+    } catch (e) {
+        decoded = encodedContent;
+    }
     let newContent = '';
     try {
         if (typeof showPrompt === 'function') {
-            newContent = await showPrompt({ title: '编辑留言', message: '修改留言内容：', initialValue: decoded, placeholder: '请输入留言内容' });
+            newContent = await showPrompt({ title: '编辑留言', message: '修改留言内容：', initialValue: decoded, placeholder: '请输入留言内容', useTextarea: true, rows: 5 });
         } else {
             newContent = prompt('编辑留言：', decoded);
         }

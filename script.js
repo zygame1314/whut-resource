@@ -933,17 +933,22 @@ function showPrompt({
     initialValue = '',
     placeholder = '',
     confirmText = '确认',
-    cancelText = '取消'
+    cancelText = '取消',
+    useTextarea = false,
+    rows = 4
 }) {
     return new Promise((resolve, reject) => {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'confirmation-modal-overlay';
+        const inputHtml = useTextarea
+            ? `<textarea id="prompt-input" placeholder="${escapeHtml(placeholder)}" rows="${rows}">${escapeHtml(initialValue)}</textarea>`
+            : `<input type="text" id="prompt-input" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(initialValue)}">`;
         modalOverlay.innerHTML = `
             <div class="confirmation-modal">
                 <h3>${title}</h3>
                 <p>${message}</p>
                 <div class="prompt-input-container">
-                    <input type="text" id="prompt-input" placeholder="${placeholder}" value="${initialValue}">
+                    ${inputHtml}
                 </div>
                 <div class="confirmation-buttons">
                     <button class="confirm-btn-cancel">${cancelText}</button>
@@ -954,7 +959,11 @@ function showPrompt({
         document.body.appendChild(modalOverlay);
         const input = modalOverlay.querySelector('#prompt-input');
         input.focus();
-        input.select();
+        if (!useTextarea) {
+            input.select();
+        } else {
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
         const closeModal = (value) => {
             modalOverlay.classList.add('closing');
             modalOverlay.addEventListener('animationend', () => {
@@ -973,10 +982,10 @@ function showPrompt({
         modalOverlay.querySelector('.confirm-btn').addEventListener('click', () => closeModal(input.value));
         modalOverlay.querySelector('.confirm-btn-cancel').addEventListener('click', () => closeModal(null));
         input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                closeModal(input.value);
-            } else if (e.key === 'Escape') {
+            if (e.key === 'Escape') {
                 closeModal(null);
+            } else if (e.key === 'Enter' && !useTextarea) {
+                closeModal(input.value);
             }
         });
         modalOverlay.addEventListener('mousedown', (e) => {
@@ -2591,6 +2600,9 @@ function showDirectoryPicker(itemsToMove = []) {
                     <button class="close-btn">&times;</button>
                 </div>
                 <p class="modal-subtitle">将 ${itemsToMove.length} 个项目移动到:</p>
+                <div class="directory-picker-search-wrapper">
+                    <input type="text" class="directory-picker-search-input" placeholder="搜索目录...">
+                </div>
                 <div id="directory-picker-tree" class="directory-picker-tree">
                     <div class="loading-spinner"></div>
                 </div>
@@ -2692,6 +2704,13 @@ function showDirectoryPicker(itemsToMove = []) {
             if (response.ok && result.success) {
                 const tree = buildTree(result.directories);
                 renderTree(tree, treeContainer);
+                const searchInput = modalOverlay.querySelector('.directory-picker-search-input');
+                if (searchInput) {
+                    searchInput.addEventListener('click', (e) => e.stopPropagation());
+                    searchInput.addEventListener('input', (e) => {
+                        filterTreeByKeyword(treeContainer, e.target.value);
+                    });
+                }
             } else {
                 throw new Error(result.error || '无法加载文件夹列表');
             }
