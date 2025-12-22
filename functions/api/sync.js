@@ -119,7 +119,7 @@ export async function onRequestPost({ request, env }) {
         }
         return new Response(JSON.stringify({
             success: true,
-            message: `同步完成。R2文件数: ${allR2Objects.length}, 目录数: ${dirPaths.size}, 链接数: ${linkResults.length}, 数据库操作数: ${statements.length} (含 ${filesToDelete.length} 个删除,  очищено ${deletedVectorsCount} 个向量索引)`,
+            message: `同步完成。R2文件数: ${allR2Objects.length}, 目录数: ${dirPaths.size}, 链接数: ${linkResults.length}, 数据库操作数: ${statements.length} (含 ${filesToDelete.length} 个删除, 已清理 ${deletedVectorsCount} 个向量索引)`,
             syncedStats: {
                 files: allR2Objects.length,
                 dirs: dirPaths.size,
