@@ -457,7 +457,7 @@ async function checkAndCleanup(env) {
         if (now - lastCleanup < 86400000 && lastCleanup !== 0) {
             return;
         }
-        const result = await env.DB.prepare(`DELETE FROM guestbook WHERE created_at < datetime('now', '-${CLEANUP_DAYS} days')`).run();
+        const result = await env.DB.prepare(`DELETE FROM guestbook WHERE created_at < datetime('now', '-${CLEANUP_DAYS} days') AND is_pinned = 0`).run();
         const deletedCount = result.meta.changes;
         await env.DB.prepare(`
             UPDATE guestbook_stats 
