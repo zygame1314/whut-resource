@@ -334,7 +334,6 @@
     transition: all var(--transition-normal);
     position: relative;
     height: 100%;
-    min-height: 140px;
     justify-content: flex-start;
 }
 
@@ -451,9 +450,8 @@
         border-radius: 6px;
         cursor: pointer;
         transition: all 0.2s ease;
-        flex-shrink: 0;
         position: absolute;
-        left: 6px;
+        right: 6px;
         top: 6px;
         transform: none;
         z-index: 5;
@@ -469,11 +467,6 @@
     .file-list-item.actions-visible .mobile-actions-toggle {
         background: var(--primary-color);
         color: white;
-    }
-
-    .file-list-container.grid-view .mobile-actions-toggle {
-        left: 6px;
-        top: 6px;
     }
 
     .file-list-container:not(.grid-view) .mobile-actions-toggle {

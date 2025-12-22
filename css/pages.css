@@ -311,8 +311,6 @@
 }
 
 .file-list li {
-    display: flex;
-    flex-direction: column;
     position: relative;
     align-items: center;
     padding: 0.6rem 0.8rem;
@@ -444,6 +442,7 @@
 
 .file-list .file-actions {
     position: absolute;
+    justify-content: center;
     top: 50%;
     right: 0.5rem;
     transform: translateY(-50%) translateX(10px);
@@ -531,14 +530,7 @@
         align-items: center;
     }
 
-    .file-list li {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1rem;
-    }
-
     .file-actions {
-        justify-content: center;
         flex-wrap: wrap;
     }
 
@@ -549,6 +541,25 @@
     .search-filters {
         justify-content: center;
     }
+
+    .selection-toolbar {
+        width: calc(100% - 2rem);
+        bottom: 1rem;
+        flex-direction: column;
+        gap: 0.8rem;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .selection-info {
+        width: 100%;
+    }
+
+    .selection-actions {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
 }
 
 @media (max-width: 480px) {
@@ -558,6 +569,23 @@
 
     .hero-description {
         font-size: 1rem;
+    }
+
+    .selection-toolbar {
+        bottom: 0.5rem;
+        border-radius: 12px;
+        padding: 0.8rem;
+    }
+
+    .selection-actions .primary-btn,
+    .selection-actions .secondary-btn,
+    .selection-actions .danger-btn {
+        padding: 0.5rem 0.8rem;
+        font-size: 0.8rem;
+    }
+
+    .selection-info {
+        font-size: 0.85rem;
     }
 }
 
