@@ -13,6 +13,10 @@ let currentGuestbookStatus = 'all';
 const GUESTBOOK_PER_PAGE = 5;
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
+    document.addEventListener('authSuccess', () => {
+        console.log('Auth success, reloading guestbook...');
+        fetchAndDisplayGuestbook(currentGuestbookPage);
+    });
 });
 window.changeGuestbookPage = function (page) {
     if (page < 1 || page > totalGuestbookPages) return;
@@ -472,6 +476,9 @@ async function fetchAndDisplayGuestbook(page = 1) {
         totalGuestbookPages = pagination.totalPages;
         renderGuestbook(messages);
         renderGuestbookPagination();
+        if (window.currentUser && window.currentUser.role === 'admin') {
+            fetchAndDisplayGuestbookStats(token);
+        }
         if (guestbookForm) guestbookForm.style.display = 'block';
         const loginPrompt = document.getElementById('guestbook-login-prompt');
         if (loginPrompt) loginPrompt.style.display = 'none';
@@ -481,6 +488,56 @@ async function fetchAndDisplayGuestbook(page = 1) {
             guestbookList.innerHTML = '<p class="error-message">加载留言失败，请稍后重试</p>';
         }
     }
+}
+async function fetchAndDisplayGuestbookStats(token) {
+    if (!window.currentUser || window.currentUser.role !== 'admin') return;
+    try {
+        const response = await fetch(`${GUESTBOOK_API_URL}?action=stats`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.stats) {
+                renderGuestbookStats(data.stats);
+            }
+        }
+    } catch (error) {
+        console.error('获取留言板统计失败:', error);
+    }
+}
+function renderGuestbookStats(stats) {
+    let statsWrapper = document.getElementById('guestbook-stats-wrapper');
+    if (!statsWrapper) return;
+
+    let statsContainer = document.getElementById('guestbook-stats-container');
+    if (!statsContainer) {
+        statsContainer = document.createElement('div');
+        statsContainer.id = 'guestbook-stats-container';
+        statsContainer.className = 'guestbook-stats-container';
+        statsWrapper.appendChild(statsContainer);
+    }
+    let lastCleanupDate = '从未';
+    if (stats.last_cleanup_at) {
+        const date = new Date(stats.last_cleanup_at + (stats.last_cleanup_at.endsWith('Z') ? '' : 'Z'));
+        lastCleanupDate = date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    statsContainer.innerHTML = `
+        <div class="stats-item" title="自建站以来的总留言数">
+            <i class="fas fa-history"></i> 
+            <span>历史总数: <strong>${stats.total_messages_all_time}</strong></span>
+        </div>
+        <div class="stats-divider"></div>
+        <div class="stats-item" title="当前显示的留言数">
+            <i class="fas fa-layer-group"></i> 
+            <span>当前存留: <strong>${stats.current_messages_count}</strong></span>
+        </div>
+        <div class="stats-divider"></div>
+        <div class="stats-item" title="最近一次自动清理情况">
+            <i class="fas fa-broom"></i> 
+            <span>上次清理: <strong>${stats.last_cleanup_count}</strong> 条 <span class="stats-date">(${lastCleanupDate})</span></span>
+        </div>
+    `;
+    statsContainer.style.display = 'flex';
 }
 function renderGuestbook(messages) {
     if (!guestbookList) return;

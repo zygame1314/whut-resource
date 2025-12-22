@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 import { processWithAIAgent } from './guestbook-ai.js';
-const CLEANUP_DAYS = 30;
+const CLEANUP_DAYS = 7;
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {

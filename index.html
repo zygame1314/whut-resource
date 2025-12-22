@@ -258,43 +258,48 @@
         <div class="container">
             <div class="guestbook-card">
                 <div class="guestbook-header-section">
-                    <div class="guestbook-header-top">
-                        <h3 class="section-title"><i class="fas fa-comments"></i> 留言板 & 资源请愿</h3>
-                        <div class="guestbook-controls">
-                            <div class="guestbook-filter-controls">
+                    <div class="guestbook-title-row">
+                        <div class="title-group">
+                            <h3 class="section-title"><i class="fas fa-comments"></i> 留言板 & 资源请愿</h3>
+                            <span class="ai-badge" title="AI模型驱动: GPT-OSS-120B"><i class="fas fa-robot"></i> AI
+                                智能回复</span>
+                        </div>
+                    </div>
+
+                    <p class="guestbook-intro">想要什么资源？或者有什么想说的话？在这里告诉我们吧！(请遵守 <a href="guestbook_rules.html">留言规范</a>)
+                    </p>
+
+                    <div id="guestbook-stats-wrapper"></div>
+
+                    <div class="guestbook-toolbar">
+                        <div class="toolbar-left">
+                            <div class="filter-tabs">
                                 <button class="guestbook-filter-btn active" data-filter="all"
-                                    onclick="changeGuestbookFilter('all')">全部留言</button>
+                                    onclick="changeGuestbookFilter('all')">全部</button>
                                 <button class="guestbook-filter-btn" data-filter="mine"
-                                    onclick="changeGuestbookFilter('mine')">我的留言</button>
+                                    onclick="changeGuestbookFilter('mine')">我的</button>
                             </div>
-                            <div class="guestbook-status-controls">
+                            <div class="toolbar-divider"></div>
+                            <div class="status-filters">
                                 <button class="guestbook-status-btn active" data-status="all"
-                                    onclick="changeGuestbookStatus('all')">全部状态</button>
+                                    onclick="changeGuestbookStatus('all')">全部</button>
                                 <button class="guestbook-status-btn" data-status="unresolved"
-                                    onclick="changeGuestbookStatus('unresolved')">未解决</button>
+                                    onclick="changeGuestbookStatus('unresolved')">待解决</button>
                                 <button class="guestbook-status-btn" data-status="resolved"
                                     onclick="changeGuestbookStatus('resolved')">已解决</button>
                                 <button class="guestbook-status-btn" data-status="rejected"
                                     onclick="changeGuestbookStatus('rejected')">已驳回</button>
                             </div>
-                            <div class="guestbook-sort-controls">
+                        </div>
+                        <div class="toolbar-right">
+                            <div class="sort-toggle">
                                 <button class="guestbook-sort-btn active" data-sort="time"
-                                    onclick="changeGuestbookSort('time')">最新</button>
+                                    onclick="changeGuestbookSort('time')"><i class="fas fa-clock"></i> 最新</button>
                                 <button class="guestbook-sort-btn" data-sort="likes"
-                                    onclick="changeGuestbookSort('likes')">最热</button>
+                                    onclick="changeGuestbookSort('likes')"><i class="fas fa-fire"></i> 最热</button>
                             </div>
                         </div>
                     </div>
-                    <p class="section-subtitle">想要什么资源？或者有什么想说的话？在这里告诉我们吧！ (请遵守 <a href="guestbook_rules.html">留言规范</a>)
-                    </p>
-                    <p class="ai-powered-notice">
-                        <i class="fas fa-robot"></i>
-                        <span>留言板接入 AI 智能辅助，模型 <span class="model-tooltip-wrapper"><strong>GPT-OSS-120B</strong><span
-                                    class="model-tooltip">OpenAI 开源的 MoE 大语言模型<br>• 总参数量：1170 亿<br>• 每Token激活参数：51
-                                    亿<br>• 上下文长度：128K tokens<br>• 架构：Mixture-of-Experts<br>• 许可证：Apache
-                                    2.0</span></span>，提供商：<a href="https://cerebras.ai" target="_blank"
-                                rel="noopener noreferrer">Cerebras</a></span>
-                    </p>
                 </div>
 
                 <div class="guestbook-form-container">
