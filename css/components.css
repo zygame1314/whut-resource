@@ -2630,6 +2630,70 @@
 .admin-announcement-actions {
     display: flex;
     gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .admin-announcement-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .admin-announcement-info {
+        width: 100%;
+    }
+
+    .admin-announcement-info h4 {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .admin-announcement-actions {
+        width: 100%;
+        justify-content: flex-end;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .admin-announcement-actions .secondary-btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+/* 公告管理模态框样式 */
+#announcement-modal .modal-content {
+    height: auto;
+    max-height: 90vh;
+    max-width: 700px;
+}
+
+#announcement-modal .modal-body {
+    overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+    #announcement-modal .modal-content {
+        width: 95%;
+        max-height: 85vh;
+        padding: 1rem;
+    }
+
+    #announcement-modal .form-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    #announcement-modal .form-actions button {
+        width: 100%;
+    }
+
+    #announcement-modal .tab-controls {
+        margin-top: 0.5rem;
+    }
 }
 
 .announcement-form-container {
