@@ -269,6 +269,24 @@
                     <p class="guestbook-intro">想要什么资源？或者有什么想说的话？在这里告诉我们吧！(请遵守 <a href="guestbook_rules.html">留言规范</a>)
                     </p>
 
+                    <div id="guestbook-login-prompt" style="display: none;" class="login-prompt">
+                        <i class="fas fa-lock"></i> 请先 <a href="#"
+                            onclick="showAuthModal('login'); return false;">登录</a> 后查看和发布留言
+                    </div>
+                    <form id="guestbook-form" style="display: none;">
+                        <div class="input-wrapper">
+                            <textarea id="guestbook-content" placeholder="写下你的心愿或留言..." maxlength="500"
+                                required></textarea>
+                            <button type="submit" id="submit-guestbook-btn" class="primary-btn">
+                                发布心愿
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="guestbook-form-container">
+
+
                     <div id="guestbook-stats-wrapper"></div>
 
                     <div class="guestbook-toolbar">
@@ -300,22 +318,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="guestbook-form-container">
-                    <div id="guestbook-login-prompt" style="display: none;" class="login-prompt">
-                        <i class="fas fa-lock"></i> 请先 <a href="#"
-                            onclick="showAuthModal('login'); return false;">登录</a> 后查看和发布留言
-                    </div>
-                    <form id="guestbook-form" style="display: none;">
-                        <div class="input-wrapper">
-                            <textarea id="guestbook-content" placeholder="写下你的心愿或留言..." maxlength="500"
-                                required></textarea>
-                            <button type="submit" id="submit-guestbook-btn" class="primary-btn">
-                                发布心愿
-                            </button>
-                        </div>
-                    </form>
                 </div>
 
                 <div id="guestbook-list" class="guestbook-list">
@@ -332,7 +335,7 @@
         <div class="footer-content">
             <div class="footer-section">
                 <h3>关于武理资源共享平台</h3>
-                <p>一个无偿分享学习资源的社区，人会各奔东西，但知识永恒传承。</p>
+                <p>一个无偿分享武理学习资源的小站。人会各奔东西，但知识永恒传承。</p>
             </div>
             <div class="footer-section">
                 <h3>使用指南</h3>
