@@ -445,7 +445,12 @@ function initGuestbook() {
     if (guestbookForm) {
         guestbookForm.addEventListener('submit', handleGuestbookSubmit);
     }
-    fetchAndDisplayGuestbook(currentGuestbookPage);
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        fetchAndDisplayGuestbook(currentGuestbookPage);
+    } else if (guestbookList) {
+        guestbookList.innerHTML = '<div class="loading-spinner"></div>';
+    }
 }
 async function fetchAndDisplayGuestbook(page = 1) {
     if (!guestbookSection) return;
@@ -508,7 +513,6 @@ async function fetchAndDisplayGuestbookStats(token) {
 function renderGuestbookStats(stats) {
     let statsWrapper = document.getElementById('guestbook-stats-wrapper');
     if (!statsWrapper) return;
-
     let statsContainer = document.getElementById('guestbook-stats-container');
     if (!statsContainer) {
         statsContainer = document.createElement('div');
