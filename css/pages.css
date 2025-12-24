@@ -312,6 +312,7 @@
 
 .file-list li {
     position: relative;
+    display: flex;
     align-items: center;
     padding: 0.6rem 0.8rem;
     margin-bottom: 0.25rem;
@@ -780,9 +781,8 @@
     opacity: 1;
 }
 
-.file-list-container:not(.grid-view) .file-list.selection-mode .file-checkbox {
-    position: static;
-    margin-right: 1rem;
+.file-list-container:not(.grid-view) .file-list.selection-mode .file-list-item {
+    padding-left: 3rem;
 }
 
 .file-list-item .file-checkbox:hover {
