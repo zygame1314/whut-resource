@@ -117,7 +117,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
     }
     if (action === 'listAllDirs') {
       const cache = caches.default;
-      const cacheKey = new Request(request.url);
+      const cacheKey = new Request(new URL(request.url).origin + '/api/files?action=listAllDirs', { method: 'GET' });
       const cachedResponse = await cache.match(cacheKey);
       if (cachedResponse) {
         return cachedResponse;
@@ -137,27 +137,54 @@ export async function onRequestGet({ request, env, waitUntil }) {
     }
     if (action === 'getHotFolders') {
       const cache = caches.default;
-      const cacheKey = new Request(request.url);
+      const cacheKey = new Request(new URL(request.url).origin + '/api/files?action=getHotFolders', { method: 'GET' });
       const cachedResponse = await cache.match(cacheKey);
       if (cachedResponse) {
         return cachedResponse;
       }
-      const stmt = DB.prepare(`
-        SELECT
-          parent_path,
-          SUM(downloads) as total_downloads
-        FROM files
-        WHERE parent_path != '' AND is_directory = FALSE
-        GROUP BY parent_path
-        ORDER BY total_downloads DESC
-        LIMIT 5
-      `);
-      const { results } = await stmt.all();
-      const hotFolders = results.map(row => ({
-        path: row.parent_path,
-        name: row.parent_path.endsWith('/') ? row.parent_path.slice(0, -1).split('/').pop() : row.parent_path.split('/').pop(),
-        total_downloads: row.total_downloads
-      }));
+      const cacheData = await DB.prepare('SELECT data, updated_at FROM hot_folders_cache WHERE id = 1').first();
+      let hotFolders = [];
+      let needsRefresh = true;
+      if (cacheData && cacheData.data) {
+        try {
+          const parsed = JSON.parse(cacheData.data);
+          hotFolders = parsed.map(row => ({
+            path: row.path,
+            name: row.path.endsWith('/') ? row.path.slice(0, -1).split('/').pop() : row.path.split('/').pop(),
+            total_downloads: row.total_downloads
+          }));
+          if (cacheData.updated_at) {
+            const updatedAt = new Date(cacheData.updated_at + 'Z').getTime();
+            const now = Date.now();
+            needsRefresh = (now - updatedAt) > 3600000;
+          }
+        } catch (e) {
+          console.error('解析热门文件夹缓存失败:', e);
+        }
+      }
+      if (needsRefresh) {
+        waitUntil((async () => {
+          try {
+            const refreshResult = await DB.prepare(`
+              SELECT '[' || COALESCE(GROUP_CONCAT(json_object('path', parent_path, 'total_downloads', total_downloads)), '') || ']' as data
+              FROM (
+                SELECT parent_path, SUM(downloads) as total_downloads
+                FROM files
+                WHERE parent_path != '' AND is_directory = FALSE
+                GROUP BY parent_path
+                ORDER BY total_downloads DESC
+                LIMIT 5
+              )
+            `).first();
+            if (refreshResult && refreshResult.data) {
+              await DB.prepare('UPDATE hot_folders_cache SET data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1')
+                .bind(refreshResult.data).run();
+            }
+          } catch (e) {
+            console.error('刷新热门文件夹缓存失败:', e);
+          }
+        })());
+      }
       const response = new Response(JSON.stringify({ success: true, hotFolders: hotFolders }), {
         status: 200,
         headers: addCorsHeaders({
