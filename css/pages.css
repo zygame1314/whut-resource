@@ -324,6 +324,16 @@
     animation: fadeInUp 0.4s ease;
 }
 
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 2rem;
+    min-height: 400px;
+}
+
 .file-list li:hover {
     background: var(--background-alt);
     border-color: var(--primary-light);
