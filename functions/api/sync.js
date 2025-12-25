@@ -85,8 +85,7 @@ export async function onRequestPost({ request, env }) {
             }
             const existing = existingMap.get(key);
             if (existing) {
-                const existingUploaded = existing.uploaded ? new Date(existing.uploaded).toISOString() : null;
-                if (existing.size === size && existingUploaded === uploaded) {
+                if (existing.size === size) {
                     skippedFiles++;
                     continue;
                 }
