@@ -236,3 +236,23 @@ BEGIN
     SET current_messages_count = current_messages_count - 1
     WHERE id = 1;
 END;
+
+DROP TABLE IF EXISTS hot_folders_cache;
+CREATE TABLE IF NOT EXISTS hot_folders_cache (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    data TEXT NOT NULL DEFAULT '[]',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT OR REPLACE INTO hot_folders_cache (id, data, updated_at)
+SELECT 1, 
+    '[' || COALESCE(GROUP_CONCAT(json_object('path', parent_path, 'total_downloads', total_downloads)), '') || ']',
+    CURRENT_TIMESTAMP
+FROM (
+    SELECT parent_path, SUM(downloads) as total_downloads
+    FROM files
+    WHERE parent_path != '' AND is_directory = FALSE
+    GROUP BY parent_path
+    ORDER BY total_downloads DESC
+    LIMIT 5
+);
