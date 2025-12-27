@@ -37,31 +37,17 @@ async function handleGet(request, env) {
         return new Response(JSON.stringify({ error: '未认证' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const isAdmin = user && user.role === 'admin';
-    const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
-    const offset = (page - 1) * limit;
+    const MAX_LIMIT = 200;
 
-    let countQuery = 'SELECT COUNT(*) as total FROM announcements WHERE is_published = TRUE';
-    let query = 'SELECT * FROM announcements WHERE is_published = TRUE ORDER BY created_at DESC LIMIT ? OFFSET ?';
-
+    let query = 'SELECT * FROM announcements WHERE is_published = TRUE ORDER BY created_at DESC LIMIT ?';
     if (isAdmin) {
-        countQuery = 'SELECT COUNT(*) as total FROM announcements';
-        query = 'SELECT * FROM announcements ORDER BY created_at DESC LIMIT ? OFFSET ?';
+        query = 'SELECT * FROM announcements ORDER BY created_at DESC LIMIT ?';
     }
-
-    const totalResult = await env.DB.prepare(countQuery).first();
-    const total = totalResult.total;
-    const { results } = await env.DB.prepare(query).bind(limit, offset).all();
+    const { results } = await env.DB.prepare(query).bind(MAX_LIMIT).all();
 
     return new Response(JSON.stringify({
         data: results,
-        pagination: {
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit)
-        }
+        totalItems: results.length
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePost(request, env) {
