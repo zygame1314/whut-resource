@@ -94,102 +94,51 @@ async function handleGet(request, env) {
         orderByClause = 'ORDER BY g.is_pinned DESC, g.likes DESC, g.created_at DESC';
     }
     let query;
+    let params = [];
     let results;
+    const adminSelect = `SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
+        CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
+        FROM guestbook g
+        LEFT JOIN users u ON g.user_id = u.id
+        LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?`;
+    const userSelect = `SELECT g.*, u.nickname, u.email, u.role,
+        CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
+        FROM guestbook g
+        LEFT JOIN users u ON g.user_id = u.id
+        LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?`;
     if (filter === 'mine') {
         if (!currentUserId) {
             results = [];
         } else {
-            let idQuery = `SELECT id FROM guestbook g WHERE g.user_id = ? ${statusCondition ? `AND ${statusCondition}` : ''} ${orderByClause} LIMIT ?`;
-            const idResult = await env.DB.prepare(idQuery).bind(currentUserId, MAX_LIMIT).all();
-            const ids = idResult.results.map(r => r.id);
-            if (ids.length === 0) {
-                results = [];
-            } else {
-                const placeholders = ids.map(() => '?').join(',');
-                query = `
-                    SELECT g.*, u.nickname, u.email, u.role,
-                    CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
-                    FROM guestbook g
-                    LEFT JOIN users u ON g.user_id = u.id
-                    LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                    WHERE g.id IN (${placeholders})
-                    ${orderByClause}
-                `;
-                const q = await env.DB.prepare(query).bind(currentUserId, ...ids).all();
-                results = q.results;
-            }
+            let whereClause = 'WHERE g.user_id = ?';
+            if (statusCondition) whereClause += ` AND ${statusCondition}`;
+            query = `${userSelect} ${whereClause} ${orderByClause} LIMIT ?`;
+            params = [currentUserId, currentUserId, MAX_LIMIT];
+            const q = await env.DB.prepare(query).bind(...params).all();
+            results = q.results;
         }
     } else {
         if (isAdmin) {
-            let whereClauseSub = statusCondition ? `WHERE ${statusCondition}` : '';
-            let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ?`;
-            const idResult = await env.DB.prepare(idQuery).bind(MAX_LIMIT).all();
-            const ids = idResult.results.map(r => r.id);
-            if (ids.length === 0) {
-                results = [];
-            } else {
-                const placeholders = ids.map(() => '?').join(',');
-                query = `
-                    SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
-                    CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
-                    FROM guestbook g
-                    LEFT JOIN users u ON g.user_id = u.id
-                    LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                    WHERE g.id IN (${placeholders})
-                    ${orderByClause}
-                `;
-                const q = await env.DB.prepare(query).bind(currentUserId, ...ids).all();
-                results = q.results;
-            }
+            let whereClause = statusCondition ? `WHERE ${statusCondition}` : '';
+            query = `${adminSelect} ${whereClause} ${orderByClause} LIMIT ?`;
+            params = [currentUserId, MAX_LIMIT];
+            const q = await env.DB.prepare(query).bind(...params).all();
+            results = q.results;
         } else {
             if (currentUserId) {
-                let whereClauseSub = 'WHERE (g.is_hidden = FALSE OR g.user_id = ?)';
-                if (statusCondition) {
-                    whereClauseSub += ` AND ${statusCondition}`;
-                }
-                let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ?`;
-                const idResult = await env.DB.prepare(idQuery).bind(currentUserId, MAX_LIMIT).all();
-                const ids = idResult.results.map(r => r.id);
-                if (ids.length === 0) {
-                    results = [];
-                } else {
-                    const placeholders = ids.map(() => '?').join(',');
-                    query = `
-                    SELECT g.*, u.nickname, u.email, u.role,
-                    CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
-                    FROM guestbook g
-                    LEFT JOIN users u ON g.user_id = u.id
-                    LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                    WHERE g.id IN (${placeholders})
-                    ${orderByClause}
-                `;
-                    const q = await env.DB.prepare(query).bind(currentUserId, ...ids).all();
-                    results = q.results;
-                }
+                let whereClause = 'WHERE (g.is_hidden = FALSE OR g.user_id = ?)';
+                if (statusCondition) whereClause += ` AND ${statusCondition}`;
+                query = `${userSelect} ${whereClause} ${orderByClause} LIMIT ?`;
+                params = [currentUserId, currentUserId, MAX_LIMIT];
+                const q = await env.DB.prepare(query).bind(...params).all();
+                results = q.results;
             } else {
-                let whereClauseSub = 'WHERE g.is_hidden = FALSE';
-                if (statusCondition) {
-                    whereClauseSub += ` AND ${statusCondition}`;
-                }
-                let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ?`;
-                const idResult = await env.DB.prepare(idQuery).bind(MAX_LIMIT).all();
-                const ids = idResult.results.map(r => r.id);
-                if (ids.length === 0) {
-                    results = [];
-                } else {
-                    const placeholders = ids.map(() => '?').join(',');
-                    query = `
-                    SELECT g.*, u.nickname, u.email, u.role,
-                    CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
-                    FROM guestbook g
-                    LEFT JOIN users u ON g.user_id = u.id
-                    LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                    WHERE g.id IN (${placeholders})
-                    ${orderByClause}
-                `;
-                    const q = await env.DB.prepare(query).bind(currentUserId, ...ids).all();
-                    results = q.results;
-                }
+                let whereClause = 'WHERE g.is_hidden = FALSE';
+                if (statusCondition) whereClause += ` AND ${statusCondition}`;
+                query = `${userSelect} ${whereClause} ${orderByClause} LIMIT ?`;
+                params = [null, MAX_LIMIT];
+                const q = await env.DB.prepare(query).bind(...params).all();
+                results = q.results;
             }
         }
     }

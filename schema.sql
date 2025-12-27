@@ -78,6 +78,7 @@ CREATE TABLE guestbook_likes (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (guestbook_id) REFERENCES guestbook(id) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS idx_guestbook_likes_reverse ON guestbook_likes(guestbook_id, user_id);
 
 CREATE INDEX IF NOT EXISTS idx_downloads_file_key ON downloads(file_key);
 CREATE INDEX IF NOT EXISTS idx_downloads_cleanup ON downloads(downloaded_at);
