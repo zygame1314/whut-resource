@@ -89,7 +89,10 @@ CREATE INDEX IF NOT EXISTS idx_guestbook_user_daily_limit ON guestbook(user_id, 
 CREATE INDEX IF NOT EXISTS idx_guestbook_user_messages ON guestbook(user_id, is_pinned DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_status_time ON guestbook(status, is_hidden, is_pinned DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_status_likes ON guestbook(status, is_hidden, is_pinned DESC, likes DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_guestbook_admin_status ON guestbook(status, is_pinned DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_created_at ON guestbook(created_at);
+CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(is_published, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_announcements_created ON announcements(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_files_recent_uploads ON files(is_directory, uploaded DESC);
 CREATE INDEX IF NOT EXISTS idx_files_listing_optimized ON files(parent_path, is_directory DESC, is_link DESC, name ASC, uploaded DESC);
 CREATE INDEX IF NOT EXISTS idx_files_dir_key ON files(is_directory, key);

@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
     document.addEventListener('authSuccess', () => {
         console.log('Auth success, reloading guestbook...');
-        fetchAndDisplayGuestbook(currentGuestbookPage);
+        refreshGuestbook(currentGuestbookPage);
     });
 });
 window.changeGuestbookPage = function (page) {
@@ -115,7 +115,7 @@ window.rejectGuestbook = async function (id) {
         });
         if (response.ok) {
             showNotification('留言已驳回', 'success');
-            fetchAndDisplayGuestbook(currentGuestbookPage);
+            refreshGuestbook(currentGuestbookPage);
         } else {
             const data = await response.json();
             showNotification(data.error || '驳回失败', 'error');
@@ -218,7 +218,7 @@ window.resolveGuestbook = async function (id) {
         });
         if (response.ok) {
             showNotification('留言已标记为已解决', 'success');
-            fetchAndDisplayGuestbook(currentGuestbookPage);
+            refreshGuestbook(currentGuestbookPage);
         } else {
             const data = await response.json();
             showNotification(data.error || '操作失败', 'error');
@@ -447,10 +447,15 @@ function initGuestbook() {
     }
     const token = localStorage.getItem('authToken');
     if (!token) {
-        fetchAndDisplayGuestbook(currentGuestbookPage);
+        refreshGuestbook(currentGuestbookPage);
     } else if (guestbookList) {
         guestbookList.innerHTML = '<div class="loading-spinner"></div>';
     }
+}
+let guestbookCache = { data: [], sort: '', filter: '', status: '' };
+function refreshGuestbook(page = 1) {
+    guestbookCache = { data: [], sort: '', filter: '', status: '' };
+    fetchAndDisplayGuestbook(page);
 }
 async function fetchAndDisplayGuestbook(page = 1) {
     if (!guestbookSection) return;
@@ -472,18 +477,32 @@ async function fetchAndDisplayGuestbook(page = 1) {
         if (guestbookList) {
             guestbookList.innerHTML = '<div class="loading-spinner"></div>';
         }
-        const response = await fetch(`${GUESTBOOK_API_URL}?page=${page}&limit=${GUESTBOOK_PER_PAGE}&sort=${currentGuestbookSort}&filter=${currentGuestbookFilter}&status=${currentGuestbookStatus}`, { headers });
-        if (!response.ok) throw new Error('Failed to fetch guestbook messages');
-        const data = await response.json();
-        const messages = data.data;
-        const pagination = data.pagination;
-        currentGuestbookPage = pagination.page;
-        totalGuestbookPages = pagination.totalPages;
+        const isFirstLoad = guestbookCache.data.length === 0;
+        const needRefresh = isFirstLoad ||
+            guestbookCache.sort !== currentGuestbookSort ||
+            guestbookCache.filter !== currentGuestbookFilter ||
+            guestbookCache.status !== currentGuestbookStatus;
+        if (needRefresh) {
+            const response = await fetch(`${GUESTBOOK_API_URL}?sort=${currentGuestbookSort}&filter=${currentGuestbookFilter}&status=${currentGuestbookStatus}`, { headers });
+            if (!response.ok) throw new Error('Failed to fetch guestbook messages');
+            const data = await response.json();
+            guestbookCache = {
+                data: data.data || [],
+                sort: currentGuestbookSort,
+                filter: currentGuestbookFilter,
+                status: currentGuestbookStatus
+            };
+            if (isFirstLoad && window.currentUser && window.currentUser.role === 'admin') {
+                fetchAndDisplayGuestbookStats(token);
+            }
+        }
+        const startIndex = (page - 1) * GUESTBOOK_PER_PAGE;
+        const endIndex = startIndex + GUESTBOOK_PER_PAGE;
+        const messages = guestbookCache.data.slice(startIndex, endIndex);
+        currentGuestbookPage = page;
+        totalGuestbookPages = Math.ceil(guestbookCache.data.length / GUESTBOOK_PER_PAGE) || 1;
         renderGuestbook(messages);
         renderGuestbookPagination();
-        if (window.currentUser && window.currentUser.role === 'admin') {
-            fetchAndDisplayGuestbookStats(token);
-        }
         if (guestbookForm) guestbookForm.style.display = 'block';
         const loginPrompt = document.getElementById('guestbook-login-prompt');
         if (loginPrompt) loginPrompt.style.display = 'none';
@@ -794,7 +813,7 @@ async function handleGuestbookSubmit(e) {
         if (response.ok) {
             guestbookContentInput.value = '';
             showNotification('留言发布成功！', 'success');
-            fetchAndDisplayGuestbook(1);
+            refreshGuestbook(1);
         } else {
             const data = await response.json();
             showNotification(data.error || '发布失败', 'error');
@@ -844,7 +863,7 @@ async function handleGuestbookAction(id, action, btnElement) {
         });
         if (!response.ok) {
             if (btnElement && (action === 'like' || action === 'unlike')) {
-                fetchAndDisplayGuestbook(currentGuestbookPage);
+                refreshGuestbook(currentGuestbookPage);
                 showNotification('操作失败', 'error');
             } else {
                 const data = await response.json();
@@ -853,14 +872,14 @@ async function handleGuestbookAction(id, action, btnElement) {
         } else {
             if (action === 'hide' || action === 'unhide' || action === 'pin' || action === 'unpin' || action === 'resolve' || action === 'unresolve' || action === 'reject' || action === 'unreject' || action === 'ban_user' || action === 'unban_user') {
                 showNotification('操作成功', 'success');
-                fetchAndDisplayGuestbook(currentGuestbookPage);
+                refreshGuestbook(currentGuestbookPage);
             }
         }
     } catch (error) {
         console.error('Error handling guestbook action:', error);
         showNotification('操作出错', 'error');
         if (btnElement && (action === 'like' || action === 'unlike')) {
-            fetchAndDisplayGuestbook(currentGuestbookPage);
+            refreshGuestbook(currentGuestbookPage);
         }
     }
 }
@@ -887,7 +906,7 @@ async function handleDeleteGuestbook(id) {
         });
         if (response.ok) {
             showNotification('留言已删除', 'success');
-            fetchAndDisplayGuestbook(currentGuestbookPage);
+            refreshGuestbook(currentGuestbookPage);
         } else {
             showNotification('删除失败', 'error');
         }
@@ -956,7 +975,7 @@ window.editGuestbook = async function (id, encodedContent = '') {
         });
         if (response.ok) {
             showNotification('编辑成功', 'success');
-            fetchAndDisplayGuestbook(currentGuestbookPage);
+            refreshGuestbook(currentGuestbookPage);
         } else {
             const data = await response.json();
             showNotification(data.error || '编辑失败', 'error');
@@ -1185,13 +1204,13 @@ async function showAiResultModal(guestbookId, result) {
                         await applyAiAction(guestbookId, 'resolve', null, resolveValue);
                     }
                     closeModal();
-                    fetchAndDisplayGuestbook(currentGuestbookPage);
+                    refreshGuestbook(currentGuestbookPage);
                     return;
                 }
                 if (action === 'hide') {
                     await applyAiAction(guestbookId, 'hide', null, null);
                     closeModal();
-                    fetchAndDisplayGuestbook(currentGuestbookPage);
+                    refreshGuestbook(currentGuestbookPage);
                     return;
                 }
                 if (action === 'delete') {
@@ -1209,7 +1228,7 @@ async function showAiResultModal(guestbookId, result) {
                     if (confirmed) {
                         await applyAiDeleteAction(guestbookId);
                         closeModal();
-                        fetchAndDisplayGuestbook(currentGuestbookPage);
+                        refreshGuestbook(currentGuestbookPage);
                     }
                     return;
                 }
@@ -1235,7 +1254,7 @@ async function showAiResultModal(guestbookId, result) {
                             });
                             showNotification('用户已封禁且留言已删除', 'success');
                             closeModal();
-                            fetchAndDisplayGuestbook(currentGuestbookPage);
+                            refreshGuestbook(currentGuestbookPage);
                         } catch (err) {
                             console.error('Ban and delete failed:', err);
                             showNotification('操作部分失败，请重试', 'error');
@@ -1246,7 +1265,7 @@ async function showAiResultModal(guestbookId, result) {
                 if (action === 'resolve') {
                     await applyAiAction(guestbookId, 'resolve', null, null);
                     closeModal();
-                    fetchAndDisplayGuestbook(currentGuestbookPage);
+                    refreshGuestbook(currentGuestbookPage);
                     return;
                 }
                 if (action === 'reject') {

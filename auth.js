@@ -995,22 +995,31 @@ async function showAdminLogsModal() {
     closeBtn.onclick = () => modal.remove();
     modal.onmousedown = (e) => { if (e.target === modal) modal.remove(); };
     let currentPage = 1;
+    let allLogsCache = [];
+    const LOGS_PER_PAGE = 20;
     const loadLogs = async (page) => {
         const container = modal.querySelector('#logs-container');
         const pagination = modal.querySelector('#logs-pagination');
         container.innerHTML = '<div class="loading-spinner"></div>';
         try {
-            const res = await fetch(`${API_BASE}/api/admin-logs?page=${page}&limit=20`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (!data.success) throw new Error(data.error);
-            if (data.data.length === 0) {
+            if (allLogsCache.length === 0) {
+                const res = await fetch(`${API_BASE}/api/admin-logs`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                allLogsCache = data.data || [];
+            }
+            if (allLogsCache.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: var(--text-secondary);">暂无日志</div>';
                 pagination.innerHTML = '';
                 return;
             }
-            container.innerHTML = data.data.map(log => {
+            const totalPages = Math.ceil(allLogsCache.length / LOGS_PER_PAGE);
+            const startIndex = (page - 1) * LOGS_PER_PAGE;
+            const endIndex = startIndex + LOGS_PER_PAGE;
+            const logsToShow = allLogsCache.slice(startIndex, endIndex);
+            container.innerHTML = logsToShow.map(log => {
                 let detailsHtml = '';
                 try {
                     const details = JSON.parse(log.details);
@@ -1048,7 +1057,6 @@ async function showAdminLogsModal() {
                     </div>
                 `;
             }).join('');
-            const totalPages = data.pagination.totalPages;
             let paginationHtml = '';
             if (page > 1) paginationHtml += `<button class="pagination-button" id="logs-prev-page"><i class="fas fa-chevron-left"></i> 上一页</button>`;
             paginationHtml += `<span class="pagination-info">${page} / ${totalPages}</span>`;
