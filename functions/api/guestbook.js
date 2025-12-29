@@ -81,18 +81,10 @@ async function handleGet(request, env) {
         return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const MAX_LIMIT = 500;
-    const sort = url.searchParams.get('sort') || 'time';
-    const filter = url.searchParams.get('filter') || 'all';
-    const status = url.searchParams.get('status') || 'all';
     const user = await getUser(request, env);
     const currentUserId = user ? user.id : null;
     const isAdmin = user && user.role === 'admin';
-    const validStatuses = ['unresolved', 'resolved', 'rejected'];
-    const statusCondition = validStatuses.includes(status) ? `g.status = '${status}'` : null;
-    let orderByClause = 'ORDER BY g.is_pinned DESC, g.created_at DESC';
-    if (sort === 'likes') {
-        orderByClause = 'ORDER BY g.is_pinned DESC, g.likes DESC, g.created_at DESC';
-    }
+    const orderByClause = 'ORDER BY g.is_pinned DESC, g.created_at DESC';
     let query;
     let params = [];
     let results;
@@ -106,40 +98,22 @@ async function handleGet(request, env) {
         FROM guestbook g
         LEFT JOIN users u ON g.user_id = u.id
         LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?`;
-    if (filter === 'mine') {
-        if (!currentUserId) {
-            results = [];
-        } else {
-            let whereClause = 'WHERE g.user_id = ?';
-            if (statusCondition) whereClause += ` AND ${statusCondition}`;
-            query = `${userSelect} ${whereClause} ${orderByClause} LIMIT ?`;
+    if (isAdmin) {
+        query = `${adminSelect} ${orderByClause} LIMIT ?`;
+        params = [currentUserId, MAX_LIMIT];
+        const q = await env.DB.prepare(query).bind(...params).all();
+        results = q.results;
+    } else {
+        if (currentUserId) {
+            query = `${userSelect} WHERE (g.is_hidden = FALSE OR g.user_id = ?) ${orderByClause} LIMIT ?`;
             params = [currentUserId, currentUserId, MAX_LIMIT];
             const q = await env.DB.prepare(query).bind(...params).all();
             results = q.results;
-        }
-    } else {
-        if (isAdmin) {
-            let whereClause = statusCondition ? `WHERE ${statusCondition}` : '';
-            query = `${adminSelect} ${whereClause} ${orderByClause} LIMIT ?`;
-            params = [currentUserId, MAX_LIMIT];
+        } else {
+            query = `${userSelect} WHERE g.is_hidden = FALSE ${orderByClause} LIMIT ?`;
+            params = [null, MAX_LIMIT];
             const q = await env.DB.prepare(query).bind(...params).all();
             results = q.results;
-        } else {
-            if (currentUserId) {
-                let whereClause = 'WHERE (g.is_hidden = FALSE OR g.user_id = ?)';
-                if (statusCondition) whereClause += ` AND ${statusCondition}`;
-                query = `${userSelect} ${whereClause} ${orderByClause} LIMIT ?`;
-                params = [currentUserId, currentUserId, MAX_LIMIT];
-                const q = await env.DB.prepare(query).bind(...params).all();
-                results = q.results;
-            } else {
-                let whereClause = 'WHERE g.is_hidden = FALSE';
-                if (statusCondition) whereClause += ` AND ${statusCondition}`;
-                query = `${userSelect} ${whereClause} ${orderByClause} LIMIT ?`;
-                params = [null, MAX_LIMIT];
-                const q = await env.DB.prepare(query).bind(...params).all();
-                results = q.results;
-            }
         }
     }
     const sanitizedResults = results.map(msg => {

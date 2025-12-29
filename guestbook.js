@@ -452,9 +452,9 @@ function initGuestbook() {
         guestbookList.innerHTML = '<div class="loading-spinner"></div>';
     }
 }
-let guestbookCache = { data: [], sort: '', filter: '', status: '' };
+let guestbookCache = { data: [] };
 function refreshGuestbook(page = 1) {
-    guestbookCache = { data: [], sort: '', filter: '', status: '' };
+    guestbookCache = { data: [] };
     fetchAndDisplayGuestbook(page);
 }
 async function fetchAndDisplayGuestbook(page = 1) {
@@ -477,30 +477,40 @@ async function fetchAndDisplayGuestbook(page = 1) {
         if (guestbookList) {
             guestbookList.innerHTML = '<div class="loading-spinner"></div>';
         }
-        const isFirstLoad = guestbookCache.data.length === 0;
-        const needRefresh = isFirstLoad ||
-            guestbookCache.sort !== currentGuestbookSort ||
-            guestbookCache.filter !== currentGuestbookFilter ||
-            guestbookCache.status !== currentGuestbookStatus;
+        const needRefresh = guestbookCache.data.length === 0;
         if (needRefresh) {
-            const response = await fetch(`${GUESTBOOK_API_URL}?sort=${currentGuestbookSort}&filter=${currentGuestbookFilter}&status=${currentGuestbookStatus}`, { headers });
+            const response = await fetch(GUESTBOOK_API_URL, { headers });
             if (!response.ok) throw new Error('Failed to fetch guestbook messages');
             const data = await response.json();
-            guestbookCache = {
-                data: data.data || [],
-                sort: currentGuestbookSort,
-                filter: currentGuestbookFilter,
-                status: currentGuestbookStatus
-            };
-            if (isFirstLoad && window.currentUser && window.currentUser.role === 'admin') {
+            guestbookCache = { data: data.data || [] };
+            if (window.currentUser && window.currentUser.role === 'admin') {
                 fetchAndDisplayGuestbookStats(token);
             }
         }
+        let processedData = [...guestbookCache.data];
+        if (currentGuestbookFilter === 'mine' && window.currentUser) {
+            processedData = processedData.filter(msg => msg.user_id === window.currentUser.id);
+        }
+        if (currentGuestbookSort === 'likes') {
+            processedData.sort((a, b) => {
+                if (a.is_pinned !== b.is_pinned) return b.is_pinned - a.is_pinned;
+                if (a.likes !== b.likes) return b.likes - a.likes;
+                return new Date(b.created_at) - new Date(a.created_at);
+            });
+        } else {
+            processedData.sort((a, b) => {
+                if (a.is_pinned !== b.is_pinned) return b.is_pinned - a.is_pinned;
+                return new Date(b.created_at) - new Date(a.created_at);
+            });
+        }
+        if (currentGuestbookStatus !== 'all') {
+            processedData = processedData.filter(msg => msg.status === currentGuestbookStatus);
+        }
         const startIndex = (page - 1) * GUESTBOOK_PER_PAGE;
         const endIndex = startIndex + GUESTBOOK_PER_PAGE;
-        const messages = guestbookCache.data.slice(startIndex, endIndex);
+        const messages = processedData.slice(startIndex, endIndex);
         currentGuestbookPage = page;
-        totalGuestbookPages = Math.ceil(guestbookCache.data.length / GUESTBOOK_PER_PAGE) || 1;
+        totalGuestbookPages = Math.ceil(processedData.length / GUESTBOOK_PER_PAGE) || 1;
         renderGuestbook(messages);
         renderGuestbookPagination();
         if (guestbookForm) guestbookForm.style.display = 'block';
