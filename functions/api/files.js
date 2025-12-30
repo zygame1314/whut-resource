@@ -1,5 +1,4 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
-const DEFAULT_PAGE_SIZE = 20;
 async function deleteVectorIndexes(env, fileIds) {
   if (!env.VECTORIZE || !fileIds || fileIds.length === 0) return;
   try {
@@ -206,9 +205,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
       const { results } = await stmt.bind(limit).all();
       return new Response(JSON.stringify({ success: true, files: results }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || DEFAULT_PAGE_SIZE);
-    const offset = (page - 1) * limit;
+    const MAX_LIMIT = 1000;
     const search = url.searchParams.get('search') || '';
     if (search && search.length < 3) {
       return new Response(JSON.stringify({
@@ -216,72 +213,50 @@ export async function onRequestGet({ request, env, waitUntil }) {
         files: [],
         directories: [],
         totalItems: 0,
-        totalPages: 0,
         message: "搜索词太短（至少3个字符）。建议开启 AI 搜索以获得更好结果。"
       }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const prefix = url.searchParams.get('prefix') || '';
-    let itemsResult, totalResult;
+    let itemsResult;
     if (search) {
       const ftsQuery = `
         SELECT files.* FROM files
         JOIN files_fts ON files.id = files_fts.rowid
         WHERE files_fts MATCH ?
         ORDER BY rank
-        LIMIT ? OFFSET ?
-      `;
-      const ftsCountQuery = `
-        SELECT COUNT(*) as total FROM files
-        JOIN files_fts ON files.id = files_fts.rowid
-        WHERE files_fts MATCH ?
+        LIMIT ?
       `;
       const searchQuery = `"${search.replace(/"/g, '""')}"`;
       try {
-        [itemsResult, totalResult] = await Promise.all([
-          DB.prepare(ftsQuery).bind(searchQuery, limit, offset).all(),
-          DB.prepare(ftsCountQuery).bind(searchQuery).first()
-        ]);
+        itemsResult = await DB.prepare(ftsQuery).bind(searchQuery, MAX_LIMIT).all();
       } catch (e) {
         itemsResult = { results: [] };
-        totalResult = { total: 0 };
       }
     } else {
-      const params = [];
-      let baseWhere = 'WHERE 1=1';
       let searchPath = prefix;
       if (searchPath && !searchPath.endsWith('/')) {
         searchPath += '/';
       }
-      baseWhere += ' AND parent_path = ?';
-      params.push(searchPath);
       const combinedQuery = `
         SELECT * FROM files
-        ${baseWhere}
+        WHERE parent_path = ?
         ORDER BY is_directory DESC,
                  is_link DESC,
                  CASE WHEN is_directory = 1 THEN name END ASC,
                  CASE WHEN is_directory = 0 THEN uploaded END DESC
-        LIMIT ? OFFSET ?
+        LIMIT ?
       `;
-      const countQuery = `SELECT COUNT(*) as total FROM files ${baseWhere}`;
-      [itemsResult, totalResult] = await Promise.all([
-        DB.prepare(combinedQuery).bind(...params, limit, offset).all(),
-        DB.prepare(countQuery).bind(...params).first()
-      ]);
+      itemsResult = await DB.prepare(combinedQuery).bind(searchPath, MAX_LIMIT).all();
     }
     const items = itemsResult.results || [];
-    const totalItems = totalResult?.total || 0;
     const directories = items.filter(item => item.is_directory);
     const files = items.filter(item => !item.is_directory);
-    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+    const totalItems = items.length;
     return new Response(JSON.stringify({
       success: true,
       files,
       directories,
-      currentPage: page,
-      totalPages,
-      totalItems,
-      limit
+      totalItems
     }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
   } catch (error) {
     console.error('文件API错误:', error);

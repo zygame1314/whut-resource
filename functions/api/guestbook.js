@@ -80,161 +80,40 @@ async function handleGet(request, env) {
         await env.DB.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(parseInt(userId)).run();
         return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
-    const sort = url.searchParams.get('sort') || 'time';
-    const filter = url.searchParams.get('filter') || 'all';
-    const status = url.searchParams.get('status') || 'all';
-    const offset = (page - 1) * limit;
+    const MAX_LIMIT = 500;
     const user = await getUser(request, env);
     const currentUserId = user ? user.id : null;
     const isAdmin = user && user.role === 'admin';
-    const validStatuses = ['unresolved', 'resolved', 'rejected'];
-    const statusCondition = validStatuses.includes(status) ? `g.status = '${status}'` : null;
-    let total = 0;
-    if (filter === 'mine') {
-        if (!currentUserId) {
-            total = 0;
-        } else {
-            let countQuery = 'SELECT COUNT(*) as total FROM guestbook g WHERE g.user_id = ?';
-            if (statusCondition) {
-                countQuery += ` AND ${statusCondition}`;
-            }
-            const cnt = await env.DB.prepare(countQuery).bind(currentUserId).first();
-            total = cnt.total;
-        }
-    } else {
-        if (isAdmin) {
-            let countQuery = 'SELECT COUNT(*) as total FROM guestbook g';
-            if (statusCondition) {
-                countQuery += ` WHERE ${statusCondition}`;
-            }
-            const cnt = await env.DB.prepare(countQuery).first();
-            total = cnt.total;
-        } else {
-            if (currentUserId) {
-                let countQuery = 'SELECT COUNT(*) as total FROM guestbook g WHERE (g.is_hidden = FALSE OR g.user_id = ?)';
-                if (statusCondition) {
-                    countQuery += ` AND ${statusCondition}`;
-                }
-                const cnt = await env.DB.prepare(countQuery).bind(currentUserId).first();
-                total = cnt.total;
-            } else {
-                let countQuery = 'SELECT COUNT(*) as total FROM guestbook g WHERE g.is_hidden = FALSE';
-                if (statusCondition) {
-                    countQuery += ` AND ${statusCondition}`;
-                }
-                const cnt = await env.DB.prepare(countQuery).first();
-                total = cnt.total;
-            }
-        }
-    }
-    let orderByClause = 'ORDER BY g.is_pinned DESC, g.created_at DESC';
-    if (sort === 'likes') {
-        orderByClause = 'ORDER BY g.is_pinned DESC, g.likes DESC, g.created_at DESC';
-    }
+    const orderByClause = 'ORDER BY g.is_pinned DESC, g.created_at DESC';
     let query;
+    let params = [];
     let results;
-    if (filter === 'mine') {
-        if (!currentUserId) {
-            results = [];
-        } else {
-            let whereClause = 'WHERE g.user_id = ?';
-            if (statusCondition) {
-                whereClause += ` AND ${statusCondition}`;
-            }
-            let idQuery = `SELECT id FROM guestbook g WHERE g.user_id = ? ${statusCondition ? `AND ${statusCondition}` : ''} ${orderByClause} LIMIT ? OFFSET ?`;
-            const idResult = await env.DB.prepare(idQuery).bind(currentUserId, limit, offset).all();
-            const ids = idResult.results.map(r => r.id);
-            if (ids.length === 0) {
-                results = [];
-            } else {
-                const placeholders = ids.map(() => '?').join(',');
-                query = `
-                    SELECT g.*, u.nickname, u.email, u.role,
-                    CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
-                    FROM guestbook g
-                    LEFT JOIN users u ON g.user_id = u.id
-                    LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                    WHERE g.id IN (${placeholders})
-                    ${orderByClause}
-                `;
-                const q = await env.DB.prepare(query).bind(currentUserId, ...ids).all();
-                results = q.results;
-            }
-        }
+    const adminSelect = `SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
+        CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
+        FROM guestbook g
+        LEFT JOIN users u ON g.user_id = u.id
+        LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?`;
+    const userSelect = `SELECT g.*, u.nickname, u.email, u.role,
+        CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
+        FROM guestbook g
+        LEFT JOIN users u ON g.user_id = u.id
+        LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?`;
+    if (isAdmin) {
+        query = `${adminSelect} ${orderByClause} LIMIT ?`;
+        params = [currentUserId, MAX_LIMIT];
+        const q = await env.DB.prepare(query).bind(...params).all();
+        results = q.results;
     } else {
-        if (isAdmin) {
-            let whereClauseSub = statusCondition ? `WHERE ${statusCondition}` : '';
-            let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ? OFFSET ?`;
-            const idResult = await env.DB.prepare(idQuery).bind(limit, offset).all();
-            const ids = idResult.results.map(r => r.id);
-            if (ids.length === 0) {
-                results = [];
-            } else {
-                const placeholders = ids.map(() => '?').join(',');
-                query = `
-                    SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
-                    CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
-                    FROM guestbook g
-                    LEFT JOIN users u ON g.user_id = u.id
-                    LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                    WHERE g.id IN (${placeholders})
-                    ${orderByClause}
-                `;
-                const q = await env.DB.prepare(query).bind(currentUserId, ...ids).all();
-                results = q.results;
-            }
+        if (currentUserId) {
+            query = `${userSelect} WHERE (g.is_hidden = FALSE OR g.user_id = ?) ${orderByClause} LIMIT ?`;
+            params = [currentUserId, currentUserId, MAX_LIMIT];
+            const q = await env.DB.prepare(query).bind(...params).all();
+            results = q.results;
         } else {
-            if (currentUserId) {
-                let whereClauseSub = 'WHERE (g.is_hidden = FALSE OR g.user_id = ?)';
-                if (statusCondition) {
-                    whereClauseSub += ` AND ${statusCondition}`;
-                }
-                let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ? OFFSET ?`;
-                const idResult = await env.DB.prepare(idQuery).bind(currentUserId, limit, offset).all();
-                const ids = idResult.results.map(r => r.id);
-                if (ids.length === 0) {
-                    results = [];
-                } else {
-                    const placeholders = ids.map(() => '?').join(',');
-                    query = `
-                    SELECT g.*, u.nickname, u.email, u.role,
-                    CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
-                    FROM guestbook g
-                    LEFT JOIN users u ON g.user_id = u.id
-                    LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                    WHERE g.id IN (${placeholders})
-                    ${orderByClause}
-                `;
-                    const q = await env.DB.prepare(query).bind(currentUserId, ...ids).all();
-                    results = q.results;
-                }
-            } else {
-                let whereClauseSub = 'WHERE g.is_hidden = FALSE';
-                if (statusCondition) {
-                    whereClauseSub += ` AND ${statusCondition}`;
-                }
-                let idQuery = `SELECT id FROM guestbook g ${whereClauseSub} ${orderByClause} LIMIT ? OFFSET ?`;
-                const idResult = await env.DB.prepare(idQuery).bind(limit, offset).all();
-                const ids = idResult.results.map(r => r.id);
-                if (ids.length === 0) {
-                    results = [];
-                } else {
-                    const placeholders = ids.map(() => '?').join(',');
-                    query = `
-                    SELECT g.*, u.nickname, u.email, u.role,
-                    CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
-                    FROM guestbook g
-                    LEFT JOIN users u ON g.user_id = u.id
-                    LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?
-                    WHERE g.id IN (${placeholders})
-                    ${orderByClause}
-                `;
-                    const q = await env.DB.prepare(query).bind(currentUserId, ...ids).all();
-                    results = q.results;
-                }
-            }
+            query = `${userSelect} WHERE g.is_hidden = FALSE ${orderByClause} LIMIT ?`;
+            params = [null, MAX_LIMIT];
+            const q = await env.DB.prepare(query).bind(...params).all();
+            results = q.results;
         }
     }
     const sanitizedResults = results.map(msg => {
@@ -249,12 +128,7 @@ async function handleGet(request, env) {
     });
     return new Response(JSON.stringify({
         data: sanitizedResults,
-        pagination: {
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit)
-        }
+        totalItems: sanitizedResults.length
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePost(request, env, context) {

@@ -19,6 +19,7 @@ const previewModeBtn = document.getElementById('preview-mode-btn');
 const editArea = document.getElementById('edit-area');
 const previewArea = document.getElementById('preview-area');
 let allAnnouncements = [];
+let allAnnouncementsCache = [];
 let currentAnnouncementPage = 1;
 let totalAnnouncementPages = 1;
 const ANNOUNCEMENTS_PER_PAGE = 5;
@@ -37,14 +38,18 @@ async function fetchAndDisplayAnnouncements(page = 1) {
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
-        const response = await fetch(`${ANNOUNCEMENTS_API_URL}?page=${page}&limit=${ANNOUNCEMENTS_PER_PAGE}`, { headers });
-        if (!response.ok) throw new Error('Failed to fetch announcements');
-        const data = await response.json();
-        const announcements = data.data;
-        const pagination = data.pagination;
+        if (allAnnouncementsCache.length === 0 || page === 1) {
+            const response = await fetch(`${ANNOUNCEMENTS_API_URL}`, { headers });
+            if (!response.ok) throw new Error('Failed to fetch announcements');
+            const data = await response.json();
+            allAnnouncementsCache = data.data || [];
+        }
+        const startIndex = (page - 1) * ANNOUNCEMENTS_PER_PAGE;
+        const endIndex = startIndex + ANNOUNCEMENTS_PER_PAGE;
+        const announcements = allAnnouncementsCache.slice(startIndex, endIndex);
         allAnnouncements = announcements;
-        currentAnnouncementPage = pagination.page;
-        totalAnnouncementPages = pagination.totalPages;
+        currentAnnouncementPage = page;
+        totalAnnouncementPages = Math.ceil(allAnnouncementsCache.length / ANNOUNCEMENTS_PER_PAGE) || 1;
         renderAnnouncements(announcements);
         checkAdminPermission();
     } catch (error) {
@@ -245,7 +250,8 @@ window.deleteAnnouncement = async function (id) {
             }
         });
         if (response.ok) {
-            await fetchAndDisplayAnnouncements(currentAnnouncementPage);
+            allAnnouncementsCache = [];
+            await fetchAndDisplayAnnouncements(1);
             renderAdminAnnouncementList();
         } else {
             alert('删除失败');
@@ -278,7 +284,8 @@ async function saveAnnouncement() {
             body: JSON.stringify(body)
         });
         if (response.ok) {
-            await fetchAndDisplayAnnouncements(currentAnnouncementPage);
+            allAnnouncementsCache = [];
+            await fetchAndDisplayAnnouncements(1);
             openAnnouncementModal();
         } else {
             alert('保存失败');

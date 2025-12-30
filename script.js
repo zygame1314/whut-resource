@@ -2033,8 +2033,6 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                     console.log(`发起全局搜索(未缓存): "${searchTerm}", fetching all items...`);
                     const urlParams = new URLSearchParams();
                     urlParams.append('search', searchTerm.trim());
-                    urlParams.append('page', '1');
-                    urlParams.append('limit', '1000');
                     const url = `${FILES_API_URL}?${urlParams.toString()}`;
                     const response = await fetch(url, {
                         method: 'GET',
@@ -2107,8 +2105,6 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                         let urlParams = new URLSearchParams();
                         urlParams.append('prefix', prefix);
                         isShowingSearchResults = false;
-                        urlParams.append('page', '1');
-                        urlParams.append('limit', '1000');
                         const url = `${FILES_API_URL}?${urlParams.toString()}`;
                         const response = await fetch(url, {
                             method: 'GET',

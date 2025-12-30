@@ -31,21 +31,12 @@ async function getUser(request, env) {
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }
 async function handleGetLogs(request, env) {
-    const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '50');
-    const offset = (page - 1) * limit;
-    const total = await env.DB.prepare('SELECT COUNT(*) as count FROM admin_logs').first();
-    const logs = await env.DB.prepare('SELECT * FROM admin_logs ORDER BY created_at DESC LIMIT ? OFFSET ?').bind(limit, offset).all();
+    const MAX_LIMIT = 500;
+    const logs = await env.DB.prepare('SELECT * FROM admin_logs ORDER BY created_at DESC LIMIT ?').bind(MAX_LIMIT).all();
     return new Response(JSON.stringify({
         success: true,
         data: logs.results,
-        pagination: {
-            page,
-            limit,
-            total: total.count,
-            totalPages: Math.ceil(total.count / limit)
-        }
+        totalItems: logs.results.length
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handleCleanupLogs(env) {
