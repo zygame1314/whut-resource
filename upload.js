@@ -756,6 +756,117 @@ async function initUploadPathSelector() {
         });
     }
     if (uploadPathBtn && uploadPathDropdown) {
+        const btnContainer = uploadPathBtn.parentNode;
+        if (btnContainer && !document.getElementById('ai-path-assist-btn')) {
+            const aiBtn = document.createElement('button');
+            aiBtn.id = 'ai-path-assist-btn';
+            aiBtn.className = 'ai-assist-btn';
+            aiBtn.innerHTML = '<i class="fas fa-magic"></i><span>AI 推荐位置</span>';
+            uploadPathBtn.insertAdjacentElement('afterend', aiBtn);
+            aiBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                let fileNamesToAnalyze = [];
+                if (currentUploadType === 'link') {
+                    const name = linkNameInput.value.trim();
+                    if (name) fileNamesToAnalyze.push(name);
+                } else {
+                    if (selectedFiles.length > 0) {
+                        const firstFile = selectedFiles[0];
+                        const relPath = firstFile.webkitRelativePath || firstFile._webkitRelativePath;
+                        if (relPath && relPath.includes('/')) {
+                            const rootFolderName = relPath.split('/')[0];
+                            fileNamesToAnalyze.push(rootFolderName);
+                        }
+                        const meaningfulFiles = selectedFiles.filter(f => {
+                            const path = f.webkitRelativePath || f._webkitRelativePath || '';
+                            if (path && (/\/\./.test(path) || path.includes('/__pycache__/'))) return false;
+                            const name = f.name;
+                            if (name.endsWith('.sample')) return false;
+                            if (name.endsWith('.pyc')) return false;
+                            const noisePattern = /^(?:\.|COMMIT_EDITMSG|FETCH_HEAD|HEAD|ORIG_HEAD|config|description|packed-refs|index|thumbs\.db|desktop\.ini|LICENSE|README)/i;
+                            return !noisePattern.test(name);
+                        });
+                        const sourceFiles = meaningfulFiles.length > 0 ? meaningfulFiles : selectedFiles;
+                        const fileSamples = sourceFiles.slice(0, 5).map(f => f.name);
+                        fileNamesToAnalyze.push(...fileSamples);
+                        fileNamesToAnalyze = [...new Set(fileNamesToAnalyze)];
+                    }
+                }
+                if (fileNamesToAnalyze.length === 0) {
+                    showNotification('请先选择文件或输入链接名称', 'info');
+                    return;
+                }
+                if (!window.currentUser || window.currentUser.role !== 'admin') {
+                    showNotification('需要管理员权限', 'error');
+                    return;
+                }
+                const originalText = aiBtn.innerHTML;
+                aiBtn.disabled = true;
+                aiBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>分析中...</span>';
+                try {
+                    const token = localStorage.getItem('authToken');
+                    const response = await fetch(API_ENDPOINTS.pathRecommend, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ fileNames: fileNamesToAnalyze })
+                    });
+                    const result = await response.json();
+                    if (result.success && result.path) {
+                        let recPath = result.path.replace(/^\/|\/$/g, '');
+                        uploadPath = recPath + '/';
+                        const treeItem = pathTreeContainer.querySelector(`.path-tree-item[data-path="${uploadPath}"]`);
+                        if (treeItem) {
+                            pathTreeContainer.querySelectorAll('.path-tree-item').forEach(item => item.classList.remove('selected'));
+                            treeItem.classList.add('selected');
+                            let currentNode = treeItem.closest('.path-tree-node');
+                            while (currentNode) {
+                                const parentList = currentNode.parentElement;
+                                if (parentList && parentList.classList.contains('path-tree-list')) {
+                                    parentList.style.display = 'block';
+                                    const parentNode = parentList.parentElement.closest('.path-tree-node');
+                                    if (parentNode) {
+                                        const toggle = parentNode.querySelector('.path-toggle-icon');
+                                        if (toggle) {
+                                            toggle.style.transform = 'rotate(90deg)';
+                                            toggle.classList.add('expanded');
+                                        }
+                                        currentNode = parentNode;
+                                    } else {
+                                        break;
+                                    }
+                                } else {
+                                    break;
+                                }
+                            }
+                            if (uploadPathDropdown && !uploadPathDropdown.classList.contains('open')) {
+                                uploadPathDropdown.classList.add('open');
+                                uploadPathBtn.classList.add('open');
+                            }
+                            setTimeout(() => {
+                                treeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 300);
+                        } else {
+                            console.warn('推荐路径在目录树中未找到:', uploadPath);
+                        }
+                        updateSelectedPathDisplay();
+                        updateUrlPath();
+                        showNotification(`AI 推荐路径: ${recPath}`, 'success');
+                    } else {
+                        showNotification('AI 未能推荐合适路径', 'info');
+                    }
+                } catch (err) {
+                    console.error('AI 推荐服务错误:', err);
+                    showNotification('AI 推荐服务暂时不可用', 'error');
+                } finally {
+                    aiBtn.disabled = false;
+                    aiBtn.innerHTML = originalText;
+                }
+            });
+        }
         let searchInput = uploadPathDropdown.querySelector('.path-search-input');
         if (!searchInput) {
             const dropdownHeader = uploadPathDropdown.querySelector('.path-dropdown-header');

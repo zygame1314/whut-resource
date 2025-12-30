@@ -90,7 +90,7 @@ export async function onRequestPost(context) {
             })
         });
         if (!response.ok) {
-            throw new Error(`AI API failed: ${response.status}`);
+            throw new Error(`AI API 调用失败: ${response.status}`);
         }
         const aiData = await response.json();
         const suggestedPath = aiData.choices?.[0]?.message?.content?.trim() || '';

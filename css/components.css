@@ -2276,7 +2276,6 @@
     color: white;
     transform: rotate(90deg) scale(1.1);
     box-shadow: 0 4px 16px rgba(255, 107, 107, 0.4);
-    border-color: var(--accent-color);
 }
 
 .close-modal-btn:active {

@@ -11,7 +11,8 @@ const API_ENDPOINTS = {
     announcements: `${API_BASE}/api/announcements`,
     batchDownload: `${API_BASE}/api/batch-download`,
     aiSearch: `${API_BASE}/api/ai-search`,
-    reindex: `${API_BASE}/api/reindex`
+    reindex: `${API_BASE}/api/reindex`,
+    pathRecommend: `${API_BASE}/api/path-recommend`
 };
 window.filterTreeByKeyword = function (container, keyword, options = {}) {
     const {

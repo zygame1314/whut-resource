@@ -1726,12 +1726,6 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
     if (!hasDisplayedContent) {
         const emptyLi = document.createElement('li');
         emptyLi.className = 'empty-state';
-        emptyLi.style.cssText = `
-            text-align: center;
-            padding: 3rem;
-            color: var(--text-secondary);
-            font-style: italic;
-        `;
         let emptyMessage = '';
         if (isGlobalSearch) {
             emptyMessage = `<i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
@@ -1834,7 +1828,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
     const token = localStorage.getItem('authToken');
     if (!token) {
         fileListElement.innerHTML = `
-            <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary); cursor: pointer;" title="点击登录">
+            <li class="empty-state clickable" title="点击登录">
                 <i class="fas fa-user-shield" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
                 请先完成验证以查看文件
             </li>
@@ -1885,7 +1879,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                 const cachedResult = searchCache.get(aiCacheKey);
                 if (cachedResult.files.length === 0 && cachedResult.message) {
                     fileListElement.innerHTML = `
-                        <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                        <li class="empty-state">
                             <i class="fas fa-robot" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
                             ${cachedResult.message}
                         </li>
@@ -1945,7 +1939,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                             timestamp: Date.now()
                         });
                         fileListElement.innerHTML = `
-                            <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            <li class="empty-state">
                                 <i class="fas fa-robot" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
                                 ${result.message}
                             </li>
@@ -2005,7 +1999,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                     const cachedResult = searchCache.get(searchTerm);
                     if (cachedResult.files.length === 0 && cachedResult.message) {
                         fileListElement.innerHTML = `
-                            <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            <li class="empty-state">
                                 <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
                                 ${cachedResult.message}
                             </li>
@@ -2055,7 +2049,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                                 timestamp: Date.now()
                             });
                             fileListElement.innerHTML = `
-                                <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                <li class="empty-state">
                                     <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
                                     ${result.message}
                                 </li>
@@ -2193,7 +2187,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
         console.error("获取文件列表请求出错:", error);
         showNotification(`获取文件列表请求出错: ${error.message}`, 'error');
         fileListElement.innerHTML = `
-            <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--accent-color);">
+            <li class="empty-state error">
                 <i class="fas fa-wifi" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
                 获取文件列表请求出错: ${error.message}
             </li>
@@ -2261,7 +2255,7 @@ document.addEventListener('DOMContentLoaded', () => {
     createParticleBackground();
     if (fileListElement) {
         fileListElement.innerHTML = `
-            <li class="empty-state" style="text-align: center; padding: 3rem; color: var(--text-secondary); cursor: pointer;" title="点击登录">
+            <li class="empty-state clickable" title="点击登录">
                 <i class="fas fa-user-shield" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
                 请先完成验证以查看文件
             </li>
