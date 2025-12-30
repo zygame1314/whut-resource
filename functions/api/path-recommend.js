@@ -3,9 +3,10 @@ const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
 const MODEL = 'gpt-oss-120b';
 const SYSTEM_PROMPT = `你是武汉理工大学资源共享平台的文件归档助手。你的任务是根据文件名和搜索到的相似文件路径，推断该文件最适合存放的目录。
     请分析文件名中的关键词（如课程名、年份、类型），并从提供的参考路径中选择一个最匹配的。
-    如果参考路径都不合适，或者没有参考路径，你可以尝试根据文件名推断一个标准路径（例如：若文件名含"高等数学"，路径可能是"基础课/高等数学"）。
-    但优先遵循参考路径的模式。
-    只返回路径字符串，不要包含任何解释或其他文字。`;
+    如果参考路径都不合适，或者没有参考路径，你可以尝试根据文件名推断一个标准路径（例如：若文件名含"高等数学"，路径可能是"0.课程资料/基础课/高等数学"）。
+    【重要规则】
+    1. 必须只返回一个路径字符串，严禁包含任何Markdown标记、代码块符号、解释或无关字符。
+    2. 如果有多个相似的参考路径（如"有机化学B"和"有机化学C"），而文件名（如"有机化学"）无法区分，请优先选择其中一个作为父类或者选择最通用的现有路径。绝对不要返回空值。`;
 export async function onRequestPost(context) {
     const { request, env } = context;
     try {
@@ -47,7 +48,7 @@ export async function onRequestPost(context) {
                 });
                 if (embeddingResponse?.data) {
                     const queryPromises = embeddingResponse.data.map(vector =>
-                        env.VECTORIZE.query(vector, { topK: 5, returnMetadata: 'all' })
+                        env.VECTORIZE.query(vector, { topK: 20, returnMetadata: 'all' })
                     );
                     const results = await Promise.all(queryPromises);
                     const allMatches = results.flatMap(r => r.matches || []);
@@ -93,7 +94,11 @@ export async function onRequestPost(context) {
         }
         const aiData = await response.json();
         const suggestedPath = aiData.choices?.[0]?.message?.content?.trim() || '';
-        const cleanPath = suggestedPath.replace(/```/g, '').trim();
+        let cleanPath = suggestedPath.replace(/```/g, '').trim();
+        if (!cleanPath && candidatePaths.length > 0) {
+            const sorted = [...candidatePaths].sort((a, b) => a.length - b.length);
+            cleanPath = sorted[0];
+        }
         return new Response(JSON.stringify({
             success: true,
             path: cleanPath,
