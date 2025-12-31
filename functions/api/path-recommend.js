@@ -99,7 +99,7 @@ export async function onRequestPost({ request, env }) {
                     { role: 'user', content: userMessage }
                 ],
                 temperature: 0.1,
-                max_tokens: 10
+                max_tokens: 1024
             })
         });
         if (!response.ok) {
