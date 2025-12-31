@@ -93,7 +93,9 @@ export async function onRequestPost({ request, env }) {
         });
         if (!pickResponse.ok) throw new Error(`目录推荐接口错误: ${pickResponse.status}`);
         const pickData = await pickResponse.json();
+        console.log('Pick AI response:', JSON.stringify(pickData));
         const pickContent = pickData.choices?.[0]?.message?.content?.trim() || '';
+        console.log('Pick content:', pickContent);
         const match = pickContent.match(/(\d+)/);
         let suggestedPath = '';
         if (match) {
