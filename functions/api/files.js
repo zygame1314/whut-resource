@@ -142,24 +142,15 @@ export async function onRequestGet({ request, env, waitUntil }) {
                         VALUES (?, ?, CURRENT_TIMESTAMP)
                     `).bind(CACHE_ID, JSON.stringify(directories)).run();
                 } catch (e) {
-                    console.error('Failed to update dir cache:', e);
+                    console.error('更新目录缓存失败:', e);
                 }
             }
             return new Response(JSON.stringify({ success: true, directories: directories, cache: cacheHit }), {
                 status: 200,
-                headers: addCorsHeaders({
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'public, max-age=300'
-                })
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
         }
         if (action === 'getHotFolders') {
-            const cache = caches.default;
-            const cacheKey = new Request(new URL(request.url).origin + '/api/files?action=getHotFolders', { method: 'GET' });
-            const cachedResponse = await cache.match(cacheKey);
-            if (cachedResponse) {
-                return cachedResponse;
-            }
             const cacheData = await DB.prepare('SELECT data, updated_at FROM system_cache WHERE id = 1').first();
             let hotFolders = [];
             let needsBackgroundRefresh = false;
@@ -232,15 +223,10 @@ export async function onRequestGet({ request, env, waitUntil }) {
                     }
                 })());
             }
-            const response = new Response(JSON.stringify({ success: true, hotFolders: hotFolders }), {
+            return new Response(JSON.stringify({ success: true, hotFolders: hotFolders }), {
                 status: 200,
-                headers: addCorsHeaders({
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'public, max-age=3600'
-                })
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
-            waitUntil(cache.put(cacheKey, response.clone()));
-            return response;
         }
         if (action === 'recentUploads') {
             const limit = parseInt(url.searchParams.get('limit') || '6');

@@ -103,33 +103,17 @@ export async function onRequestPost({ request, env }) {
             })
         });
         if (!response.ok) {
-            throw new Error(`AI API Error: ${response.status} `);
+            throw new Error(`AI API 错误: ${response.status} `);
         }
         const aiData = await response.json();
-        console.log('Full AI response:', JSON.stringify(aiData));
         const content = aiData.choices?.[0]?.message?.content?.trim() || '';
-
-        // === DEBUG LOGS START ===
-        console.log('=== AI Path Recommend Debug ===');
-        console.log('File names:', validFileNames);
-        console.log('Total dirs in list:', dirsToProcess.length);
-        console.log('First 5 dirs:', dirsToProcess.slice(0, 5));
-        console.log('AI raw response:', content);
-        // === DEBUG LOGS END ===
-
         const match = content.match(/(\d+)/);
         let suggestedPath = '';
         if (match) {
             const id = parseInt(match[1]);
-            console.log('Parsed ID:', id);
             if (id > 0 && id <= dirsToProcess.length) {
                 suggestedPath = dirsToProcess[id - 1];
-                console.log('Matched path:', suggestedPath);
-            } else {
-                console.log('ID out of range or zero');
             }
-        } else {
-            console.log('No number found in AI response');
         }
         return new Response(JSON.stringify({
             success: true,
