@@ -1,0 +1,21 @@
+{
+    "name": "武理资源共享平台",
+    "short_name": "武理资源",
+    "start_url": "./",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#4a90e2",
+    "description": "一个无偿分享武理学习资源的小站。人会各奔东西，但知识永恒传承。",
+    "icons": [
+        {
+            "src": "favicon.png",
+            "sizes": "64x64 32x32 24x24 16x16",
+            "type": "image/png"
+        },
+        {
+            "src": "logo.webp",
+            "sizes": "192x192 512x512",
+            "type": "image/webp"
+        }
+    ]
+}
