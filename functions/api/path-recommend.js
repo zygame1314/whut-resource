@@ -1,11 +1,16 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
-const MODEL = 'qwen-3-32b';
-const KEYWORD_PROMPT = `你是一个大学课程搜索助手。用户会给你一些文件名，你需要提取或推断出最可能的课程全称用于搜索。
+const MODEL = 'llama3.1-8b';
+const KEYWORD_PROMPT = `你是一个大学课程目录推荐助手。用户上传了一些文件名，你需要提取出文件所属的课程全称。
     规则：
-    1. 理解大学生常用缩写：大物=大学物理、高数=高等数学、毛概=毛泽东思想和中国特色社会主义理论体系概论、线代=线性代数、马原=马克思主义基本原理、近代史=中国近现代史纲要、思修=思想道德与法治、概率论=概率论与数理统计
-    2. 只返回1-3个搜索关键词，用空格分隔，每个关键词至少3个字符
-    3. 不要解释，只返回关键词`;
+    1. 识别并扩展缩写：
+       - 大物→大学物理
+       - 高数→高等数学
+       - 毛概→毛泽东思想
+       - 线代→线性代数
+       - 马原→马克思主义
+    2. 生成搜索词：返回1-3个最相关的关键词，用于在数据库中搜索目录。
+    3. 只返回关键词，用空格分隔。`;
 const PICK_PROMPT = `你是文件归档助手。根据用户要上传的文件，从搜索结果中选择最合适的目录。
     规则：
     1. 只返回目录编号（如 "3"）
@@ -28,49 +33,57 @@ export async function onRequestPost({ request, env }) {
         }
         const validFileNames = fileNames.slice(0, 5).filter(n => typeof n === 'string' && n.trim().length > 0);
         const cerebrasKey = env.CEREBRAS_API_KEY;
-        const keywordResponse = await fetch(CEREBRAS_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey}` },
-            body: JSON.stringify({
-                model: MODEL,
-                messages: [
-                    { role: 'system', content: KEYWORD_PROMPT },
-                    { role: 'user', content: `文件名：${validFileNames.join(', ')}` }
-                ],
-                temperature: 0.1,
-                max_tokens: 1024
-            })
-        });
-        if (!keywordResponse.ok) throw new Error(`关键词提取接口错误: ${keywordResponse.status}`);
-        const keywordData = await keywordResponse.json();
-        const keywords = keywordData.choices?.[0]?.message?.content?.trim() || validFileNames.join(' ');
+        const AI = env.AI;
+        const VECTORIZE = env.VECTORIZE;
+        let keywords = validFileNames.join(' ');
+        try {
+            const keywordResponse = await fetch(CEREBRAS_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey}` },
+                body: JSON.stringify({
+                    model: MODEL,
+                    messages: [
+                        { role: 'system', content: KEYWORD_PROMPT },
+                        { role: 'user', content: `文件名：${validFileNames.join(', ')}` }
+                    ],
+                    temperature: 0.1,
+                    max_tokens: 256
+                })
+            });
+            if (keywordResponse.ok) {
+                const keywordData = await keywordResponse.json();
+                const content = keywordData.choices?.[0]?.message?.content?.trim();
+                if (content) keywords = content;
+            }
+        } catch (e) {
+            console.error('LLM 关键词提取失败:', e);
+        }
         let directories = [];
         try {
-            const searchTerms = keywords.split(/\s+/).filter(k => k.length >= 3);
-            const ftsQuery = searchTerms.join(' OR ');
-            const ftsResult = await env.DB.prepare(`
-                SELECT DISTINCT f.key, f.name FROM files f
-                JOIN files_fts ON f.id = files_fts.rowid
-                WHERE files_fts MATCH ? AND f.is_directory = TRUE
-                ORDER BY rank
-                LIMIT 20
-            `).bind(ftsQuery).all();
-            directories = (ftsResult.results || []).map(r => r.key);
-        } catch (e) {
-            console.error('FTS search failed:', e);
-        }
-        if (directories.length === 0) {
-            const searchTerms = keywords.split(/\s+/).filter(k => k.length >= 3);
-            for (const term of searchTerms) {
-                const likeResult = await env.DB.prepare(`
-                    SELECT key FROM files 
-                    WHERE is_directory = TRUE AND key LIKE ? 
-                    ORDER BY key 
-                    LIMIT 15
-                `).bind(`%${term}%`).all();
-                directories.push(...(likeResult.results || []).map(r => r.key));
+            const embeddingResponse = await AI.run('@cf/baai/bge-m3', {
+                text: [keywords.trim()]
+            });
+            const queryVector = embeddingResponse?.data?.[0];
+            if (queryVector) {
+                const vectorResults = await VECTORIZE.query(queryVector, {
+                    topK: 20,
+                    returnMetadata: 'all'
+                });
+                if (vectorResults && vectorResults.matches) {
+                    const validMatches = vectorResults.matches
+                        .filter(m => m.score >= 0.45);
+                    const fileIds = validMatches.map(m => parseInt(m.id));
+                    if (fileIds.length > 0) {
+                        const placeholders = fileIds.map(() => '?').join(',');
+                        const results = await env.DB.prepare(
+                            `SELECT key FROM files WHERE id IN (${placeholders}) AND is_directory = TRUE LIMIT 20`
+                        ).bind(...fileIds).all();
+                        directories = (results.results || []).map(r => r.key);
+                    }
+                }
             }
-            directories = [...new Set(directories)].slice(0, 20);
+        } catch (e) {
+            console.error('向量搜索失败:', e);
         }
         if (directories.length === 0) {
             return new Response(JSON.stringify({ success: true, path: '', message: '未找到匹配的目录' }), {
@@ -88,7 +101,7 @@ export async function onRequestPost({ request, env }) {
                     { role: 'user', content: `文件：${validFileNames.join(', ')}\n\n搜索到的目录：\n${numberedList}\n\n请返回最佳目录的编号：` }
                 ],
                 temperature: 0.1,
-                max_tokens: 1024
+                max_tokens: 256
             })
         });
         if (!pickResponse.ok) throw new Error(`目录推荐接口错误: ${pickResponse.status}`);
@@ -108,14 +121,12 @@ export async function onRequestPost({ request, env }) {
             keywords: keywords,
             candidates: directories.length
         }), {
-            status: 200,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     } catch (error) {
         console.error('路径推荐错误:', error);
         return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            status: 500, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
 }
