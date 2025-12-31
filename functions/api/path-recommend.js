@@ -90,7 +90,7 @@ export async function onRequestPost({ request, env }) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${cerebrasKey} `
+                'Authorization': `Bearer ${cerebrasKey}`
             },
             body: JSON.stringify({
                 model: MODEL,
@@ -106,6 +106,7 @@ export async function onRequestPost({ request, env }) {
             throw new Error(`AI API Error: ${response.status} `);
         }
         const aiData = await response.json();
+        console.log('Full AI response:', JSON.stringify(aiData));
         const content = aiData.choices?.[0]?.message?.content?.trim() || '';
 
         // === DEBUG LOGS START ===
