@@ -260,7 +260,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 ORDER BY rank
                 LIMIT ?
             `;
-            const searchQuery = `"${search.replace(/"/g, '""')}"`;
+            const searchQuery = search.replace(/"/g, '');
             try {
                 itemsResult = await DB.prepare(ftsQuery).bind(searchQuery, MAX_LIMIT).all();
             } catch (e) {

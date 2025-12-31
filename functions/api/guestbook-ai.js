@@ -476,7 +476,7 @@ async function handleSearch(query, env) {
                 query: query
             };
         }
-        const ftsQuery = searchTerms.map(t => `"${t.replace(/"/g, '""')}"`).join(' OR ');
+        const ftsQuery = searchTerms.join(' OR ');
         const ftsResult = await DB.prepare(`
             SELECT f.id, f.name, f.key, f.parent_path, f.is_directory 
             FROM files f

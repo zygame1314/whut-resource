@@ -47,7 +47,7 @@ export async function onRequestPost({ request, env }) {
         let directories = [];
         try {
             const searchTerms = keywords.split(/\s+/).filter(k => k.length >= 3);
-            const ftsQuery = searchTerms.map(t => `"${t.replace(/"/g, '""')}"`).join(' OR ');
+            const ftsQuery = searchTerms.join(' OR ');
             const ftsResult = await env.DB.prepare(`
                 SELECT DISTINCT f.key, f.name FROM files f
                 JOIN files_fts ON f.id = files_fts.rowid

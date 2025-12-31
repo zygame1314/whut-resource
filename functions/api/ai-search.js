@@ -7,7 +7,6 @@ const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。必须将用
     2. 生成关键词：
        - 返回2-3个最相关的搜索词
        - 必须保留课程后缀（A/B、(一)、1）
-       - 每个关键词必须≥2个字符
        - 用空格分隔
     3. 严禁废话，只返回关键词字符串
     示例：
@@ -28,13 +27,21 @@ export async function onRequestGet({ request, env }) {
     }
     const url = new URL(request.url);
     const query = url.searchParams.get('query');
+    const topK = parseInt(url.searchParams.get('topK') || '50');
     if (!query || query.trim().length === 0) {
         return new Response(JSON.stringify({ success: false, error: '缺少搜索关键词' }), {
             status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
     const DB = env.DB;
+    const AI = env.AI;
+    const VECTORIZE = env.VECTORIZE;
     const cerebrasKey = env.CEREBRAS_API_KEY;
+    if (!DB || !AI || !VECTORIZE) {
+        return new Response(JSON.stringify({ success: false, error: '服务器配置错误' }), {
+            status: 500, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+        });
+    }
     try {
         let finalKeywords = query;
         try {
@@ -59,53 +66,61 @@ export async function onRequestGet({ request, env }) {
         } catch (e) {
             console.error('LLM 扩展关键词失败，使用原始查询:', e);
         }
-        let results = [];
-        const searchTerms = finalKeywords.split(/\s+/).filter(k => k.length >= 2);
-        if (searchTerms.length > 0) {
-            const ftsTerms = searchTerms.filter(k => k.length >= 3);
-            if (ftsTerms.length > 0) {
-                const ftsQuery = ftsTerms.map(t => `"${t.replace(/"/g, '""')}"`).join(' OR ');
-                try {
-                    const ftsResult = await DB.prepare(`
-                        SELECT f.id, f.name, f.key, f.parent_path, f.is_directory 
-                        FROM files f
-                        JOIN files_fts ON f.id = files_fts.rowid
-                        WHERE files_fts MATCH ?
-                        ORDER BY rank
-                        LIMIT 20
-                    `).bind(ftsQuery).all();
-                    results = ftsResult.results || [];
-                } catch (e) { console.error('FTS 搜索失败', e); }
-            }
-            if (results.length === 0) {
-                for (const term of searchTerms) {
-                    const likeResult = await DB.prepare(`
-                        SELECT id, name, key, parent_path, is_directory 
-                        FROM files 
-                        WHERE name LIKE ? 
-                        ORDER BY is_directory DESC, name ASC
-                        LIMIT 15
-                    `).bind(`%${term}%`).all();
-                    results.push(...(likeResult.results || []));
-                }
-            }
+        const embeddingResponse = await AI.run('@cf/baai/bge-m3', {
+            text: [finalKeywords.trim()]
+        });
+        if (!embeddingResponse?.data?.[0]) {
+            throw new Error('AI 嵌入生成失败');
         }
-        const seen = new Set();
-        const uniqueResults = [];
-        for (const r of results) {
-            if (!seen.has(r.id)) {
-                seen.add(r.id);
-                uniqueResults.push(r);
-            }
+        const queryVector = embeddingResponse.data[0];
+        const vectorResults = await VECTORIZE.query(queryVector, {
+            topK: topK,
+            returnMetadata: 'all'
+        });
+        if (!vectorResults?.matches || vectorResults.matches.length === 0) {
+            return new Response(JSON.stringify({
+                success: true,
+                files: [],
+                directories: [],
+                keywords: finalKeywords,
+                message: '未找到相关文件'
+            }), {
+                status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            });
         }
-        const directories = uniqueResults.filter(f => f.is_directory).slice(0, 20);
-        const files = uniqueResults.filter(f => !f.is_directory).slice(0, 30);
+        const MIN_SCORE = 0.45;
+        const validMatches = vectorResults.matches.filter(m => m.score >= MIN_SCORE);
+        if (validMatches.length === 0) {
+            return new Response(JSON.stringify({
+                success: true,
+                files: [],
+                directories: [],
+                keywords: finalKeywords,
+                message: '未找到足够相关的资源'
+            }), {
+                status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            });
+        }
+        const fileIds = validMatches.map(m => parseInt(m.id));
+        const scoreMap = {};
+        validMatches.forEach(m => { scoreMap[m.id] = m.score; });
+        const placeholders = fileIds.map(() => '?').join(',');
+        const filesResult = await DB.prepare(
+            `SELECT * FROM files WHERE id IN (${placeholders})`
+        ).bind(...fileIds).all();
+        const filesWithScores = (filesResult.results || []).map(file => ({
+            ...file,
+            similarity_score: scoreMap[file.id] || 0
+        }));
+        filesWithScores.sort((a, b) => b.similarity_score - a.similarity_score);
+        const directories = filesWithScores.filter(f => f.is_directory);
+        const files = filesWithScores.filter(f => !f.is_directory);
         return new Response(JSON.stringify({
             success: true,
             files: files,
             directories: directories,
             keywords: finalKeywords,
-            totalItems: uniqueResults.length,
+            totalItems: filesWithScores.length,
             isAISearch: true
         }), {
             status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
