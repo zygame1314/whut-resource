@@ -47,7 +47,7 @@ export async function onRequestPost({ request, env }) {
                         { role: 'user', content: `文件名：${validFileNames.join(', ')}` }
                     ],
                     temperature: 0.1,
-                    max_tokens: 256
+                    max_tokens: 1024
                 })
             });
             if (keywordResponse.ok) {
@@ -101,7 +101,7 @@ export async function onRequestPost({ request, env }) {
                     { role: 'user', content: `文件：${validFileNames.join(', ')}\n\n搜索到的目录：\n${numberedList}\n\n请返回最佳目录的编号：` }
                 ],
                 temperature: 0.1,
-                max_tokens: 256
+                max_tokens: 1024
             })
         });
         if (!pickResponse.ok) throw new Error(`目录推荐接口错误: ${pickResponse.status}`);
