@@ -54,8 +54,7 @@ export async function onRequestGet({ request, env }) {
                         { role: 'system', content: SEARCH_PROMPT },
                         { role: 'user', content: query }
                     ],
-                    temperature: 0.1,
-                    max_tokens: 1024
+                    temperature: 0.1
                 })
             });
             if (llmResponse.ok) {

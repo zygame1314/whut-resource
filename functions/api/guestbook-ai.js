@@ -256,8 +256,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
             ],
             tools: toolsToUse,
             tool_choice: 'auto',
-            temperature: 0.7,
-            max_tokens: 1024
+            temperature: 0.7
         })
     });
     if (!response.ok) {
@@ -619,8 +618,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
             ],
             tools: searchTools,
             tool_choice: 'auto',
-            temperature: 0.7,
-            max_tokens: 1024
+            temperature: 0.7
         })
     });
     if (!response.ok) {
