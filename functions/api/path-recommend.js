@@ -52,8 +52,11 @@ export async function onRequestPost({ request, env }) {
             });
             if (keywordResponse.ok) {
                 const keywordData = await keywordResponse.json();
-                const content = keywordData.choices?.[0]?.message?.content?.trim();
-                if (content) keywords = content;
+                let content = keywordData.choices?.[0]?.message?.content?.trim();
+                if (content) {
+                    content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                    keywords = content;
+                }
             }
         } catch (e) {
             console.error('LLM 关键词提取失败:', e);
@@ -106,7 +109,10 @@ export async function onRequestPost({ request, env }) {
         });
         if (!pickResponse.ok) throw new Error(`目录推荐接口错误: ${pickResponse.status}`);
         const pickData = await pickResponse.json();
-        const pickContent = pickData.choices?.[0]?.message?.content?.trim() || '';
+        let pickContent = pickData.choices?.[0]?.message?.content?.trim() || '';
+        if (pickContent) {
+            pickContent = pickContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        }
         const match = pickContent.match(/(\d+)/);
         let suggestedPath = '';
         if (match) {

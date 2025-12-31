@@ -299,6 +299,11 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
     };
 }
 async function executeToolCall(functionName, args, guestbookEntry, env, autoMode) {
+    for (const key in args) {
+        if (typeof args[key] === 'string') {
+            args[key] = args[key].replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        }
+    }
     switch (functionName) {
         case 'reject_message':
             return await handleReject(guestbookEntry, args.reason, env, autoMode);

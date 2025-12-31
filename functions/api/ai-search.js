@@ -60,8 +60,11 @@ export async function onRequestGet({ request, env }) {
             });
             if (llmResponse.ok) {
                 const llmData = await llmResponse.json();
-                const content = llmData.choices?.[0]?.message?.content?.trim();
-                if (content) finalKeywords = content;
+                let content = llmData.choices?.[0]?.message?.content?.trim();
+                if (content) {
+                    content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                    finalKeywords = content;
+                }
             }
         } catch (e) {
             console.error('LLM 扩展关键词失败，使用原始查询:', e);
