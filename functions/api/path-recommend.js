@@ -56,7 +56,7 @@ export async function onRequestPost({ request, env }) {
                 `).bind(CACHE_ID, jsonStr).run();
             }
         } catch (e) {
-            console.error('Cache/DB Error:', e);
+            console.error('缓存/数据库错误:', e);
         }
         if (allDirs.length === 0) {
             const fallbackResult = await env.DB.prepare('SELECT key FROM files WHERE is_directory = TRUE ORDER BY key ASC LIMIT 500').all();
@@ -115,7 +115,7 @@ export async function onRequestPost({ request, env }) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     } catch (error) {
-        console.error('Path Recommend Error:', error);
+        console.error('路径推荐错误:', error);
         return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })

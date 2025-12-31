@@ -140,7 +140,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                     await DB.prepare(`
                         INSERT OR REPLACE INTO system_cache (id, data, updated_at) 
                         VALUES (?, ?, CURRENT_TIMESTAMP)
-            `).bind(CACHE_ID, JSON.stringify(directories)).run();
+                    `).bind(CACHE_ID, JSON.stringify(directories)).run();
                 } catch (e) {
                     console.error('Failed to update dir cache:', e);
                 }
@@ -193,9 +193,9 @@ export async function onRequestGet({ request, env, waitUntil }) {
                                 ORDER BY total_downloads DESC
                                 LIMIT 5
                             )
-                            `).first();
+                        `).first();
                         if (refreshResult && refreshResult.data) {
-                            await DB.prepare('UPDATE system_cache SET data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1')
+                            await DB.prepare('INSERT OR REPLACE INTO system_cache (id, data, updated_at) VALUES (1, ?, CURRENT_TIMESTAMP)')
                                 .bind(refreshResult.data).run();
                         }
                     } catch (e) {
