@@ -1405,3 +1405,10 @@
         display: none;
     }
 }
+
+.highlighted-item {
+    animation: highlightPulse 2s ease-out !important;
+    background-color: rgba(var(--primary-rgb), 0.08) !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.15) !important;
+}

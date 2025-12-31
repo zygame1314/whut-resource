@@ -359,6 +359,7 @@ let itemsPerPage = 20;
 let currentTotalItems = 0;
 let currentFetchedData = null;
 let currentPaginationData = null;
+let highlightKey = null;
 function createParticleBackground() {
     const particlesContainer = document.getElementById('particles-background');
     if (!particlesContainer) return;
@@ -1101,6 +1102,45 @@ function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch 
 function getLinkIcon() {
     return 'fas fa-external-link-alt';
 }
+async function shareFile(item) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("请先登录后再分享。", 'error');
+        return;
+    }
+    const isDirectory = !!item.isDirectory;
+    const isLink = !!item.isLink;
+    let shareLink = '';
+    let name = item.name;
+    let size = isDirectory ? '文件夹' : (isLink ? '外部链接' : formatBytes(item.size));
+    if (isLink) {
+        shareLink = item.link_url;
+    } else {
+        const parentPath = item.parent_path || '';
+        const urlParams = new URLSearchParams();
+        urlParams.set('path', parentPath);
+        if (!isDirectory) {
+            urlParams.set('highlight', item.key);
+        } else {
+            urlParams.set('path', item.key);
+        }
+        shareLink = `${window.location.origin}${window.location.pathname}?${urlParams.toString()}`;
+    }
+    const shareText = [
+        '📁 文件分享',
+        `📄 名称: ${name}`,
+        `📏 大小: ${size}`,
+        `🔗 链接: ${shareLink}`
+    ].join('\n');
+    try {
+        await navigator.clipboard.writeText(shareText);
+        showNotification('分享链已复制到剪贴板！', 'success');
+    } catch (err) {
+        console.error('复制失败:', err);
+        showNotification('复制失败，请手动复制链接', 'error');
+        prompt('复制以下内容:', shareText);
+    }
+}
 function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const li = document.createElement('li');
     li.className = 'file-list-item';
@@ -1165,6 +1205,9 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
                 <i class="fas fa-external-link-alt"></i>
             </button>`;
     }
+    const shareButtonHTML = `<button class="share-button" title="生成分享链">
+            <i class="fas fa-share-alt"></i>
+        </button>`;
     const isAdmin = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin';
     fileActionsDiv.innerHTML = `
         ${isDirectory ? `
@@ -1175,6 +1218,7 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             ${previewButtonHTML}
             ${downloadButtonHTML}
         `}
+        ${shareButtonHTML}
         ${isAdmin ? `
         ${isLink ? `
         <button class="edit-link-button" title="编辑链接地址">
@@ -1228,6 +1272,23 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         if (downloadBtn) {
             downloadBtn.onclick = () => downloadFile(item.key, downloadBtn);
         }
+    }
+    const shareBtn = fileActionsDiv.querySelector('.share-button');
+    if (shareBtn) {
+        shareBtn.onclick = (e) => {
+            e.stopPropagation();
+            shareFile(item);
+        };
+    }
+    if (highlightKey && item.key === highlightKey) {
+        li.classList.add('highlighted-item');
+        setTimeout(() => {
+            li.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+        setTimeout(() => {
+            li.classList.remove('highlighted-item');
+        }, 3000);
+        highlightKey = null;
     }
     if (isLink) {
         const openLinkBtn = fileActionsDiv.querySelector('.open-link-button');
@@ -2210,7 +2271,13 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
 }
 document.addEventListener('authSuccess', () => {
     console.log("验证成功，开始加载根目录文件列表...");
-    fetchAndDisplayFiles('', '', 1);
+    const urlParams = new URLSearchParams(window.location.search);
+    const pathParam = urlParams.get('path');
+    const highlightParam = urlParams.get('highlight');
+    if (highlightParam) {
+        highlightKey = highlightParam;
+    }
+    fetchAndDisplayFiles(pathParam || '', '', 1);
     fetchFileStats();
     fetchAndBuildFolderTree();
     fetchAndRenderHotFolders();

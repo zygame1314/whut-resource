@@ -340,3 +340,26 @@
         filter: drop-shadow(0 0 20px var(--primary-color));
     }
 }
+
+@keyframes highlightPulse {
+
+    0%,
+    100% {
+        background-color: transparent;
+        border-color: var(--border-color);
+        box-shadow: none;
+    }
+
+    25%,
+    75% {
+        background-color: rgba(var(--primary-rgb), 0.12);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.2);
+    }
+
+    50% {
+        background-color: rgba(var(--primary-rgb), 0.06);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 6px rgba(var(--primary-rgb), 0.1);
+    }
+}

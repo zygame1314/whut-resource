@@ -4,6 +4,7 @@ const ASSETS_TO_CACHE = [
     'index.html',
     'manifest.json',
     'favicon.png',
+    'icon-512.png',
     'logo.webp',
     'css/base.css',
     'css/animations.css',
@@ -52,6 +53,10 @@ self.addEventListener('activate', (event) => {
 });
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') {
+        return;
+    }
+    const url = new URL(event.request.url);
+    if (!url.protocol.startsWith('http')) {
         return;
     }
     event.respondWith(

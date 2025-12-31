@@ -393,6 +393,28 @@
     transform: translateY(-1px);
 }
 
+.share-button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: #9B59B6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.share-button:hover {
+    background: #8E44AD;
+    transform: translateY(-1px);
+}
+
 .upload-btn {
     display: inline-flex;
     align-items: center;
