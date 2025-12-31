@@ -236,14 +236,14 @@ BEGIN
     WHERE id = 1;
 END;
 
-DROP TABLE IF EXISTS hot_folders_cache;
-CREATE TABLE IF NOT EXISTS hot_folders_cache (
+DROP TABLE IF EXISTS system_cache;
+CREATE TABLE IF NOT EXISTS system_cache (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     data TEXT NOT NULL DEFAULT '[]',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT OR REPLACE INTO hot_folders_cache (id, data, updated_at)
+INSERT OR REPLACE INTO system_cache (id, data, updated_at)
 SELECT 1, 
     '[' || COALESCE(GROUP_CONCAT(json_object('path', parent_path, 'total_downloads', total_downloads)), '') || ']',
     CURRENT_TIMESTAMP
