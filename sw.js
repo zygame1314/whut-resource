@@ -59,6 +59,9 @@ self.addEventListener('fetch', (event) => {
     if (!url.protocol.startsWith('http')) {
         return;
     }
+    if (url.origin !== self.location.origin) {
+        return;
+    }
     event.respondWith(
         fetch(event.request)
             .then((response) => {
@@ -71,7 +74,12 @@ self.addEventListener('fetch', (event) => {
                 return response;
             })
             .catch(() => {
-                return caches.match(event.request);
+                return caches.match(event.request).then(response => {
+                    if (response) {
+                        return response;
+                    }
+                    return new Response('离线且未缓存', { status: 404, statusText: '离线' });
+                });
             })
     );
 });
