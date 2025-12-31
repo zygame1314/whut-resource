@@ -13,9 +13,9 @@
             "type": "image/png"
         },
         {
-            "src": "logo.webp",
+            "src": "icon-512.png",
             "sizes": "192x192 512x512",
-            "type": "image/webp"
+            "type": "image/png"
         }
     ]
 }
