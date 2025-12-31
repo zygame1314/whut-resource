@@ -162,8 +162,10 @@ export async function onRequestGet({ request, env, waitUntil }) {
             }
             const cacheData = await DB.prepare('SELECT data, updated_at FROM system_cache WHERE id = 1').first();
             let hotFolders = [];
-            let needsRefresh = true;
+            let needsBackgroundRefresh = false;
+            let cacheExists = false;
             if (cacheData && cacheData.data) {
+                cacheExists = true;
                 try {
                     const parsed = JSON.parse(cacheData.data);
                     hotFolders = parsed.map(row => ({
@@ -174,13 +176,40 @@ export async function onRequestGet({ request, env, waitUntil }) {
                     if (cacheData.updated_at) {
                         const updatedAt = new Date(cacheData.updated_at + 'Z').getTime();
                         const now = Date.now();
-                        needsRefresh = (now - updatedAt) > 3600000;
+                        needsBackgroundRefresh = (now - updatedAt) > 3600000;
                     }
                 } catch (e) {
                     console.error('解析热门文件夹缓存失败:', e);
+                    cacheExists = false;
                 }
             }
-            if (needsRefresh) {
+            if (!cacheExists) {
+                try {
+                    const freshResult = await DB.prepare(`
+                        SELECT '[' || COALESCE(GROUP_CONCAT(json_object('path', parent_path, 'total_downloads', total_downloads)), '') || ']' as data
+                        FROM (
+                            SELECT parent_path, SUM(downloads) as total_downloads
+                            FROM files
+                            WHERE parent_path != '' AND is_directory = FALSE
+                            GROUP BY parent_path
+                            ORDER BY total_downloads DESC
+                            LIMIT 5
+                        )
+                    `).first();
+                    if (freshResult && freshResult.data) {
+                        await DB.prepare('INSERT OR REPLACE INTO system_cache (id, data, updated_at) VALUES (1, ?, CURRENT_TIMESTAMP)')
+                            .bind(freshResult.data).run();
+                        const parsed = JSON.parse(freshResult.data);
+                        hotFolders = parsed.map(row => ({
+                            path: row.path,
+                            name: row.path.endsWith('/') ? row.path.slice(0, -1).split('/').pop() : row.path.split('/').pop(),
+                            total_downloads: row.total_downloads
+                        }));
+                    }
+                } catch (e) {
+                    console.error('同步获取热门文件夹失败:', e);
+                }
+            } else if (needsBackgroundRefresh) {
                 waitUntil((async () => {
                     try {
                         const refreshResult = await DB.prepare(`
@@ -199,7 +228,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                                 .bind(refreshResult.data).run();
                         }
                     } catch (e) {
-                        console.error('刷新热门文件夹缓存失败:', e);
+                        console.error('后台刷新热门文件夹缓存失败:', e);
                     }
                 })());
             }
