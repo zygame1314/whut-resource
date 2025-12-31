@@ -143,9 +143,13 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站的留言板AI�
     - 仅课程名无类型("求高数")：驳回(请说明具体需要的资源类型)
     - 多门课程请求("求运筹学A、随机过程、回归分析的资料")：驳回(请每条留言只请求一门课程的资源，方便匹配)
     【搜索优化】
-    调用search_resources时只提取核心课程名，去除无关修饰词，但【必须保留】课程具体区分后缀（如A/B/C、1/2、(一)/(二)）：
-    正确："遗传学"、"电磁场与电磁波B"、"高等数学(一)"
-    错误："求遗传学真题"、"复习资料"（去除了修饰词但保留核心）
+    调用search_resources时：
+    1. 只提取核心课程名，去除无关修饰词，但【必须保留】课程具体区分后缀（如A/B/C、1/2、(一)/(二)）
+    2. 【必须】将常见缩写展开为完整课程名，每个关键词至少3个字符：
+       - 大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数
+       - 马原→马克思主义、近代史→中国近现代史、思修→思想道德、概率论→概率论
+    正确调用：search_resources("高等数学 试卷及答案")、search_resources("大学物理")
+    错误调用：search_resources("高数")（太短会搜不到）
     【处理级别】
     L0封禁：暴恐/黑客/违法/反动
     L1删除：辱骂/人身攻击/冒充/诱导攻击/广告/色情/政治敏感
@@ -452,30 +456,37 @@ async function logAdminAction(env, action, targetType, targetId, reason, details
     }
 }
 async function handleSearch(query, env) {
-    const AI = env.AI;
-    const VECTORIZE = env.VECTORIZE;
     const DB = env.DB;
-    if (!AI || !VECTORIZE) {
+    if (!DB) {
         return {
             success: false,
             action: 'search',
-            message: '向量搜索服务不可用',
+            message: '数据库服务不可用',
             searchResults: null
         };
     }
     try {
-        const embeddingResponse = await AI.run('@cf/baai/bge-m3', {
-            text: [query.trim()]
-        });
-        if (!embeddingResponse?.data?.[0]) {
-            throw new Error('嵌入生成失败');
+        const searchTerms = query.trim().split(/\s+/).filter(k => k.length >= 3);
+        if (searchTerms.length === 0) {
+            return {
+                success: true,
+                action: 'search',
+                message: '搜索词过短（至少3个字符）',
+                searchResults: [],
+                query: query
+            };
         }
-        const queryVector = embeddingResponse.data[0];
-        const vectorResults = await VECTORIZE.query(queryVector, {
-            topK: 10,
-            returnMetadata: 'all'
-        });
-        if (!vectorResults?.matches || vectorResults.matches.length === 0) {
+        const ftsQuery = searchTerms.map(t => `"${t.replace(/"/g, '""')}"`).join(' OR ');
+        const ftsResult = await DB.prepare(`
+            SELECT f.id, f.name, f.key, f.parent_path, f.is_directory 
+            FROM files f
+            JOIN files_fts ON f.id = files_fts.rowid
+            WHERE files_fts MATCH ?
+            ORDER BY rank
+            LIMIT 15
+        `).bind(ftsQuery).all();
+        const results = ftsResult.results || [];
+        if (results.length === 0) {
             return {
                 success: true,
                 action: 'search',
@@ -484,36 +495,11 @@ async function handleSearch(query, env) {
                 query: query
             };
         }
-        const MIN_SCORE = 0.45;
-        const validMatches = vectorResults.matches.filter(m => m.score >= MIN_SCORE);
-        if (validMatches.length === 0) {
-            return {
-                success: true,
-                action: 'search',
-                message: '未找到相关资源（相似度太低）',
-                searchResults: [],
-                query: query
-            };
-        }
-        const fileIds = validMatches.map(m => parseInt(m.id));
-        const placeholders = fileIds.map(() => '?').join(',');
-        const filesResult = await DB.prepare(
-            `SELECT id, name, key, parent_path, is_directory FROM files WHERE id IN (${placeholders})`
-        ).bind(...fileIds).all();
-        const scoreMap = {};
-        validMatches.forEach(m => {
-            scoreMap[m.id] = m.score;
-        });
-        const filesWithScores = (filesResult.results || []).map(file => ({
-            ...file,
-            similarity_score: scoreMap[file.id] || 0
-        }));
-        filesWithScores.sort((a, b) => b.similarity_score - a.similarity_score);
         return {
             success: true,
             action: 'search',
-            message: `找到 ${filesWithScores.length} 个相关资源`,
-            searchResults: filesWithScores,
+            message: `找到 ${results.length} 个相关资源`,
+            searchResults: results,
             query: query
         };
     } catch (error) {

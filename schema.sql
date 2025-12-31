@@ -30,6 +30,25 @@ CREATE TABLE files (
     FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
+DROP TABLE IF EXISTS files_fts;
+CREATE VIRTUAL TABLE files_fts USING fts5(name, content='files', content_rowid='id', tokenize='trigram');
+
+DROP TRIGGER IF EXISTS files_ai;
+CREATE TRIGGER files_ai AFTER INSERT ON files BEGIN
+    INSERT INTO files_fts(rowid, name) VALUES (new.id, new.name);
+END;
+
+DROP TRIGGER IF EXISTS files_ad;
+CREATE TRIGGER files_ad AFTER DELETE ON files BEGIN
+    INSERT INTO files_fts(files_fts, rowid, name) VALUES('delete', old.id, old.name);
+END;
+
+DROP TRIGGER IF EXISTS files_au;
+CREATE TRIGGER files_au AFTER UPDATE ON files BEGIN
+    INSERT INTO files_fts(files_fts, rowid, name) VALUES('delete', old.id, old.name);
+    INSERT INTO files_fts(rowid, name) VALUES (new.id, new.name);
+END;
+
 DROP TABLE IF EXISTS downloads;
 CREATE TABLE downloads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

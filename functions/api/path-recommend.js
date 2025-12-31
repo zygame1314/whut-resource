@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
-const MODEL = 'gpt-oss-120b';
+const MODEL = 'qwen-3-32b';
 const KEYWORD_PROMPT = `你是一个大学课程搜索助手。用户会给你一些文件名，你需要提取或推断出最可能的课程全称用于搜索。
     规则：
     1. 理解大学生常用缩写：大物=大学物理、高数=高等数学、毛概=毛泽东思想和中国特色社会主义理论体系概论、线代=线性代数、马原=马克思主义基本原理、近代史=中国近现代史纲要、思修=思想道德与法治、概率论=概率论与数理统计

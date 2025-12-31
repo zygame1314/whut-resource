@@ -1,4 +1,17 @@
-import { verifyToken, addCorsHeaders } from '../utils.js';
+const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
+const MODEL_SEARCH = 'llama3.1-8b';
+const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。必须将用户的【搜索词】转化为【标准课程名】。
+    规则：
+    1. 修正缩写：大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德、概率论→概率论
+    2. 生成关键词：
+       - 返回2-3个最相关的搜索词
+       - 必须保留课程后缀（A/B、(一)、1）
+       - 每个关键词必须≥2个字符
+       - 用空格分隔
+    3. 严禁废话，只返回关键词字符串
+    示例：
+    输入："搜一下大物期末" -> 输出："大学物理 期末试卷"
+    输入："求高数下" -> 输出："高等数学(下) 高等数学A"`;
 export async function onRequestGet({ request, env }) {
     const authHeader = request.headers.get('Authorization');
     let user = null;
@@ -14,92 +27,92 @@ export async function onRequestGet({ request, env }) {
     }
     const url = new URL(request.url);
     const query = url.searchParams.get('query');
-    const topK = parseInt(url.searchParams.get('topK') || '50');
     if (!query || query.trim().length === 0) {
         return new Response(JSON.stringify({ success: false, error: '缺少搜索关键词' }), {
-            status: 400,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
     const DB = env.DB;
-    const AI = env.AI;
-    const VECTORIZE = env.VECTORIZE;
-    if (!DB || !AI || !VECTORIZE) {
-        return new Response(JSON.stringify({ success: false, error: '服务器配置错误（缺少 DB/AI/VECTORIZE 绑定）' }), {
-            status: 500,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
-    }
+    const cerebrasKey = env.CEREBRAS_API_KEY;
     try {
-        const embeddingResponse = await AI.run('@cf/baai/bge-m3', {
-            text: [query.trim()]
-        });
-        if (!embeddingResponse || !embeddingResponse.data || !embeddingResponse.data[0]) {
-            throw new Error('AI 嵌入生成失败');
-        }
-        const queryVector = embeddingResponse.data[0];
-        const vectorResults = await VECTORIZE.query(queryVector, {
-            topK: topK,
-            returnMetadata: 'all'
-        });
-        if (!vectorResults || !vectorResults.matches || vectorResults.matches.length === 0) {
-            return new Response(JSON.stringify({
-                success: true,
-                files: [],
-                directories: [],
-                message: '未找到相关文件'
-            }), {
-                status: 200,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        let finalKeywords = query;
+        try {
+            const llmResponse = await fetch(CEREBRAS_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey}` },
+                body: JSON.stringify({
+                    model: MODEL_SEARCH,
+                    messages: [
+                        { role: 'system', content: SEARCH_PROMPT },
+                        { role: 'user', content: query }
+                    ],
+                    temperature: 0.1,
+                    max_tokens: 1024
+                })
             });
+            if (llmResponse.ok) {
+                const llmData = await llmResponse.json();
+                const content = llmData.choices?.[0]?.message?.content?.trim();
+                if (content) finalKeywords = content;
+            }
+        } catch (e) {
+            console.error('LLM 扩展关键词失败，使用原始查询:', e);
         }
-        const MIN_SCORE = 0.45;
-        const validMatches = vectorResults.matches.filter(m => m.score >= MIN_SCORE);
-        if (validMatches.length === 0) {
-            return new Response(JSON.stringify({
-                success: true,
-                files: [],
-                directories: [],
-                message: '啥也没找到，AI都觉得你在瞎填。'
-            }), {
-                status: 200,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
+        let results = [];
+        const searchTerms = finalKeywords.split(/\s+/).filter(k => k.length >= 2);
+        if (searchTerms.length > 0) {
+            const ftsTerms = searchTerms.filter(k => k.length >= 3);
+            if (ftsTerms.length > 0) {
+                const ftsQuery = ftsTerms.map(t => `"${t.replace(/"/g, '""')}"`).join(' OR ');
+                try {
+                    const ftsResult = await DB.prepare(`
+                        SELECT f.id, f.name, f.key, f.parent_path, f.is_directory 
+                        FROM files f
+                        JOIN files_fts ON f.id = files_fts.rowid
+                        WHERE files_fts MATCH ?
+                        ORDER BY rank
+                        LIMIT 20
+                    `).bind(ftsQuery).all();
+                    results = ftsResult.results || [];
+                } catch (e) { console.error('FTS 搜索失败', e); }
+            }
+            if (results.length === 0) {
+                for (const term of searchTerms) {
+                    const likeResult = await DB.prepare(`
+                        SELECT id, name, key, parent_path, is_directory 
+                        FROM files 
+                        WHERE name LIKE ? 
+                        ORDER BY is_directory DESC, name ASC
+                        LIMIT 15
+                    `).bind(`%${term}%`).all();
+                    results.push(...(likeResult.results || []));
+                }
+            }
         }
-        const fileIds = validMatches.map(m => parseInt(m.id));
-        const scoreMap = {};
-        validMatches.forEach(m => {
-            scoreMap[m.id] = m.score;
-        });
-        const placeholders = fileIds.map(() => '?').join(',');
-        const filesResult = await DB.prepare(
-            `SELECT * FROM files WHERE id IN (${placeholders})`
-        ).bind(...fileIds).all();
-        const filesWithScores = (filesResult.results || []).map(file => ({
-            ...file,
-            similarity_score: scoreMap[file.id] || 0
-        }));
-        filesWithScores.sort((a, b) => b.similarity_score - a.similarity_score);
-        const directories = filesWithScores.filter(f => f.is_directory);
-        const files = filesWithScores.filter(f => !f.is_directory);
+        const seen = new Set();
+        const uniqueResults = [];
+        for (const r of results) {
+            if (!seen.has(r.id)) {
+                seen.add(r.id);
+                uniqueResults.push(r);
+            }
+        }
+        const directories = uniqueResults.filter(f => f.is_directory).slice(0, 20);
+        const files = uniqueResults.filter(f => !f.is_directory).slice(0, 30);
         return new Response(JSON.stringify({
             success: true,
             files: files,
             directories: directories,
-            totalItems: filesWithScores.length,
+            keywords: finalKeywords,
+            totalItems: uniqueResults.length,
             isAISearch: true
         }), {
-            status: 200,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     } catch (error) {
-        console.error('AI 搜索错误:', error);
-        return new Response(JSON.stringify({
-            success: false,
-            error: 'AI 搜索失败: ' + error.message
-        }), {
-            status: 500,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        console.error('AI 搜索出错:', error);
+        return new Response(JSON.stringify({ success: false, error: error.message }), {
+            status: 500, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
 }
