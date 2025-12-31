@@ -107,13 +107,28 @@ export async function onRequestPost({ request, env }) {
         }
         const aiData = await response.json();
         const content = aiData.choices?.[0]?.message?.content?.trim() || '';
+
+        // === DEBUG LOGS START ===
+        console.log('=== AI Path Recommend Debug ===');
+        console.log('File names:', validFileNames);
+        console.log('Total dirs in list:', dirsToProcess.length);
+        console.log('First 5 dirs:', dirsToProcess.slice(0, 5));
+        console.log('AI raw response:', content);
+        // === DEBUG LOGS END ===
+
         const match = content.match(/(\d+)/);
         let suggestedPath = '';
         if (match) {
             const id = parseInt(match[1]);
+            console.log('Parsed ID:', id);
             if (id > 0 && id <= dirsToProcess.length) {
                 suggestedPath = dirsToProcess[id - 1];
+                console.log('Matched path:', suggestedPath);
+            } else {
+                console.log('ID out of range or zero');
             }
+        } else {
+            console.log('No number found in AI response');
         }
         return new Response(JSON.stringify({
             success: true,
