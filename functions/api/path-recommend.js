@@ -38,7 +38,7 @@ export async function onRequestPost({ request, env }) {
                     { role: 'user', content: `文件名：${validFileNames.join(', ')}` }
                 ],
                 temperature: 0.1,
-                max_tokens: 512
+                max_tokens: 1024
             })
         });
         if (!keywordResponse.ok) throw new Error(`关键词提取接口错误: ${keywordResponse.status}`);
@@ -88,14 +88,12 @@ export async function onRequestPost({ request, env }) {
                     { role: 'user', content: `文件：${validFileNames.join(', ')}\n\n搜索到的目录：\n${numberedList}\n\n请返回最佳目录的编号：` }
                 ],
                 temperature: 0.1,
-                max_tokens: 256
+                max_tokens: 1024
             })
         });
         if (!pickResponse.ok) throw new Error(`目录推荐接口错误: ${pickResponse.status}`);
         const pickData = await pickResponse.json();
-        console.log('Pick AI response:', JSON.stringify(pickData));
         const pickContent = pickData.choices?.[0]?.message?.content?.trim() || '';
-        console.log('Pick content:', pickContent);
         const match = pickContent.match(/(\d+)/);
         let suggestedPath = '';
         if (match) {
