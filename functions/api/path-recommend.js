@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
-const MODEL = 'llama3.1-8b';
+const MODEL = 'qwen-3-32b';
 const KEYWORD_PROMPT = `你是一个大学课程目录推荐助手。用户上传了一些文件名，你需要提取出文件所属的课程全称。
     规则：
     1. 识别并扩展缩写：

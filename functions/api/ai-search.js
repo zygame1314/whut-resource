@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
-const MODEL_SEARCH = 'llama3.1-8b';
+const MODEL_SEARCH = 'qwen-3-32b';
 const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。必须将用户的【搜索词】转化为【标准课程名】。
     规则：
     1. 修正缩写：大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德、概率论→概率论
