@@ -6,13 +6,13 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'reject_message',
-            description: '驳回留言。当留言内容表述不清、无关、灌水时使用。驳回后留言仍可见，但会显示驳回原因。',
+            description: '驳回留言。当留言明确无效、违规或属于烂梗时使用。此操作会将留言设为隐藏，并向作者显示具体的驳回原因。',
             parameters: {
                 type: 'object',
                 properties: {
                     reason: {
                         type: 'string',
-                        description: '驳回原因（纯文本，不用markdown）。常用：表述不清、重复提交、灌水信息、无关内容、一条条说、上方公告区已写'
+                        description: '驳回原因（纯文本）。例如：表述不清、无意义内容、烂梗、刷屏、非资源请求等。'
                     }
                 },
                 required: ['reason']
@@ -23,7 +23,7 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'hide_message',
-            description: '隐藏留言。当留言包含不当内容但不至于删除时使用，如轻微违规、引战言论等。隐藏后普通用户不可见。',
+            description: '隐藏留言。当留言需要管理员人工确认（如可能有歧义）、或者内容不适合公开但不至于驳回时使用。隐藏后仅管理员和作者可见，不显示驳回原因。',
             parameters: {
                 type: 'object',
                 properties: {
@@ -142,6 +142,10 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站的留言板AI�
     - 模糊指代("那个很难的课"、"你懂的")：驳回(表述不清，请提供具体课程名称)
     - 仅课程名无类型("求高数")：驳回(请说明具体需要的资源类型)
     - 多门课程请求("求运筹学A、随机过程、回归分析的资料")：驳回(请每条留言只请求一门课程的资源，方便匹配)
+    【资源补全请求识别】
+    - 用户反馈现有资源不完整("真题没答案"、"缺少XX年"、"答案不全"、"求补全")：用户已知道资源位置，需要的是内容补充
+    - 此类请求：直接使用keep_pending(note="用户反馈XX资源缺少答案/不完整，需管理员补充")，而不是搜索后标记已解决
+    - 判断依据：留言中含有"没答案"、"缺"、"求补全"、"不全"、"补一下"等关键词
     【搜索优化】
     调用search_resources时：
     1. 只提取核心课程名，去除无关修饰词，但【必须保留】课程具体区分后缀（如A/B/C、1/2、(一)/(二)）
@@ -150,11 +154,11 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站的留言板AI�
        - 马原→马克思主义、近代史→中国近现代史、思修→思想道德、概率论→概率论
     正确调用：search_resources("高等数学 试卷")、search_resources("大学物理")
     【处理级别】
-    L0封禁：暴恐/黑客/违法/反动
-    L1删除：辱骂/人身攻击/冒充/诱导攻击/广告/色情/政治敏感
-    L2隐藏：引战/挑衅/轻微不当/刷屏
-    L3驳回：表述不清/无实质/仅课程名/无关内容/烂梗
-    L4正常：理解需求并搜索资源`;
+    L0 封禁：暴恐/黑客/违法/反动 [ban_user]
+    L1 删除：辱骂/人身攻击/广告/色情/严重违规 [delete_message]
+    L2 驳回：烂梗/刷屏/无意义/表述不清/非资源请求 [reject_message]
+    L3 隐藏：需要人工进一步研判/轻微不当/有歧义 [hide_message]
+    L4 正常：合规请求 [search_resources / mark_resolved / keep_pending]`;
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
