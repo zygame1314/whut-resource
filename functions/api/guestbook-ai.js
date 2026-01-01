@@ -335,7 +335,7 @@ async function executeToolCall(functionName, args, guestbookEntry, env, autoMode
 async function handleReject(entry, reason, env, autoMode) {
     if (autoMode) {
         await env.DB.prepare(
-            'UPDATE guestbook SET status = ?, reject_reason = ? WHERE id = ?'
+            'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
         ).bind('rejected', reason, entry.id).run();
         await logAdminAction(env, 'ai_reject', 'guestbook', entry.id, reason, JSON.stringify({
             content: entry.content,

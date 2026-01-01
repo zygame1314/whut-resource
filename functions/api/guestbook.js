@@ -229,7 +229,7 @@ async function handlePut(request, env, context) {
         if (user.role !== 'admin' && guestbookEntry.user_id !== user.id) {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        await env.DB.prepare('UPDATE guestbook SET content = ?, status = ?, reject_reason = NULL WHERE id = ?').bind(content.trim(), 'unresolved', id).run();
+        await env.DB.prepare('UPDATE guestbook SET content = ?, status = ?, reject_reason = NULL, is_hidden = 1 WHERE id = ?').bind(content.trim(), 'unresolved', id).run();
         if (context && context.waitUntil) {
             context.waitUntil((async () => {
                 try {
@@ -237,7 +237,10 @@ async function handlePut(request, env, context) {
                         'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                     ).bind(id).first();
                     if (updatedEntry && user.role !== 'admin') {
-                        await processWithAIAgent(updatedEntry, env, true);
+                        const aiResult = await processWithAIAgent(updatedEntry, env, true);
+                        if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending')) {
+                            await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
+                        }
                     }
                 } catch (err) {
                     console.error('自动AI处理失败:', err);
@@ -294,7 +297,7 @@ async function handlePut(request, env, context) {
         if (rejectReason.length > 200) {
             return new Response(JSON.stringify({ error: '驳回原因过长（最多200字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = ? WHERE id = ?').bind('rejected', rejectReason.trim(), id).run();
+        await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?').bind('rejected', rejectReason.trim(), id).run();
     } else if (action === 'unreject') {
         if (user.role !== 'admin') {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
