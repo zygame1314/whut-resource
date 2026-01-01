@@ -229,7 +229,11 @@ async function handlePut(request, env, context) {
         if (user.role !== 'admin' && guestbookEntry.user_id !== user.id) {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        await env.DB.prepare('UPDATE guestbook SET content = ?, status = ?, reject_reason = NULL, is_hidden = 1 WHERE id = ?').bind(content.trim(), 'unresolved', id).run();
+        if (user.role === 'admin') {
+            await env.DB.prepare('UPDATE guestbook SET content = ? WHERE id = ?').bind(content.trim(), id).run();
+        } else {
+            await env.DB.prepare('UPDATE guestbook SET content = ?, status = ?, reject_reason = NULL, is_hidden = 1 WHERE id = ?').bind(content.trim(), 'unresolved', id).run();
+        }
         if (context && context.waitUntil) {
             context.waitUntil((async () => {
                 try {
