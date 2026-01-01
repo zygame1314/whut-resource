@@ -115,7 +115,7 @@ window.rejectGuestbook = async function (id) {
         });
         if (response.ok) {
             showNotification('留言已驳回', 'success');
-            refreshGuestbook(currentGuestbookPage);
+            updateGuestbookCache(id, { status: 'rejected', reject_reason: rejectReason, is_hidden: 1 });
         } else {
             const data = await response.json();
             showNotification(data.error || '驳回失败', 'error');
@@ -218,7 +218,7 @@ window.resolveGuestbook = async function (id) {
         });
         if (response.ok) {
             showNotification('留言已标记为已解决', 'success');
-            refreshGuestbook(currentGuestbookPage);
+            updateGuestbookCache(id, { status: 'resolved', reject_reason: null, resolve_note: resolvePath || null, is_hidden: 0 });
         } else {
             const data = await response.json();
             showNotification(data.error || '操作失败', 'error');
@@ -609,7 +609,6 @@ function renderGuestbook(messages) {
             const statusIcon = msg.status === 'resolved' ? 'fas fa-check-circle' : 'far fa-check-circle';
             const statusTitle = msg.status === 'resolved' ? '标记为未解决' : '标记为已解决';
             const statusClass = msg.status === 'resolved' ? 'success' : '';
-            const statusAction = msg.status === 'resolved' ? 'unresolve' : 'resolve';
             const rejectIcon = msg.status === 'rejected' ? 'fas fa-times-circle' : 'far fa-times-circle';
             const rejectTitle = msg.status === 'rejected' ? '取消驳回' : '驳回留言';
             const rejectClass = msg.status === 'rejected' ? 'danger' : '';
@@ -835,9 +834,28 @@ async function handleGuestbookSubmit(e) {
             body: JSON.stringify({ content })
         });
         if (response.ok) {
+            const result = await response.json();
             guestbookContentInput.value = '';
             showNotification('留言发布成功！', 'success');
-            refreshGuestbook(1);
+            const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+            const newMessage = {
+                id: result.id,
+                user_id: window.currentUser.id,
+                nickname: window.currentUser.nickname || '匿名用户',
+                content: content,
+                likes: 0,
+                has_liked: false,
+                is_hidden: isAdmin ? 0 : 1,
+                is_pinned: 0,
+                status: 'unresolved',
+                reject_reason: null,
+                resolve_note: null,
+                created_at: new Date().toISOString(),
+                role: window.currentUser.role,
+                isAdmin: isAdmin
+            };
+            guestbookCache.data.unshift(newMessage);
+            fetchAndDisplayGuestbook(1);
         } else {
             const data = await response.json();
             showNotification(data.error || '发布失败', 'error');
@@ -1026,7 +1044,13 @@ window.editGuestbook = async function (id, encodedContent = '') {
         });
         if (response.ok) {
             showNotification('编辑成功', 'success');
-            refreshGuestbook(currentGuestbookPage);
+            const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+            updateGuestbookCache(id, {
+                content: newContent,
+                status: 'unresolved',
+                reject_reason: null,
+                is_hidden: isAdmin ? 0 : 1
+            });
         } else {
             const data = await response.json();
             showNotification(data.error || '编辑失败', 'error');
