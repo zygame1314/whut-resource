@@ -634,13 +634,13 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
 }
 async function handleResolve(entry, reply, searchResults = null, resourcePath = null, env = null, autoMode = false, note = null) {
     if (autoMode && env && entry) {
-        let resolveValue = resourcePath;
+        let resolveValue = null;
         if (resourcePath || note) {
             resolveValue = JSON.stringify({ path: resourcePath, note: note });
-            await env.DB.prepare(
-                'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ?, is_hidden = 0 WHERE id = ?'
-            ).bind('resolved', resolveValue || null, entry.id).run();
         }
+        await env.DB.prepare(
+            'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?'
+        ).bind('resolved', resolveValue, entry.id).run();
         await logAdminAction(env, 'ai_resolve', 'guestbook', entry.id, reply, JSON.stringify({
             content: entry.content,
             nickname: entry.nickname,

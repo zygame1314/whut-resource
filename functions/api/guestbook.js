@@ -167,7 +167,7 @@ async function handlePost(request, env, context) {
                 ).bind(newId).first();
                 if (newEntry && newEntry.role !== 'admin') {
                     const aiResult = await processWithAIAgent(newEntry, env, true);
-                    if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending')) {
+                    if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
                         await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
                     }
                 }
@@ -242,7 +242,7 @@ async function handlePut(request, env, context) {
                     ).bind(id).first();
                     if (updatedEntry && user.role !== 'admin') {
                         const aiResult = await processWithAIAgent(updatedEntry, env, true);
-                        if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending')) {
+                        if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
                             await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
                         }
                     }
