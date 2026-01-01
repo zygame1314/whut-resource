@@ -156,7 +156,7 @@ async function handlePost(request, env, context) {
         return new Response(JSON.stringify({ error: '内容过长（最多500字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const result = await env.DB.prepare(
-        'INSERT INTO guestbook (user_id, content) VALUES (?, ?)'
+        'INSERT INTO guestbook (user_id, content, is_hidden) VALUES (?, ?, 1)'
     ).bind(user.id, content.trim()).run();
     const newId = result.meta.last_row_id;
     if (context && context.waitUntil) {
@@ -166,7 +166,10 @@ async function handlePost(request, env, context) {
                     'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                 ).bind(newId).first();
                 if (newEntry && newEntry.role !== 'admin') {
-                    await processWithAIAgent(newEntry, env, true);
+                    const aiResult = await processWithAIAgent(newEntry, env, true);
+                    if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending')) {
+                        await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
+                    }
                 }
             } catch (err) {
                 console.error('自动AI处理失败:', err);

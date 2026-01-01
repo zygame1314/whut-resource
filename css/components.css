@@ -1263,6 +1263,16 @@
     animation: pulse 1.5s ease-in-out infinite;
 }
 
+.status-badge.auditing {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #ffb300;
+}
+
+[data-theme='dark'] .status-badge.auditing {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #ffd54f;
+}
+
 .reject-reason {
     margin-top: 0.75rem;
     padding: 0.75rem 1rem;
@@ -3548,7 +3558,6 @@ textarea.form-input {
     color: var(--warning, #e67e22);
 }
 
-/* Search Tips CSS */
 .search-tips-toggle {
     position: absolute;
     right: 160px;

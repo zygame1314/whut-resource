@@ -671,6 +671,9 @@ function renderGuestbook(messages) {
         } else {
             statusBadge = '<span class="status-badge unresolved">未解决</span>';
         }
+        if (msg.is_hidden && msg.status !== 'rejected') {
+            statusBadge = '<span class="status-badge auditing"><i class="fas fa-hourglass-half"></i> 审核中</span>';
+        }
         let pinnedBadge = '';
         if (msg.is_pinned) {
             pinnedBadge = '<span class="pinned-badge"><i class="fas fa-thumbtack"></i> 置顶</span>';
