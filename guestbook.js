@@ -457,6 +457,17 @@ function refreshGuestbook(page = 1) {
     guestbookCache = { data: [] };
     fetchAndDisplayGuestbook(page);
 }
+function updateGuestbookCache(id, updates) {
+    const index = guestbookCache.data.findIndex(msg => msg.id === id);
+    if (index !== -1) {
+        guestbookCache.data[index] = { ...guestbookCache.data[index], ...updates };
+        fetchAndDisplayGuestbook(currentGuestbookPage);
+    }
+}
+function removeFromGuestbookCache(id) {
+    guestbookCache.data = guestbookCache.data.filter(msg => msg.id !== id);
+    fetchAndDisplayGuestbook(currentGuestbookPage);
+}
 async function fetchAndDisplayGuestbook(page = 1) {
     if (!guestbookSection) return;
     try {
@@ -883,9 +894,36 @@ async function handleGuestbookAction(id, action, btnElement) {
                 showNotification(data.error || '操作失败', 'error');
             }
         } else {
-            if (action === 'hide' || action === 'unhide' || action === 'pin' || action === 'unpin' || action === 'resolve' || action === 'unresolve' || action === 'reject' || action === 'unreject' || action === 'ban_user' || action === 'unban_user') {
-                showNotification('操作成功', 'success');
-                refreshGuestbook(currentGuestbookPage);
+            if (action === 'like' || action === 'unlike') {
+                const msg = guestbookCache.data.find(m => m.id === id);
+                if (msg) {
+                    msg.likes = action === 'like' ? msg.likes + 1 : Math.max(0, msg.likes - 1);
+                    msg.has_liked = action === 'like';
+                }
+            } else if (action === 'hide') {
+                updateGuestbookCache(id, { is_hidden: 1 });
+                showNotification('留言已隐藏', 'success');
+            } else if (action === 'unhide') {
+                updateGuestbookCache(id, { is_hidden: 0 });
+                showNotification('留言已取消隐藏', 'success');
+            } else if (action === 'pin') {
+                updateGuestbookCache(id, { is_pinned: 1 });
+                showNotification('留言已置顶', 'success');
+            } else if (action === 'unpin') {
+                updateGuestbookCache(id, { is_pinned: 0 });
+                showNotification('留言已取消置顶', 'success');
+            } else if (action === 'resolve' || action === 'unresolve') {
+                updateGuestbookCache(id, { status: action === 'resolve' ? 'resolved' : 'unresolved', reject_reason: null });
+                showNotification(action === 'resolve' ? '留言已标记为已解决' : '留言已标记为未解决', 'success');
+            } else if (action === 'reject') {
+                updateGuestbookCache(id, { status: 'rejected', is_hidden: 1 });
+                showNotification('留言已驳回', 'success');
+            } else if (action === 'unreject') {
+                updateGuestbookCache(id, { status: 'unresolved', reject_reason: null });
+                showNotification('留言已取消驳回', 'success');
+            } else if (action === 'ban_user' || action === 'unban_user') {
+                updateGuestbookCache(id, { is_banned: action === 'ban_user' });
+                showNotification(action === 'ban_user' ? '用户已封禁' : '用户已解封', 'success');
             }
         }
     } catch (error) {
@@ -919,7 +957,7 @@ async function handleDeleteGuestbook(id) {
         });
         if (response.ok) {
             showNotification('留言已删除', 'success');
-            refreshGuestbook(currentGuestbookPage);
+            removeFromGuestbookCache(id);
         } else {
             showNotification('删除失败', 'error');
         }
@@ -1217,13 +1255,17 @@ async function showAiResultModal(guestbookId, result) {
                         await applyAiAction(guestbookId, 'resolve', null, resolveValue);
                     }
                     closeModal();
-                    refreshGuestbook(currentGuestbookPage);
+                    if (result.action === 'reject') {
+                        updateGuestbookCache(guestbookId, { status: 'rejected', reject_reason: result.reason, is_hidden: 1 });
+                    } else {
+                        updateGuestbookCache(guestbookId, { status: 'resolved', reject_reason: null, resolve_note: resolveValue, is_hidden: 0 });
+                    }
                     return;
                 }
                 if (action === 'hide') {
                     await applyAiAction(guestbookId, 'hide', null, null);
                     closeModal();
-                    refreshGuestbook(currentGuestbookPage);
+                    updateGuestbookCache(guestbookId, { is_hidden: 1 });
                     return;
                 }
                 if (action === 'delete') {
@@ -1241,7 +1283,7 @@ async function showAiResultModal(guestbookId, result) {
                     if (confirmed) {
                         await applyAiDeleteAction(guestbookId);
                         closeModal();
-                        refreshGuestbook(currentGuestbookPage);
+                        removeFromGuestbookCache(guestbookId);
                     }
                     return;
                 }
@@ -1267,7 +1309,7 @@ async function showAiResultModal(guestbookId, result) {
                             });
                             showNotification('用户已封禁且留言已删除', 'success');
                             closeModal();
-                            refreshGuestbook(currentGuestbookPage);
+                            removeFromGuestbookCache(guestbookId);
                         } catch (err) {
                             console.error('Ban and delete failed:', err);
                             showNotification('操作部分失败，请重试', 'error');
@@ -1278,7 +1320,7 @@ async function showAiResultModal(guestbookId, result) {
                 if (action === 'resolve') {
                     await applyAiAction(guestbookId, 'resolve', null, null);
                     closeModal();
-                    refreshGuestbook(currentGuestbookPage);
+                    updateGuestbookCache(guestbookId, { status: 'resolved', reject_reason: null, is_hidden: 0 });
                     return;
                 }
                 if (action === 'reject') {
