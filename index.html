@@ -178,6 +178,11 @@
                             <button id="clear-search-btn" class="clear-search-btn" style="display: none;">
                                 <i class="fas fa-times"></i>
                             </button>
+                            <label class="search-tips-toggle" title="搜索小技巧">
+                                <input type="checkbox" id="search-tips-checkbox">
+                                <span class="tips-toggle-label"><i class="fas fa-lightbulb"></i><span
+                                        class="tips-toggle-text">技巧</span></span>
+                            </label>
                             <label class="ai-search-toggle" title="AI 智能搜索：使用语义理解查找相关文件，即使文件名不完全匹配">
                                 <input type="checkbox" id="ai-search-toggle">
                                 <span class="toggle-label"><i class="fas fa-magic"></i><span class="toggle-text">AI
@@ -193,6 +198,33 @@
                             <button class="filter-btn" data-filter="doc">文档</button>
                             <button class="filter-btn" data-filter="image">图片</button>
                             <button class="filter-btn" data-filter="video">视频</button>
+                        </div>
+                        <div id="search-tips-content" class="search-tips-content">
+                            <div class="tip-item tip-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span class="tip-text"><strong>重要限制</strong>: 由于采用三元分词索引，<strong>每个关键词至少需要 3
+                                        个字符</strong>（汉字或字母）。<br>例如搜 "数学" (2字) 无法匹配，请搜 "高等数学" (4字)。</span>
+                            </div>
+                            <div class="tip-item">
+                                <i class="fas fa-keyboard"></i>
+                                <span class="tip-text"><strong>空格 (AND)</strong>: 输入 <code>高等数学 期末真题</code>
+                                    查找同时包含这两项的文件</span>
+                            </div>
+                            <div class="tip-item">
+                                <i class="fas fa-exchange-alt"></i>
+                                <span class="tip-text"><strong>OR (或)</strong>: 输入 <code>大学物理 OR 线性代数</code>
+                                    查找包含任一关键词的文件</span>
+                            </div>
+                            <div class="tip-item">
+                                <i class="fas fa-minus-circle"></i>
+                                <span class="tip-text"><strong>NOT (排除)</strong>: 输入 <code>大学英语 NOT 课后习题</code>
+                                    排除包含"答案"的结果</span>
+                            </div>
+                            <div class="tip-item">
+                                <i class="fas fa-magic"></i>
+                                <span class="tip-text"><strong>AI 搜索</strong>: 找不到？试试开启 <code>AI 搜索</code>
+                                    开关，用自然语言描述你想找的内容</span>
+                            </div>
                         </div>
                     </div>
 

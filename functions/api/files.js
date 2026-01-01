@@ -241,6 +241,26 @@ export async function onRequestGet({ request, env, waitUntil }) {
         }
         const MAX_LIMIT = 1000;
         const search = url.searchParams.get('search') || '';
+        if (search) {
+            const blockedExtensions = new Set([
+                'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md',
+                'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg',
+                'mp4', 'webm', 'mov', 'avi', 'mkv',
+                'mp3', 'wav', 'flac', 'm4a',
+                'zip', 'rar', '7z', 'tar', 'gz',
+                'exe', 'msi', 'apk', 'ipa', 'dmg', 'iso'
+            ]);
+            const cleanTerm = search.trim().toLowerCase().replace(/^\./, '');
+            if (blockedExtensions.has(cleanTerm)) {
+                return new Response(JSON.stringify({
+                    success: true,
+                    files: [],
+                    directories: [],
+                    totalItems: 0,
+                    message: "关键词太过宽泛，请勿直接搜索文件后缀名。"
+                }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            }
+        }
         if (search && search.length < 3) {
             return new Response(JSON.stringify({
                 success: true,

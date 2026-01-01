@@ -1900,6 +1900,31 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
         return;
     }
     const isGlobal = searchTerm.trim() !== '';
+    if (isGlobal) {
+        const blockedExtensions = new Set([
+            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md',
+            'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg',
+            'mp4', 'webm', 'mov', 'avi', 'mkv',
+            'mp3', 'wav', 'flac', 'm4a',
+            'zip', 'rar', '7z', 'tar', 'gz',
+            'exe', 'msi', 'apk', 'ipa', 'dmg', 'iso'
+        ]);
+        const cleanTerm = searchTerm.trim().toLowerCase().replace(/^\./, '');
+        if (blockedExtensions.has(cleanTerm)) {
+            fileListElement.innerHTML = `
+                <li class="empty-state">
+                    <i class="fas fa-filter" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.6;"></i>
+                    关键词 "${searchTerm}" 太过宽泛<br>
+                    <span style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem; display: block;">
+                        请勿直接搜索文件后缀名，建议搭配文件名关键词使用
+                    </span>
+                </li>
+            `;
+            updateBreadcrumb('', true, searchTerm.trim());
+            renderPaginationControls(null);
+            return;
+        }
+    }
     if (!isGlobal) {
         currentPrefix = prefix;
     }
@@ -2084,6 +2109,13 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                     currentTotalItems = cachedResult.totalItems;
                     totalPages = paginationData.totalPages;
                     isCacheHit = true;
+                    currentFetchedData = receivedData;
+                    currentPaginationData = paginationData;
+                    renderFileList('', receivedData, true, searchTerm.trim(), paginationData, false);
+                    fileListElement.style.minHeight = '';
+                    updateUploadButtonLink();
+                    updateSelectAllButtonState();
+                    return;
                 } else {
                     console.log(`发起全局搜索(未缓存): "${searchTerm}", fetching all items...`);
                     const urlParams = new URLSearchParams();
@@ -2095,6 +2127,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                             'Authorization': `Bearer ${token}`,
                         },
                     });
+                    let result;
                     try {
                         result = await response.json();
                     } catch (jsonError) {
@@ -2110,13 +2143,16 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                                 timestamp: Date.now()
                             });
                             fileListElement.innerHTML = `
-                                <li class="empty-state">
-                                    <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
-                                    ${result.message}
-                                </li>
-                            `;
+                                    <li class="empty-state">
+                                        <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+                                        ${result.message}
+                                    </li>
+                                `;
                             updateBreadcrumb(isGlobal ? '' : prefix, isGlobal, searchTerm.trim());
                             renderPaginationControls(null);
+                            fileListElement.style.minHeight = '';
+                            updateUploadButtonLink();
+                            updateSelectAllButtonState();
                             return;
                         }
                         const allFiles = result.files || [];
@@ -2144,6 +2180,13 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
                         currentTotalItems = totalFound;
                         totalPages = paginationData.totalPages;
                         isCacheHit = true;
+                        currentFetchedData = receivedData;
+                        currentPaginationData = paginationData;
+                        renderFileList('', receivedData, true, searchTerm.trim(), paginationData, false);
+                        fileListElement.style.minHeight = '';
+                        updateUploadButtonLink();
+                        updateSelectAllButtonState();
+                        return;
                     } else {
                         throw new Error(result?.error || `HTTP 错误 ${response.status}`);
                     }

@@ -263,7 +263,6 @@
 
 .ai-search-toggle:has(input:checked) {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-color: transparent;
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
 }
 
@@ -276,7 +275,7 @@
     animation: magic-sparkle 1.5s ease infinite;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
     .ai-search-toggle {
         padding: 0.4rem;
         border-radius: 50%;
@@ -3547,4 +3546,145 @@ textarea.form-input {
 
 .verify-warning-text {
     color: var(--warning, #e67e22);
+}
+
+/* Search Tips CSS */
+.search-tips-toggle {
+    position: absolute;
+    right: 160px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    padding: 0.4rem 0.8rem;
+    background: var(--background-alt);
+    border-radius: 20px;
+    border: 1.5px solid var(--border-color);
+    transition: all 0.3s ease;
+    z-index: 2;
+    font: inherit;
+    line-height: inherit;
+}
+
+.search-tips-toggle:hover {
+    border-color: #f1c40f;
+    background: rgba(241, 196, 15, 0.08);
+}
+
+.search-tips-toggle .tips-toggle-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.3s ease;
+}
+
+.search-tips-toggle .tips-toggle-label i {
+    font-size: 0.9rem;
+    color: #f1c40f;
+}
+
+.search-tips-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.search-tips-toggle:has(input:checked) {
+    background: linear-gradient(135deg, #f39c12 0%, #f1c40f 100%);
+    box-shadow: 0 4px 12px rgba(241, 196, 15, 0.35);
+}
+
+.search-tips-toggle:has(input:checked) .tips-toggle-label {
+    color: white;
+}
+
+.search-tips-toggle:has(input:checked) .tips-toggle-label i {
+    color: white;
+    animation: magic-sparkle 1.5s ease infinite;
+}
+
+@media (max-width: 1200px) {
+    .search-tips-toggle {
+        padding: 0.4rem;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        justify-content: center;
+        right: 100px;
+    }
+
+    .tips-toggle-text {
+        display: none;
+    }
+
+    .tips-toggle-label {
+        gap: 0;
+    }
+}
+
+.search-tips-content {
+    margin-top: 1rem;
+    padding: 1.2rem;
+    background: var(--background);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-soft);
+    animation: slideDown 0.3s ease-out;
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.search-container:has(#search-tips-checkbox:checked) .search-tips-content {
+    display: grid;
+}
+
+.tip-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.tip-item:hover {
+    background-color: var(--background-secondary);
+}
+
+.tip-item.tip-warning {
+    grid-column: 1 / -1;
+    background-color: rgba(231, 76, 60, 0.1);
+}
+
+.tip-item.tip-warning i {
+    color: var(--accent-color);
+}
+
+.tip-item i {
+    color: var(--primary-color);
+    margin-top: 0.2rem;
+    font-size: 1rem;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.tip-text {
+    font-size: 0.9rem;
+}
+
+.tip-item code {
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary-color);
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+    font-size: 0.9em;
+    border: 1px solid rgba(var(--primary-rgb), 0.2);
 }

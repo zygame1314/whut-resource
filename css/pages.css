@@ -175,7 +175,7 @@
 
 .clear-search-btn {
     position: absolute;
-    right: 155px;
+    right: 240px;
     top: 50%;
     transform: translateY(-50%);
     background: transparent;
@@ -200,13 +200,13 @@
 }
 
 
-@media (max-width: 600px) {
+@media (max-width: 1200px) {
     #search-input {
         padding-right: 130px;
     }
 
     .clear-search-btn {
-        right: 105px;
+        right: 140px;
     }
 }
 
