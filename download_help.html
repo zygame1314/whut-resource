@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>上传指南 | 武理资源共享平台</title>
+    <title>下载与预览帮助 | 武理资源共享平台</title>
     <link rel="icon" href="favicon.png" type="image/png">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="favicon.png">
@@ -50,51 +50,55 @@
 
     <main class="main-content container" style="padding-top: 100px;">
         <section class="page-content">
-            <h1 class="section-title text-gradient">文件上传指南</h1>
+            <h1 class="section-title text-gradient">下载与预览</h1>
             <div class="content-box">
-                <p class="text-secondary">手里有好的复习资料？想让它发光发热？这就教你怎么上传！</p>
-
                 <div class="rule-item">
-                    <div class="rule-icon"><i class="fas fa-user-lock"></i></div>
+                    <div class="rule-icon"><i class="fas fa-exclamation-triangle"></i></div>
                     <div class="rule-content">
-                        <h3>第一步：获取权限</h3>
-                        <p>为了防止广告和恶意文件，<strong>目前上传功能仅对管理员开放</strong>。<br>
-                            如果你有大量资料想分享，欢迎联系站长（页脚有邮箱），我们会非常开心地给你开通权限，或者你也可以直接打包发给站长代传。</p>
+                        <h3>下载死活不动 / 报错 403？</h3>
+                        <p><strong>IDM 的锅</strong>：IDM (Internet Download Manager) 有时候抢链接太快，验证没过它就抢跑了。报错时按住
+                            <code>Alt</code> 键强制用浏览器下载，或者干脆把 IDM 关了试试。
+                        </p>
                     </div>
                 </div>
 
                 <div class="rule-item">
-                    <div class="rule-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <div class="rule-icon"><i class="fas fa-file-invoice"></i></div>
                     <div class="rule-content">
-                        <h3>第二步：进入上传区</h3>
-                        <p>登录后，首页右上角会出现一个很明显的 <strong>“上传资料”</strong> 按钮（如果你没看到，说明权限还没开通哦）。点击它，就能进入上传页面啦。</p>
+                        <h3>为什么有的文件不能预览？</h3>
+                        <p>为了防止你的浏览器直接卡死，我们给预览功能设了个 <strong>300MB</strong> 的上限。那种几百兆的高清视频或者超大 PDF，还是乖乖下载到本地看吧。</p>
                     </div>
                 </div>
 
                 <div class="rule-item">
-                    <div class="rule-icon"><i class="fas fa-file-import"></i></div>
+                    <div class="rule-icon"><i class="fas fa-window-restore"></i></div>
                     <div class="rule-content">
-                        <h3>第三步：拖拽上传</h3>
-                        <p>最简单的姿势：直接把文件<strong>拖进框里</strong>就完事了！也可以点击按钮选择文件。支持批量上传，一次传一门课的所有资料，美滋滋。</p>
+                        <h3>支持在线看 PPT 吗？</h3>
+                        <p><strong>必须支持！</strong> 我们集成了微软 Office 服务，Word、PPT、Excel 都能在线打开。PDF
+                            在电脑上是原生预览，<strong>手机上会自动在新标签页打开</strong>，方便你缩放查看。</p>
                     </div>
                 </div>
 
                 <div class="rule-item">
-                    <div class="rule-icon"><i class="fas fa-magic"></i></div>
+                    <div class="rule-icon"><i class="fas fa-wifi"></i></div>
                     <div class="rule-content">
-                        <h3>第四步：选对位置（AI 省流黑科技）</h3>
-                        <p>手动找文件夹太累？选中文件后，点击 <strong>“AI 推荐位置”</strong> 按钮，<strong>LLM</strong> 会立马接管现场：</p>
+                        <h3>加载慢 / 连不上？</h3>
+                        <p><strong>只要 Cloudflare 没炸，那就是你的网太拉。</strong></p>
                         <ul
                             style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
-                            <li><strong>自动翻译</strong>：它知道“高数”就是“高等数学”，“毛概”就是“毛泽东思想...”，完全不用你操心缩写。</li>
-                            <li><strong>意念合一</strong>：提取关键词后，会通过 <strong>向量检索</strong> 在数据库几千个目录里找最匹配的那个。</li>
-                            <li><strong>小贴士</strong>：因为是按“含义”匹配，所以你传“微积分”，它推荐放入“高等数学”目录，这可是非常科学的哦！</li>
+                            <li><strong>症状</strong>：注册时人机验证一直转圈、文件下载没速度、预览加载失败。</li>
+                            <li><strong>解法</strong>：校园网对 Cloudflare
+                                连接经常抽风。请别犹豫，立马<strong>切换手机热点</strong>，或者<strong>使用魔法</strong>。换个网，世界瞬间清爽。</li>
                         </ul>
                     </div>
                 </div>
 
-                <a href="index.html" class="primary-btn" style="margin-top: 2rem;"><i class="fas fa-arrow-left"></i>
-                    回首页看看</a>
+                <a href="guestbook_rules.html" class="secondary-btn" style="margin-top: 2rem; margin-right: 1rem;">
+                    <i class="fas fa-question-circle"></i> 还有问题？去留言
+                </a>
+                <a href="index.html" class="primary-btn" style="margin-top: 2rem;">
+                    <i class="fas fa-home"></i> 返回首页
+                </a>
             </div>
         </section>
     </main>

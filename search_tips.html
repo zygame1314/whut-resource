@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>上传指南 | 武理资源共享平台</title>
+    <title>搜索技巧 | 武理资源共享平台</title>
     <link rel="icon" href="favicon.png" type="image/png">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="favicon.png">
@@ -50,51 +50,68 @@
 
     <main class="main-content container" style="padding-top: 100px;">
         <section class="page-content">
-            <h1 class="section-title text-gradient">文件上传指南</h1>
+            <h1 class="section-title text-gradient">搜索技巧</h1>
             <div class="content-box">
-                <p class="text-secondary">手里有好的复习资料？想让它发光发热？这就教你怎么上传！</p>
+                <p class="text-secondary">资源越来越多，掌握这几招“搜商”，期末复习能省一半时间。</p>
 
                 <div class="rule-item">
-                    <div class="rule-icon"><i class="fas fa-user-lock"></i></div>
+                    <div class="rule-icon"><i class="fas fa-keyboard"></i></div>
                     <div class="rule-content">
-                        <h3>第一步：获取权限</h3>
-                        <p>为了防止广告和恶意文件，<strong>目前上传功能仅对管理员开放</strong>。<br>
-                            如果你有大量资料想分享，欢迎联系站长（页脚有邮箱），我们会非常开心地给你开通权限，或者你也可以直接打包发给站长代传。</p>
+                        <h3>为什么搜不动？（3字符限制）</h3>
+                        <p>为了防止数据库被搜欠费，我们设了个小门槛：<strong>搜索词至少 3 个字</strong>。搜“C”、“高数”这种太短的词系统会罢工，试着多打几个字，比如“C语言”、“高等数学”。
+                        </p>
                     </div>
                 </div>
 
                 <div class="rule-item">
-                    <div class="rule-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <div class="rule-icon"><i class="fas fa-bullseye"></i></div>
                     <div class="rule-content">
-                        <h3>第二步：进入上传区</h3>
-                        <p>登录后，首页右上角会出现一个很明显的 <strong>“上传资料”</strong> 按钮（如果你没看到，说明权限还没开通哦）。点击它，就能进入上传页面啦。</p>
-                    </div>
-                </div>
-
-                <div class="rule-item">
-                    <div class="rule-icon"><i class="fas fa-file-import"></i></div>
-                    <div class="rule-content">
-                        <h3>第三步：拖拽上传</h3>
-                        <p>最简单的姿势：直接把文件<strong>拖进框里</strong>就完事了！也可以点击按钮选择文件。支持批量上传，一次传一门课的所有资料，美滋滋。</p>
+                        <h3>搜全名准，还是搜简称准？</h3>
+                        <p><strong>普通模式</strong>下，我们优先匹配文件名。所以搜 <strong>“高等数学A”</strong>
+                            肯定比搜“高数A”准，直接就能看到期末真题。别名虽然也在做，但还是大名最稳。</p>
                     </div>
                 </div>
 
                 <div class="rule-item">
                     <div class="rule-icon"><i class="fas fa-magic"></i></div>
                     <div class="rule-content">
-                        <h3>第四步：选对位置（AI 省流黑科技）</h3>
-                        <p>手动找文件夹太累？选中文件后，点击 <strong>“AI 推荐位置”</strong> 按钮，<strong>LLM</strong> 会立马接管现场：</p>
+                        <h3>AI 搜索是啥黑科技？</h3>
+                        <p>这可不是关键词匹配那么简单。我们接入了 <strong>LLM</strong> 和 <strong>向量数据库</strong>。</p>
                         <ul
                             style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
-                            <li><strong>自动翻译</strong>：它知道“高数”就是“高等数学”，“毛概”就是“毛泽东思想...”，完全不用你操心缩写。</li>
-                            <li><strong>意念合一</strong>：提取关键词后，会通过 <strong>向量检索</strong> 在数据库几千个目录里找最匹配的那个。</li>
-                            <li><strong>小贴士</strong>：因为是按“含义”匹配，所以你传“微积分”，它推荐放入“高等数学”目录，这可是非常科学的哦！</li>
+                            <li><strong>听得懂人话</strong>：你搜“大物”，AI 会自动翻译成“大学物理”；你搜“线代”，它知道是“线性代数”。不用死记硬背课程全名。</li>
+                            <li><strong>猜得透意图</strong>：支持自然语言描述。比如试试搜 <strong>“去年高数期末卷”</strong>，AI
+                                会提取出“高等数学”、“期末”、“试卷”等核心概念，甚至能根据语意找到文件名里不带“去年”但确实是最新的文件。</li>
+                            <li><strong>原理揭秘</strong>：先用大模型把你的口语转化成标准关键词，再通过向量匹配找到内容相关的资源。所以，<strong>放飞自我，直接说人话</strong>，往往搜得更准。
+                            </li>
                         </ul>
                     </div>
                 </div>
 
-                <a href="index.html" class="primary-btn" style="margin-top: 2rem;"><i class="fas fa-arrow-left"></i>
-                    回首页看看</a>
+                <div class="rule-item">
+                    <div class="rule-icon"><i class="fas fa-code"></i></div>
+                    <div class="rule-content">
+                        <h3>高级搜索语法（我是懂哥）</h3>
+                        <p>如果你想更精准地控制搜索结果，可以试试这些布尔运算符：</p>
+                        <ul
+                            style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
+                            <li><strong>空格 (AND)</strong>：<code>高等数学 期末真题</code> → 同时包含这两个词的文件</li>
+                            <li><strong>OR (或)</strong>：<code>大学物理 OR 线性代数</code> → 包含任一关键词的文件</li>
+                            <li><strong>NOT (排除)</strong>：<code>大学英语 NOT 课后习题</code> → 排除包含"课后习题"的结果</li>
+                        </ul>
+                        <p style="margin-top: 0.8rem; color: var(--text-secondary);">
+                            <i class="fas fa-lightbulb" style="color: var(--warning-color);"></i>
+                            <strong>小贴士</strong>：回到首页，点击搜索框旁边的 <strong>"技巧"</strong> 按钮，可以随时查看这些语法提示，不用死记硬背。
+                        </p>
+                    </div>
+                </div>
+
+                <a href="guestbook_rules.html" class="secondary-btn" style="margin-top: 2rem; margin-right: 1rem;">
+                    <i class="fas fa-question-circle"></i> 还有问题？去留言
+                </a>
+                <a href="index.html" class="primary-btn" style="margin-top: 2rem;">
+                    <i class="fas fa-home"></i> 返回首页
+                </a>
             </div>
         </section>
     </main>

@@ -151,10 +151,13 @@
 .footer-section ul {
     list-style: none;
     padding: 0;
+    column-count: 2;
+    column-gap: 2rem;
 }
 
 .footer-section ul li {
     margin-bottom: 0.5rem;
+    break-inside: avoid;
 }
 
 .footer-section ul li a {

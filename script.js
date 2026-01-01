@@ -1885,7 +1885,7 @@ function renderPaginationControls(paginationData) {
     };
     controlsContainer.appendChild(nextButton);
 }
-async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
+async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shouldScroll = true) {
     const token = localStorage.getItem('authToken');
     if (!token) {
         fileListElement.innerHTML = `
@@ -1934,7 +1934,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1) {
         currentPage = page;
     }
     const fileExplorer = document.getElementById('file-list');
-    if (fileExplorer) {
+    if (fileExplorer && shouldScroll) {
         const headerOffset = 80;
         const elementPosition = fileExplorer.getBoundingClientRect().top;
         const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
@@ -2320,7 +2320,7 @@ document.addEventListener('authSuccess', () => {
     if (highlightParam) {
         highlightKey = highlightParam;
     }
-    fetchAndDisplayFiles(pathParam || '', '', 1);
+    fetchAndDisplayFiles(pathParam || '', '', 1, !!(pathParam || highlightParam));
     fetchFileStats();
     fetchAndBuildFolderTree();
     fetchAndRenderHotFolders();
@@ -2351,7 +2351,7 @@ document.addEventListener('authSuccess', () => {
 });
 document.addEventListener('authRestored', () => {
     console.log("恢复验证状态，开始加载根目录文件列表...");
-    fetchAndDisplayFiles('', '', 1);
+    fetchAndDisplayFiles('', '', 1, false);
     fetchFileStats();
     fetchAndBuildFolderTree();
     fetchAndRenderHotFolders();
