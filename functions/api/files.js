@@ -147,7 +147,10 @@ export async function onRequestGet({ request, env, waitUntil }) {
             }
             return new Response(JSON.stringify({ success: true, directories: directories, cache: cacheHit }), {
                 status: 200,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+                headers: addCorsHeaders({
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'public, max-age=86400'
+                })
             });
         }
         if (action === 'getHotFolders') {
@@ -225,7 +228,10 @@ export async function onRequestGet({ request, env, waitUntil }) {
             }
             return new Response(JSON.stringify({ success: true, hotFolders: hotFolders }), {
                 status: 200,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+                headers: addCorsHeaders({
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'public, max-age=3600'
+                })
             });
         }
         if (action === 'recentUploads') {
