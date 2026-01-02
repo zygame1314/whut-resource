@@ -141,7 +141,7 @@ async function handlePost(request, env, user) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
-    const validTypes = ['delete_file', 'delete_folder', 'ban_user'];
+    const validTypes = ['delete_file', 'delete_folder', 'ban_user', 'unban_user'];
     if (!validTypes.includes(request_type)) {
         return new Response(JSON.stringify({ error: '无效的请求类型' }), {
             status: 400,
@@ -226,6 +226,8 @@ async function executeApprovedRequest(adminRequest, env) {
             return await executeDeleteFile(requestData, env, adminRequest.request_type === 'delete_folder');
         case 'ban_user':
             return await executeBanUser(requestData, env);
+        case 'unban_user':
+            return await executeUnbanUser(requestData, env);
         default:
             throw new Error(`未知的请求类型: ${adminRequest.request_type}`);
     }
@@ -280,6 +282,16 @@ async function executeBanUser(data, env) {
         'UPDATE users SET is_banned = TRUE WHERE id = ?'
     ).bind(targetUserId).run();
     return { banned_user_id: targetUserId };
+}
+async function executeUnbanUser(data, env) {
+    const { user_id } = data;
+    if (!user_id) {
+        throw new Error('未指定用户ID');
+    }
+    await env.DB.prepare(
+        'UPDATE users SET is_banned = FALSE WHERE id = ?'
+    ).bind(user_id).run();
+    return { unbanned_user_id: user_id };
 }
 export async function onRequestOptions() {
     return new Response(null, { headers: addCorsHeaders() });

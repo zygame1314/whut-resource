@@ -70,15 +70,34 @@ async function handleGet(request, env) {
     }
     if (action === 'unban_user') {
         const user = await getUser(request, env);
-        if (!isSuperAdmin(user)) {
-            return new Response(JSON.stringify({ error: '需要根管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const userId = url.searchParams.get('user_id');
         if (!userId) {
             return new Response(JSON.stringify({ error: '缺少用户ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        await env.DB.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(parseInt(userId)).run();
-        return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+
+        if (isSuperAdmin(user)) {
+            await env.DB.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(parseInt(userId)).run();
+            return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        } else {
+            const targetUser = await env.DB.prepare('SELECT nickname FROM users WHERE id = ?').bind(parseInt(userId)).first();
+            const requestData = {
+                user_id: parseInt(userId),
+                nickname: targetUser ? targetUser.nickname : '未知用户',
+                source: 'banned_users_list'
+            };
+            await env.DB.prepare(`
+                INSERT INTO admin_requests (request_type, request_data, requested_by, status)
+                VALUES (?, ?, ?, 'pending')
+            `).bind('unban_user', JSON.stringify(requestData), user.id).run();
+            return new Response(JSON.stringify({
+                success: true,
+                pending_approval: true,
+                message: '已提交解封请求，等待根管理员审批'
+            }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
     }
     const MAX_LIMIT = 500;
     const user = await getUser(request, env);
@@ -340,13 +359,33 @@ async function handlePut(request, env, context) {
             }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
     } else if (action === 'unban_user') {
-        if (!isSuperAdmin(user)) {
-            return new Response(JSON.stringify({ error: '需要根管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        const guestbookEntry = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
+        const guestbookEntry = await env.DB.prepare('SELECT user_id, content FROM guestbook WHERE id = ?').bind(id).first();
         if (guestbookEntry) {
-            await env.DB.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(guestbookEntry.user_id).run();
+            if (isSuperAdmin(user)) {
+                await env.DB.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(guestbookEntry.user_id).run();
+            } else {
+                const targetUser = await env.DB.prepare('SELECT nickname FROM users WHERE id = ?').bind(guestbookEntry.user_id).first();
+                const requestData = {
+                    guestbook_id: id,
+                    user_id: guestbookEntry.user_id,
+                    nickname: targetUser ? targetUser.nickname : '未知用户',
+                    content_preview: guestbookEntry.content?.substring(0, 100)
+                };
+                await env.DB.prepare(`
+                    INSERT INTO admin_requests (request_type, request_data, requested_by, status)
+                    VALUES (?, ?, ?, 'pending')
+                `).bind('unban_user', JSON.stringify(requestData), user.id).run();
+                return new Response(JSON.stringify({
+                    success: true,
+                    pending_approval: true,
+                    message: '已提交解封请求，等待根管理员审批'
+                }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            }
         }
+        return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     } else {
         return new Response(JSON.stringify({ error: '无效操作' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }

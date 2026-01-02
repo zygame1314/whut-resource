@@ -63,42 +63,83 @@ function updateAuthUI() {
             ? '无限'
             : `${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次`;
         if (authSection) {
-            const superAdminButtons = isSuperAdmin(currentUser) ? `
+            const requestButton = isSuperAdmin(currentUser) ? `
                 <button id="admin-requests-btn" class="secondary-btn" title="审批请求">
-                    <i class="fas fa-clipboard-check"></i>
+                    <i class="fas fa-clipboard-check"></i> 审批
                     <span id="pending-requests-badge" class="badge" style="display:none;">0</span>
                 </button>
-                <button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>
-                <button id="vector-sync-btn" class="secondary-btn" title="同步向量索引"><i class="fas fa-brain"></i></button>
-                <button id="banned-users-btn" class="secondary-btn" title="封禁用户管理"><i class="fas fa-user-lock"></i></button>
             ` : '';
-            const adminButtons = isAdmin(currentUser) ? `
-                <button id="admin-logs-btn" class="secondary-btn" title="查看AI操作日志"><i class="fas fa-history"></i></button>
-                <button id="my-requests-btn" class="secondary-btn" title="我的审批请求"><i class="fas fa-tasks"></i></button>
-            ` : '';
+            let dropdownItems = '';
+            if (isSuperAdmin(currentUser)) {
+                dropdownItems += `
+                    <button id="sync-btn" class="dropdown-item"><i class="fas fa-sync"></i> 同步R2文件</button>
+                    <button id="vector-sync-btn" class="dropdown-item"><i class="fas fa-brain"></i> 同步向量索引</button>
+                    <button id="banned-users-btn" class="dropdown-item"><i class="fas fa-user-lock"></i> 封禁用户管理</button>
+                    <div class="dropdown-divider"></div>
+                `;
+            }
+            if (isAdmin(currentUser)) {
+                dropdownItems += `
+                    <button id="admin-logs-btn" class="dropdown-item"><i class="fas fa-history"></i> AI操作日志</button>
+                `;
+                if (!isSuperAdmin(currentUser)) {
+                    dropdownItems += `
+                        <button id="my-requests-btn" class="dropdown-item"><i class="fas fa-tasks"></i> 我的审批请求</button>
+                    `;
+                }
+                dropdownItems += `
+                    <div class="dropdown-divider"></div>
+                `;
+            }
+            dropdownItems += `
+                <button id="change-nickname-btn" class="dropdown-item"><i class="fas fa-id-card"></i> 修改昵称</button>
+                <button id="change-pwd-btn" class="dropdown-item"><i class="fas fa-key"></i> 修改密码</button>
+            `;
             authSection.innerHTML = `
                 <span class="user-info">
                     <i class="fas fa-user"></i> ${escapeHtml(currentUser.nickname || currentUser.email)}
                     <span class="quota">(${quotaDisplay})</span>
                 </span>
-                ${superAdminButtons}
-                ${adminButtons}
-                <button id="change-nickname-btn" class="secondary-btn" title="修改昵称"><i class="fas fa-id-card"></i></button>
-                <button id="change-pwd-btn" class="secondary-btn" title="修改密码"><i class="fas fa-key"></i></button>
+                ${requestButton}
+                <div class="dropdown-container">
+                    <button id="admin-tools-toggle" class="secondary-btn" title="工具菜单">
+                        <i class="fas fa-tools"></i> 管理 <i class="fas fa-chevron-down" style="font-size: 0.8em; margin-left: 4px;"></i>
+                    </button>
+                    <div id="admin-tools-menu" class="dropdown-menu">
+                        ${dropdownItems}
+                    </div>
+                </div>
                 <button id="logout-btn" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>
             `;
             document.getElementById('logout-btn').addEventListener('click', logout);
+            const toggleBtn = document.getElementById('admin-tools-toggle');
+            const menu = document.getElementById('admin-tools-menu');
+            if (toggleBtn && menu) {
+                toggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    menu.classList.toggle('show');
+                });
+                document.addEventListener('click', (e) => {
+                    if (!menu.contains(e.target) && !toggleBtn.contains(e.target)) {
+                        menu.classList.remove('show');
+                    }
+                });
+            }
             document.getElementById('change-nickname-btn').addEventListener('click', showChangeNicknameModal);
             document.getElementById('change-pwd-btn').addEventListener('click', showChangePasswordModal);
             if (isAdmin(currentUser)) {
                 document.getElementById('admin-logs-btn').addEventListener('click', showAdminLogsModal);
-                document.getElementById('my-requests-btn').addEventListener('click', () => showAdminRequestsModal('mine'));
+                const myRequestsBtn = document.getElementById('my-requests-btn');
+                if (myRequestsBtn) {
+                    myRequestsBtn.addEventListener('click', () => showAdminRequestsModal('mine'));
+                }
             }
             if (isSuperAdmin(currentUser)) {
                 document.getElementById('sync-btn').addEventListener('click', syncFiles);
                 document.getElementById('vector-sync-btn').addEventListener('click', syncVectorIndex);
                 document.getElementById('banned-users-btn').addEventListener('click', showBannedUsersModal);
-                document.getElementById('admin-requests-btn').addEventListener('click', () => showAdminRequestsModal('all'));
+                const reqBtn = document.getElementById('admin-requests-btn');
+                if (reqBtn) reqBtn.addEventListener('click', () => showAdminRequestsModal('all'));
                 fetchPendingRequestsCount();
             }
         }
@@ -1154,17 +1195,25 @@ async function showBannedUsersModal() {
                         });
                         const data = await res.json();
                         if (data.success) {
-                            userItem.style.transition = 'opacity 0.3s, transform 0.3s';
-                            userItem.style.opacity = '0';
-                            userItem.style.transform = 'translateX(20px)';
-                            setTimeout(() => {
-                                userItem.remove();
-                                if (container.querySelectorAll('.banned-user-item').length === 0) {
-                                    container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 2rem;"><i class="fas fa-check-circle" style="font-size: 2rem; color: var(--success); margin-bottom: 1rem; display: block;"></i>暂无被封禁的用户</div>';
+                            if (data.pending_approval) {
+                                btn.innerHTML = '<i class="fas fa-clock"></i> 待审批';
+                                btn.disabled = true;
+                                if (typeof showNotification === 'function') {
+                                    showNotification(data.message || '已提交解封请求，等待审批', 'success');
                                 }
-                            }, 300);
-                            if (typeof showNotification === 'function') {
-                                showNotification('用户已解封', 'success');
+                            } else {
+                                userItem.style.transition = 'opacity 0.3s, transform 0.3s';
+                                userItem.style.opacity = '0';
+                                userItem.style.transform = 'translateX(20px)';
+                                setTimeout(() => {
+                                    userItem.remove();
+                                    if (container.querySelectorAll('.banned-user-item').length === 0) {
+                                        container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 2rem;"><i class="fas fa-check-circle" style="font-size: 2rem; color: var(--success); margin-bottom: 1rem; display: block;"></i>暂无被封禁的用户</div>';
+                                    }
+                                }, 300);
+                                if (typeof showNotification === 'function') {
+                                    showNotification('用户已解封', 'success');
+                                }
                             }
                         } else {
                             throw new Error(data.error || '解封失败');
@@ -1240,9 +1289,13 @@ async function fetchPendingRequestsCount() {
         if (response.ok) {
             const data = await response.json();
             const badge = document.getElementById('pending-requests-badge');
-            if (badge && data.count > 0) {
-                badge.textContent = data.count > 99 ? '99+' : data.count;
-                badge.style.display = 'inline-flex';
+            if (badge) {
+                if (data.count > 0) {
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
+                    badge.style.display = 'inline-flex';
+                } else {
+                    badge.style.display = 'none';
+                }
             }
         }
     } catch (e) {
@@ -1283,7 +1336,6 @@ async function showAdminRequestsModal(mode = 'all') {
             if (modal.parentNode) modal.remove();
         };
         modal.addEventListener('animationend', removeModal, { once: true });
-        // 保险机制：如果动画事件没有触发，350ms 后强制关闭
         setTimeout(removeModal, 350);
     };
     modal.querySelector('#close-requests-modal').addEventListener('click', closeModal);
@@ -1310,7 +1362,8 @@ async function showAdminRequestsModal(mode = 'all') {
                 const typeLabels = {
                     'delete_file': '删除文件',
                     'delete_folder': '删除文件夹',
-                    'ban_user': '封禁用户'
+                    'ban_user': '封禁用户',
+                    'unban_user': '解封用户'
                 };
                 const statusLabels = {
                     'pending': '<span class="status-badge auditing"><i class="fas fa-clock"></i> 待审批</span>',
@@ -1323,11 +1376,12 @@ async function showAdminRequestsModal(mode = 'all') {
                     : '';
                 const moreFiles = requestData.count > 5 ? `<li>...还有 ${requestData.count - 5} 个</li>` : '';
                 let detailsHtml = '';
-                if (req.request_type === 'ban_user') {
+                if (req.request_type === 'ban_user' || req.request_type === 'unban_user') {
                     detailsHtml = `
                         <div class="ban-user-details">
                             <div><strong>用户昵称：</strong>${escapeHtml(requestData.nickname || '未知')}</div>
                             ${requestData.content_preview ? `<div><strong>留言预览：</strong>${escapeHtml(requestData.content_preview)}${requestData.content_preview.length >= 100 ? '...' : ''}</div>` : ''}
+                            ${requestData.source ? `<div><strong>来源：</strong>${requestData.source === 'banned_users_list' ? '封禁用户列表' : '留言板'}</div>` : ''}
                         </div>
                     `;
                 } else {
@@ -1369,7 +1423,16 @@ async function showAdminRequestsModal(mode = 'all') {
             });
             listContainer.querySelectorAll('.reject-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
-                    const note = prompt('请输入拒绝原因（可选）:');
+                    let note = null;
+                    try {
+                        if (typeof window.showRejectPrompt === 'function') {
+                            note = await window.showRejectPrompt();
+                        } else {
+                            note = prompt('请输入拒绝原因（可选）:');
+                        }
+                    } catch (e) {
+                        return;
+                    }
                     if (note !== null) {
                         await handleRequestAction(btn.dataset.id, 'reject', loadRequests, note);
                     }

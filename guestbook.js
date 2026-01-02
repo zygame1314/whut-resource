@@ -130,7 +130,7 @@ window.rejectGuestbook = async function (id) {
         showNotification('驳回出错', 'error');
     }
 };
-function showRejectPrompt() {
+window.showRejectPrompt = function () {
     return new Promise((resolve, reject) => {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'confirmation-modal-overlay';
