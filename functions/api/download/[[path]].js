@@ -177,6 +177,26 @@ export async function onRequest(context) {
     })());
   }
   try {
+    const cache = caches.default;
+    const cacheUrl = new URL(request.url);
+    const cacheKey = new Request(cacheUrl.toString(), {
+      method: 'GET',
+      headers: new Headers({
+        'Accept': request.headers.get('Accept') || '*/*',
+      }),
+    });
+    let cachedResponse = await cache.match(cacheKey);
+    if (cachedResponse) {
+      const responseHeaders = new Headers(cachedResponse.headers);
+      const corsHeaders = addCorsHeaders();
+      for (const [k, v] of Object.entries(corsHeaders)) {
+        responseHeaders.set(k, v);
+      }
+      return new Response(cachedResponse.body, {
+        status: cachedResponse.status,
+        headers: responseHeaders,
+      });
+    }
     const object = await env.R2_bucket.get(key);
     if (object === null) {
       return new Response(JSON.stringify({ success: false, error: '存储中未找到文件。' }), {
@@ -194,13 +214,23 @@ export async function onRequest(context) {
     } else {
       headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
     }
+    let cacheMaxAge = 300;
+    if (expires) {
+      const remainingMs = expires - Date.now();
+      if (remainingMs > 0) {
+        cacheMaxAge = Math.min(Math.floor(remainingMs / 1000), 3600);
+      }
+    }
+    headers.set('Cache-Control', `public, max-age=${cacheMaxAge}`);
     const corsHeaders = addCorsHeaders();
     for (const [k, v] of Object.entries(corsHeaders)) {
       headers.set(k, v);
     }
-    return new Response(object.body, {
+    const response = new Response(object.body, {
       headers,
     });
+    context.waitUntil(cache.put(cacheKey, response.clone()));
+    return response;
   } catch (error) {
     console.error(`提供文件 "${key}" 时出错:`, error);
     return new Response(JSON.stringify({ success: false, error: '内部服务器错误' }), {
