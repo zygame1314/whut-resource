@@ -83,7 +83,7 @@ export async function onRequest(context) {
              AND downloaded_at > DATETIME('now', '-30 seconds')`
       ).bind(user.id, key).first();
       const shouldCountThisDownload = !recentDuplicate;
-      if (shouldCountThisDownload && user.role !== 'admin') {
+      if (shouldCountThisDownload && user.role !== 'admin' && user.role !== 'super_admin') {
         let quotaUpdated = false;
         if (user.last_download_date !== today) {
           await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
@@ -149,7 +149,7 @@ export async function onRequest(context) {
     if (!fileInfo) {
       return new Response(JSON.stringify({ success: false, error: '索引中未找到文件。' }), { status: 404, headers: addCorsHeaders() });
     }
-    if (user.role !== 'admin') {
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
       let quotaUpdated = false;
       if (user.last_download_date !== today) {
         await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();

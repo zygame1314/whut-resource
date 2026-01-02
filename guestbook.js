@@ -11,6 +11,12 @@ let currentGuestbookSort = 'time';
 let currentGuestbookFilter = 'all';
 let currentGuestbookStatus = 'all';
 const GUESTBOOK_PER_PAGE = 5;
+function isGuestbookAdmin(user) {
+    return user && (user.role === 'admin' || user.role === 'super_admin');
+}
+function isGuestbookSuperAdmin(user) {
+    return user && user.role === 'super_admin';
+}
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
     document.addEventListener('authSuccess', () => {
@@ -494,7 +500,7 @@ async function fetchAndDisplayGuestbook(page = 1) {
             if (!response.ok) throw new Error('Failed to fetch guestbook messages');
             const data = await response.json();
             guestbookCache = { data: data.data || [] };
-            if (window.currentUser && window.currentUser.role === 'admin') {
+            if (isGuestbookAdmin(window.currentUser)) {
                 fetchAndDisplayGuestbookStats(token);
             }
         }
@@ -535,7 +541,7 @@ async function fetchAndDisplayGuestbook(page = 1) {
     }
 }
 async function fetchAndDisplayGuestbookStats(token) {
-    if (!window.currentUser || window.currentUser.role !== 'admin') return;
+    if (!isGuestbookAdmin(window.currentUser)) return;
     try {
         const response = await fetch(`${GUESTBOOK_API_URL}?action=stats`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -589,7 +595,8 @@ function renderGuestbook(messages) {
         guestbookList.innerHTML = '<p class="empty-state-small">暂无留言，快来发布第一条心愿吧！</p>';
         return;
     }
-    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    const isAdmin = isGuestbookAdmin(window.currentUser);
+    const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
     const currentUserId = window.currentUser ? window.currentUser.id : null;
     guestbookList.innerHTML = messages.map(msg => {
         const isAuthor = currentUserId === msg.user_id;
@@ -633,15 +640,15 @@ function renderGuestbook(messages) {
                     <button class="icon-btn small" onclick="editGuestbook(${msg.id}, '${encodedContent}')" title="编辑留言">
                         <i class="fas fa-edit"></i>
                     </button>
-                    ${msg.is_banned ? `
+                    ${msg.is_banned && isSuperAdmin ? `
                     <button class="icon-btn small success" onclick="confirmUnbanUser(${msg.id})" title="解封用户">
                         <i class="fas fa-user-check"></i>
                     </button>
-                    ` : `
-                    <button class="icon-btn small danger" onclick="confirmBanUser(${msg.id})" title="封禁用户">
+                    ` : !msg.is_banned ? `
+                    <button class="icon-btn small danger" onclick="confirmBanUser(${msg.id})" title="封禁用户${!isSuperAdmin ? '（需审批）' : ''}">
                         <i class="fas fa-user-slash"></i>
                     </button>
-                    `}
+                    ` : ''}
                     <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -699,7 +706,7 @@ function renderGuestbook(messages) {
                             <div class="user-info-top">
                                 <div class="nickname-wrapper">
                                     <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
-                                    ${msg.isAdmin ? '<span class="admin-badge"><i class="fas fa-shield-alt"></i> 管理员</span>' : ''}
+                                    ${msg.isAdmin ? `<span class="admin-badge"><i class="fas fa-shield-alt"></i> ${msg.isSuperAdmin ? '根管理员' : '管理员'}</span>` : ''}
                                 </div>
                                 <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
                             </div>
@@ -837,7 +844,7 @@ async function handleGuestbookSubmit(e) {
             const result = await response.json();
             guestbookContentInput.value = '';
             showNotification('留言发布成功！', 'success');
-            const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+            const isAdmin = isGuestbookAdmin(window.currentUser);
             const newMessage = {
                 id: result.id,
                 user_id: window.currentUser.id,
@@ -940,8 +947,13 @@ async function handleGuestbookAction(id, action, btnElement) {
                 updateGuestbookCache(id, { status: 'unresolved', reject_reason: null });
                 showNotification('留言已取消驳回', 'success');
             } else if (action === 'ban_user' || action === 'unban_user') {
-                updateGuestbookCache(id, { is_banned: action === 'ban_user' });
-                showNotification(action === 'ban_user' ? '用户已封禁' : '用户已解封', 'success');
+                const data = await response.json();
+                if (data.pending_approval) {
+                    showNotification(data.message || '已提交封禁请求，等待根管理员审批', 'info');
+                } else {
+                    updateGuestbookCache(id, { is_banned: action === 'ban_user' });
+                    showNotification(action === 'ban_user' ? '用户已封禁' : '用户已解封', 'success');
+                }
             }
         }
     } catch (error) {
@@ -1044,7 +1056,7 @@ window.editGuestbook = async function (id, encodedContent = '') {
         });
         if (response.ok) {
             showNotification('编辑成功', 'success');
-            const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+            const isAdmin = isGuestbookAdmin(window.currentUser);
             updateGuestbookCache(id, {
                 content: newContent,
                 status: 'unresolved',

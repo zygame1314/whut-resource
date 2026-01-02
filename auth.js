@@ -49,25 +49,40 @@ function logout() {
     updateAuthUI();
     window.location.reload();
 }
+function isAdmin(user) {
+    return user && (user.role === 'admin' || user.role === 'super_admin');
+}
+function isSuperAdmin(user) {
+    return user && user.role === 'super_admin';
+}
 function updateAuthUI() {
     const authSection = document.getElementById('auth-section');
     const uploadLink = document.getElementById('upload-btn-link');
     if (currentUser) {
-        const quotaDisplay = currentUser.role === 'admin'
+        const quotaDisplay = isAdmin(currentUser)
             ? '无限'
             : `${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次`;
         if (authSection) {
+            const superAdminButtons = isSuperAdmin(currentUser) ? `
+                <button id="admin-requests-btn" class="secondary-btn" title="审批请求">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span id="pending-requests-badge" class="badge" style="display:none;">0</span>
+                </button>
+                <button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>
+                <button id="vector-sync-btn" class="secondary-btn" title="同步向量索引"><i class="fas fa-brain"></i></button>
+                <button id="banned-users-btn" class="secondary-btn" title="封禁用户管理"><i class="fas fa-user-lock"></i></button>
+            ` : '';
+            const adminButtons = isAdmin(currentUser) ? `
+                <button id="admin-logs-btn" class="secondary-btn" title="查看AI操作日志"><i class="fas fa-history"></i></button>
+                <button id="my-requests-btn" class="secondary-btn" title="我的审批请求"><i class="fas fa-tasks"></i></button>
+            ` : '';
             authSection.innerHTML = `
                 <span class="user-info">
                     <i class="fas fa-user"></i> ${escapeHtml(currentUser.nickname || currentUser.email)}
                     <span class="quota">(${quotaDisplay})</span>
                 </span>
-                ${currentUser.role === 'admin' ? `
-                    <button id="sync-btn" class="secondary-btn" title="同步R2文件"><i class="fas fa-sync"></i></button>
-                    <button id="vector-sync-btn" class="secondary-btn" title="同步向量索引"><i class="fas fa-brain"></i></button>
-                    <button id="admin-logs-btn" class="secondary-btn" title="查看AI操作日志"><i class="fas fa-history"></i></button>
-                    <button id="banned-users-btn" class="secondary-btn" title="封禁用户管理"><i class="fas fa-user-lock"></i></button>
-                ` : ''}
+                ${superAdminButtons}
+                ${adminButtons}
                 <button id="change-nickname-btn" class="secondary-btn" title="修改昵称"><i class="fas fa-id-card"></i></button>
                 <button id="change-pwd-btn" class="secondary-btn" title="修改密码"><i class="fas fa-key"></i></button>
                 <button id="logout-btn" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>
@@ -75,15 +90,20 @@ function updateAuthUI() {
             document.getElementById('logout-btn').addEventListener('click', logout);
             document.getElementById('change-nickname-btn').addEventListener('click', showChangeNicknameModal);
             document.getElementById('change-pwd-btn').addEventListener('click', showChangePasswordModal);
-            if (currentUser.role === 'admin') {
+            if (isAdmin(currentUser)) {
+                document.getElementById('admin-logs-btn').addEventListener('click', showAdminLogsModal);
+                document.getElementById('my-requests-btn').addEventListener('click', () => showAdminRequestsModal('mine'));
+            }
+            if (isSuperAdmin(currentUser)) {
                 document.getElementById('sync-btn').addEventListener('click', syncFiles);
                 document.getElementById('vector-sync-btn').addEventListener('click', syncVectorIndex);
-                document.getElementById('admin-logs-btn').addEventListener('click', showAdminLogsModal);
                 document.getElementById('banned-users-btn').addEventListener('click', showBannedUsersModal);
+                document.getElementById('admin-requests-btn').addEventListener('click', () => showAdminRequestsModal('all'));
+                fetchPendingRequestsCount();
             }
         }
         if (uploadLink) {
-            if (currentUser.role === 'admin') {
+            if (isAdmin(currentUser)) {
                 uploadLink.style.display = 'inline-block';
             } else {
                 uploadLink.style.display = 'none';
@@ -1212,3 +1232,197 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+async function fetchPendingRequestsCount() {
+    try {
+        const response = await fetch(`${API_ENDPOINTS.adminRequests}?action=pending_count`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            const badge = document.getElementById('pending-requests-badge');
+            if (badge && data.count > 0) {
+                badge.textContent = data.count > 99 ? '99+' : data.count;
+                badge.style.display = 'inline-flex';
+            }
+        }
+    } catch (e) {
+        console.error('获取待审批数量失败:', e);
+    }
+}
+async function showAdminRequestsModal(mode = 'all') {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.id = 'admin-requests-modal';
+    const isSuperAdminUser = currentUser && currentUser.role === 'super_admin';
+    const title = mode === 'mine' ? '我的审批请求' : '审批请求管理';
+    const statusFilter = mode === 'mine' ? '' : `
+        <select id="request-status-filter" class="status-filter">
+            <option value="pending">待审批</option>
+            <option value="all">全部</option>
+            <option value="approved">已批准</option>
+            <option value="rejected">已拒绝</option>
+        </select>
+    `;
+    modal.innerHTML = `
+        <div class="auth-box" style="max-width: 800px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
+            <button id="close-requests-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+            <h2 class="auth-title"><i class="fas fa-clipboard-check"></i> ${title}</h2>
+            <div class="requests-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                ${statusFilter}
+                <button id="refresh-requests-btn" class="secondary-btn" style="padding: 0.5rem 1rem;">
+                    <i class="fas fa-refresh"></i> 刷新
+                </button>
+            </div>
+            <div id="requests-list" class="requests-list" style="flex: 1; overflow-y: auto; max-height: 60vh;"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    const closeModal = () => {
+        modal.classList.add('closing');
+        modal.addEventListener('animationend', () => {
+            modal.remove();
+        }, { once: true });
+    };
+    modal.querySelector('#close-requests-modal').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    const loadRequests = async () => {
+        const listContainer = modal.querySelector('#requests-list');
+        listContainer.innerHTML = '<div class="loading-spinner"></div>';
+        const statusSelect = modal.querySelector('#request-status-filter');
+        const status = statusSelect ? statusSelect.value : 'all';
+        const mineParam = mode === 'mine' ? '&mine=true' : '';
+        try {
+            const response = await fetch(`${API_ENDPOINTS.adminRequests}?status=${status}${mineParam}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!data.success || !data.data || data.data.length === 0) {
+                listContainer.innerHTML = '<p class="empty-state-small">暂无审批请求</p>';
+                return;
+            }
+            listContainer.innerHTML = data.data.map(req => {
+                const requestData = JSON.parse(req.request_data);
+                const typeLabels = {
+                    'delete_file': '删除文件',
+                    'delete_folder': '删除文件夹',
+                    'ban_user': '封禁用户'
+                };
+                const statusLabels = {
+                    'pending': '<span class="status-badge auditing"><i class="fas fa-clock"></i> 待审批</span>',
+                    'approved': '<span class="status-badge resolved"><i class="fas fa-check"></i> 已批准</span>',
+                    'rejected': '<span class="status-badge rejected"><i class="fas fa-times"></i> 已拒绝</span>',
+                    'cancelled': '<span class="status-badge"><i class="fas fa-ban"></i> 已取消</span>'
+                };
+                const fileList = requestData.fileNames
+                    ? requestData.fileNames.slice(0, 5).map(n => `<li>${escapeHtml(n)}</li>`).join('')
+                    : '';
+                const moreFiles = requestData.count > 5 ? `<li>...还有 ${requestData.count - 5} 个</li>` : '';
+                let detailsHtml = '';
+                if (req.request_type === 'ban_user') {
+                    detailsHtml = `
+                        <div class="ban-user-details">
+                            <div><strong>用户昵称：</strong>${escapeHtml(requestData.nickname || '未知')}</div>
+                            ${requestData.content_preview ? `<div><strong>留言预览：</strong>${escapeHtml(requestData.content_preview)}${requestData.content_preview.length >= 100 ? '...' : ''}</div>` : ''}
+                        </div>
+                    `;
+                } else {
+                    detailsHtml = `<ul class="file-list-preview">${fileList}${moreFiles}</ul>`;
+                }
+                const actionButtons = isSuperAdminUser && req.status === 'pending' ? `
+                    <div class="request-actions">
+                        <button class="primary-btn approve-btn" data-id="${req.id}">
+                            <i class="fas fa-check"></i> 批准
+                        </button>
+                        <button class="secondary-btn reject-btn" data-id="${req.id}" style="color: var(--accent-color); border-color: var(--accent-color);">
+                            <i class="fas fa-times"></i> 拒绝
+                        </button>
+                    </div>
+                ` : '';
+                return `
+                    <div class="request-item" data-id="${req.id}">
+                        <div class="request-header">
+                            <span class="request-type">${typeLabels[req.request_type] || req.request_type}</span>
+                            ${statusLabels[req.status] || ''}
+                        </div>
+                        <div class="request-meta">
+                            <span><i class="fas fa-user"></i> ${escapeHtml(req.requester_nickname || req.requester_email)}</span>
+                            <span><i class="fas fa-clock"></i> ${formatDateLocal(req.created_at)}</span>
+                        </div>
+                        <div class="request-details">
+                            ${detailsHtml}
+                        </div>
+                        ${req.review_note ? `<div class="review-note"><i class="fas fa-comment"></i> ${escapeHtml(req.review_note)}</div>` : ''}
+                        ${req.reviewer_nickname ? `<div class="reviewer-info"><i class="fas fa-user-check"></i> 由 ${escapeHtml(req.reviewer_nickname)} 处理</div>` : ''}
+                        ${actionButtons}
+                    </div>
+                `;
+            }).join('');
+            listContainer.querySelectorAll('.approve-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await handleRequestAction(btn.dataset.id, 'approve', loadRequests);
+                });
+            });
+            listContainer.querySelectorAll('.reject-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const note = prompt('请输入拒绝原因（可选）:');
+                    if (note !== null) {
+                        await handleRequestAction(btn.dataset.id, 'reject', loadRequests, note);
+                    }
+                });
+            });
+        } catch (e) {
+            console.error('加载审批请求失败:', e);
+            listContainer.innerHTML = '<p class="error-message">加载失败，请稍后重试</p>';
+        }
+    };
+    modal.querySelector('#refresh-requests-btn').addEventListener('click', loadRequests);
+    const statusSelect = modal.querySelector('#request-status-filter');
+    if (statusSelect) {
+        statusSelect.addEventListener('change', loadRequests);
+    }
+    await loadRequests();
+}
+async function handleRequestAction(requestId, action, refreshCallback, reviewNote = '') {
+    try {
+        const response = await fetch(API_ENDPOINTS.adminRequests, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                request_id: parseInt(requestId),
+                action: action,
+                review_note: reviewNote
+            })
+        });
+        const data = await response.json();
+        if (data.success) {
+            showNotification(data.message || (action === 'approve' ? '已批准' : '已拒绝'), 'success');
+            fetchPendingRequestsCount();
+            if (refreshCallback) refreshCallback();
+        } else {
+            showNotification(data.error || '操作失败', 'error');
+        }
+    } catch (e) {
+        console.error('处理审批请求失败:', e);
+        showNotification('操作失败: ' + e.message, 'error');
+    }
+}
+function formatDateLocal(dateString) {
+    if (!dateString) return '';
+    let date;
+    if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+')) {
+        date = new Date(dateString.replace(' ', 'T') + 'Z');
+    } else {
+        date = new Date(dateString);
+    }
+    return date.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}

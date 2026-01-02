@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
 const MODEL = 'gpt-oss-120b';
 const TOOLS = [
@@ -158,7 +158,7 @@ export async function onRequest(context) {
     }
     try {
         const user = await getUser(request, env);
-        if (!user || user.role !== 'admin') {
+        if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), {
                 status: 403,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' })
@@ -215,7 +215,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
     if (!CEREBRAS_API_KEY) {
         throw new Error('未配置 CEREBRAS_API_KEY');
     }
-    const roleTag = guestbookEntry.role === 'admin' ? '【管理员】' : '【普通用户】';
+    const roleTag = (guestbookEntry.role === 'admin' || guestbookEntry.role === 'super_admin') ? '【管理员】' : '【普通用户】';
     const userMessage = `用户身份：${roleTag}
         用户昵称：${guestbookEntry.nickname || '匿名用户'}
         留言内容：${guestbookEntry.content}
@@ -347,7 +347,7 @@ async function handleReject(entry, reason, env, autoMode) {
     };
 }
 async function handleBanUser(guestbookEntry, reason, env, autoMode) {
-    if (guestbookEntry.role === 'admin') {
+    if (guestbookEntry.role === 'admin' || guestbookEntry.role === 'super_admin') {
         return {
             success: false,
             action: 'no_action',
@@ -676,7 +676,7 @@ async function handleResolve(entry, reply, searchResults = null, resourcePath = 
 export async function onRequestGet(context) {
     const { request, env } = context;
     const user = await getUser(request, env);
-    if (!user || user.role !== 'admin') {
+    if (!isAdmin(user)) {
         return new Response(JSON.stringify({ error: '需要管理员权限' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })

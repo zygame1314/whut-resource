@@ -488,7 +488,7 @@ async function handleFileSelect(files) {
 }
 async function handleUpload(event) {
     event.preventDefault();
-    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    const isAdmin = window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'super_admin');
     if (!isAdmin) {
         showNotification('抱歉，只有管理员才能上传文件', 'error');
         return;
@@ -710,7 +710,7 @@ async function initUploadPathSelector() {
         await new Promise(resolve => setTimeout(resolve, 100));
         waitTime += 100;
     }
-    const isAdmin = window.currentUser && window.currentUser.role === 'admin';
+    const isAdmin = window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'super_admin');
     if (!isAdmin) {
         showNoPermissionUI();
         return;
@@ -797,7 +797,7 @@ async function initUploadPathSelector() {
                     showNotification('请先选择文件或输入链接名称', 'info');
                     return;
                 }
-                if (!window.currentUser || window.currentUser.role !== 'admin') {
+                if (!window.currentUser || !(window.currentUser.role === 'admin' || window.currentUser.role === 'super_admin')) {
                     showNotification('需要管理员权限', 'error');
                     return;
                 }

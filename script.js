@@ -670,6 +670,10 @@ async function deleteFile(key, isDirectory) {
         if (!response.ok || !result.success) {
             throw new Error(result.error || '删除失败，请稍后重试');
         }
+        if (result.pending_approval) {
+            showNotification(result.message || '已提交删除请求，等待根管理员审批', 'info');
+            return;
+        }
         showNotification(`${isDirectory ? '文件夹' : '文件'} "${key}" 已删除`, 'success');
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
@@ -1208,7 +1212,7 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const shareButtonHTML = `<button class="share-button" title="生成分享链">
             <i class="fas fa-share-alt"></i>
         </button>`;
-    const isAdmin = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin';
+    const isAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
     fileActionsDiv.innerHTML = `
         ${isDirectory ? `
             <button class="enter-folder-button" title="进入文件夹">
@@ -1419,7 +1423,7 @@ function updateSelectionToolbar() {
     const selectedCount = selectedItems.size;
     const batchMoveBtn = document.getElementById('batch-move-btn');
     const batchDeleteBtn = document.getElementById('batch-delete-btn');
-    const isAdmin = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin';
+    const isAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
     if (isSelectionMode && selectedCount > 0) {
         toolbar.classList.add('visible');
         countSpan.textContent = `已选择 ${selectedCount} 项`;
@@ -1480,6 +1484,13 @@ async function handleBatchDelete() {
         const result = await response.json();
         if (!response.ok || !result.success) {
             throw new Error(result.error || '批量删除失败，请稍后重试');
+        }
+        if (result.pending_approval) {
+            showNotification(result.message || '已提交删除请求，等待根管理员审批', 'info');
+            selectedItems.clear();
+            selectedDirectoryKeys.clear();
+            if (isSelectionMode) toggleSelectionMode();
+            return;
         }
         showNotification(result.message || `成功删除了 ${keysToDelete.length} 个项目`, 'success');
         keysToDelete.forEach(key => {

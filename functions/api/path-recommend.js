@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
 const MODEL = 'qwen-3-32b';
 const KEYWORD_PROMPT = `你是一个大学课程目录推荐助手。用户上传了一些文件名，你需要提取出文件所属的课程全称。
@@ -24,7 +24,7 @@ export async function onRequestPost({ request, env }) {
         }
         const token = authHeader.substring(7);
         const user = await verifyToken(token, env.JWT_SECRET || 'secret');
-        if (!user || user.role !== 'admin') {
+        if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const { fileNames } = await request.json();

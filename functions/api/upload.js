@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
@@ -64,8 +64,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
     }
     const token = authHeader.substring(7);
     const user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    if (!user || user.role !== 'admin') {
-      return new Response(JSON.stringify({ success: false, error: '禁止：需要管理员访问权限。' }), { status: 403, headers: addCorsHeaders() });
+    if (!isAdmin(user)) {
+      return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), { status: 403, headers: addCorsHeaders() });
     }
     const contentType = request.headers.get('Content-Type') || '';
     if (contentType.includes('application/json')) {

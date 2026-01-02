@@ -102,7 +102,7 @@ window.changeAnnouncementPage = function (page) {
     fetchAndDisplayAnnouncements(page);
 };
 function checkAdminPermission() {
-    if (window.currentUser && window.currentUser.role === 'admin') {
+    if (window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'super_admin')) {
         if (manageAnnouncementsBtn) {
             manageAnnouncementsBtn.style.display = 'flex';
         }

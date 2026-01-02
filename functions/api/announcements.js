@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -36,15 +36,13 @@ async function handleGet(request, env) {
     if (!user) {
         return new Response(JSON.stringify({ error: '未认证' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    const isAdmin = user && user.role === 'admin';
+    const isAdminUser = isAdmin(user);
     const MAX_LIMIT = 200;
-
     let query = 'SELECT * FROM announcements WHERE is_published = TRUE ORDER BY created_at DESC LIMIT ?';
-    if (isAdmin) {
+    if (isAdminUser) {
         query = 'SELECT * FROM announcements ORDER BY created_at DESC LIMIT ?';
     }
     const { results } = await env.DB.prepare(query).bind(MAX_LIMIT).all();
-
     return new Response(JSON.stringify({
         data: results,
         totalItems: results.length
@@ -52,8 +50,8 @@ async function handleGet(request, env) {
 }
 async function handlePost(request, env) {
     const user = await getUser(request, env);
-    if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ error: '未认证' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    if (!isAdmin(user)) {
+        return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const contentLength = request.headers.get('Content-Length');
     if (contentLength && parseInt(contentLength) > 102400) {
@@ -79,8 +77,8 @@ async function handlePost(request, env) {
 }
 async function handlePut(request, env) {
     const user = await getUser(request, env);
-    if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ error: '未认证' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    if (!isAdmin(user)) {
+        return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const contentLength = request.headers.get('Content-Length');
     if (contentLength && parseInt(contentLength) > 102400) {
@@ -109,8 +107,8 @@ async function handlePut(request, env) {
 }
 async function handleDelete(request, env) {
     const user = await getUser(request, env);
-    if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ error: '未认证' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    if (!isAdmin(user)) {
+        return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const url = new URL(request.url);
     const id = url.searchParams.get('id');

@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders } from '../utils.js';
+import { verifyToken, addCorsHeaders, isSuperAdmin } from '../utils.js';
 const BATCH_SIZE = 50;
 export async function onRequestPost({ request, env }) {
     const authHeader = request.headers.get('Authorization');
@@ -7,9 +7,9 @@ export async function onRequestPost({ request, env }) {
         const token = authHeader.substring(7);
         user = await verifyToken(token, env.JWT_SECRET || 'secret');
     }
-    if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: '未授权：需要管理员权限' }), {
-            status: 401,
+    if (!isSuperAdmin(user)) {
+        return new Response(JSON.stringify({ success: false, error: '需要根管理员权限' }), {
+            status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
@@ -103,9 +103,9 @@ export async function onRequestGet({ request, env }) {
         const token = authHeader.substring(7);
         user = await verifyToken(token, env.JWT_SECRET || 'secret');
     }
-    if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: '未授权：需要管理员权限' }), {
-            status: 401,
+    if (!isSuperAdmin(user)) {
+        return new Response(JSON.stringify({ success: false, error: '需要根管理员权限' }), {
+            status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }

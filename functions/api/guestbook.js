@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin } from '../utils.js';
 import { processWithAIAgent } from './guestbook-ai.js';
 const CLEANUP_DAYS = 7;
 export async function onRequest(context) {
@@ -37,8 +37,8 @@ async function handleGet(request, env) {
     const action = url.searchParams.get('action');
     if (action === 'banned_users') {
         const user = await getUser(request, env);
-        if (!user || user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isSuperAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要根管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const bannedUsers = await env.DB.prepare(`
             SELECT id, email, nickname, created_at 
@@ -53,8 +53,8 @@ async function handleGet(request, env) {
     }
     if (action === 'stats') {
         const user = await getUser(request, env);
-        if (!user || user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         await env.DB.prepare('INSERT OR IGNORE INTO guestbook_stats (id, total_messages_all_time, current_messages_count) SELECT 1, COUNT(*), COUNT(*) FROM guestbook').run();
         const stats = await env.DB.prepare('SELECT * FROM guestbook_stats WHERE id = 1').first();
@@ -70,8 +70,8 @@ async function handleGet(request, env) {
     }
     if (action === 'unban_user') {
         const user = await getUser(request, env);
-        if (!user || user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isSuperAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要根管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const userId = url.searchParams.get('user_id');
         if (!userId) {
@@ -83,7 +83,7 @@ async function handleGet(request, env) {
     const MAX_LIMIT = 500;
     const user = await getUser(request, env);
     const currentUserId = user ? user.id : null;
-    const isAdmin = user && user.role === 'admin';
+    const isAdminUser = isAdmin(user);
     const orderByClause = 'ORDER BY g.is_pinned DESC, g.created_at DESC';
     let query;
     let params = [];
@@ -98,7 +98,7 @@ async function handleGet(request, env) {
         FROM guestbook g
         LEFT JOIN users u ON g.user_id = u.id
         LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?`;
-    if (isAdmin) {
+    if (isAdminUser) {
         query = `${adminSelect} ${orderByClause} LIMIT ?`;
         params = [currentUserId, MAX_LIMIT];
         const q = await env.DB.prepare(query).bind(...params).all();
@@ -117,10 +117,11 @@ async function handleGet(request, env) {
         }
     }
     const sanitizedResults = results.map(msg => {
-        if (msg.role === 'admin') {
+        if (msg.role === 'admin' || msg.role === 'super_admin') {
             msg.isAdmin = true;
+            msg.isSuperAdmin = msg.role === 'super_admin';
         }
-        if (!isAdmin && msg.email) {
+        if (!isAdminUser && msg.email) {
             const [name, domain] = msg.email.split('@');
             msg.email = `${name.substring(0, 2)}***@${domain}`;
         }
@@ -145,7 +146,7 @@ async function handlePost(request, env, context) {
     }
     const todayStart = new Date().toISOString().split('T')[0] + ' 00:00:00';
     const postCountResult = await env.DB.prepare('SELECT COUNT(*) as count FROM guestbook WHERE user_id = ? AND created_at >= ?').bind(user.id, todayStart).first();
-    if (user.role !== 'admin' && postCountResult.count >= 10) {
+    if (!isAdmin(user) && postCountResult.count >= 10) {
         return new Response(JSON.stringify({ error: '每日限制已达到（每天10条帖子）。' }), { status: 429, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const { content } = await request.json();
@@ -165,7 +166,7 @@ async function handlePost(request, env, context) {
                 const newEntry = await env.DB.prepare(
                     'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                 ).bind(newId).first();
-                if (newEntry && newEntry.role !== 'admin') {
+                if (newEntry && !isAdmin(newEntry)) {
                     const aiResult = await processWithAIAgent(newEntry, env, true);
                     if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
                         await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
@@ -193,7 +194,7 @@ async function handleDelete(request, env) {
     if (!entry) {
         return new Response(JSON.stringify({ error: '留言不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    if (user.role !== 'admin' && entry.user_id !== user.id) {
+    if (!isAdmin(user) && entry.user_id !== user.id) {
         return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(id).run();
@@ -226,10 +227,10 @@ async function handlePut(request, env, context) {
         if (!guestbookEntry) {
             return new Response(JSON.stringify({ error: '留言不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        if (user.role !== 'admin' && guestbookEntry.user_id !== user.id) {
+        if (!isAdmin(user) && guestbookEntry.user_id !== user.id) {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        if (user.role === 'admin') {
+        if (isAdmin(user)) {
             await env.DB.prepare('UPDATE guestbook SET content = ? WHERE id = ?').bind(content.trim(), id).run();
         } else {
             await env.DB.prepare('UPDATE guestbook SET content = ?, status = ?, reject_reason = NULL, is_hidden = 1 WHERE id = ?').bind(content.trim(), 'unresolved', id).run();
@@ -240,7 +241,7 @@ async function handlePut(request, env, context) {
                     const updatedEntry = await env.DB.prepare(
                         'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                     ).bind(id).first();
-                    if (updatedEntry && user.role !== 'admin') {
+                    if (updatedEntry && !isAdmin(user)) {
                         const aiResult = await processWithAIAgent(updatedEntry, env, true);
                         if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
                             await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
@@ -272,27 +273,27 @@ async function handlePut(request, env, context) {
             env.DB.prepare('UPDATE guestbook SET likes = MAX(0, likes - 1) WHERE id = ?').bind(id)
         ]);
     } else if (action === 'hide' || action === 'unhide') {
-        if (user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const isHidden = action === 'hide';
         await env.DB.prepare('UPDATE guestbook SET is_hidden = ? WHERE id = ?').bind(isHidden ? 1 : 0, id).run();
     } else if (action === 'pin' || action === 'unpin') {
-        if (user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const isPinned = action === 'pin';
         await env.DB.prepare('UPDATE guestbook SET is_pinned = ? WHERE id = ?').bind(isPinned ? 1 : 0, id).run();
     } else if (action === 'resolve' || action === 'unresolve') {
-        if (user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const status = action === 'resolve' ? 'resolved' : 'unresolved';
         const resolveNote = action === 'resolve' ? (body.resolve_note || null) : null;
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?').bind(status, resolveNote, id).run();
     } else if (action === 'reject') {
-        if (user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const rejectReason = body.reject_reason || '';
         if (!rejectReason || rejectReason.trim().length === 0) {
@@ -303,25 +304,44 @@ async function handlePut(request, env, context) {
         }
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?').bind('rejected', rejectReason.trim(), id).run();
     } else if (action === 'unreject') {
-        if (user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL WHERE id = ?').bind('unresolved', id).run();
     } else if (action === 'ban_user') {
-        if (user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        const guestbookEntry = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
-        if (guestbookEntry) {
-            const targetUser = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(guestbookEntry.user_id).first();
-            if (targetUser && targetUser.role === 'admin') {
-                return new Response(JSON.stringify({ error: '不能封禁管理员' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-            }
+        const guestbookEntry = await env.DB.prepare('SELECT user_id, nickname, content FROM guestbook WHERE id = ?').bind(id).first();
+        if (!guestbookEntry) {
+            return new Response(JSON.stringify({ error: '留言不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const targetUser = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(guestbookEntry.user_id).first();
+        if (targetUser && (targetUser.role === 'admin' || targetUser.role === 'super_admin')) {
+            return new Response(JSON.stringify({ error: '不能封禁管理员' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (isSuperAdmin(user)) {
             await env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id).run();
+        } else {
+            const requestData = {
+                guestbook_id: id,
+                user_id: guestbookEntry.user_id,
+                nickname: guestbookEntry.nickname,
+                content_preview: guestbookEntry.content?.substring(0, 100)
+            };
+            await env.DB.prepare(`
+                INSERT INTO admin_requests (request_type, request_data, requested_by, status)
+                VALUES (?, ?, ?, 'pending')
+            `).bind('ban_user', JSON.stringify(requestData), user.id).run();
+            return new Response(JSON.stringify({
+                success: true,
+                pending_approval: true,
+                message: '已提交封禁请求，等待根管理员审批'
+            }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
     } else if (action === 'unban_user') {
-        if (user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isSuperAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要根管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const guestbookEntry = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
         if (guestbookEntry) {

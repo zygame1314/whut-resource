@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -6,8 +6,8 @@ export async function onRequest(context) {
     }
     try {
         const user = await getUser(request, env);
-        if (!user || user.role !== 'admin') {
-            return new Response(JSON.stringify({ error: '未认证' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (request.method === 'GET') {
             return await handleGetLogs(request, env);

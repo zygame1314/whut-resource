@@ -274,3 +274,35 @@ FROM (
     ORDER BY total_downloads DESC
     LIMIT 5
 );
+
+DROP TABLE IF EXISTS admin_requests;
+CREATE TABLE admin_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_type TEXT NOT NULL,
+    request_data TEXT NOT NULL,
+    requested_by INTEGER NOT NULL,
+    status TEXT DEFAULT 'pending',
+    reviewed_by INTEGER,
+    review_note TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at DATETIME,
+    FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_admin_requests_status_created ON admin_requests(status, created_at DESC);
+CREATE INDEX idx_admin_requests_requester ON admin_requests(requested_by, created_at DESC);
+CREATE INDEX idx_admin_requests_reviewer ON admin_requests(reviewed_by, reviewed_at DESC);
+
+DROP TABLE IF EXISTS admin_messages;
+CREATE TABLE admin_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL,
+    sender_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (request_id) REFERENCES admin_requests(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_admin_messages_request ON admin_messages(request_id, created_at ASC);

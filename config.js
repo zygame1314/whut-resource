@@ -12,7 +12,8 @@ const API_ENDPOINTS = {
     batchDownload: `${API_BASE}/api/batch-download`,
     aiSearch: `${API_BASE}/api/ai-search`,
     reindex: `${API_BASE}/api/reindex`,
-    pathRecommend: `${API_BASE}/api/path-recommend`
+    pathRecommend: `${API_BASE}/api/path-recommend`,
+    adminRequests: `${API_BASE}/api/admin-requests`
 };
 window.filterTreeByKeyword = function (container, keyword, options = {}) {
     const {

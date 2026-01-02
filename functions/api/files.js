@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 async function deleteVectorIndexes(env, fileIds) {
     if (!env.VECTORIZE || !fileIds || fileIds.length === 0) return;
     try {
@@ -79,9 +79,9 @@ export async function onRequestGet({ request, env, waitUntil }) {
             return new Response(JSON.stringify({ success: true }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'updateLinkUrl') {
-            if (!user || user.role !== 'admin') {
-                return new Response(JSON.stringify({ success: false, error: '未授权：需要管理员权限。' }), {
-                    status: 401,
+            if (!isAdmin(user)) {
+                return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
+                    status: 403,
                     headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
                 });
             }
@@ -333,9 +333,9 @@ export async function onRequestPut({ request, env }) {
         const token = authHeader.substring(7);
         user = await verifyToken(token, env.JWT_SECRET || 'secret');
     }
-    if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: '未授权：需要管理员访问权限。' }), {
-            status: 401,
+    if (!isAdmin(user)) {
+        return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
+            status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
@@ -495,9 +495,9 @@ export async function onRequestPost({ request, env }) {
         const token = authHeader.substring(7);
         user = await verifyToken(token, env.JWT_SECRET || 'secret');
     }
-    if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: '未授权：需要管理员访问权限。' }), {
-            status: 401,
+    if (!isAdmin(user)) {
+        return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
+            status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
@@ -672,9 +672,9 @@ export async function onRequestDelete({ request, env }) {
         const token = authHeader.substring(7);
         user = await verifyToken(token, env.JWT_SECRET || 'secret');
     }
-    if (!user || user.role !== 'admin') {
-        return new Response(JSON.stringify({ success: false, error: '未授权：需要管理员访问权限。' }), {
-            status: 401,
+    if (!isAdmin(user)) {
+        return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
+            status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
@@ -696,6 +696,40 @@ export async function onRequestDelete({ request, env }) {
             });
         }
         const keysToDelete = keys || [key];
+        const fullUser = await DB.prepare('SELECT * FROM users WHERE id = ?').bind(user.id).first();
+        const isSuperAdminUser = fullUser && fullUser.role === 'super_admin';
+        if (!isSuperAdminUser) {
+            let hasFolder = false;
+            const fileNames = [];
+            for (const k of keysToDelete) {
+                const fileRecord = await DB.prepare('SELECT name, is_directory FROM files WHERE key = ?').bind(k).first();
+                if (fileRecord) {
+                    fileNames.push(fileRecord.name);
+                    if (fileRecord.is_directory) {
+                        hasFolder = true;
+                    }
+                }
+            }
+            const requestType = hasFolder ? 'delete_folder' : 'delete_file';
+            const requestData = {
+                keys: keysToDelete,
+                fileNames: fileNames,
+                count: keysToDelete.length
+            };
+            const result = await DB.prepare(`
+                INSERT INTO admin_requests (request_type, request_data, requested_by, status)
+                VALUES (?, ?, ?, 'pending')
+            `).bind(requestType, JSON.stringify(requestData), user.id).run();
+            return new Response(JSON.stringify({
+                success: true,
+                pending_approval: true,
+                request_id: result.meta.last_row_id,
+                message: `已提交删除请求，等待根管理员审批（共 ${keysToDelete.length} 个项目）`
+            }), {
+                status: 200,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
         const errors = [];
         let deletedCount = 0;
         for (const currentKey of keysToDelete) {
