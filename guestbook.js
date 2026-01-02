@@ -20,7 +20,6 @@ function isGuestbookSuperAdmin(user) {
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
     document.addEventListener('authSuccess', () => {
-        console.log('Auth success, reloading guestbook...');
         refreshGuestbook(currentGuestbookPage);
     });
 });

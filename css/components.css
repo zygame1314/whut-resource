@@ -2117,6 +2117,14 @@
     scrollbar-width: none;
 }
 
+.auth-modal.closing {
+    animation: fadeOut 0.3s forwards;
+}
+
+.auth-modal.closing .auth-box {
+    animation: slideDownClose 0.3s forwards;
+}
+
 .auth-box::-webkit-scrollbar {
     display: none;
 }

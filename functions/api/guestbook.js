@@ -312,11 +312,11 @@ async function handlePut(request, env, context) {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        const guestbookEntry = await env.DB.prepare('SELECT user_id, nickname, content FROM guestbook WHERE id = ?').bind(id).first();
+        const guestbookEntry = await env.DB.prepare('SELECT user_id, content FROM guestbook WHERE id = ?').bind(id).first();
         if (!guestbookEntry) {
             return new Response(JSON.stringify({ error: '留言不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        const targetUser = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(guestbookEntry.user_id).first();
+        const targetUser = await env.DB.prepare('SELECT role, nickname FROM users WHERE id = ?').bind(guestbookEntry.user_id).first();
         if (targetUser && (targetUser.role === 'admin' || targetUser.role === 'super_admin')) {
             return new Response(JSON.stringify({ error: '不能封禁管理员' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
@@ -326,7 +326,7 @@ async function handlePut(request, env, context) {
             const requestData = {
                 guestbook_id: id,
                 user_id: guestbookEntry.user_id,
-                nickname: guestbookEntry.nickname,
+                nickname: targetUser ? targetUser.nickname : '未知用户',
                 content_preview: guestbookEntry.content?.substring(0, 100)
             };
             await env.DB.prepare(`

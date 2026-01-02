@@ -1279,9 +1279,12 @@ async function showAdminRequestsModal(mode = 'all') {
     document.body.appendChild(modal);
     const closeModal = () => {
         modal.classList.add('closing');
-        modal.addEventListener('animationend', () => {
-            modal.remove();
-        }, { once: true });
+        const removeModal = () => {
+            if (modal.parentNode) modal.remove();
+        };
+        modal.addEventListener('animationend', removeModal, { once: true });
+        // 保险机制：如果动画事件没有触发，350ms 后强制关闭
+        setTimeout(removeModal, 350);
     };
     modal.querySelector('#close-requests-modal').addEventListener('click', closeModal);
     modal.addEventListener('click', (e) => {
