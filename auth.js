@@ -103,7 +103,7 @@ function updateAuthUI() {
                 ${requestButton}
                 <div class="dropdown-container">
                     <button id="admin-tools-toggle" class="secondary-btn" title="工具菜单">
-                        <i class="fas fa-tools"></i> 管理 <i class="fas fa-chevron-down" style="font-size: 0.8em; margin-left: 4px;"></i>
+                        <i class="fas fa-tools"></i> 管理 <i class="fas fa-chevron-down u-font-small u-margin-left-small"></i>
                     </button>
                     <div id="admin-tools-menu" class="dropdown-menu">
                         ${dropdownItems}
@@ -118,10 +118,12 @@ function updateAuthUI() {
                 toggleBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     menu.classList.toggle('show');
+                    toggleBtn.classList.toggle('active');
                 });
                 document.addEventListener('click', (e) => {
                     if (!menu.contains(e.target) && !toggleBtn.contains(e.target)) {
                         menu.classList.remove('show');
+                        toggleBtn.classList.remove('active');
                     }
                 });
             }
@@ -245,7 +247,7 @@ function showAuthModal(mode = 'login') {
                                 </label>
                             </div>
                             <!-- Cloudflare Turnstile Widget -->
-                            <div id="turnstile-widget" style="margin-top: 10px;"></div>
+                            <div id="turnstile-widget" class="turnstile-widget-container"></div>
                         </div>
                         <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
                     </form>
@@ -472,7 +474,7 @@ function showAuthModal(mode = 'login') {
                         countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
                         if (remainingSeconds <= 0) {
                             clearInterval(countdownTimer);
-                            modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
+                            modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';
                         }
                     }, 1000);
                     const checkVerifyBtn = modal.querySelector('#check-verify-btn');
@@ -493,7 +495,7 @@ function showAuthModal(mode = 'login') {
                                 showNotification('账户激活成功！', 'success');
                             } else if (statusData.expired) {
                                 clearInterval(countdownTimer);
-                                modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
+                                modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';
                                 checkVerifyBtn.style.display = 'none';
                             } else {
                                 showNotification('暂未收到验证邮件，请确认已发送后重试', 'warning');
@@ -1309,15 +1311,22 @@ async function showAdminRequestsModal(mode = 'all') {
     const isSuperAdminUser = currentUser && currentUser.role === 'super_admin';
     const title = mode === 'mine' ? '我的审批请求' : '审批请求管理';
     const statusFilter = mode === 'mine' ? '' : `
-        <select id="request-status-filter" class="status-filter">
-            <option value="pending">待审批</option>
-            <option value="all">全部</option>
-            <option value="approved">已批准</option>
-            <option value="rejected">已拒绝</option>
-        </select>
+        <div class="custom-select-container" id="request-status-dropdown">
+            <button class="custom-select-trigger secondary-btn" type="button">
+                <span class="selected-text">待审批</span>
+                <i class="fas fa-chevron-down" style="font-size: 0.8em; transition:transform 0.2s;"></i>
+            </button>
+            <div class="custom-select-options dropdown-menu">
+                <div class="dropdown-item" data-value="pending">待审批</div>
+                <div class="dropdown-item" data-value="all">全部</div>
+                <div class="dropdown-item" data-value="approved">已批准</div>
+                <div class="dropdown-item" data-value="rejected">已拒绝</div>
+            </div>
+            <input type="hidden" id="request-status-filter" value="pending">
+        </div>
     `;
     modal.innerHTML = `
-        <div class="auth-box" style="max-width: 800px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="auth-box" style="max-width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
             <button id="close-requests-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             <h2 class="auth-title"><i class="fas fa-clipboard-check"></i> ${title}</h2>
             <div class="requests-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -1330,6 +1339,56 @@ async function showAdminRequestsModal(mode = 'all') {
         </div>
     `;
     document.body.appendChild(modal);
+    const dropdown = modal.querySelector('#request-status-dropdown');
+    if (dropdown) {
+        const trigger = dropdown.querySelector('.custom-select-trigger');
+        const optionsMenu = dropdown.querySelector('.custom-select-options');
+        const hiddenInput = dropdown.querySelector('#request-status-filter');
+        const options = dropdown.querySelectorAll('.dropdown-item');
+        const arrow = trigger.querySelector('.fa-chevron-down');
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = optionsMenu.classList.contains('show');
+            document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+                if (m !== optionsMenu) m.classList.remove('show');
+            });
+            if (!isOpen) {
+                const rect = trigger.getBoundingClientRect();
+                optionsMenu.style.position = 'fixed';
+                optionsMenu.style.top = (rect.bottom + 4) + 'px';
+                optionsMenu.style.left = rect.left + 'px';
+                optionsMenu.style.width = rect.width + 'px';
+                optionsMenu.style.zIndex = '10001';
+                optionsMenu.classList.add('show');
+                arrow.style.transform = 'rotate(180deg)';
+                trigger.classList.add('active');
+            } else {
+                optionsMenu.classList.remove('show');
+                arrow.style.transform = 'rotate(0deg)';
+                trigger.classList.remove('active');
+            }
+        });
+        options.forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const value = opt.dataset.value;
+                const text = opt.textContent;
+                hiddenInput.value = value;
+                trigger.querySelector('.selected-text').textContent = text;
+                optionsMenu.classList.remove('show');
+                arrow.style.transform = 'rotate(0deg)';
+                trigger.classList.remove('active');
+                loadRequests();
+            });
+        });
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target) && !optionsMenu.contains(e.target)) {
+                optionsMenu.classList.remove('show');
+                arrow.style.transform = 'rotate(0deg)';
+                trigger.classList.remove('active');
+            }
+        });
+    }
     const closeModal = () => {
         modal.classList.add('closing');
         const removeModal = () => {

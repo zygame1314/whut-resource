@@ -136,11 +136,9 @@ function createParticleBackground() {
         const particle = document.createElement('div');
         particle.className = 'particle';
         particle.style.cssText = `
-            position: absolute;
             width: ${Math.random() * 4 + 2}px;
             height: ${Math.random() * 4 + 2}px;
             background: rgba(46, 139, 87, ${Math.random() * 0.3 + 0.1});
-            border-radius: 50%;
             left: ${Math.random() * 100}%;
             top: ${Math.random() * 100}%;
             animation: particleFloat ${Math.random() * 15 + 15}s linear infinite;
@@ -389,35 +387,13 @@ function showNotification(message, type = 'info') {
     if (!container) {
         container = document.createElement('div');
         container.id = 'notification-container';
-        container.style.cssText = `
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 10px;
-        `;
+        container.className = 'notification-container';
         document.body.appendChild(container);
     }
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
-    notification.style.cssText = `
-        padding: 1rem 1.5rem;
-        background: ${type === 'success' ? '#27AE60' : type === 'error' ? '#E74C3C' : '#3498DB'};
-        color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        transform: translateX(calc(100% + 20px));
-        transition: transform 0.4s ease, opacity 0.4s ease;
-        max-width: 500px;
-        font-weight: 500;
-        opacity: 0;
-        cursor: pointer;
-    `;
     const icon = type === 'success' ? 'fas fa-check-circle' : type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-info-circle';
-    notification.innerHTML = `<i class="${icon}" style="margin-right: 0.5rem;"></i>${message}`;
+    notification.innerHTML = `<i class="${icon} u-margin-right-small"></i>${message}`;
     container.appendChild(notification);
     setTimeout(() => {
         notification.style.transform = 'translateX(0)';
@@ -503,7 +479,7 @@ async function handleUpload(event) {
     }
     uploadSubmitBtn.disabled = true;
     uploadSubmitBtn.innerHTML = `
-        <div style="width: 16px; height: 16px; border: 2px solid white; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <div class="spinner-sm"></div>
         <span>上传中...</span>
     `;
     let filesUploaded = 0;
@@ -941,8 +917,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             if (!isDragging) {
                 isDragging = true;
-                fileDropZone.style.borderColor = 'var(--primary-color)';
-                fileDropZone.style.backgroundColor = 'rgba(46, 139, 87, 0.1)';
+                fileDropZone.classList.add('drag-over');
             }
         });
         fileDropZone.addEventListener('dragleave', (e) => {
@@ -950,16 +925,14 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             if (!fileDropZone.contains(e.relatedTarget)) {
                 isDragging = false;
-                fileDropZone.style.borderColor = '';
-                fileDropZone.style.backgroundColor = '';
+                fileDropZone.classList.remove('drag-over');
             }
         });
         fileDropZone.addEventListener('drop', async (e) => {
             e.preventDefault();
             e.stopPropagation();
             isDragging = false;
-            fileDropZone.style.borderColor = '';
-            fileDropZone.style.backgroundColor = '';
+            fileDropZone.classList.remove('drag-over');
             const items = e.dataTransfer.items;
             if (items && items.length > 0) {
                 const allFiles = [];

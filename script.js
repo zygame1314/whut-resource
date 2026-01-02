@@ -253,7 +253,7 @@ if (refreshRecentUploadsBtn) {
 async function fetchAndBuildFolderTree() {
     const token = localStorage.getItem('authToken');
     if (!token || !folderTreeElement) return;
-    folderTreeElement.innerHTML = '<div class="loading-spinner" style="margin: 20px auto;"></div>';
+    folderTreeElement.innerHTML = '<div class="loading-spinner u-loading-spinner-container"></div>';
     try {
         const response = await fetch(`${FILES_API_URL}?action=listAllDirs`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -367,13 +367,11 @@ function createParticleBackground() {
     existingParticles.forEach(p => p.remove());
     for (let i = 0; i < 20; i++) {
         const particle = document.createElement('div');
-        particle.className = 'particle';
+        particle.className = 'particle-base';
         particle.style.cssText = `
-            position: absolute;
             width: ${Math.random() * 4 + 2}px;
             height: ${Math.random() * 4 + 2}px;
             background: rgba(46, 139, 87, ${Math.random() * 0.5 + 0.1});
-            border-radius: 50%;
             left: ${Math.random() * 100}%;
             top: ${Math.random() * 100}%;
             animation: particleFloat ${Math.random() * 10 + 10}s linear infinite;
@@ -800,10 +798,8 @@ async function previewFile(fileKey, fileName, fileSize) {
             if (isTxtPreview) {
                 const textPreviewWrapper = document.createElement('div');
                 textPreviewWrapper.className = 'preview-text-wrapper';
-                textPreviewWrapper.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--background-primary); color: var(--text-primary); overflow: auto;';
                 const pre = document.createElement('pre');
                 pre.className = 'preview-text';
-                pre.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; padding: 20px; margin: 0; font-family: var(--font-mono); font-size: 0.9rem;';
                 pre.textContent = data.content;
                 textPreviewWrapper.appendChild(pre);
                 previewIframe.parentElement.appendChild(textPreviewWrapper);
@@ -814,11 +810,9 @@ async function previewFile(fileKey, fileName, fileSize) {
                     const previewContent = previewIframe.parentElement;
                     const imageWrapper = document.createElement('div');
                     imageWrapper.className = 'preview-image-wrapper';
-                    imageWrapper.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: var(--background-primary);';
                     const img = document.createElement('img');
                     img.src = previewUrl;
                     img.className = 'preview-image';
-                    img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain; display: none;';
                     img.onload = () => {
                         hideLoader();
                         img.style.display = 'block';
@@ -833,13 +827,11 @@ async function previewFile(fileKey, fileName, fileSize) {
                     const previewContent = previewIframe.parentElement;
                     const videoWrapper = document.createElement('div');
                     videoWrapper.className = 'preview-video-wrapper';
-                    videoWrapper.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: var(--background-primary);';
                     const video = document.createElement('video');
                     video.src = previewUrl;
                     video.className = 'preview-video';
                     video.controls = true;
                     video.autoplay = false;
-                    video.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain;';
                     video.onloadeddata = hideLoader;
                     video.onerror = (e) => {
                         hideLoader();
@@ -1005,33 +997,11 @@ function showNotification(message, type = 'info') {
     if (!container) {
         container = document.createElement('div');
         container.id = 'notification-container';
-        container.style.cssText = `
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 10px;
-        `;
+        container.className = 'notification-container';
         document.body.appendChild(container);
     }
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
-    notification.style.cssText = `
-        padding: 1rem 1.5rem;
-        background: ${type === 'success' ? '#27AE60' : type === 'error' ? '#E74C3C' : '#3498DB'};
-        color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        transform: translateX(calc(100% + 20px));
-        transition: transform 0.4s ease, opacity 0.4s ease;
-        max-width: 500px;
-        font-weight: 500;
-        opacity: 0;
-        cursor: pointer;
-    `;
     const icon = type === 'success' ? 'fas fa-check-circle' : type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-info-circle';
     notification.innerHTML = `<i class="${icon}" style="margin-right: 0.5rem;"></i>${message}`;
     container.appendChild(notification);
@@ -1800,13 +1770,13 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
         emptyLi.className = 'empty-state';
         let emptyMessage = '';
         if (isGlobalSearch) {
-            emptyMessage = `<i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+            emptyMessage = `<i class="fas fa-search u-font-large-icon"></i>
                            找不到包含 "${localSearchTerm}" 的文件或文件夹`;
         } else if (lowerLocalSearchTerm) {
-            emptyMessage = `<i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+            emptyMessage = `<i class="fas fa-folder-open u-font-large-icon"></i>
                            在当前目录中找不到包含 "${localSearchTerm}" 的文件或文件夹`;
         } else {
-            emptyMessage = `<i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+            emptyMessage = `<i class="fas fa-folder-open u-font-large-icon"></i>
                            此目录为空`;
         }
         emptyLi.innerHTML = emptyMessage;
@@ -1824,7 +1794,6 @@ function renderPaginationControls(paginationData) {
         controlsContainer = document.createElement('div');
         controlsContainer.id = 'pagination-controls';
         controlsContainer.className = 'pagination-controls';
-        controlsContainer.style.cssText = 'display: flex; justify-content: center; align-items: center; padding: 1rem; gap: 0.5rem;';
         if (fileListElement.parentNode) {
             fileListElement.parentNode.insertBefore(controlsContainer, fileListElement.nextSibling);
         } else {
@@ -1924,9 +1893,9 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
         if (blockedExtensions.has(cleanTerm)) {
             fileListElement.innerHTML = `
                 <li class="empty-state">
-                    <i class="fas fa-filter" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.6;"></i>
+                    <i class="fas fa-filter u-font-large-icon opacity-medium"></i>
                     关键词 "${searchTerm}" 太过宽泛<br>
-                    <span style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem; display: block;">
+                    <span class="u-text-secondary-small">
                         请勿直接搜索文件后缀名，建议搭配文件名关键词使用
                     </span>
                 </li>
@@ -1977,7 +1946,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                 if (cachedResult.files.length === 0 && cachedResult.message) {
                     fileListElement.innerHTML = `
                         <li class="empty-state">
-                            <i class="fas fa-robot" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+                            <i class="fas fa-robot u-font-large-icon opacity-low"></i>
                             ${cachedResult.message}
                         </li>
                     `;
@@ -2037,7 +2006,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                         });
                         fileListElement.innerHTML = `
                             <li class="empty-state">
-                                <i class="fas fa-robot" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+                                <i class="fas fa-robot u-font-large-icon opacity-low"></i>
                                 ${result.message}
                             </li>
                         `;
@@ -2097,7 +2066,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                     if (cachedResult.files.length === 0 && cachedResult.message) {
                         fileListElement.innerHTML = `
                             <li class="empty-state">
-                                <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+                                <i class="fas fa-search u-font-large-icon opacity-low"></i>
                                 ${cachedResult.message}
                             </li>
                         `;
@@ -2155,7 +2124,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                             });
                             fileListElement.innerHTML = `
                                     <li class="empty-state">
-                                        <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+                                        <i class="fas fa-search u-font-large-icon opacity-low"></i>
                                         ${result.message}
                                     </li>
                                 `;
@@ -2303,7 +2272,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
         showNotification(`获取文件列表请求出错: ${error.message}`, 'error');
         fileListElement.innerHTML = `
             <li class="empty-state error">
-                <i class="fas fa-wifi" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                <i class="fas fa-wifi u-font-large-icon"></i>
                 获取文件列表请求出错: ${error.message}
             </li>
         `;
@@ -2377,7 +2346,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (fileListElement) {
         fileListElement.innerHTML = `
             <li class="empty-state clickable" title="点击登录">
-                <i class="fas fa-user-shield" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                <i class="fas fa-user-shield u-font-large-icon"></i>
                 请先完成验证以查看文件
             </li>
         `;
@@ -2826,7 +2795,7 @@ function showDirectoryPicker(itemsToMove = []) {
                 throw new Error(result.error || '无法加载文件夹列表');
             }
         } catch (error) {
-            treeContainer.innerHTML = `<p style="color: var(--text-secondary);">${error.message}</p>`;
+            treeContainer.innerHTML = `<p class="u-text-secondary-small">${error.message}</p>`;
         }
     });
 }

@@ -25,6 +25,18 @@
     animation: fadeInUp 0.8s ease 0.2s both;
 }
 
+.selected-file-info {
+    margin-bottom: 2rem;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.selected-file-info.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 .hero-visual {
     position: absolute;
     top: 0;

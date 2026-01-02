@@ -1,0 +1,14 @@
+{
+    "name": "whut-resource",
+    "version": "1.0.0",
+    "description": "武理资源共享平台静态资源构建",
+    "scripts": {
+        "build": "node build.js",
+        "deploy": "npm run build && wrangler pages deploy"
+    },
+    "devDependencies": {
+        "clean-css": "^5.3.3",
+        "html-minifier-terser": "^7.2.0",
+        "terser": "^5.37.0"
+    }
+}

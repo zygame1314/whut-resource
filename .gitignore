@@ -1,18 +1,12 @@
-# Dependencies
 node_modules/
-
-# System Files
+dist/
 .DS_Store
 .vscode/
 Thumbs.db
 Desktop.ini
-
-# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-
-# Environment variables (potentially sensitive)
 .env
 .dev.vars

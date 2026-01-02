@@ -639,15 +639,15 @@ function renderGuestbook(messages) {
                     <button class="icon-btn small" onclick="editGuestbook(${msg.id}, '${encodedContent}')" title="编辑留言">
                         <i class="fas fa-edit"></i>
                     </button>
-                    ${msg.is_banned && isSuperAdmin ? `
-                    <button class="icon-btn small success" onclick="confirmUnbanUser(${msg.id})" title="解封用户">
+                    ${msg.is_banned ? `
+                    <button class="icon-btn small success" onclick="confirmUnbanUser(${msg.id})" title="解封用户${!isSuperAdmin ? '（需审批）' : ''}">
                         <i class="fas fa-user-check"></i>
                     </button>
-                    ` : !msg.is_banned ? `
+                    ` : `
                     <button class="icon-btn small danger" onclick="confirmBanUser(${msg.id})" title="封禁用户${!isSuperAdmin ? '（需审批）' : ''}">
                         <i class="fas fa-user-slash"></i>
                     </button>
-                    ` : ''}
+                    `}
                     <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
                         <i class="fas fa-trash"></i>
                     </button>

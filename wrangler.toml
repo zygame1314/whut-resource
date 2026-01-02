@@ -1,5 +1,5 @@
 name = "whut-resource"
-pages_build_output_dir = "."
+pages_build_output_dir = "dist"
 compatibility_date = "2024-10-22"
 compatibility_flags = ["nodejs_compat"]
 
