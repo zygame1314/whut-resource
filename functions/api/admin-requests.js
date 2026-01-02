@@ -245,8 +245,11 @@ async function executeDeleteFile(data, env, isFolder) {
                     await env.R2_bucket.delete(obj.key);
                 }
                 await env.R2_bucket.delete(k);
-                await env.DB.prepare('DELETE FROM files WHERE key LIKE ?').bind(prefix + '%').run();
-                await env.DB.prepare('DELETE FROM files WHERE key = ?').bind(k).run();
+                const endKey = prefix.substring(0, prefix.length - 1) + '0';
+                await env.DB.batch([
+                    env.DB.prepare('DELETE FROM files WHERE key >= ? AND key < ?').bind(prefix, endKey),
+                    env.DB.prepare('DELETE FROM files WHERE key = ?').bind(k)
+                ]);
             } else {
                 await env.R2_bucket.delete(k);
                 await env.DB.prepare('DELETE FROM files WHERE key = ?').bind(k).run();
