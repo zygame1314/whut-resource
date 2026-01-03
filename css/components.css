@@ -2085,35 +2085,6 @@
     transform: translateY(-2px);
 }
 
-@keyframes superBadgeShine {
-
-    0%,
-    100% {
-        background-position: 0% 50%;
-    }
-
-    50% {
-        background-position: 100% 50%;
-    }
-}
-
-@keyframes crownFloat {
-
-    0%,
-    100% {
-        transform: translateY(0) rotate(0deg);
-    }
-
-    25% {
-        transform: translateY(-1px) rotate(-3deg);
-    }
-
-    75% {
-        transform: translateY(-1px) rotate(3deg);
-    }
-}
-
-
 @media (max-width: 768px) {
     .recent-upload-item {
         flex-direction: column;
