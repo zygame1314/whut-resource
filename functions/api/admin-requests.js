@@ -91,8 +91,7 @@ async function handleGet(request, env, user) {
             data: messages.results || []
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    const status = url.searchParams.get('status') || 'all';
-    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 50, 200);
+    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 100, 500);
     let query = `
         SELECT r.*, 
                requester.nickname as requester_nickname, 
@@ -104,17 +103,9 @@ async function handleGet(request, env, user) {
         LEFT JOIN users reviewer ON r.reviewed_by = reviewer.id
     `;
     const params = [];
-    const conditions = [];
-    if (status !== 'all') {
-        conditions.push('r.status = ?');
-        params.push(status);
-    }
-    if (!isSuperAdmin(user) || url.searchParams.get('mine') === 'true') {
-        conditions.push('r.requested_by = ?');
+    if (!isSuperAdmin(user)) {
+        query += ' WHERE r.requested_by = ?';
         params.push(user.id);
-    }
-    if (conditions.length > 0) {
-        query += ' WHERE ' + conditions.join(' AND ');
     }
     query += ' ORDER BY r.created_at DESC LIMIT ?';
     params.push(limit);
@@ -178,6 +169,11 @@ async function handlePost(request, env, user) {
             direct_execute: true,
             message: '超级管理员可直接执行此操作'
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    try {
+        await env.DB.prepare("DELETE FROM admin_requests WHERE created_at < datetime('now', '-7 days')").run();
+    } catch (cleanupErr) {
+        console.error('自动清理旧请求失败:', cleanupErr);
     }
     const result = await env.DB.prepare(`
         INSERT INTO admin_requests (request_type, request_data, requested_by, status)

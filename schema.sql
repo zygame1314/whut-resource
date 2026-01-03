@@ -271,9 +271,8 @@ CREATE TABLE admin_requests (
     FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_admin_requests_status_created ON admin_requests(status, created_at DESC);
 CREATE INDEX idx_admin_requests_requester ON admin_requests(requested_by, created_at DESC);
-CREATE INDEX idx_admin_requests_reviewer ON admin_requests(reviewed_by, reviewed_at DESC);
+CREATE INDEX idx_admin_requests_created_at ON admin_requests(created_at DESC);
 
 DROP TABLE IF EXISTS admin_messages;
 CREATE TABLE admin_messages (
