@@ -1264,13 +1264,13 @@
 }
 
 .status-badge.auditing {
-    background-color: rgba(255, 193, 7, 0.15);
-    color: #ffb300;
+    background: linear-gradient(135deg, #ff9800 0%, #ffc107 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
 }
 
-[data-theme='dark'] .status-badge.auditing {
-    background-color: rgba(255, 193, 7, 0.15);
-    color: #ffd54f;
+.status-badge.auditing i {
+    animation: pulse 2s ease-in-out infinite;
 }
 
 .reject-reason {
@@ -3805,7 +3805,7 @@ textarea.form-input {
     flex: 1;
     overflow-y: auto;
     max-height: 60vh;
-    padding: 0 5px;
+    padding: 5px;
 }
 
 .request-item {

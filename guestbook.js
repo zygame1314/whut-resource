@@ -130,27 +130,34 @@ window.rejectGuestbook = async function (id) {
         showNotification('驳回出错', 'error');
     }
 };
-window.showRejectPrompt = function () {
+window.showRejectPrompt = function (options = {}) {
+    const title = options.title || '驳回留言';
+    const placeholder = options.placeholder || '请填写驳回原因（最多200字符）';
+    const confirmText = options.confirmText || '驳回';
+    const showPresets = options.showPresets !== undefined ? options.showPresets : true;
     return new Promise((resolve, reject) => {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'confirmation-modal-overlay';
-        const presetsHtml = REJECT_PRESETS.map((preset, index) =>
+        const presetsHtml = showPresets ? REJECT_PRESETS.map((preset, index) =>
             `<button class="reject-preset-btn" data-index="${index}">${preset}</button>`
-        ).join('');
+        ).join('') : '';
+        const presetsContainerHtml = showPresets ? `
+            <p>选择预设原因或自定义输入：</p>
+            <div class="reject-presets">
+                ${presetsHtml}
+            </div>
+        ` : '';
         modalOverlay.innerHTML = `
             <div class="confirmation-modal reject-modal">
-                <h3><i class="fas fa-times-circle"></i> 驳回留言</h3>
-                <p>选择预设原因或自定义输入：</p>
-                <div class="reject-presets">
-                    ${presetsHtml}
-                </div>
+                <h3><i class="fas fa-times-circle"></i> ${title}</h3>
+                ${presetsContainerHtml}
                 <div class="prompt-input-container">
-                    <textarea id="reject-reason-input" placeholder="请填写驳回原因（最多200字符）" rows="3" maxlength="200"></textarea>
+                    <textarea id="reject-reason-input" placeholder="${placeholder}" rows="3" maxlength="200"></textarea>
                     <div class="char-counter"><span id="reject-char-count">0</span>/200</div>
                 </div>
                 <div class="confirmation-buttons">
                     <button class="confirm-btn-cancel">取消</button>
-                    <button class="confirm-btn confirm-btn-danger">驳回</button>
+                    <button class="confirm-btn confirm-btn-danger">${confirmText}</button>
                 </div>
             </div>
         `;
@@ -162,15 +169,17 @@ window.showRejectPrompt = function () {
         textarea.addEventListener('input', () => {
             charCount.textContent = textarea.value.length;
         });
-        presetBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const preset = REJECT_PRESETS[parseInt(btn.dataset.index)];
-                textarea.value = preset;
-                charCount.textContent = preset.length;
-                presetBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+        if (showPresets) {
+            presetBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const preset = REJECT_PRESETS[parseInt(btn.dataset.index)];
+                    textarea.value = preset;
+                    charCount.textContent = preset.length;
+                    presetBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
             });
-        });
+        }
         const closeModal = (value) => {
             modalOverlay.classList.add('closing');
             modalOverlay.addEventListener('animationend', () => {

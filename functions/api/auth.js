@@ -216,6 +216,17 @@ export async function onRequestPost({ request, env }) {
       if (!user) {
         return new Response(JSON.stringify({ success: false, error: '用户不存在。' }), { status: 404, headers: addCorsHeaders() });
       }
+      const authHeader = request.headers.get('Authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const token = authHeader.split(' ')[1];
+          const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+          if (payload && payload.id !== user.id) {
+            return new Response(JSON.stringify({ success: false, error: '操作被拒绝：无法修改其他用户的密码' }), { status: 403, headers: addCorsHeaders() });
+          }
+        } catch (e) {
+        }
+      }
       const isValid = await verifyPasswordHash(oldPassword, user.password_hash, env.SALT);
       if (!isValid) {
         return new Response(JSON.stringify({ success: false, error: '旧密码错误。' }), { status: 401, headers: addCorsHeaders() });

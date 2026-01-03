@@ -44,9 +44,13 @@ async function handleGet(request, env, user) {
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
     if (action === 'pending_count') {
-        const result = await env.DB.prepare(
-            `SELECT COUNT(*) as count FROM admin_requests WHERE status = 'pending'`
-        ).first();
+        let query = `SELECT COUNT(*) as count FROM admin_requests WHERE status = 'pending'`;
+        const params = [];
+        if (!isSuperAdmin(user)) {
+            query += ` AND requested_by = ?`;
+            params.push(user.id);
+        }
+        const result = await env.DB.prepare(query).bind(...params).first();
         return new Response(JSON.stringify({
             success: true,
             count: result?.count || 0
@@ -57,6 +61,21 @@ async function handleGet(request, env, user) {
         if (!requestId) {
             return new Response(JSON.stringify({ error: '缺少 request_id' }), {
                 status: 400,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            });
+        }
+        const adminRequest = await env.DB.prepare(
+            'SELECT requested_by FROM admin_requests WHERE id = ?'
+        ).bind(requestId).first();
+        if (!adminRequest) {
+            return new Response(JSON.stringify({ error: '请求不存在' }), {
+                status: 404,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            });
+        }
+        if (!isSuperAdmin(user) && adminRequest.requested_by !== user.id) {
+            return new Response(JSON.stringify({ error: '无权查看此请求的消息' }), {
+                status: 403,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
         }
@@ -73,7 +92,6 @@ async function handleGet(request, env, user) {
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const status = url.searchParams.get('status') || 'all';
-    const mine = url.searchParams.get('mine') === 'true';
     const limit = Math.min(parseInt(url.searchParams.get('limit')) || 50, 200);
     let query = `
         SELECT r.*, 
@@ -91,7 +109,7 @@ async function handleGet(request, env, user) {
         conditions.push('r.status = ?');
         params.push(status);
     }
-    if (mine) {
+    if (!isSuperAdmin(user) || url.searchParams.get('mine') === 'true') {
         conditions.push('r.requested_by = ?');
         params.push(user.id);
     }
@@ -118,11 +136,17 @@ async function handlePost(request, env, user) {
             });
         }
         const existingRequest = await env.DB.prepare(
-            'SELECT id FROM admin_requests WHERE id = ?'
+            'SELECT id, requested_by FROM admin_requests WHERE id = ?'
         ).bind(request_id).first();
         if (!existingRequest) {
             return new Response(JSON.stringify({ error: '请求不存在' }), {
                 status: 404,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            });
+        }
+        if (!isSuperAdmin(user) && existingRequest.requested_by !== user.id) {
+            return new Response(JSON.stringify({ error: '无权对此请求发表消息' }), {
+                status: 403,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
         }

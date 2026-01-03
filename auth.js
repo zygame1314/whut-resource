@@ -84,7 +84,10 @@ function updateAuthUI() {
                 `;
                 if (!isSuperAdmin(currentUser)) {
                     dropdownItems += `
-                        <button id="my-requests-btn" class="dropdown-item"><i class="fas fa-tasks"></i> 我的审批请求</button>
+                        <button id="my-requests-btn" class="dropdown-item">
+                            <i class="fas fa-tasks"></i> 我的审批请求
+                            <span id="my-requests-badge" class="badge u-hidden">0</span>
+                        </button>
                     `;
                 }
                 dropdownItems += `
@@ -142,6 +145,9 @@ function updateAuthUI() {
                 document.getElementById('banned-users-btn').addEventListener('click', showBannedUsersModal);
                 const reqBtn = document.getElementById('admin-requests-btn');
                 if (reqBtn) reqBtn.addEventListener('click', () => showAdminRequestsModal('all'));
+                if (reqBtn) reqBtn.addEventListener('click', () => showAdminRequestsModal('all'));
+            }
+            if (isAdmin(currentUser)) {
                 fetchPendingRequestsCount();
             }
         }
@@ -1284,15 +1290,24 @@ async function fetchPendingRequestsCount() {
         });
         if (response.ok) {
             const data = await response.json();
-            const badge = document.getElementById('pending-requests-badge');
-            if (badge) {
-                if (data.count > 0) {
-                    badge.textContent = data.count > 99 ? '99+' : data.count;
-                    badge.classList.remove('u-hidden');
-                } else {
-                    badge.classList.add('u-hidden');
+            const count = data.count || 0;
+            const displayCount = count > 99 ? '99+' : count;
+
+            const badges = [
+                document.getElementById('pending-requests-badge'),
+                document.getElementById('my-requests-badge')
+            ];
+
+            badges.forEach(badge => {
+                if (badge) {
+                    if (count > 0) {
+                        badge.textContent = displayCount;
+                        badge.classList.remove('u-hidden');
+                    } else {
+                        badge.classList.add('u-hidden');
+                    }
                 }
-            }
+            });
         }
     } catch (e) {
         console.error('获取待审批数量失败:', e);
@@ -1479,7 +1494,12 @@ async function showAdminRequestsModal(mode = 'all') {
                     let note = null;
                     try {
                         if (typeof window.showRejectPrompt === 'function') {
-                            note = await window.showRejectPrompt();
+                            note = await window.showRejectPrompt({
+                                title: '拒绝请求',
+                                placeholder: '请输入拒绝原因（可选）',
+                                confirmText: '拒绝',
+                                showPresets: false
+                            });
                         } else {
                             note = prompt('请输入拒绝原因（可选）:');
                         }
