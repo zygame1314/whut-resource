@@ -91,7 +91,8 @@ async function handleGet(request, env, user) {
             data: messages.results || []
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 100, 500);
+    const status = url.searchParams.get('status') || 'all';
+    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 50, 200);
     let query = `
         SELECT r.*, 
                requester.nickname as requester_nickname, 
@@ -103,9 +104,17 @@ async function handleGet(request, env, user) {
         LEFT JOIN users reviewer ON r.reviewed_by = reviewer.id
     `;
     const params = [];
-    if (!isSuperAdmin(user)) {
-        query += ' WHERE r.requested_by = ?';
+    const conditions = [];
+    if (status !== 'all') {
+        conditions.push('r.status = ?');
+        params.push(status);
+    }
+    if (!isSuperAdmin(user) || url.searchParams.get('mine') === 'true') {
+        conditions.push('r.requested_by = ?');
         params.push(user.id);
+    }
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
     }
     query += ' ORDER BY r.created_at DESC LIMIT ?';
     params.push(limit);
