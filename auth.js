@@ -1316,19 +1316,19 @@ async function showAdminRequestsModal(mode = 'all') {
     modal.id = 'admin-requests-modal';
     const isSuperAdminUser = currentUser && currentUser.role === 'super_admin';
     const title = mode === 'mine' ? '我的审批请求' : '审批请求管理';
-    const statusFilter = mode === 'mine' ? '' : `
+    const statusFilter = `
         <div class="custom-select-container" id="request-status-dropdown">
             <button class="custom-select-trigger secondary-btn" type="button">
-                <span class="selected-text">待审批</span>
+                <span class="selected-text">${mode === 'mine' ? '全部' : '待审批'}</span>
                 <i class="fas fa-chevron-down"></i>
             </button>
             <div class="custom-select-options dropdown-menu">
-                <div class="dropdown-item" data-value="pending">待审批</div>
                 <div class="dropdown-item" data-value="all">全部</div>
+                <div class="dropdown-item" data-value="pending">待审批</div>
                 <div class="dropdown-item" data-value="approved">已批准</div>
                 <div class="dropdown-item" data-value="rejected">已拒绝</div>
             </div>
-            <input type="hidden" id="request-status-filter" value="pending">
+            <input type="hidden" id="request-status-filter" value="${mode === 'mine' ? 'all' : 'pending'}">
         </div>
     `;
     modal.innerHTML = `
