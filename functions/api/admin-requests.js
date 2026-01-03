@@ -152,7 +152,7 @@ async function handlePost(request, env, user) {
         return new Response(JSON.stringify({
             success: true,
             direct_execute: true,
-            message: '根管理员可直接执行此操作'
+            message: '超级管理员可直接执行此操作'
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const result = await env.DB.prepare(`
@@ -162,12 +162,12 @@ async function handlePost(request, env, user) {
     return new Response(JSON.stringify({
         success: true,
         request_id: result.meta.last_row_id,
-        message: '已提交审批请求，等待根管理员处理'
+        message: '已提交审批请求，等待超级管理员处理'
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePut(request, env, user) {
     if (!isSuperAdmin(user)) {
-        return new Response(JSON.stringify({ error: '只有根管理员可以审批请求' }), {
+        return new Response(JSON.stringify({ error: '只有超级管理员可以审批请求' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });

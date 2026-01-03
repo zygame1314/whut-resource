@@ -724,7 +724,7 @@ export async function onRequestDelete({ request, env }) {
                 success: true,
                 pending_approval: true,
                 request_id: result.meta.last_row_id,
-                message: `已提交删除请求，等待根管理员审批（共 ${keysToDelete.length} 个项目）`
+                message: `已提交删除请求，等待超级管理员审批（共 ${keysToDelete.length} 个项目）`
             }), {
                 status: 200,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

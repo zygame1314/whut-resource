@@ -7,7 +7,7 @@ export async function onRequestPost({ request, env }) {
     const token = authHeader.substring(7);
     const user = await verifyToken(token, env.JWT_SECRET || 'secret');
     if (!isSuperAdmin(user)) {
-        return new Response(JSON.stringify({ success: false, error: '需要根管理员权限' }), { status: 403, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '需要超级管理员权限' }), { status: 403, headers: addCorsHeaders() });
     }
     const R2 = env.R2_bucket;
     const DB = env.DB;

@@ -705,7 +705,7 @@ function renderGuestbook(messages) {
                             <div class="user-info-top">
                                 <div class="nickname-wrapper">
                                     <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
-                                    ${msg.isAdmin ? `<span class="admin-badge"><i class="fas fa-shield-alt"></i> ${msg.isSuperAdmin ? '根管理员' : '管理员'}</span>` : ''}
+                                    ${msg.isAdmin ? `<span class="admin-badge${msg.isSuperAdmin ? ' super' : ''}"><i class="fas fa-${msg.isSuperAdmin ? 'crown' : 'shield-alt'}"></i> ${msg.isSuperAdmin ? '超级管理员' : '管理员'}</span>` : ''}
                                 </div>
                                 <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
                             </div>
@@ -948,7 +948,7 @@ async function handleGuestbookAction(id, action, btnElement) {
             } else if (action === 'ban_user' || action === 'unban_user') {
                 const data = await response.json();
                 if (data.pending_approval) {
-                    showNotification(data.message || '已提交封禁请求，等待根管理员审批', 'info');
+                    showNotification(data.message || '已提交封禁请求，等待超级管理员审批', 'info');
                 } else {
                     updateGuestbookCache(id, { is_banned: action === 'ban_user' });
                     showNotification(action === 'ban_user' ? '用户已封禁' : '用户已解封', 'success');

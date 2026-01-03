@@ -8,7 +8,7 @@ export async function onRequestPost({ request, env }) {
         user = await verifyToken(token, env.JWT_SECRET || 'secret');
     }
     if (!isSuperAdmin(user)) {
-        return new Response(JSON.stringify({ success: false, error: '需要根管理员权限' }), {
+        return new Response(JSON.stringify({ success: false, error: '需要超级管理员权限' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
@@ -104,7 +104,7 @@ export async function onRequestGet({ request, env }) {
         user = await verifyToken(token, env.JWT_SECRET || 'secret');
     }
     if (!isSuperAdmin(user)) {
-        return new Response(JSON.stringify({ success: false, error: '需要根管理员权限' }), {
+        return new Response(JSON.stringify({ success: false, error: '需要超级管理员权限' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });

@@ -38,7 +38,7 @@ async function handleGet(request, env) {
     if (action === 'banned_users') {
         const user = await getUser(request, env);
         if (!isSuperAdmin(user)) {
-            return new Response(JSON.stringify({ error: '需要根管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            return new Response(JSON.stringify({ error: '需要超级管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const bannedUsers = await env.DB.prepare(`
             SELECT id, email, nickname, created_at 
@@ -95,7 +95,7 @@ async function handleGet(request, env) {
             return new Response(JSON.stringify({
                 success: true,
                 pending_approval: true,
-                message: '已提交解封请求，等待根管理员审批'
+                message: '已提交解封请求，等待超级管理员审批'
             }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
     }
@@ -355,7 +355,7 @@ async function handlePut(request, env, context) {
             return new Response(JSON.stringify({
                 success: true,
                 pending_approval: true,
-                message: '已提交封禁请求，等待根管理员审批'
+                message: '已提交封禁请求，等待超级管理员审批'
             }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
     } else if (action === 'unban_user') {
@@ -381,7 +381,7 @@ async function handlePut(request, env, context) {
                 return new Response(JSON.stringify({
                     success: true,
                     pending_approval: true,
-                    message: '已提交解封请求，等待根管理员审批'
+                    message: '已提交解封请求，等待超级管理员审批'
                 }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
             }
         }

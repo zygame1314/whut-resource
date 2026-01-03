@@ -669,7 +669,7 @@ async function deleteFile(key, isDirectory) {
             throw new Error(result.error || '删除失败，请稍后重试');
         }
         if (result.pending_approval) {
-            showNotification(result.message || '已提交删除请求，等待根管理员审批', 'info');
+            showNotification(result.message || '已提交删除请求，等待超级管理员审批', 'info');
             return;
         }
         showNotification(`${isDirectory ? '文件夹' : '文件'} "${key}" 已删除`, 'success');
@@ -1462,7 +1462,7 @@ async function handleBatchDelete() {
             throw new Error(result.error || '批量删除失败，请稍后重试');
         }
         if (result.pending_approval) {
-            showNotification(result.message || '已提交删除请求，等待根管理员审批', 'info');
+            showNotification(result.message || '已提交删除请求，等待超级管理员审批', 'info');
             selectedItems.clear();
             selectedDirectoryKeys.clear();
             if (isSelectionMode) toggleSelectionMode();
@@ -1522,11 +1522,11 @@ async function handleBatchDownload() {
     const fileKeys = selectedKeys.filter(key => !selectedDirectoryKeys.has(key) && !selectedLinkKeys.has(key));
     if (fileKeys.length === 0) {
         if (directoryKeys.length > 0 && linkKeys.length > 0) {
-            showNotification('批量下载不支持文件夹和外部链接，请选择文件后重试。', 'warning');
+            showNotification('不支持文件夹和外部链接，请选择文件后重试。', 'warning');
         } else if (directoryKeys.length > 0) {
-            showNotification('批量下载暂不支持文件夹，请选择文件后重试。', 'warning');
+            showNotification('不支持文件夹，请选择文件后重试。', 'warning');
         } else {
-            showNotification('批量下载不支持外部链接，请选择文件后重试。', 'warning');
+            showNotification('不支持外部链接，请选择文件后重试。', 'warning');
         }
         return;
     }
