@@ -1002,7 +1002,13 @@ function showNotification(message, type = 'info') {
     }
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
-    const icon = type === 'success' ? 'fas fa-check-circle' : type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-info-circle';
+    const icons = {
+        success: 'fas fa-check-circle',
+        error: 'fas fa-exclamation-circle',
+        warning: 'fas fa-exclamation-triangle',
+        info: 'fas fa-info-circle'
+    };
+    const icon = icons[type] || icons.info;
     notification.innerHTML = `<i class="${icon}" style="margin-right: 0.5rem;"></i>${message}`;
     container.appendChild(notification);
     setTimeout(() => {

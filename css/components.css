@@ -4198,6 +4198,10 @@ textarea.form-input {
     background: #3498DB;
 }
 
+.notification-warning {
+    background: #F39C12;
+}
+
 .confirmation-modal-overlay {
     position: fixed;
     top: 0;

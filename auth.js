@@ -204,7 +204,6 @@ function showAuthModal(mode = 'login') {
                     <i class="fas fa-times"></i>
                 </button>
                 <h2 class="auth-title">${title}</h2>
-                <!-- 第一步：填写信息 -->
                 <div id="register-step-1">
                     <form id="register-form-step1">
                         <div class="form-group">
@@ -252,7 +251,6 @@ function showAuthModal(mode = 'login') {
                         <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
                     </form>
                 </div>
-                <!-- 第二步：发送验证邮件 -->
                 <div id="register-step-2" style="display: none;">
                     <div class="verify-instructions">
                         <div class="step-indicator">
@@ -292,7 +290,6 @@ function showAuthModal(mode = 'login') {
                         </button>
                     </div>
                 </div>
-                <!-- 第三步：激活成功 -->
                 <div id="register-step-3" style="display: none;">
                     <div class="success-display">
                         <i class="fas fa-check-circle"></i>
@@ -699,7 +696,6 @@ function showForgotPasswordModal() {
                 <i class="fas fa-times"></i>
             </button>
             <h2 class="auth-title">找回密码</h2>
-            <!-- 第一步：填写信息 -->
             <div id="reset-step-1">
                 <form id="reset-form-step1">
                     <div class="form-group">
@@ -731,7 +727,6 @@ function showForgotPasswordModal() {
                     <button type="submit" id="get-reset-code-btn" class="primary-btn full-width">获取验证码</button>
                 </form>
             </div>
-            <!-- 第二步：发送验证邮件 -->
             <div id="reset-step-2" style="display: none;">
                 <div class="verify-instructions">
                     <div class="step-indicator">
@@ -771,12 +766,11 @@ function showForgotPasswordModal() {
                     </button>
                 </div>
             </div>
-            <!-- 第三步：重置成功 -->
             <div id="reset-step-3" style="display: none;">
                 <div class="success-display">
                     <i class="fas fa-check-circle"></i>
                     <h3>密码重置成功！</h3>
-                    <p>你的密码已更新，现在可以使用新密码登录了。</p>
+                    <p>密码已更新，可以使用新密码登录了。</p>
                     <button type="button" id="go-login-after-reset-btn" class="primary-btn full-width">
                         <i class="fas fa-sign-in-alt"></i> 去登录
                     </button>
