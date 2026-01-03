@@ -66,7 +66,7 @@ function updateAuthUI() {
             const requestButton = isSuperAdmin(currentUser) ? `
                 <button id="admin-requests-btn" class="secondary-btn" title="审批请求">
                     <i class="fas fa-clipboard-check"></i> 审批
-                    <span id="pending-requests-badge" class="badge" style="display:none;">0</span>
+                    <span id="pending-requests-badge" class="badge u-hidden">0</span>
                 </button>
             ` : '';
             let dropdownItems = '';
@@ -895,7 +895,7 @@ function showForgotPasswordModal() {
                     countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
                     if (remainingSeconds <= 0) {
                         clearInterval(countdownTimer);
-                        modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
+                        modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';
                     }
                 }, 1000);
                 const checkResetVerifyBtn = modal.querySelector('#check-reset-verify-btn');
@@ -916,7 +916,7 @@ function showForgotPasswordModal() {
                             showNotification('密码重置成功！', 'success');
                         } else if (statusData.expired) {
                             clearInterval(countdownTimer);
-                            modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> 验证码已过期，请返回重新获取';
+                            modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';
                             checkResetVerifyBtn.style.display = 'none';
                         } else {
                             showNotification('暂未收到验证邮件，请确认已发送后重试', 'warning');
@@ -1040,17 +1040,16 @@ function showChangePasswordModal() {
 async function showAdminLogsModal() {
     const modal = document.createElement('div');
     modal.className = 'auth-modal admin-logs-modal';
-    modal.style.cssText = 'display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000;';
     modal.innerHTML = `
-        <div class="auth-box" style="width: 90%; max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h2 class="auth-title" style="margin: 0;">AI 操作日志</h2>
-                <button id="close-modal" class="close-modal-btn" style="position: static;"><i class="fas fa-times"></i></button>
+        <div class="auth-box">
+            <div class="admin-modal-header">
+                <h2 class="auth-title">AI 操作日志</h2>
+                <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             </div>
-            <div id="logs-container" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
+            <div id="logs-container" class="admin-scrollable-container">
                 <div class="loading-spinner"></div>
             </div>
-            <div id="logs-pagination" class="pagination-controls" style="margin-top: 1rem; display: flex; justify-content: center;"></div>
+            <div id="logs-pagination" class="pagination-controls logs-pagination"></div>
         </div>
     `;
     document.body.appendChild(modal);
@@ -1074,7 +1073,7 @@ async function showAdminLogsModal() {
                 allLogsCache = data.data || [];
             }
             if (allLogsCache.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: var(--text-secondary);">暂无日志</div>';
+                container.innerHTML = '<div class="admin-empty-state">暂无日志</div>';
                 pagination.innerHTML = '';
                 return;
             }
@@ -1088,34 +1087,34 @@ async function showAdminLogsModal() {
                     const details = JSON.parse(log.details);
                     const originalContent = details.snapshot_content || details.content;
                     if (originalContent) {
-                        detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: var(--text-secondary); background: var(--bg-secondary); padding: 5px; border-radius: 4px;"><strong>原始内容:</strong> ${escapeHtml(originalContent)}</div>`;
+                        detailsHtml += `<div class="admin-log-details"><strong>原始内容:</strong> ${escapeHtml(originalContent)}</div>`;
                     }
                     if (details.resource_path) {
-                        detailsHtml += `<div style="font-size: 0.8em; color: var(--success);">资源路径: ${escapeHtml(details.resource_path)}</div>`;
+                        detailsHtml += `<div class="admin-log-resource-path">资源路径: ${escapeHtml(details.resource_path)}</div>`;
                     }
                     if (details.nickname) {
-                        detailsHtml += `<div style="font-size: 0.8em; color: var(--text-secondary);">用户昵称: ${escapeHtml(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
+                        detailsHtml += `<div class="admin-log-user-info">用户昵称: ${escapeHtml(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
                     }
                 } catch (e) {
-                    detailsHtml = `<div style="font-size: 0.8em; color: var(--text-secondary);">${escapeHtml(log.details)}</div>`;
+                    detailsHtml = `<div class="admin-log-user-info">${escapeHtml(log.details)}</div>`;
                 }
-                const actionColors = {
-                    'ai_delete': 'var(--error, #ff4d4f)',
-                    'ai_ban_user': 'var(--error, #ff4d4f)',
-                    'ai_reject': 'var(--warning, #faad14)',
-                    'ai_hide': 'var(--warning, #faad14)',
-                    'ai_resolve': 'var(--success, #52c41a)'
+                const actionClassMap = {
+                    'ai_delete': 'action-delete',
+                    'ai_ban_user': 'action-ban',
+                    'ai_reject': 'action-reject',
+                    'ai_hide': 'action-hide',
+                    'ai_resolve': 'action-resolve'
                 };
-                const color = actionColors[log.action] || 'var(--primary)';
+                const actionClass = actionClassMap[log.action] || 'action-default';
                 const utcDate = log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z';
                 const date = new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
                 return `
-                    <div style="border-bottom: 1px solid var(--border-color); padding: 10px 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: start;">
-                            <span style="font-weight: bold; color: ${color};">${log.action}</span>
-                            <span style="font-size: 0.8em; color: var(--text-secondary);">${date}</span>
+                    <div class="admin-log-entry">
+                        <div class="admin-log-entry-header">
+                            <span class="admin-log-action ${actionClass}">${log.action}</span>
+                            <span class="admin-log-timestamp">${date}</span>
                         </div>
-                        <div style="margin: 5px 0;">${escapeHtml(log.reason)}</div>
+                        <div class="admin-log-reason">${escapeHtml(log.reason)}</div>
                         ${detailsHtml}
                     </div>
                 `;
@@ -1130,7 +1129,7 @@ async function showAdminLogsModal() {
             if (nextBtn) nextBtn.onclick = () => loadLogs(page + 1);
             if (prevBtn) prevBtn.onclick = () => loadLogs(page - 1);
         } catch (e) {
-            container.innerHTML = `<div style="color: red;">加载失败: ${e.message}</div>`;
+            container.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
         }
     };
     loadLogs(currentPage);
@@ -1138,14 +1137,13 @@ async function showAdminLogsModal() {
 async function showBannedUsersModal() {
     const modal = document.createElement('div');
     modal.className = 'auth-modal banned-users-modal';
-    modal.style.cssText = 'display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000;';
     modal.innerHTML = `
-        <div class="auth-box" style="width: 90%; max-width: 600px; max-height: 90vh; display: flex; flex-direction: column;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h2 class="auth-title" style="margin: 0;"><i class="fas fa-user-lock" style="margin-right: 8px;"></i>封禁用户管理</h2>
-                <button id="close-modal" class="close-modal-btn" style="position: static;"><i class="fas fa-times"></i></button>
+        <div class="auth-box">
+            <div class="admin-modal-header">
+                <h2 class="auth-title"><i class="fas fa-user-lock u-margin-right-small"></i>封禁用户管理</h2>
+                <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             </div>
-            <div id="banned-users-container" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
+            <div id="banned-users-container" class="admin-scrollable-container">
                 <div class="loading-spinner"></div>
             </div>
         </div>
@@ -1164,7 +1162,7 @@ async function showBannedUsersModal() {
             const data = await res.json();
             if (!data.success) throw new Error(data.error);
             if (!data.users || data.users.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 2rem;"><i class="fas fa-check-circle" style="font-size: 2rem; color: var(--success); margin-bottom: 1rem; display: block;"></i>暂无被封禁的用户</div>';
+                container.innerHTML = '<div class="admin-empty-state-padded"><div class="admin-empty-state-icon"><i class="fas fa-check-circle"></i></div>暂无被封禁的用户</div>';
                 return;
             }
             container.innerHTML = data.users.map(user => {
@@ -1173,15 +1171,17 @@ async function showBannedUsersModal() {
                 const utcDate = user.created_at.endsWith('Z') ? user.created_at : user.created_at + 'Z';
                 const createdAt = new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
                 return `
-                    <div class="banned-user-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); gap: 10px;">
-                        <div style="flex: 1; min-width: 0;">
-                            <div style="font-weight: bold; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(nickname)}</div>
-                            <div style="font-size: 0.85em; color: var(--text-secondary);">${email}</div>
-                            <div style="font-size: 0.75em; color: var(--text-secondary);">注册于: ${createdAt}</div>
+                    <div class="banned-user-item">
+                        <div class="banned-user-info">
+                            <div class="banned-user-nickname">${escapeHtml(nickname)}</div>
+                            <div class="banned-user-email">${email}</div>
+                            <div class="banned-user-date">注册于: ${createdAt}</div>
                         </div>
-                        <button class="primary-btn small unban-btn" data-user-id="${user.id}" style="flex-shrink: 0; white-space: nowrap;">
-                            <i class="fas fa-user-check"></i> 解封
-                        </button>
+                        <div class="banned-user-action">
+                            <button class="primary-btn small unban-btn" data-user-id="${user.id}">
+                                <i class="fas fa-user-check"></i> 解封
+                            </button>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -1210,7 +1210,7 @@ async function showBannedUsersModal() {
                                 setTimeout(() => {
                                     userItem.remove();
                                     if (container.querySelectorAll('.banned-user-item').length === 0) {
-                                        container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 2rem;"><i class="fas fa-check-circle" style="font-size: 2rem; color: var(--success); margin-bottom: 1rem; display: block;"></i>暂无被封禁的用户</div>';
+                                        container.innerHTML = '<div class="admin-empty-state-padded"><div class="admin-empty-state-icon"><i class="fas fa-check-circle"></i></div>暂无被封禁的用户</div>';
                                     }
                                 }, 300);
                                 if (typeof showNotification === 'function') {
@@ -1230,7 +1230,7 @@ async function showBannedUsersModal() {
                 });
             });
         } catch (e) {
-            container.innerHTML = `<div style="color: var(--error); text-align: center; padding: 1rem;">加载失败: ${e.message}</div>`;
+            container.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
         }
     };
     loadBannedUsers();
@@ -1294,9 +1294,9 @@ async function fetchPendingRequestsCount() {
             if (badge) {
                 if (data.count > 0) {
                     badge.textContent = data.count > 99 ? '99+' : data.count;
-                    badge.style.display = 'inline-flex';
+                    badge.classList.remove('u-hidden');
                 } else {
-                    badge.style.display = 'none';
+                    badge.classList.add('u-hidden');
                 }
             }
         }
@@ -1314,7 +1314,7 @@ async function showAdminRequestsModal(mode = 'all') {
         <div class="custom-select-container" id="request-status-dropdown">
             <button class="custom-select-trigger secondary-btn" type="button">
                 <span class="selected-text">待审批</span>
-                <i class="fas fa-chevron-down" style="font-size: 0.8em; transition:transform 0.2s;"></i>
+                <i class="fas fa-chevron-down"></i>
             </button>
             <div class="custom-select-options dropdown-menu">
                 <div class="dropdown-item" data-value="pending">待审批</div>
@@ -1326,16 +1326,16 @@ async function showAdminRequestsModal(mode = 'all') {
         </div>
     `;
     modal.innerHTML = `
-        <div class="auth-box" style="max-width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="auth-box">
             <button id="close-requests-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             <h2 class="auth-title"><i class="fas fa-clipboard-check"></i> ${title}</h2>
-            <div class="requests-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div class="requests-header">
                 ${statusFilter}
-                <button id="refresh-requests-btn" class="secondary-btn" style="padding: 0.5rem 1rem;">
+                <button id="refresh-requests-btn" class="secondary-btn">
                     <i class="fas fa-refresh"></i> 刷新
                 </button>
             </div>
-            <div id="requests-list" class="requests-list" style="flex: 1; overflow-y: auto; max-height: 60vh;"></div>
+            <div id="requests-list" class="requests-list"></div>
         </div>
     `;
     document.body.appendChild(modal);
@@ -1451,7 +1451,7 @@ async function showAdminRequestsModal(mode = 'all') {
                         <button class="primary-btn approve-btn" data-id="${req.id}">
                             <i class="fas fa-check"></i> 批准
                         </button>
-                        <button class="secondary-btn reject-btn" data-id="${req.id}" style="color: var(--accent-color); border-color: var(--accent-color);">
+                        <button class="secondary-btn reject-btn" data-id="${req.id}">
                             <i class="fas fa-times"></i> 拒绝
                         </button>
                     </div>
