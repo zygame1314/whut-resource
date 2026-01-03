@@ -13,7 +13,7 @@ async function ensureDirectoryExists(db, fullPath, env) {
         const insertDirStmt = db.prepare(
           'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        await insertDirStmt.bind(
+        const insertResult = await insertDirStmt.bind(
           currentPath,
           segment,
           0,
@@ -24,6 +24,24 @@ async function ensureDirectoryExists(db, fullPath, env) {
           0
         ).run();
         console.log(`在D1中创建目录条目: ${currentPath}`);
+        if (env.AI && env.VECTORIZE && insertResult.meta?.last_row_id) {
+          try {
+            const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [currentPath] });
+            if (embedding?.data?.[0]) {
+              await env.VECTORIZE.upsert([{
+                id: insertResult.meta.last_row_id.toString(),
+                values: embedding.data[0],
+                metadata: {
+                  name: segment,
+                  path: currentPath
+                }
+              }]);
+              console.log(`已为目录创建向量索引: ${currentPath}`);
+            }
+          } catch (indexError) {
+            console.error('向量索引写入失败（目录）:', indexError);
+          }
+        }
       }
     } catch (error) {
       console.error(`确保目录 ${currentPath} 在D1中存在时出错:`, error);
