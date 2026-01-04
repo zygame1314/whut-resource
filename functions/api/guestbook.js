@@ -77,7 +77,6 @@ async function handleGet(request, env) {
         if (!userId) {
             return new Response(JSON.stringify({ error: '缺少用户ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-
         if (isSuperAdmin(user)) {
             await env.DB.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(parseInt(userId)).run();
             return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -309,7 +308,12 @@ async function handlePut(request, env, context) {
         }
         const status = action === 'resolve' ? 'resolved' : 'unresolved';
         const resolveNote = action === 'resolve' ? (body.resolve_note || null) : null;
-        await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?').bind(status, resolveNote, id).run();
+        const isHidden = action === 'resolve' ? 0 : null;
+        if (isHidden !== null) {
+            await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ?, is_hidden = ? WHERE id = ?').bind(status, resolveNote, isHidden, id).run();
+        } else {
+            await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?').bind(status, resolveNote, id).run();
+        }
     } else if (action === 'reject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });

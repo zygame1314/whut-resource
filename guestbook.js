@@ -1291,17 +1291,15 @@ async function showAiResultModal(guestbookId, result) {
                 if (action === 'apply') {
                     if (result.action === 'reject') {
                         await applyAiAction(guestbookId, 'reject', result.reason, null);
+                        closeModal();
+                        updateGuestbookCache(guestbookId, { status: 'rejected', reject_reason: result.reason, is_hidden: 1 });
                     } else if (result.action === 'resolve') {
-                        let resolveValue = result.resource_path || null;
+                        let resolveValue = null;
                         if (result.resource_path || result.note) {
-                            resolveValue = JSON.stringify({ path: result.resource_path, note: result.note });
+                            resolveValue = JSON.stringify({ path: result.resource_path || null, note: result.note || null });
                         }
                         await applyAiAction(guestbookId, 'resolve', null, resolveValue);
-                    }
-                    closeModal();
-                    if (result.action === 'reject') {
-                        updateGuestbookCache(guestbookId, { status: 'rejected', reject_reason: result.reason, is_hidden: 1 });
-                    } else {
+                        closeModal();
                         updateGuestbookCache(guestbookId, { status: 'resolved', reject_reason: null, resolve_note: resolveValue, is_hidden: 0 });
                     }
                     return;
