@@ -762,6 +762,16 @@ export async function onRequestDelete({ request, env }) {
                     const folderPath = currentKey.endsWith('/') ? currentKey : currentKey + '/';
                     const endKey = folderPath.substring(0, folderPath.length - 1) + '0';
                     const { results: childItems } = await DB.prepare("SELECT id, key, is_link, is_directory FROM files WHERE key >= ? AND key < ? AND key != ?").bind(folderPath, endKey, folderPath).all();
+                    const MAX_SAFE_BATCH_SIZE = 50;
+                    if (childItems && childItems.length > MAX_SAFE_BATCH_SIZE) {
+                        return new Response(JSON.stringify({
+                            success: false,
+                            error: `该文件夹包含 ${childItems.length} 个项目，超过安全操作限制 (${MAX_SAFE_BATCH_SIZE})。大量文件删除可能导致超时和数据残留，请先进入文件夹分批删除其中内容。`
+                        }), {
+                            status: 400,
+                            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                        });
+                    }
                     for (const child of childItems || []) {
                         const isChildLink = child.is_link === 1 || child.is_link === true;
                         const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
