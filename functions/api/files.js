@@ -426,20 +426,26 @@ export async function onRequestPut({ request, env }) {
                 batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
             }
-            for (let i = 0; i < r2Tasks.length; i += R2_CONCURRENCY) {
-                const batch = r2Tasks.slice(i, i + R2_CONCURRENCY);
-                await Promise.all(batch.map(task => task()));
-            }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
             await DB.batch(batchOperations);
             await deleteVectorIndexes(env, oldFileIds);
+            if (r2Tasks.length > 0) {
+                waitUntil((async () => {
+                    console.log(`开始后台迁移 ${r2Tasks.length} 个文件...`);
+                    for (let i = 0; i < r2Tasks.length; i += R2_CONCURRENCY) {
+                        const batch = r2Tasks.slice(i, i + R2_CONCURRENCY);
+                        await Promise.all(batch.map(task => task()));
+                    }
+                    console.log('后台迁移完成');
+                })());
+            }
             const newFolderPathForQuery = newFolderKey;
             const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
             const { results: newFiles } = await DB.prepare(
                 "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
             ).bind(newFolderKey, newFolderKey, newEndKey).all();
             await createVectorIndexes(env, newFiles || []);
-            return new Response(JSON.stringify({ success: true, message: '文件夹重命名成功' }), {
+            return new Response(JSON.stringify({ success: true, message: '文件夹重命名成功 (文件正在后台迁移)' }), {
                 status: 200,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
