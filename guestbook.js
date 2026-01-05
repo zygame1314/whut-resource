@@ -952,7 +952,7 @@ async function handleGuestbookAction(id, action, btnElement) {
                 updateGuestbookCache(id, { status: 'rejected', is_hidden: 1 });
                 showNotification('留言已驳回', 'success');
             } else if (action === 'unreject') {
-                updateGuestbookCache(id, { status: 'unresolved', reject_reason: null });
+                updateGuestbookCache(id, { status: 'unresolved', reject_reason: null, is_hidden: 0 });
                 showNotification('留言已取消驳回', 'success');
             } else if (action === 'ban_user' || action === 'unban_user') {
                 const data = await response.json();

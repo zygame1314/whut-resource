@@ -382,45 +382,7 @@ function updateProgress(percentage, status) {
     progressPercentage.textContent = percentage + '%';
     progressStatus.textContent = status;
 }
-function showNotification(message, type = 'info') {
-    let container = document.getElementById('notification-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'notification-container';
-        container.className = 'notification-container';
-        document.body.appendChild(container);
-    }
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    const icons = {
-        success: 'fas fa-check-circle',
-        error: 'fas fa-exclamation-circle',
-        warning: 'fas fa-exclamation-triangle',
-        info: 'fas fa-info-circle'
-    };
-    const icon = icons[type] || icons.info;
-    notification.innerHTML = `<i class="${icon} u-margin-right-small"></i>${message}`;
-    container.appendChild(notification);
-    setTimeout(() => {
-        notification.style.transform = 'translateX(0)';
-        notification.style.opacity = '1';
-    }, 10);
-    const removeNotification = () => {
-        notification.style.transform = 'translateX(calc(100% + 20px))';
-        notification.style.opacity = '0';
-        notification.addEventListener('transitionend', () => {
-            notification.remove();
-            if (container.children.length === 0 && container.parentNode) {
-                container.remove();
-            }
-        });
-    };
-    const timeoutId = setTimeout(removeNotification, 3000);
-    notification.addEventListener('click', () => {
-        clearTimeout(timeoutId);
-        removeNotification();
-    });
-}
+
 function showUploadStatus(message, type = 'info') {
     uploadStatus.innerHTML = `
         <div class="status-message status-${type}">
@@ -498,7 +460,12 @@ async function handleUpload(event) {
             totalUploadedSize += (fileProgress.get(file) || 0) * file.size;
         }
         const overallPercentage = totalSize > 0 ? Math.round((totalUploadedSize / totalSize) * 100) : 0;
-        const status = filesUploaded === totalFiles ? '所有文件上传完成！' : `上传中 (${filesUploaded}/${totalFiles})...`;
+        let status;
+        if (filesUploaded === totalFiles) {
+            status = '所有文件上传完成！';
+        } else {
+            status = `${formatBytes(totalUploadedSize)} / ${formatBytes(totalSize)}`;
+        }
         updateProgress(overallPercentage, status);
     };
     const uploadFile = (file) => {

@@ -392,6 +392,8 @@ export async function onRequestPut({ request, env }) {
                 `).bind(newFolderKey, newName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, parentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
             );
             batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(oldFolderKey));
+            const R2_CONCURRENCY = 5;
+            const r2Tasks = [];
             for (const child of childItems || []) {
                 const relativePath = child.key.substring(oldFolderPath.length);
                 const newChildKey = `${newFolderKey}${relativePath}`;
@@ -401,17 +403,19 @@ export async function onRequestPut({ request, env }) {
                 const isChildLink = child.is_link === 1 || child.is_link === true;
                 const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
                 if (!isChildLink && !isChildDirectory) {
-                    try {
-                        const sourceObj = await R2.get(child.key);
-                        if (sourceObj) {
-                            await R2.put(newChildKey, sourceObj.body, {
-                                httpMetadata: { contentType: child.contentType }
-                            });
-                            await R2.delete(child.key);
+                    r2Tasks.push(async () => {
+                        try {
+                            const sourceObj = await R2.get(child.key);
+                            if (sourceObj) {
+                                await R2.put(newChildKey, sourceObj.body, {
+                                    httpMetadata: { contentType: child.contentType }
+                                });
+                                await R2.delete(child.key);
+                            }
+                        } catch (e) {
+                            console.error(`R2重命名子项失败: ${child.key}`, e);
                         }
-                    } catch (e) {
-                        console.error(`R2重命名子项失败: ${child.key}`, e);
-                    }
+                    });
                 }
                 batchOperations.push(
                     DB.prepare(`
@@ -421,6 +425,10 @@ export async function onRequestPut({ request, env }) {
                 );
                 batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
+            }
+            for (let i = 0; i < r2Tasks.length; i += R2_CONCURRENCY) {
+                const batch = r2Tasks.slice(i, i + R2_CONCURRENCY);
+                await Promise.all(batch.map(task => task()));
             }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
             await DB.batch(batchOperations);
@@ -742,15 +750,21 @@ export async function onRequestDelete({ request, env }) {
                     const folderPath = currentKey.endsWith('/') ? currentKey : currentKey + '/';
                     const endKey = folderPath.substring(0, folderPath.length - 1) + '0';
                     const { results: childItems } = await DB.prepare("SELECT id, key, is_link, is_directory FROM files WHERE key >= ? AND key < ? AND key != ?").bind(folderPath, endKey, folderPath).all();
+                    const r2KeysToDelete = [];
                     for (const child of childItems || []) {
                         const isChildLink = child.is_link === 1 || child.is_link === true;
                         const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
                         if (!isChildLink && !isChildDirectory) {
-                            try {
-                                await R2.delete(child.key);
-                            } catch (e) {
-                                console.error(`R2删除子项失败: ${child.key}`, e);
+                            r2KeysToDelete.push(child.key);
+                        }
+                    }
+                    if (r2KeysToDelete.length > 0) {
+                        try {
+                            for (let i = 0; i < r2KeysToDelete.length; i += 1000) {
+                                await R2.delete(r2KeysToDelete.slice(i, i + 1000));
                             }
+                        } catch (e) {
+                            console.error(`R2批量删除子项失败:`, e);
                         }
                     }
                     const fileIdsToDeleteVector = [fileRecord.id, ...(childItems || []).map(c => c.id)];

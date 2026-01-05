@@ -4264,6 +4264,8 @@ textarea.form-input {
     transform: translateX(calc(100% + 20px));
     opacity: 0;
     transition: transform 0.4s ease, opacity 0.4s ease;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .notification-success {

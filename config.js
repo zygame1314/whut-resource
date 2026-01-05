@@ -91,6 +91,45 @@ window.escapeHtml = function (text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 };
+window.showNotification = function (message, type = 'info') {
+    let container = document.getElementById('notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notification-container';
+        container.className = 'notification-container';
+        document.body.appendChild(container);
+    }
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    const icons = {
+        success: 'fas fa-check-circle',
+        error: 'fas fa-exclamation-circle',
+        warning: 'fas fa-exclamation-triangle',
+        info: 'fas fa-info-circle'
+    };
+    const icon = icons[type] || icons.info;
+    notification.innerHTML = `<i class="${icon}" style="margin-right: 0.5rem;"></i>${message}`;
+    container.appendChild(notification);
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+        notification.style.opacity = '1';
+    }, 10);
+    const removeNotification = () => {
+        notification.style.transform = 'translateX(calc(100% + 20px))';
+        notification.style.opacity = '0';
+        notification.addEventListener('transitionend', () => {
+            notification.remove();
+            if (container.children.length === 0 && container.parentNode) {
+                container.remove();
+            }
+        });
+    };
+    const timeoutId = setTimeout(removeNotification, 3000);
+    notification.addEventListener('click', () => {
+        clearTimeout(timeoutId);
+        removeNotification();
+    });
+};
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')

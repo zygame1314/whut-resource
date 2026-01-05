@@ -992,45 +992,6 @@ function showPrompt({
         });
     });
 }
-function showNotification(message, type = 'info') {
-    let container = document.getElementById('notification-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'notification-container';
-        container.className = 'notification-container';
-        document.body.appendChild(container);
-    }
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    const icons = {
-        success: 'fas fa-check-circle',
-        error: 'fas fa-exclamation-circle',
-        warning: 'fas fa-exclamation-triangle',
-        info: 'fas fa-info-circle'
-    };
-    const icon = icons[type] || icons.info;
-    notification.innerHTML = `<i class="${icon}" style="margin-right: 0.5rem;"></i>${message}`;
-    container.appendChild(notification);
-    setTimeout(() => {
-        notification.style.transform = 'translateX(0)';
-        notification.style.opacity = '1';
-    }, 10);
-    const removeNotification = () => {
-        notification.style.transform = 'translateX(calc(100% + 20px))';
-        notification.style.opacity = '0';
-        notification.addEventListener('transitionend', () => {
-            notification.remove();
-            if (container.children.length === 0 && container.parentNode) {
-                container.remove();
-            }
-        });
-    };
-    const timeoutId = setTimeout(removeNotification, 3000);
-    notification.addEventListener('click', () => {
-        clearTimeout(timeoutId);
-        removeNotification();
-    });
-}
 function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch = false) {
     if (!breadcrumbListElement) return;
     breadcrumbListElement.innerHTML = '';
@@ -1442,33 +1403,58 @@ async function handleBatchDelete() {
     }
     const directoryKeys = Array.from(selectedDirectoryKeys);
     const hasDirectories = directoryKeys.length > 0;
+    const BATCH_SIZE = 50;
     const performBatchDelete = async () => {
         const token = localStorage.getItem('authToken');
         if (!token) {
             throw new Error("无法删除：未获取到验证令牌。请重新登录。");
         }
-        const response = await fetch(`${FILES_API_URL}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-                keys: keysToDelete
-            }),
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-            throw new Error(result.error || '批量删除失败，请稍后重试');
+        let totalDeleted = 0;
+        let pendingApproval = false;
+        let lastMessage = '';
+        for (let i = 0; i < keysToDelete.length; i += BATCH_SIZE) {
+            const batchKeys = keysToDelete.slice(i, i + BATCH_SIZE);
+            const isLastBatch = i + BATCH_SIZE >= keysToDelete.length;
+            if (keysToDelete.length > BATCH_SIZE) {
+                showNotification(`正在删除第 ${i + 1} - ${Math.min(i + BATCH_SIZE, keysToDelete.length)} 项 (共 ${keysToDelete.length} 项)...`, 'info');
+            }
+            try {
+                const response = await fetch(`${FILES_API_URL}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        keys: batchKeys
+                    }),
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || '批量删除部分失败');
+                }
+                if (result.pending_approval) {
+                    pendingApproval = true;
+                    lastMessage = result.message;
+                } else {
+                    totalDeleted += batchKeys.length;
+                }
+                if (!isLastBatch) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            } catch (err) {
+                console.error('Batch delete error:', err);
+                throw new Error(`批量删除在第 ${i / BATCH_SIZE + 1} 批时失败: ${err.message}`);
+            }
         }
-        if (result.pending_approval) {
-            showNotification(result.message || '已提交删除请求，等待超级管理员审批', 'info');
+        if (pendingApproval) {
+            showNotification(lastMessage || '已提交删除请求，等待超级管理员审批', 'info');
             selectedItems.clear();
             selectedDirectoryKeys.clear();
             if (isSelectionMode) toggleSelectionMode();
             return;
         }
-        showNotification(result.message || `成功删除了 ${keysToDelete.length} 个项目`, 'success');
+        showNotification(`成功删除了 ${keysToDelete.length} 个项目`, 'success');
         keysToDelete.forEach(key => {
             const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
             if (directoryCache[parentPrefix]) {
@@ -1478,7 +1464,7 @@ async function handleBatchDelete() {
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         selectedItems.clear();
         selectedDirectoryKeys.clear();
-        fetchAndDisplayFiles(currentPrefix, '', 1).then(() => {
+        fetchAndDisplayFiles(currentPrefix, '', currentPage).then(() => {
             if (isSelectionMode) toggleSelectionMode();
         });
         fetchAndBuildFolderTree();
@@ -1490,6 +1476,9 @@ async function handleBatchDelete() {
             confirmTitle = '⚠️ 确认批量删除（包含文件夹）';
             confirmMessage = `你确定要永久删除选中的 ${keysToDelete.length} 个项目吗？<br><br>` +
                 `<span style="color: var(--accent-color);">⚠️ 其中包含 ${directoryKeys.length} 个文件夹，这将删除文件夹内的所有内容！<br>此操作不可逆！</span>`;
+        }
+        if (keysToDelete.length > BATCH_SIZE) {
+            confirmMessage += `<br><br><span style="font-size: 0.9em; color: var(--text-secondary);">由于数量较多 (${keysToDelete.length})，将自动分批执行删除以防止超时。</span>`;
         }
         const confirmed = await showConfirmation({
             title: confirmTitle,
@@ -1645,29 +1634,46 @@ async function handleBatchMove() {
         let successCount = 0;
         let errorCount = 0;
         const errors = [];
-        for (const key of keysToMove) {
-            try {
-                const response = await fetch(`${FILES_API_URL}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        sourceKey: key,
-                        destinationPath: destinationPath
-                    }),
-                });
-                const result = await response.json();
-                if (!response.ok || !result.success) {
-                    errorCount++;
-                    errors.push(`- ${key.split('/').pop()}: ${result.error || '未知错误'}`);
-                } else {
-                    successCount++;
+        const BATCH_SIZE = 5;
+        for (let i = 0; i < keysToMove.length; i += BATCH_SIZE) {
+            const batch = keysToMove.slice(i, i + BATCH_SIZE);
+            if (keysToMove.length > BATCH_SIZE) {
+                showNotification(`正在移动第 ${i + 1} - ${Math.min(i + BATCH_SIZE, keysToMove.length)} 项 (共 ${keysToMove.length} 项)...`, 'info');
+            }
+            const promises = batch.map(async (key) => {
+                try {
+                    const response = await fetch(`${FILES_API_URL}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            sourceKey: key,
+                            destinationPath: destinationPath
+                        }),
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) {
+                        return { success: false, key, error: result.error || '未知错误' };
+                    } else {
+                        return { success: true, key };
+                    }
+                } catch (e) {
+                    return { success: false, key, error: e.message };
                 }
-            } catch (e) {
-                errorCount++;
-                errors.push(`- ${key.split('/').pop()}: ${e.message}`);
+            });
+            const results = await Promise.all(promises);
+            for (const res of results) {
+                if (res.success) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                    errors.push(`- ${res.key.split('/').pop()}: ${res.error}`);
+                }
+            }
+            if (i + BATCH_SIZE < keysToMove.length) {
+                await new Promise(r => setTimeout(r, 100));
             }
         }
         if (errorCount > 0) {
