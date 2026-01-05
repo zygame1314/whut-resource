@@ -382,8 +382,8 @@ export async function onRequestPut({ request, env, waitUntil }) {
                     headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
                 });
             }
-            const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
-            const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ? LIMIT 20000").bind(oldFolderPath, endKey, oldFolderPath).all();
+            const likePattern = oldFolderPath.replace(/%/g, '\\%').replace(/_/g, '\\_') + '%';
+            const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key LIKE ? ESCAPE '\\' AND key != ? LIMIT 20000").bind(likePattern, oldFolderPath).all();
             const batchOperations = [];
             batchOperations.push(
                 DB.prepare(`
@@ -570,8 +570,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
                 });
             }
             const existingFolder = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newFolderKey).first();
-            const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
-            const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ? LIMIT 20000").bind(oldFolderPath, endKey, oldFolderPath).all();
+            const likePattern = oldFolderPath.replace(/%/g, '\\%').replace(/_/g, '\\_') + '%';
+            const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key LIKE ? ESCAPE '\\' AND key != ? LIMIT 20000").bind(likePattern, oldFolderPath).all();
             const batchOperations = [];
             if (!existingFolder) {
                 batchOperations.push(
