@@ -384,6 +384,16 @@ export async function onRequestPut({ request, env }) {
             }
             const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
             const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ?").bind(oldFolderPath, endKey, oldFolderPath).all();
+            const MAX_SAFE_BATCH_SIZE = 50;
+            if (childItems && childItems.length > MAX_SAFE_BATCH_SIZE) {
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: `该文件夹包含 ${childItems.length} 个项目，超过安全操作限制 (${MAX_SAFE_BATCH_SIZE})。为防止超时和数据丢失，请手动分批移动或联系管理员直接在数据库操作。`
+                }), {
+                    status: 400,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
             const batchOperations = [];
             batchOperations.push(
                 DB.prepare(`
@@ -555,6 +565,16 @@ export async function onRequestPost({ request, env }) {
             }
             const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
             const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ?").bind(oldFolderPath, endKey, oldFolderPath).all();
+            const MAX_SAFE_BATCH_SIZE = 50;
+            if (childItems && childItems.length > MAX_SAFE_BATCH_SIZE) {
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: `该文件夹包含 ${childItems.length} 个项目，超过安全操作限制 (${MAX_SAFE_BATCH_SIZE})。为防止超时和数据丢失，请手动分批移动或联系管理员直接在数据库操作。`
+                }), {
+                    status: 400,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
             const batchOperations = [];
             batchOperations.push(
                 DB.prepare(`
