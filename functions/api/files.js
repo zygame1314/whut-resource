@@ -570,21 +570,18 @@ export async function onRequestPost({ request, env, waitUntil }) {
                 });
             }
             const existingFolder = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newFolderKey).first();
-            if (existingFolder) {
-                return new Response(JSON.stringify({ success: false, error: '目标中已存在同名文件夹。' }), {
-                    status: 409,
-                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-                });
-            }
             const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
             const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ? LIMIT 20000").bind(oldFolderPath, endKey, oldFolderPath).all();
             const batchOperations = [];
-            batchOperations.push(
-                DB.prepare(`
-                    INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `).bind(newFolderKey, folderName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, newParentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
-            );
+            if (!existingFolder) {
+                batchOperations.push(
+                    DB.prepare(`
+                        INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `).bind(newFolderKey, folderName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, newParentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
+                );
+                batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newFolderKey, sourceKey));
+            }
             batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey));
             const R2_CONCURRENCY = 5;
             const r2Tasks = [];
