@@ -326,7 +326,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
         });
     }
 }
-export async function onRequestPut({ request, env }) {
+export async function onRequestPut({ request, env, waitUntil }) {
     const authHeader = request.headers.get('Authorization');
     let user = null;
     if (authHeader && authHeader.startsWith('Bearer ')) {
