@@ -727,6 +727,20 @@ export async function onRequestDelete({ request, env }) {
                     fileNames.push(fileRecord.name);
                     if (fileRecord.is_directory) {
                         hasFolder = true;
+                        const folderPath = k.endsWith('/') ? k : k + '/';
+                        const endKey = folderPath.substring(0, folderPath.length - 1) + '0';
+                        const countResult = await DB.prepare("SELECT COUNT(*) as count FROM files WHERE key >= ? AND key < ? AND key != ?").bind(folderPath, endKey, folderPath).first();
+                        const childCount = countResult.count;
+                        const MAX_SAFE_BATCH_SIZE = 50;
+                        if (childCount > MAX_SAFE_BATCH_SIZE) {
+                            return new Response(JSON.stringify({
+                                success: false,
+                                error: `文件夹 "${fileRecord.name}" 包含 ${childCount} 个项目，超过安全限制 (${MAX_SAFE_BATCH_SIZE})。无法提交删除申请，请先进入文件夹分批删除其中内容。`
+                            }), {
+                                status: 400,
+                                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                            });
+                        }
                     }
                 }
             }
