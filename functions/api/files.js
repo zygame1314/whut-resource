@@ -502,7 +502,7 @@ export async function onRequestPut({ request, env, waitUntil }) {
         });
     }
 }
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
     const authHeader = request.headers.get('Authorization');
     let user = null;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -577,6 +577,8 @@ export async function onRequestPost({ request, env }) {
                 `).bind(newFolderKey, folderName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, newParentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
             );
             batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey));
+            const R2_CONCURRENCY = 5;
+            const r2Tasks = [];
             for (const child of childItems || []) {
                 const relativePath = child.key.substring(oldFolderPath.length);
                 const newChildKey = `${newFolderKey}${relativePath}`;
@@ -586,17 +588,19 @@ export async function onRequestPost({ request, env }) {
                 const isChildLink = child.is_link === 1 || child.is_link === true;
                 const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
                 if (!isChildLink && !isChildDirectory) {
-                    try {
-                        const sourceObj = await R2.get(child.key);
-                        if (sourceObj) {
-                            await R2.put(newChildKey, sourceObj.body, {
-                                httpMetadata: { contentType: child.contentType }
-                            });
-                            await R2.delete(child.key);
+                    r2Tasks.push(async () => {
+                        try {
+                            const sourceObj = await R2.get(child.key);
+                            if (sourceObj) {
+                                await R2.put(newChildKey, sourceObj.body, {
+                                    httpMetadata: { contentType: child.contentType }
+                                });
+                                await R2.delete(child.key);
+                            }
+                        } catch (e) {
+                            console.error(`R2移动子项失败: ${child.key}`, e);
                         }
-                    } catch (e) {
-                        console.error(`R2移动子项失败: ${child.key}`, e);
-                    }
+                    });
                 }
                 batchOperations.push(
                     DB.prepare(`
@@ -610,13 +614,23 @@ export async function onRequestPost({ request, env }) {
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
             await DB.batch(batchOperations);
             await deleteVectorIndexes(env, oldFileIds);
+            if (r2Tasks.length > 0) {
+                waitUntil((async () => {
+                    console.log(`开始后台移动 ${r2Tasks.length} 个文件...`);
+                    for (let i = 0; i < r2Tasks.length; i += R2_CONCURRENCY) {
+                        const batch = r2Tasks.slice(i, i + R2_CONCURRENCY);
+                        await Promise.all(batch.map(task => task()));
+                    }
+                    console.log('后台移动完成');
+                })());
+            }
             const newFolderPathForQuery = newFolderKey;
             const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
             const { results: newFiles } = await DB.prepare(
                 "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
             ).bind(newFolderKey, newFolderKey, newEndKey).all();
             await createVectorIndexes(env, newFiles || []);
-            return new Response(JSON.stringify({ success: true, message: '文件夹移动成功' }), {
+            return new Response(JSON.stringify({ success: true, message: '文件夹移动成功 (文件正在后台迁移)' }), {
                 status: 200,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
