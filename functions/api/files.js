@@ -383,7 +383,7 @@ export async function onRequestPut({ request, env, waitUntil }) {
                 });
             }
             const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
-            const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ?").bind(oldFolderPath, endKey, oldFolderPath).all();
+            const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ? LIMIT 20000").bind(oldFolderPath, endKey, oldFolderPath).all();
             const batchOperations = [];
             batchOperations.push(
                 DB.prepare(`
@@ -426,8 +426,17 @@ export async function onRequestPut({ request, env, waitUntil }) {
                 batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
             }
+            const DB_BATCH_SIZE = 50;
+            for (let i = 0; i < batchOperations.length; i += DB_BATCH_SIZE) {
+                const chunk = batchOperations.slice(i, i + DB_BATCH_SIZE);
+                try {
+                    await DB.batch(chunk);
+                } catch (e) {
+                    console.error(`数据库批次提交失败 (batch ${i}):`, e);
+                    throw new Error(`数据库部分更新失败: ${e.message}`);
+                }
+            }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
-            await DB.batch(batchOperations);
             await deleteVectorIndexes(env, oldFileIds);
             if (r2Tasks.length > 0) {
                 waitUntil((async () => {
@@ -568,7 +577,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
                 });
             }
             const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
-            const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ?").bind(oldFolderPath, endKey, oldFolderPath).all();
+            const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ? LIMIT 20000").bind(oldFolderPath, endKey, oldFolderPath).all();
             const batchOperations = [];
             batchOperations.push(
                 DB.prepare(`
@@ -611,8 +620,17 @@ export async function onRequestPost({ request, env, waitUntil }) {
                 batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
             }
+            const DB_BATCH_SIZE = 50;
+            for (let i = 0; i < batchOperations.length; i += DB_BATCH_SIZE) {
+                const chunk = batchOperations.slice(i, i + DB_BATCH_SIZE);
+                try {
+                    await DB.batch(chunk);
+                } catch (e) {
+                    console.error(`数据库批次提交失败 (batch ${i}):`, e);
+                    throw new Error(`数据库部分更新失败: ${e.message}`);
+                }
+            }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
-            await DB.batch(batchOperations);
             await deleteVectorIndexes(env, oldFileIds);
             if (r2Tasks.length > 0) {
                 waitUntil((async () => {
