@@ -116,7 +116,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
         }
         if (action === 'listAllDirs') {
             const CACHE_ID = 2;
-            const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+            const CACHE_TTL_MS = 60 * 60 * 1000;
             let directories = [];
             let cacheHit = false;
             try {
@@ -149,7 +149,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 status: 200,
                 headers: addCorsHeaders({
                     'Content-Type': 'application/json',
-                    'Cache-Control': 'public, max-age=86400'
+                    'Cache-Control': 'public, max-age=3600'
                 })
             });
         }
