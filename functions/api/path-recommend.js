@@ -1,6 +1,8 @@
 import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
+const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const MODEL = 'qwen-3-32b';
+const NVIDIA_MODEL = 'qwen/qwq-32b';
 const KEYWORD_PROMPT = `你是一个大学课程目录推荐助手。用户上传了一些文件名，你需要提取出文件所属的课程全称。
     规则：
     1. 识别并扩展缩写：
@@ -37,25 +39,19 @@ export async function onRequestPost({ request, env }) {
         const VECTORIZE = env.VECTORIZE;
         let keywords = validFileNames.join(' ');
         try {
-            const keywordResponse = await fetch(CEREBRAS_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey}` },
-                body: JSON.stringify({
-                    model: MODEL,
-                    messages: [
-                        { role: 'system', content: KEYWORD_PROMPT },
-                        { role: 'user', content: `文件名：${validFileNames.join(', ')}` }
-                    ],
-                    temperature: 0.1
-                })
-            });
-            if (keywordResponse.ok) {
-                const keywordData = await keywordResponse.json();
-                let content = keywordData.choices?.[0]?.message?.content?.trim();
+            try {
+                const keywordResponse = await fetchAIChatCompletion(
+                    [{ role: 'system', content: KEYWORD_PROMPT }, { role: 'user', content: `文件名：${validFileNames.join(', ')}` }],
+                    null,
+                    env
+                );
+                let content = keywordResponse.choices?.[0]?.message?.content?.trim();
                 if (content) {
                     content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
                     keywords = content;
                 }
+            } catch (e) {
+                console.error('LLM 关键词提取失败:', e);
             }
         } catch (e) {
             console.error('LLM 关键词提取失败:', e);
@@ -93,20 +89,11 @@ export async function onRequestPost({ request, env }) {
             });
         }
         const numberedList = directories.map((dir, i) => `${i + 1}. ${dir}`).join('\n');
-        const pickResponse = await fetch(CEREBRAS_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey}` },
-            body: JSON.stringify({
-                model: MODEL,
-                messages: [
-                    { role: 'system', content: PICK_PROMPT },
-                    { role: 'user', content: `文件：${validFileNames.join(', ')}\n\n搜索到的目录：\n${numberedList}\n\n请返回最佳目录的编号：` }
-                ],
-                temperature: 0.1
-            })
-        });
-        if (!pickResponse.ok) throw new Error(`目录推荐接口错误: ${pickResponse.status}`);
-        const pickData = await pickResponse.json();
+        const pickData = await fetchAIChatCompletion(
+            [{ role: 'system', content: PICK_PROMPT }, { role: 'user', content: `文件：${validFileNames.join(', ')}\n\n搜索到的目录：\n${numberedList}\n\n请返回最佳目录的编号：` }],
+            null,
+            env
+        );
         let pickContent = pickData.choices?.[0]?.message?.content?.trim() || '';
         if (pickContent) {
             pickContent = pickContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -136,4 +123,46 @@ export async function onRequestPost({ request, env }) {
 }
 export async function onRequestOptions() {
     return new Response(null, { headers: addCorsHeaders() });
+}
+async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.1) {
+    const callProvider = async (url, key, model, providerName) => {
+        const body = {
+            model: model,
+            messages: messages,
+            temperature: temperature
+        };
+        if (tools) {
+            body.tools = tools;
+            body.tool_choice = toolChoice;
+        }
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${key}`
+            },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`${providerName} API Error: ${response.status} - ${errorText}`);
+        }
+        return await response.json();
+    };
+    if (env.CEREBRAS_API_KEY) {
+        try {
+            return await callProvider(CEREBRAS_API_URL, env.CEREBRAS_API_KEY, MODEL, 'Cerebras');
+        } catch (error) {
+            console.error('Cerebras API 失败:', error.message);
+            if (!env.NVIDIA_API_KEY) throw error;
+        }
+    }
+    if (env.NVIDIA_API_KEY) {
+        try {
+            return await callProvider(NVIDIA_API_URL, env.NVIDIA_API_KEY, NVIDIA_MODEL, 'NVIDIA');
+        } catch (error) {
+            throw new Error(`所有 API 失败: ${error.message}`);
+        }
+    }
+    throw new Error('未配置 API Key');
 }

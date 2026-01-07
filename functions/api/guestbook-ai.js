@@ -1,6 +1,8 @@
 import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
+const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const MODEL = 'gpt-oss-120b';
+const NVIDIA_MODEL = 'openai/gpt-oss-120b';
 const TOOLS = [
     {
         type: 'function',
@@ -232,28 +234,16 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
             6. 如果未搜索到资源 -> keep_pending 等待人工处理
             注意：主提示词中的规则在自动模式下同样适用！`
         : SYSTEM_PROMPT;
-    const response = await fetch(CEREBRAS_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${CEREBRAS_API_KEY}`
-        },
-        body: JSON.stringify({
-            model: MODEL,
-            messages: [
-                { role: 'system', content: systemPromptToUse },
-                { role: 'user', content: userMessage }
-            ],
-            tools: toolsToUse,
-            tool_choice: 'auto',
-            temperature: 0.7
-        })
-    });
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Cerebras API 调用失败: ${response.status} - ${errorText}`);
-    }
-    const aiResponse = await response.json();
+    const aiResponse = await fetchAIChatCompletion(
+        [
+            { role: 'system', content: systemPromptToUse },
+            { role: 'user', content: userMessage }
+        ],
+        toolsToUse,
+        env,
+        'auto',
+        0.7
+    );
     const message = aiResponse.choices?.[0]?.message;
     if (!message) {
         throw new Error('AI 未返回有效响应');
@@ -566,28 +556,16 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
             }
         }
     ];
-    const response = await fetch(CEREBRAS_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: MODEL,
-            messages: [
-                { role: 'system', content: '你是资源匹配助手。你的任务是根据搜索结果判断是否满足用户的资源请求。' },
-                { role: 'user', content: secondPrompt }
-            ],
-            tools: searchTools,
-            tool_choice: 'auto',
-            temperature: 0.7
-        })
-    });
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Cerebras API 二次调用失败: ${response.status} - ${errorText}`);
-    }
-    const aiResponse = await response.json();
+    const aiResponse = await fetchAIChatCompletion(
+        [
+            { role: 'system', content: '你是资源匹配助手。你的任务是根据搜索结果判断是否满足用户的资源请求。' },
+            { role: 'user', content: secondPrompt }
+        ],
+        searchTools,
+        env,
+        'auto',
+        0.7
+    );
     const message = aiResponse.choices?.[0]?.message;
     if (message?.tool_calls?.length > 0) {
         const toolCall = message.tool_calls[0];
@@ -695,4 +673,44 @@ export async function onRequestGet(context) {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' })
     });
+}
+async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.7) {
+    const callProvider = async (url, key, model, providerName) => {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${key}`
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: messages,
+                tools: tools,
+                tool_choice: toolChoice,
+                temperature: temperature
+            })
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`${providerName} API Error: ${response.status} - ${errorText}`);
+        }
+        return await response.json();
+    };
+    if (env.CEREBRAS_API_KEY) {
+        try {
+            return await callProvider(CEREBRAS_API_URL, env.CEREBRAS_API_KEY, MODEL, 'Cerebras');
+        } catch (error) {
+            console.error('Cerebras API 调用失败:', error.message);
+            if (!env.NVIDIA_API_KEY) throw error;
+        }
+    }
+    if (env.NVIDIA_API_KEY) {
+        try {
+            return await callProvider(NVIDIA_API_URL, env.NVIDIA_API_KEY, NVIDIA_MODEL, 'NVIDIA');
+        } catch (error) {
+            console.error('NVIDIA API 调用失败:', error.message);
+            throw new Error(`所有 API 提供商均失败。最后错误: ${error.message}`);
+        }
+    }
+    throw new Error('未配置有效的 API Key (CEREBRAS_API_KEY 或 NVIDIA_API_KEY)');
 }

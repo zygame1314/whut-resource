@@ -1,6 +1,8 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
+const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const MODEL_SEARCH = 'qwen-3-32b';
+const NVIDIA_MODEL = 'qwen/qwq-32b';
 const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。必须将用户的【搜索词】转化为【标准课程名】。
     规则：
     1. 修正缩写：大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德、概率论→概率论
@@ -45,25 +47,15 @@ export async function onRequestGet({ request, env }) {
     try {
         let finalKeywords = query;
         try {
-            const llmResponse = await fetch(CEREBRAS_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey}` },
-                body: JSON.stringify({
-                    model: MODEL_SEARCH,
-                    messages: [
-                        { role: 'system', content: SEARCH_PROMPT },
-                        { role: 'user', content: query }
-                    ],
-                    temperature: 0.1
-                })
-            });
-            if (llmResponse.ok) {
-                const llmData = await llmResponse.json();
-                let content = llmData.choices?.[0]?.message?.content?.trim();
-                if (content) {
-                    content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                    finalKeywords = content;
-                }
+            const llmResponse = await fetchAIChatCompletion(
+                [{ role: 'system', content: SEARCH_PROMPT }, { role: 'user', content: query }],
+                null,
+                env
+            );
+            let content = llmResponse.choices?.[0]?.message?.content?.trim();
+            if (content) {
+                content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                finalKeywords = content;
             }
         } catch (e) {
             console.error('LLM 扩展关键词失败，使用原始查询:', e);
@@ -136,4 +128,46 @@ export async function onRequestGet({ request, env }) {
 }
 export async function onRequestOptions() {
     return new Response(null, { status: 204, headers: addCorsHeaders() });
+}
+async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.1) {
+    const callProvider = async (url, key, model, providerName) => {
+        const body = {
+            model: model,
+            messages: messages,
+            temperature: temperature
+        };
+        if (tools) {
+            body.tools = tools;
+            body.tool_choice = toolChoice;
+        }
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${key}`
+            },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`${providerName} API Error: ${response.status} - ${errorText}`);
+        }
+        return await response.json();
+    };
+    if (env.CEREBRAS_API_KEY) {
+        try {
+            return await callProvider(CEREBRAS_API_URL, env.CEREBRAS_API_KEY, MODEL_SEARCH, 'Cerebras');
+        } catch (error) {
+            console.error('Cerebras API 失败:', error.message);
+            if (!env.NVIDIA_API_KEY) throw error;
+        }
+    }
+    if (env.NVIDIA_API_KEY) {
+        try {
+            return await callProvider(NVIDIA_API_URL, env.NVIDIA_API_KEY, NVIDIA_MODEL, 'NVIDIA');
+        } catch (error) {
+            throw new Error(`所有 API 失败: ${error.message}`);
+        }
+    }
+    throw new Error('未配置 API Key');
 }
