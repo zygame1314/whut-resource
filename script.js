@@ -991,6 +991,7 @@ function showPrompt({
         });
     });
 }
+
 function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch = false) {
     if (!breadcrumbListElement) return;
     breadcrumbListElement.innerHTML = '';
@@ -1601,32 +1602,39 @@ async function handleBatchMove() {
         if (!token) {
             throw new Error("无法移动：未获取到验证令牌。请重新登录。");
         }
-        try {
-            const response = await fetch(`${FILES_API_URL}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    sourceKeys: keysToMove,
-                    destinationPath: destinationPath
-                }),
-            });
-            const result = await response.json();
-            if (!response.ok || !result.success) {
-                if (result.errors && result.errors.length > 0) {
-                    throw new Error(`批量移动部分失败: <br>${result.errors.join('<br>')}`);
+        let successCount = 0;
+        let errorCount = 0;
+        const errors = [];
+        for (const key of keysToMove) {
+            try {
+                const response = await fetch(`${FILES_API_URL}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        sourceKey: key,
+                        destinationPath: destinationPath
+                    }),
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    errorCount++;
+                    errors.push(`- ${key.split('/').pop()}: ${result.error || '未知错误'}`);
+                } else {
+                    successCount++;
                 }
-                throw new Error(result.error || '移动失败');
+            } catch (e) {
+                errorCount++;
+                errors.push(`- ${key.split('/').pop()}: ${e.message}`);
             }
-            if (result.errors && result.errors.length > 0) {
-                showNotification(`批量移动完成，但有以下错误: <br>${result.errors.join('<br>')}`, 'warning');
-            } else {
-                showNotification(result.message || `成功移动了 ${keysToMove.length} 个项目`, 'success');
-            }
-        } catch (e) {
-            throw e;
+        }
+        if (errorCount > 0) {
+            const errorMessage = `移动完成，${successCount}个成功, ${errorCount}个失败。<br>${errors.join('<br>')}`;
+            showNotification(errorMessage, 'error');
+        } else {
+            showNotification(`成功移动了 ${successCount} 个项目`, 'success');
         }
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         if (directoryCache[destinationPath]) delete directoryCache[destinationPath];
