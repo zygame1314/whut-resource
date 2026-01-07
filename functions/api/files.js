@@ -441,7 +441,7 @@ export async function onRequestPut({ request, env }) {
                 batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
             }
-            await batchProcess(r2Tasks, 10, task => task());
+            await batchProcess(r2Tasks, 20, task => task());
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
             await DB.batch(batchOperations);
             await deleteVectorIndexes(env, oldFileIds);
@@ -613,7 +613,7 @@ export async function onRequestPost({ request, env }) {
                     batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
                 }
                 if (r2Tasks.length > 0) {
-                    await batchProcess(r2Tasks, 10, task => task());
+                    await batchProcess(r2Tasks, 20, task => task());
                 }
                 const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
                 await DB.batch(batchOperations);
