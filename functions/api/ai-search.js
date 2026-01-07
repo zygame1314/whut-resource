@@ -1,8 +1,10 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
 const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL_SEARCH = 'qwen-3-32b';
 const NVIDIA_MODEL = 'qwen/qwq-32b';
+const GROQ_MODEL = 'qwen/qwen3-32b';
 const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。必须将用户的【搜索词】转化为【标准课程名】。
     规则：
     1. 修正缩写：大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德、概率论→概率论
@@ -165,6 +167,14 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
     if (env.NVIDIA_API_KEY) {
         try {
             return await callProvider(NVIDIA_API_URL, env.NVIDIA_API_KEY, NVIDIA_MODEL, 'NVIDIA');
+        } catch (error) {
+            console.error('NVIDIA API 失败:', error.message);
+            if (!env.GROQ_API_KEY) throw error;
+        }
+    }
+    if (env.GROQ_API_KEY) {
+        try {
+            return await callProvider(GROQ_API_URL, env.GROQ_API_KEY, GROQ_MODEL, 'Groq');
         } catch (error) {
             throw new Error(`所有 API 失败: ${error.message}`);
         }

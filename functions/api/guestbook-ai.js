@@ -1,8 +1,10 @@
 import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
 const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'gpt-oss-120b';
 const NVIDIA_MODEL = 'openai/gpt-oss-120b';
+const GROQ_MODEL = 'openai/gpt-oss-120b';
 const TOOLS = [
     {
         type: 'function',
@@ -709,8 +711,16 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
             return await callProvider(NVIDIA_API_URL, env.NVIDIA_API_KEY, NVIDIA_MODEL, 'NVIDIA');
         } catch (error) {
             console.error('NVIDIA API 调用失败:', error.message);
+            if (!env.GROQ_API_KEY) throw error;
+        }
+    }
+    if (env.GROQ_API_KEY) {
+        try {
+            return await callProvider(GROQ_API_URL, env.GROQ_API_KEY, GROQ_MODEL, 'Groq');
+        } catch (error) {
+            console.error('Groq API 调用失败:', error.message);
             throw new Error(`所有 API 提供商均失败。最后错误: ${error.message}`);
         }
     }
-    throw new Error('未配置有效的 API Key (CEREBRAS_API_KEY 或 NVIDIA_API_KEY)');
+    throw new Error('未配置有效的 API Key (CEREBRAS/NVIDIA/GROQ)');
 }
