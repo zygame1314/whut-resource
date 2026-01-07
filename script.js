@@ -677,7 +677,6 @@ async function deleteFile(key, isDirectory) {
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
-        fetchAndBuildFolderTree();
     };
     try {
         const displayName = key.endsWith('/') ? key.slice(0, -1).split('/').pop() : key.split('/').pop();
@@ -992,7 +991,6 @@ function showPrompt({
         });
     });
 }
-
 function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch = false) {
     if (!breadcrumbListElement) return;
     breadcrumbListElement.innerHTML = '';
@@ -1443,7 +1441,6 @@ async function handleBatchDelete() {
         fetchAndDisplayFiles(currentPrefix, '', 1).then(() => {
             if (isSelectionMode) toggleSelectionMode();
         });
-        fetchAndBuildFolderTree();
     };
     try {
         let confirmMessage = `你确定要永久删除选中的 ${keysToDelete.length} 个项目吗？<br><b>此操作不可逆！</b>`;
@@ -1604,7 +1601,6 @@ async function handleBatchMove() {
         if (!token) {
             throw new Error("无法移动：未获取到验证令牌。请重新登录。");
         }
-
         try {
             const response = await fetch(`${FILES_API_URL}`, {
                 method: 'POST',
@@ -1617,27 +1613,21 @@ async function handleBatchMove() {
                     destinationPath: destinationPath
                 }),
             });
-
             const result = await response.json();
-
             if (!response.ok || !result.success) {
-                // 如果是部分成功，result.error 可能是一个汇总信息，result.errors 可能包含详细错误
                 if (result.errors && result.errors.length > 0) {
                     throw new Error(`批量移动部分失败: <br>${result.errors.join('<br>')}`);
                 }
                 throw new Error(result.error || '移动失败');
             }
-
             if (result.errors && result.errors.length > 0) {
                 showNotification(`批量移动完成，但有以下错误: <br>${result.errors.join('<br>')}`, 'warning');
             } else {
                 showNotification(result.message || `成功移动了 ${keysToMove.length} 个项目`, 'success');
             }
-
         } catch (e) {
             throw e;
         }
-
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         if (directoryCache[destinationPath]) delete directoryCache[destinationPath];
         selectedItems.clear();
@@ -1645,7 +1635,6 @@ async function handleBatchMove() {
         fetchAndDisplayFiles(currentPrefix, '', 1).then(() => {
             if (isSelectionMode) toggleSelectionMode();
         });
-        fetchAndBuildFolderTree();
     };
     try {
         await performBatchMove();
@@ -2565,7 +2554,6 @@ async function moveItem(key, currentName, isDirectory) {
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
         if (directoryCache[destinationPath]) delete directoryCache[destinationPath];
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
-        fetchAndBuildFolderTree();
     };
     try {
         await performMove();
@@ -2619,9 +2607,6 @@ async function renameFile(key, currentName, isDirectory) {
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
-        if (isDirectory) {
-            fetchAndBuildFolderTree();
-        }
     };
     try {
         await performRename();
