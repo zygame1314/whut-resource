@@ -531,163 +531,158 @@ export async function onRequestPost({ request, env }) {
     }
     try {
         const body = await request.json();
-        const { sourceKey, destinationPath } = body;
-        if (!sourceKey || destinationPath === undefined) {
-            return new Response(JSON.stringify({ success: false, error: '缺少sourceKey或destinationPath。' }), {
+        const { sourceKey, sourceKeys, destinationPath } = body;
+        if ((!sourceKey && (!sourceKeys || sourceKeys.length === 0)) || destinationPath === undefined) {
+            return new Response(JSON.stringify({ success: false, error: '缺少sourceKey(s)或destinationPath。' }), {
                 status: 400,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
-        const fileRecord = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(sourceKey).first();
-        if (!fileRecord) {
-            return new Response(JSON.stringify({ success: false, error: '文件未找到。' }), {
-                status: 404,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
-        }
+        const keysToMove = sourceKeys || [sourceKey];
+        const errors = [];
+        let successCount = 0;
         let newParentPath = destinationPath;
         if (newParentPath && !newParentPath.endsWith('/')) {
             newParentPath += '/';
         }
-        const isDirectory = fileRecord.is_directory === 1 || fileRecord.is_directory === true;
-        if (isDirectory) {
-            const oldFolderPath = sourceKey.endsWith('/') ? sourceKey : sourceKey + '/';
-            const folderName = fileRecord.name;
-            const newFolderKey = newParentPath ? `${newParentPath}${folderName}/` : `${folderName}/`;
-            if (newFolderKey.startsWith(oldFolderPath)) {
-                return new Response(JSON.stringify({ success: false, error: '不能将文件夹移动到其自身或子目录中。' }), {
-                    status: 400,
-                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-                });
+        const processMove = async (currentSourceKey) => {
+            const fileRecord = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(currentSourceKey).first();
+            if (!fileRecord) {
+                throw new Error(`文件未找到: ${currentSourceKey}`);
             }
-            if (sourceKey === newFolderKey || oldFolderPath === newFolderKey) {
-                return new Response(JSON.stringify({ success: false, error: '源和目标相同。' }), {
-                    status: 400,
-                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-                });
-            }
-            const existingFolder = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newFolderKey).first();
-            if (existingFolder) {
-                return new Response(JSON.stringify({ success: false, error: '目标中已存在同名文件夹。' }), {
-                    status: 409,
-                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-                });
-            }
-            const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
-            const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ?").bind(oldFolderPath, endKey, oldFolderPath).all();
-            const MAX_SAFE_BATCH_SIZE = 50;
-            if (childItems && childItems.length > MAX_SAFE_BATCH_SIZE) {
-                return new Response(JSON.stringify({
-                    success: false,
-                    error: `该文件夹包含 ${childItems.length} 个项目，超过安全操作限制 (${MAX_SAFE_BATCH_SIZE})。为防止超时和数据丢失，请手动分批移动或联系管理员直接在数据库操作。`
-                }), {
-                    status: 400,
-                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-                });
-            }
-            const batchOperations = [];
-            batchOperations.push(
-                DB.prepare(`
-                    INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `).bind(newFolderKey, folderName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, newParentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
-            );
-            batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey));
-            const r2Tasks = [];
-            for (const child of childItems || []) {
-                const relativePath = child.key.substring(oldFolderPath.length);
-                const newChildKey = `${newFolderKey}${relativePath}`;
-                const newChildParentPath = newChildKey.includes('/')
-                    ? newChildKey.substring(0, newChildKey.lastIndexOf('/') + 1)
-                    : '';
-                const isChildLink = child.is_link === 1 || child.is_link === true;
-                const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
-                if (!isChildLink && !isChildDirectory) {
-                    r2Tasks.push(async () => {
-                        try {
-                            const sourceObj = await R2.get(child.key);
-                            if (sourceObj) {
-                                await R2.put(newChildKey, sourceObj.body, {
-                                    httpMetadata: { contentType: child.contentType }
-                                });
-                                await R2.delete(child.key);
-                            }
-                        } catch (e) {
-                            console.error(`R2移动子项失败: ${child.key}`, e);
-                        }
-                    });
+            const isDirectory = fileRecord.is_directory === 1 || fileRecord.is_directory === true;
+            if (isDirectory) {
+                const oldFolderPath = currentSourceKey.endsWith('/') ? currentSourceKey : currentSourceKey + '/';
+                const folderName = fileRecord.name;
+                const newFolderKey = newParentPath ? `${newParentPath}${folderName}/` : `${folderName}/`;
+                if (newFolderKey.startsWith(oldFolderPath)) {
+                    throw new Error(`不能将文件夹移动到其自身或子目录中: ${folderName}`);
                 }
+                if (currentSourceKey === newFolderKey || oldFolderPath === newFolderKey) {
+                    throw new Error(`源和目标相同: ${folderName}`);
+                }
+                const existingFolder = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newFolderKey).first();
+                if (existingFolder) {
+                    throw new Error(`目标中已存在同名文件夹: ${folderName}`);
+                }
+                const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
+                const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ?").bind(oldFolderPath, endKey, oldFolderPath).all();
+                const MAX_SAFE_BATCH_SIZE = 50;
+                if (childItems && childItems.length > MAX_SAFE_BATCH_SIZE) {
+                    throw new Error(`文件夹 ${folderName} 包含 ${childItems.length} 个项目，超过安全操作限制 (${MAX_SAFE_BATCH_SIZE})`);
+                }
+                const batchOperations = [];
                 batchOperations.push(
                     DB.prepare(`
                         INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    `).bind(newChildKey, child.name, child.size, child.uploaded, child.contentType, newChildParentPath, child.is_directory, child.is_link, child.link_url, child.downloads, child.uploader_id)
+                    `).bind(newFolderKey, folderName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, newParentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id)
                 );
-                batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
-                batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
-            }
-            await batchProcess(r2Tasks, 10, task => task());
-            const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
-            await DB.batch(batchOperations);
-            await deleteVectorIndexes(env, oldFileIds);
-            const newFolderPathForQuery = newFolderKey;
-            const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
-            const { results: newFiles } = await DB.prepare(
-                "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
-            ).bind(newFolderKey, newFolderKey, newEndKey).all();
-            await createVectorIndexes(env, newFiles || []);
-            return new Response(JSON.stringify({ success: true, message: '文件夹移动成功' }), {
-                status: 200,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
-        }
-        const newKey = newParentPath ? `${newParentPath}${fileRecord.name}` : fileRecord.name;
-        if (sourceKey === newKey) {
-            return new Response(JSON.stringify({ success: false, error: '源和目标相同。' }), {
-                status: 400,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
-        }
-        const existing = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newKey).first();
-        if (existing) {
-            return new Response(JSON.stringify({ success: false, error: '目标中文件已存在。' }), {
-                status: 409,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
-        }
-        const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
-        if (!isLink) {
-            try {
-                const sourceObj = await R2.get(sourceKey);
-                if (sourceObj) {
-                    await R2.put(newKey, sourceObj.body, {
-                        httpMetadata: { contentType: fileRecord.contentType }
-                    });
-                    await R2.delete(sourceKey);
+                batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(currentSourceKey));
+                const r2Tasks = [];
+                for (const child of childItems || []) {
+                    const relativePath = child.key.substring(oldFolderPath.length);
+                    const newChildKey = `${newFolderKey}${relativePath}`;
+                    const newChildParentPath = newChildKey.includes('/')
+                        ? newChildKey.substring(0, newChildKey.lastIndexOf('/') + 1)
+                        : '';
+                    const isChildLink = child.is_link === 1 || child.is_link === true;
+                    const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
+                    if (!isChildLink && !isChildDirectory) {
+                        r2Tasks.push(async () => {
+                            try {
+                                const sourceObj = await R2.get(child.key);
+                                if (sourceObj) {
+                                    await R2.put(newChildKey, sourceObj.body, {
+                                        httpMetadata: { contentType: child.contentType }
+                                    });
+                                    await R2.delete(child.key);
+                                }
+                            } catch (e) {
+                                console.error(`R2移动子项失败: ${child.key}`, e);
+                            }
+                        });
+                    }
+                    batchOperations.push(
+                        DB.prepare(`
+                            INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `).bind(newChildKey, child.name, child.size, child.uploaded, child.contentType, newChildParentPath, child.is_directory, child.is_link, child.link_url, child.downloads, child.uploader_id)
+                    );
+                    batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+                    batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
                 }
-            } catch (e) {
-                return new Response(JSON.stringify({ success: false, error: 'R2移动失败：' + e.message }), {
-                    status: 500,
-                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-                });
+                if (r2Tasks.length > 0) {
+                    await batchProcess(r2Tasks, 10, task => task());
+                }
+                const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
+                await DB.batch(batchOperations);
+                await deleteVectorIndexes(env, oldFileIds);
+                const newFolderPathForQuery = newFolderKey;
+                const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
+                const { results: newFiles } = await DB.prepare(
+                    "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
+                ).bind(newFolderKey, newFolderKey, newEndKey).all();
+                await createVectorIndexes(env, newFiles || []);
+            } else {
+                const newKey = newParentPath ? `${newParentPath}${fileRecord.name}` : fileRecord.name;
+                if (currentSourceKey === newKey) {
+                    throw new Error(`源和目标相同: ${fileRecord.name}`);
+                }
+                const existing = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newKey).first();
+                if (existing) {
+                    throw new Error(`目标中文件已存在: ${fileRecord.name}`);
+                }
+                const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
+                if (!isLink) {
+                    const sourceObj = await R2.get(currentSourceKey);
+                    if (sourceObj) {
+                        await R2.put(newKey, sourceObj.body, {
+                            httpMetadata: { contentType: fileRecord.contentType }
+                        });
+                        await R2.delete(currentSourceKey);
+                    } else {
+                        throw new Error(`R2源文件未找到: ${currentSourceKey}`);
+                    }
+                }
+                const oldFileId = fileRecord.id;
+                await DB.batch([
+                    DB.prepare(`
+                        INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
+                        SELECT ?, name, size, uploaded, contentType, ?, is_directory, is_link, link_url, downloads, uploader_id
+                        FROM files WHERE key = ?
+                    `).bind(newKey, newParentPath, currentSourceKey),
+                    DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, currentSourceKey),
+                    DB.prepare('DELETE FROM files WHERE key = ?').bind(currentSourceKey)
+                ]);
+                await deleteVectorIndexes(env, [oldFileId]);
+                const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
+                if (newFileRecord) {
+                    await createVectorIndexes(env, [newFileRecord]);
+                }
             }
+            successCount++;
+        };
+        const moveTasks = keysToMove.map(k => async () => {
+            try {
+                await processMove(k);
+            } catch (error) {
+                console.error(`移动 ${k} 失败:`, error);
+                errors.push(`移动 ${k} 失败: ${error.message}`);
+            }
+        });
+        await batchProcess(moveTasks, 5, task => task());
+        if (successCount === 0 && errors.length > 0) {
+            return new Response(JSON.stringify({ success: false, error: errors.join('; ') }), {
+                status: 500,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
         }
-        const oldFileId = fileRecord.id;
-        await DB.batch([
-            DB.prepare(`
-                INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id)
-                SELECT ?, name, size, uploaded, contentType, ?, is_directory, is_link, link_url, downloads, uploader_id
-                FROM files WHERE key = ?
-            `).bind(newKey, newParentPath, sourceKey),
-            DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
-            DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey)
-        ]);
-        await deleteVectorIndexes(env, [oldFileId]);
-        const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
-        if (newFileRecord) {
-            await createVectorIndexes(env, [newFileRecord]);
-        }
-        return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
+        return new Response(JSON.stringify({
+            success: true,
+            message: `成功移动了 ${successCount} 个项目。`,
+            errors: errors.length > 0 ? errors : undefined
+        }), {
             status: 200,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
@@ -780,25 +775,57 @@ export async function onRequestDelete({ request, env }) {
         }
         const errors = [];
         let deletedCount = 0;
-        for (const currentKey of keysToDelete) {
-            try {
-                const fileRecord = await DB.prepare('SELECT id, is_directory, is_link FROM files WHERE key = ?').bind(currentKey).first();
-                if (!fileRecord) {
-                    continue;
+        const filesToDelete = [];
+        const foldersToDelete = [];
+        for (let i = 0; i < keysToDelete.length; i += 50) {
+            const batchKeys = keysToDelete.slice(i, i + 50);
+            const placeholders = batchKeys.map(() => '?').join(',');
+            const { results } = await DB.prepare(`SELECT id, key, is_directory, is_link FROM files WHERE key IN (${placeholders})`).bind(...batchKeys).all();
+            if (results) {
+                for (const r of results) {
+                    if (r.is_directory) foldersToDelete.push(r);
+                    else filesToDelete.push(r);
                 }
-                if (fileRecord.is_directory) {
+            }
+        }
+        if (filesToDelete.length > 0) {
+            const r2Tasks = [];
+            for (const f of filesToDelete) {
+                const isLink = f.is_link === 1 || f.is_link === true;
+                if (!isLink) {
+                    r2Tasks.push(async () => {
+                        try {
+                            await R2.delete(f.key);
+                        } catch (e) {
+                            console.error(`R2删除失败: ${f.key}`, e);
+                            errors.push(`R2删除失败: ${f.key}`);
+                        }
+                    });
+                }
+            }
+            if (r2Tasks.length > 0) {
+                await batchProcess(r2Tasks, 20, task => task());
+            }
+            const fileKeys = filesToDelete.map(f => f.key);
+            for (let i = 0; i < fileKeys.length; i += 100) {
+                const batch = fileKeys.slice(i, i + 100);
+                const placeholders = batch.map(() => '?').join(',');
+                await DB.prepare(`DELETE FROM files WHERE key IN (${placeholders})`).bind(...batch).run();
+            }
+            const fileIds = filesToDelete.map(f => f.id);
+            await deleteVectorIndexes(env, fileIds);
+            deletedCount += filesToDelete.length;
+        }
+        if (foldersToDelete.length > 0) {
+            const folderTasks = foldersToDelete.map(folderRecord => async () => {
+                const currentKey = folderRecord.key;
+                try {
                     const folderPath = currentKey.endsWith('/') ? currentKey : currentKey + '/';
                     const endKey = folderPath.substring(0, folderPath.length - 1) + '0';
                     const { results: childItems } = await DB.prepare("SELECT id, key, is_link, is_directory FROM files WHERE key >= ? AND key < ? AND key != ?").bind(folderPath, endKey, folderPath).all();
                     const MAX_SAFE_BATCH_SIZE = 50;
                     if (childItems && childItems.length > MAX_SAFE_BATCH_SIZE) {
-                        return new Response(JSON.stringify({
-                            success: false,
-                            error: `该文件夹包含 ${childItems.length} 个项目，超过安全操作限制 (${MAX_SAFE_BATCH_SIZE})。大量文件删除可能导致超时和数据残留，请先进入文件夹分批删除其中内容。`
-                        }), {
-                            status: 400,
-                            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-                        });
+                        throw new Error(`文件夹包含 ${childItems.length} 个项目，超过安全操作限制 (${MAX_SAFE_BATCH_SIZE})`);
                     }
                     const r2DeleteTasks = [];
                     for (const child of childItems || []) {
@@ -814,8 +841,10 @@ export async function onRequestDelete({ request, env }) {
                             });
                         }
                     }
-                    await batchProcess(r2DeleteTasks, 20, task => task());
-                    const fileIdsToDeleteVector = [fileRecord.id, ...(childItems || []).map(c => c.id)];
+                    if (r2DeleteTasks.length > 0) {
+                        await batchProcess(r2DeleteTasks, 20, task => task());
+                    }
+                    const fileIdsToDeleteVector = [folderRecord.id, ...(childItems || []).map(c => c.id)];
                     if (childItems && childItems.length > 0) {
                         const childKeys = childItems.map(c => c.key);
                         for (let i = 0; i < childKeys.length; i += 100) {
@@ -827,20 +856,12 @@ export async function onRequestDelete({ request, env }) {
                     await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
                     await deleteVectorIndexes(env, fileIdsToDeleteVector);
                     deletedCount += (childItems?.length || 0) + 1;
-                } else {
-                    const fileIdToDelete = fileRecord.id;
-                    const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
-                    if (!isLink) {
-                        await R2.delete(currentKey);
-                    }
-                    await DB.prepare('DELETE FROM files WHERE key = ?').bind(currentKey).run();
-                    await deleteVectorIndexes(env, [fileIdToDelete]);
-                    deletedCount++;
+                } catch (err) {
+                    console.error(`删除文件夹 ${currentKey} 失败:`, err);
+                    errors.push(`删除文件夹 ${currentKey} 失败：${err.message}`);
                 }
-            } catch (err) {
-                console.error(`删除 ${currentKey} 失败:`, err);
-                errors.push(`删除 ${currentKey} 失败：${err.message}`);
-            }
+            });
+            await batchProcess(folderTasks, 5, task => task());
         }
         if (deletedCount === 0 && errors.length > 0) {
             return new Response(JSON.stringify({ success: false, error: errors.join('; ') }), {
