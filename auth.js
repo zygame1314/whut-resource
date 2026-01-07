@@ -1670,6 +1670,7 @@ async function handleBatchAction(ids, action, refreshCallback, reviewNote = '') 
         console.error('Batch action error:', e);
         showNotification('批量操作请求失败: ' + e.message, 'error');
     }
+    fetchPendingRequestsCount();
     if (refreshCallback) refreshCallback();
 }
 async function handleRequestAction(requestId, action, refreshCallback, reviewNote = '') {
