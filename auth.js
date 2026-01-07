@@ -1554,6 +1554,17 @@ async function showAdminRequestsModal(mode = 'all') {
             });
             listContainer.querySelectorAll('.approve-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
+                    if (typeof showConfirmation === 'function') {
+                        const confirmed = await showConfirmation({
+                            title: '确认批准',
+                            message: '你确定要批准此请求吗？',
+                            confirmText: '批准',
+                            confirmClass: 'confirm-btn-primary'
+                        });
+                        if (!confirmed) return;
+                    } else if (!confirm('确定要批准此请求吗？')) {
+                        return;
+                    }
                     await handleRequestAction(btn.dataset.id, 'approve', loadRequests);
                 });
             });
@@ -1562,7 +1573,12 @@ async function showAdminRequestsModal(mode = 'all') {
                     let note = null;
                     try {
                         if (typeof window.showRejectPrompt === 'function') {
-                            note = await window.showRejectPrompt({ title: '拒绝请求', placeholder: '原因' });
+                            note = await window.showRejectPrompt({
+                                title: '拒绝请求',
+                                placeholder: '请输入拒绝原因（可选）',
+                                confirmText: '拒绝',
+                                showPresets: false
+                            });
                         } else {
                             note = prompt('请输入拒绝原因（可选）:');
                         }
@@ -1583,7 +1599,7 @@ async function showAdminRequestsModal(mode = 'all') {
         if (typeof showConfirmation === 'function') {
             const confirmed = await showConfirmation({
                 title: '确认批量批准',
-                message: `您确定要批准选中的 <span style="color:var(--primary-color);font-weight:bold;">${selectedRequestIds.size}</span> 个请求吗？`,
+                message: `你确定要批准选中的 <span style="color:var(--primary-color);font-weight:bold;">${selectedRequestIds.size}</span> 个请求吗？`,
                 confirmText: '批准',
                 confirmClass: 'confirm-btn-primary'
             });
