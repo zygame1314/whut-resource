@@ -2532,6 +2532,94 @@ if (searchButton && searchInput) {
         updateClearButton();
     }
 }
+(function initAISearchMode() {
+    const aiSearchToggle = document.getElementById('ai-search-toggle');
+    const searchBox = document.querySelector('.search-box');
+    const searchInputEl = document.getElementById('search-input');
+    if (!aiSearchToggle || !searchBox || !searchInputEl) return;
+    const aiPlaceholders = [
+        '高数线代太难顶？搜：高等数学期末真题 😭',
+        '航海人必备：四小证题库、GMDSS培训资料 🚢',
+        '期末汇报神器👉 武理PPT模板、报告册模板 🎨',
+        'Python作业写不出？搜：Python参考代码 🐍',
+        '竞赛拿奖：CMC数学竞赛、周培源力学竞赛 🏆',
+        '选课不迷路：各学院培养方案、选课指南 🗺️'
+    ];
+    const defaultPlaceholder = '输入关键词...';
+    const aiShortPlaceholder = 'AI 智能搜索...';
+    const SMALL_SCREEN_BREAKPOINT = 1200;
+    let placeholderInterval = null;
+    let currentPlaceholderIndex = 0;
+    function isSmallScreen() {
+        return window.innerWidth < SMALL_SCREEN_BREAKPOINT;
+    }
+    function startPlaceholderCarousel() {
+        if (placeholderInterval) return;
+        if (isSmallScreen()) {
+            searchInputEl.placeholder = aiShortPlaceholder;
+            return;
+        }
+        currentPlaceholderIndex = 0;
+        searchInputEl.placeholder = aiPlaceholders[currentPlaceholderIndex];
+        placeholderInterval = setInterval(() => {
+            if (searchInputEl.value.trim() !== '') return;
+            if (isSmallScreen()) {
+                stopPlaceholderCarousel();
+                searchInputEl.placeholder = aiShortPlaceholder;
+                searchBox.classList.add('ai-mode-active');
+                return;
+            }
+            searchInputEl.classList.add('placeholder-fade-out');
+            searchInputEl.classList.remove('placeholder-fade-in');
+            setTimeout(() => {
+                currentPlaceholderIndex = (currentPlaceholderIndex + 1) % aiPlaceholders.length;
+                searchInputEl.placeholder = aiPlaceholders[currentPlaceholderIndex];
+                searchInputEl.classList.remove('placeholder-fade-out');
+                searchInputEl.classList.add('placeholder-fade-in');
+            }, 300);
+        }, 4000);
+    }
+    function stopPlaceholderCarousel() {
+        if (placeholderInterval) {
+            clearInterval(placeholderInterval);
+            placeholderInterval = null;
+        }
+        searchInputEl.classList.remove('placeholder-fade-out', 'placeholder-fade-in');
+        searchInputEl.placeholder = defaultPlaceholder;
+    }
+    function toggleAIMode(isEnabled) {
+        if (isEnabled) {
+            searchBox.classList.add('ai-mode-active');
+            startPlaceholderCarousel();
+        } else {
+            searchBox.classList.remove('ai-mode-active');
+            stopPlaceholderCarousel();
+        }
+    }
+    aiSearchToggle.addEventListener('change', (e) => {
+        toggleAIMode(e.target.checked);
+    });
+    if (aiSearchToggle.checked) {
+        toggleAIMode(true);
+    }
+    searchInputEl.addEventListener('focus', () => {
+        if (aiSearchToggle.checked && searchInputEl.value.trim() === '') {
+            searchInputEl.classList.remove('placeholder-fade-out');
+            searchInputEl.classList.add('placeholder-fade-in');
+        }
+    });
+    window.addEventListener('resize', () => {
+        if (aiSearchToggle.checked) {
+            if (isSmallScreen() && placeholderInterval) {
+                stopPlaceholderCarousel();
+                searchInputEl.placeholder = aiShortPlaceholder;
+                searchBox.classList.add('ai-mode-active');
+            } else if (!isSmallScreen() && !placeholderInterval) {
+                startPlaceholderCarousel();
+            }
+        }
+    });
+})();
 function updateUploadButtonLink() {
     const uploadBtn = document.getElementById('upload-btn-link');
     if (uploadBtn) {

@@ -185,6 +185,47 @@
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
+.search-box.ai-mode-active #search-input {
+    border: 2px solid transparent;
+    background:
+        linear-gradient(var(--background), var(--background)) padding-box,
+        linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%) border-box;
+    background-size: 100% 100%, 200% 200%;
+    animation: ai-border-gradient 3s ease infinite;
+    box-shadow:
+        0 0 20px rgba(102, 126, 234, 0.25),
+        0 0 40px rgba(118, 75, 162, 0.15),
+        inset 0 0 20px rgba(102, 126, 234, 0.05);
+}
+
+.search-box.ai-mode-active #search-input:focus {
+    box-shadow:
+        0 0 25px rgba(102, 126, 234, 0.35),
+        0 0 50px rgba(118, 75, 162, 0.2),
+        inset 0 0 25px rgba(102, 126, 234, 0.08);
+}
+
+.search-box.ai-mode-active #search-input::placeholder {
+    color: #667eea;
+    font-weight: 500;
+    opacity: 1;
+}
+
+.search-box.ai-mode-active #search-input.placeholder-fade-out::placeholder {
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+}
+
+.search-box.ai-mode-active #search-input.placeholder-fade-in::placeholder {
+    opacity: 1;
+    transition: opacity 0.3s ease-in;
+}
+
+.search-box.ai-mode-active .search-icon {
+    color: #667eea;
+    animation: ai-icon-pulse 2s ease-in-out infinite;
+}
+
 .clear-search-btn {
     position: absolute;
     right: 240px;
@@ -219,6 +260,13 @@
 
     .clear-search-btn {
         right: 140px;
+    }
+}
+
+@media (max-width: 768px) {
+    #search-input::placeholder {
+        color: transparent !important;
+        opacity: 0 !important;
     }
 }
 
