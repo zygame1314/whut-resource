@@ -991,7 +991,6 @@ function showPrompt({
         });
     });
 }
-
 function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch = false) {
     if (!breadcrumbListElement) return;
     breadcrumbListElement.innerHTML = '';
@@ -1408,28 +1407,57 @@ async function handleBatchDelete() {
         if (!token) {
             throw new Error("无法删除：未获取到验证令牌。请重新登录。");
         }
-        const response = await fetch(`${FILES_API_URL}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-                keys: keysToDelete
-            }),
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-            throw new Error(result.error || '批量删除失败，请稍后重试');
+        let successCount = 0;
+        let errorCount = 0;
+        let pendingCount = 0;
+        const errors = [];
+        const CONCURRENCY = 3;
+        const deleteOneItem = async (key) => {
+            try {
+                const response = await fetch(`${FILES_API_URL}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ key: key }),
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    return { status: 'error', key, error: result.error || '未知错误' };
+                } else if (result.pending_approval) {
+                    return { status: 'pending', key };
+                } else {
+                    return { status: 'success', key };
+                }
+            } catch (e) {
+                return { status: 'error', key, error: e.message };
+            }
+        };
+        const results = [];
+        for (let i = 0; i < keysToDelete.length; i += CONCURRENCY) {
+            const batch = keysToDelete.slice(i, i + CONCURRENCY);
+            const batchResults = await Promise.all(batch.map(deleteOneItem));
+            results.push(...batchResults);
         }
-        if (result.pending_approval) {
-            showNotification(result.message || '已提交删除请求，等待超级管理员审批', 'info');
-            selectedItems.clear();
-            selectedDirectoryKeys.clear();
-            if (isSelectionMode) toggleSelectionMode();
-            return;
+        for (const r of results) {
+            if (r.status === 'success') successCount++;
+            else if (r.status === 'pending') pendingCount++;
+            else {
+                errorCount++;
+                errors.push(`- ${r.key.split('/').pop()}: ${r.error}`);
+            }
         }
-        showNotification(result.message || `成功删除了 ${keysToDelete.length} 个项目`, 'success');
+        if (pendingCount > 0 && successCount === 0 && errorCount === 0) {
+            showNotification(`已提交 ${pendingCount} 个删除请求，等待超级管理员审批`, 'info');
+        } else if (errorCount > 0) {
+            const errorMessage = `删除完成，${successCount}个成功${pendingCount > 0 ? `，${pendingCount}个待审批` : ''}, ${errorCount}个失败。<br>${errors.join('<br>')}`;
+            showNotification(errorMessage, 'error');
+        } else {
+            let message = `成功删除了 ${successCount} 个项目`;
+            if (pendingCount > 0) message += `，${pendingCount} 个已提交审批`;
+            showNotification(message, 'success');
+        }
         keysToDelete.forEach(key => {
             const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
             if (directoryCache[parentPrefix]) {
@@ -1439,6 +1467,7 @@ async function handleBatchDelete() {
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         selectedItems.clear();
         selectedDirectoryKeys.clear();
+        selectedLinkKeys.clear();
         fetchAndDisplayFiles(currentPrefix, '', 1).then(() => {
             if (isSelectionMode) toggleSelectionMode();
         });
@@ -1605,7 +1634,8 @@ async function handleBatchMove() {
         let successCount = 0;
         let errorCount = 0;
         const errors = [];
-        for (const key of keysToMove) {
+        const CONCURRENCY = 3;
+        const moveOneItem = async (key) => {
             try {
                 const response = await fetch(`${FILES_API_URL}`, {
                     method: 'POST',
@@ -1620,14 +1650,25 @@ async function handleBatchMove() {
                 });
                 const result = await response.json();
                 if (!response.ok || !result.success) {
-                    errorCount++;
-                    errors.push(`- ${key.split('/').pop()}: ${result.error || '未知错误'}`);
+                    return { status: 'error', key, error: result.error || '未知错误' };
                 } else {
-                    successCount++;
+                    return { status: 'success', key };
                 }
             } catch (e) {
+                return { status: 'error', key, error: e.message };
+            }
+        };
+        const results = [];
+        for (let i = 0; i < keysToMove.length; i += CONCURRENCY) {
+            const batch = keysToMove.slice(i, i + CONCURRENCY);
+            const batchResults = await Promise.all(batch.map(moveOneItem));
+            results.push(...batchResults);
+        }
+        for (const r of results) {
+            if (r.status === 'success') successCount++;
+            else {
                 errorCount++;
-                errors.push(`- ${key.split('/').pop()}: ${e.message}`);
+                errors.push(`- ${r.key.split('/').pop()}: ${r.error}`);
             }
         }
         if (errorCount > 0) {
@@ -1640,6 +1681,7 @@ async function handleBatchMove() {
         if (directoryCache[destinationPath]) delete directoryCache[destinationPath];
         selectedItems.clear();
         selectedDirectoryKeys.clear();
+        selectedLinkKeys.clear();
         fetchAndDisplayFiles(currentPrefix, '', 1).then(() => {
             if (isSelectionMode) toggleSelectionMode();
         });
