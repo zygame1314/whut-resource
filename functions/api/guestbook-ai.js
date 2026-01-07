@@ -575,7 +575,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, a
         body: JSON.stringify({
             model: MODEL,
             messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'system', content: '你是资源匹配助手。你的任务是根据搜索结果判断是否满足用户的资源请求。' },
                 { role: 'user', content: secondPrompt }
             ],
             tools: searchTools,
