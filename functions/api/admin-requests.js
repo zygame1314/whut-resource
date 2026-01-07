@@ -252,7 +252,13 @@ async function executeApprovedRequest(adminRequest, env) {
     switch (adminRequest.request_type) {
         case 'delete_file':
         case 'delete_folder':
-            return await executeDeleteFile(requestData, env, adminRequest.request_type === 'delete_folder');
+            // 文件删除不再由后端自动执行，改由前端并发调用 files.js
+            // 这里只返回 keys 供前端使用
+            return {
+                action_required: 'delete_files_frontend',
+                keys: requestData.keys || [requestData.key],
+                is_folder: adminRequest.request_type === 'delete_folder'
+            };
         case 'ban_user':
             return await executeBanUser(requestData, env);
         case 'unban_user':
@@ -261,35 +267,7 @@ async function executeApprovedRequest(adminRequest, env) {
             throw new Error(`未知的请求类型: ${adminRequest.request_type}`);
     }
 }
-async function executeDeleteFile(data, env, isFolder) {
-    const { key, keys } = data;
-    const keysToDelete = keys || [key];
-    let deletedCount = 0;
-    for (const k of keysToDelete) {
-        try {
-            if (isFolder || k.endsWith('/')) {
-                const prefix = k.endsWith('/') ? k : k + '/';
-                const listed = await env.R2_bucket.list({ prefix });
-                for (const obj of listed.objects) {
-                    await env.R2_bucket.delete(obj.key);
-                }
-                await env.R2_bucket.delete(k);
-                const endKey = prefix.substring(0, prefix.length - 1) + '0';
-                await env.DB.batch([
-                    env.DB.prepare('DELETE FROM files WHERE key >= ? AND key < ?').bind(prefix, endKey),
-                    env.DB.prepare('DELETE FROM files WHERE key = ?').bind(k)
-                ]);
-            } else {
-                await env.R2_bucket.delete(k);
-                await env.DB.prepare('DELETE FROM files WHERE key = ?').bind(k).run();
-            }
-            deletedCount++;
-        } catch (e) {
-            console.error(`删除 ${k} 失败:`, e);
-        }
-    }
-    return { deletedCount, total: keysToDelete.length };
-}
+
 async function executeBanUser(data, env) {
     const { user_id, guestbook_id } = data;
     let targetUserId = user_id;
@@ -315,6 +293,7 @@ async function executeBanUser(data, env) {
     ).bind(targetUserId).run();
     return { banned_user_id: targetUserId };
 }
+
 async function executeUnbanUser(data, env) {
     const { user_id } = data;
     if (!user_id) {

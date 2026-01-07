@@ -1403,60 +1403,32 @@ async function handleBatchDelete() {
     const directoryKeys = Array.from(selectedDirectoryKeys);
     const hasDirectories = directoryKeys.length > 0;
     const performBatchDelete = async () => {
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-            throw new Error("无法删除：未获取到验证令牌。请重新登录。");
-        }
-        let successCount = 0;
-        let errorCount = 0;
-        let pendingCount = 0;
-        const errors = [];
-        const CONCURRENCY = 3;
-        const deleteOneItem = async (key) => {
-            try {
-                const response = await fetch(`${FILES_API_URL}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ key: key }),
-                });
-                const result = await response.json();
-                if (!response.ok || !result.success) {
-                    return { status: 'error', key, error: result.error || '未知错误' };
-                } else if (result.pending_approval) {
-                    return { status: 'pending', key };
-                } else {
-                    return { status: 'success', key };
+        try {
+            const results = await window.executeBatchDelete(keysToDelete);
+            let successCount = 0;
+            let errorCount = 0;
+            let pendingCount = 0;
+            const errors = [];
+            for (const r of results) {
+                if (r.status === 'success') successCount++;
+                else if (r.status === 'pending') pendingCount++;
+                else {
+                    errorCount++;
+                    errors.push(`- ${r.key.split('/').pop()}: ${r.error}`);
                 }
-            } catch (e) {
-                return { status: 'error', key, error: e.message };
             }
-        };
-        const results = [];
-        for (let i = 0; i < keysToDelete.length; i += CONCURRENCY) {
-            const batch = keysToDelete.slice(i, i + CONCURRENCY);
-            const batchResults = await Promise.all(batch.map(deleteOneItem));
-            results.push(...batchResults);
-        }
-        for (const r of results) {
-            if (r.status === 'success') successCount++;
-            else if (r.status === 'pending') pendingCount++;
-            else {
-                errorCount++;
-                errors.push(`- ${r.key.split('/').pop()}: ${r.error}`);
+            if (pendingCount > 0 && successCount === 0 && errorCount === 0) {
+                showNotification(`已提交 ${pendingCount} 个删除请求，等待超级管理员审批`, 'info');
+            } else if (errorCount > 0) {
+                const errorMessage = `删除完成，${successCount}个成功${pendingCount > 0 ? `，${pendingCount}个待审批` : ''}, ${errorCount}个失败。<br>${errors.join('<br>')}`;
+                showNotification(errorMessage, 'error');
+            } else {
+                let message = `成功删除了 ${successCount} 个项目`;
+                if (pendingCount > 0) message += `，${pendingCount} 个已提交审批`;
+                showNotification(message, 'success');
             }
-        }
-        if (pendingCount > 0 && successCount === 0 && errorCount === 0) {
-            showNotification(`已提交 ${pendingCount} 个删除请求，等待超级管理员审批`, 'info');
-        } else if (errorCount > 0) {
-            const errorMessage = `删除完成，${successCount}个成功${pendingCount > 0 ? `，${pendingCount}个待审批` : ''}, ${errorCount}个失败。<br>${errors.join('<br>')}`;
-            showNotification(errorMessage, 'error');
-        } else {
-            let message = `成功删除了 ${successCount} 个项目`;
-            if (pendingCount > 0) message += `，${pendingCount} 个已提交审批`;
-            showNotification(message, 'success');
+        } catch (e) {
+            showNotification(e.message, 'error');
         }
         keysToDelete.forEach(key => {
             const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
@@ -1468,9 +1440,8 @@ async function handleBatchDelete() {
         selectedItems.clear();
         selectedDirectoryKeys.clear();
         selectedLinkKeys.clear();
-        fetchAndDisplayFiles(currentPrefix, '', 1).then(() => {
-            if (isSelectionMode) toggleSelectionMode();
-        });
+        updateSelectionUI();
+        fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage);
     };
     try {
         let confirmMessage = `你确定要永久删除选中的 ${keysToDelete.length} 个项目吗？<br><b>此操作不可逆！</b>`;
@@ -2821,3 +2792,40 @@ function showDirectoryPicker(itemsToMove = []) {
         hideAllActions();
     }, true);
 })();
+window.executeBatchDelete = async (keys) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        throw new Error("无法删除：未获取到验证令牌。请重新登录。");
+    }
+    if (!keys || keys.length === 0) return [];
+    const deleteOneItem = async (key) => {
+        try {
+            const response = await fetch(`${FILES_API_URL}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ key: key }),
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                return { status: 'error', key, error: result.error || '未知错误' };
+            } else if (result.pending_approval) {
+                return { status: 'pending', key };
+            } else {
+                return { status: 'success', key };
+            }
+        } catch (e) {
+            return { status: 'error', key, error: e.message };
+        }
+    };
+    const CONCURRENCY = 3;
+    const results = [];
+    for (let i = 0; i < keys.length; i += CONCURRENCY) {
+        const batch = keys.slice(i, i + CONCURRENCY);
+        const batchResults = await Promise.all(batch.map(deleteOneItem));
+        results.push(...batchResults);
+    }
+    return results;
+};

@@ -1537,6 +1537,27 @@ async function handleRequestAction(requestId, action, refreshCallback, reviewNot
         const data = await response.json();
         if (data.success) {
             showNotification(data.message || (action === 'approve' ? '已批准' : '已拒绝'), 'success');
+            if (data.executeResult && data.executeResult.action_required === 'delete_files_frontend') {
+                if (typeof window.executeBatchDelete === 'function') {
+                    showNotification('正在执行文件删除操作...', 'info');
+                    const deleteKeys = data.executeResult.keys;
+                    window.executeBatchDelete(deleteKeys).then(results => {
+                        const failed = results.filter(r => r.status === 'error');
+                        if (failed.length > 0) {
+                            const errorMsg = failed.map(f => `${f.key}: ${f.error}`).join('\n');
+                            console.error('部分文件删除失败:', errorMsg);
+                            showNotification(`审批通过，但有 ${failed.length} 个文件删除失败，请查看控制台`, 'warning');
+                        } else {
+                            showNotification('关联文件清理完成', 'success');
+                        }
+                    }).catch(err => {
+                        console.error('前端删除执行出错:', err);
+                        showNotification('文件删除过程出错: ' + err.message, 'error');
+                    });
+                } else {
+                    showNotification('警告: 前端删除组件未加载，请手动删除文件', 'warning');
+                }
+            }
             fetchPendingRequestsCount();
             if (refreshCallback) refreshCallback();
         } else {
