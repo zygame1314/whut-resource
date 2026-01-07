@@ -53,7 +53,6 @@
     cursor: pointer;
     font-weight: 600;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.25);
     text-decoration: none;
     position: relative;
     overflow: hidden;
@@ -80,12 +79,10 @@
 
 .primary-btn:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 123, 255, 0.35);
 }
 
 .primary-btn:active {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.25);
 }
 
 .secondary-btn {
@@ -94,7 +91,6 @@
     gap: 0.5rem;
     font-weight: 600;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.25);
     text-decoration: none;
     position: relative;
     overflow: hidden;
@@ -123,7 +119,6 @@
 
 .secondary-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(74, 144, 226, 0.4);
 }
 
 .secondary-btn:active {
@@ -146,15 +141,13 @@
     border: none;
     border-radius: 12px;
     cursor: pointer;
-    font-weight: 500;
+    font-weight: 600;
     transition: all var(--transition-fast);
-    box-shadow: var(--shadow-light);
     text-decoration: none;
 }
 
 .danger-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
 }
 
 .text-gradient {
@@ -5559,6 +5552,36 @@ input#prompt-input {
 .batch-actions {
     display: flex;
     gap: 0.5rem;
+}
+
+.batch-action-btn {
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    font-size: 0.85em;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s ease;
+    background: var(--background);
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.batch-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-light);
+}
+
+.batch-action-btn.approve:hover {
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.batch-action-btn.reject:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
 }
 
 .request-item.has-checkbox {

@@ -1348,8 +1348,8 @@ async function showAdminRequestsModal(mode = 'all') {
                     <span id="batch-selected-count" class="batch-count"></span>
                 </div>
                 <div class="batch-actions">
-                    <button id="batch-approve-btn" class="primary-btn small"><i class="fas fa-check"></i> 批准</button>
-                    <button id="batch-reject-btn" class="secondary-btn small"><i class="fas fa-times"></i> 拒绝</button>
+                    <button id="batch-approve-btn" class="batch-action-btn approve"><i class="fas fa-check"></i> 批准</button>
+                    <button id="batch-reject-btn" class="batch-action-btn reject"><i class="fas fa-times"></i> 拒绝</button>
                 </div>
             </div>
             <div id="requests-list" class="requests-list"></div>
