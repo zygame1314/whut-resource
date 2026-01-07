@@ -202,49 +202,86 @@ async function handlePut(request, env, user) {
         });
     }
     const body = await request.json();
-    const { request_id, action, review_note } = body;
-    if (!request_id || !['approve', 'reject'].includes(action)) {
-        return new Response(JSON.stringify({ error: '缺少必要参数' }), {
+    const { request_id, request_ids, action, review_note } = body;
+    if (!['approve', 'reject'].includes(action)) {
+        return new Response(JSON.stringify({ error: '无效的操作类型' }), {
             status: 400,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
-    const adminRequest = await env.DB.prepare(
-        'SELECT * FROM admin_requests WHERE id = ? AND status = ?'
-    ).bind(request_id, 'pending').first();
-    if (!adminRequest) {
-        return new Response(JSON.stringify({ error: '请求不存在或已处理' }), {
-            status: 404,
+    let idsToProcess = [];
+    if (request_ids && Array.isArray(request_ids)) {
+        idsToProcess = request_ids;
+    } else if (request_id) {
+        idsToProcess = [request_id];
+    } else {
+        return new Response(JSON.stringify({ error: '缺少请求ID' }), {
+            status: 400,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
-    const newStatus = action === 'approve' ? 'approved' : 'rejected';
-    await env.DB.prepare(`
-        UPDATE admin_requests 
-        SET status = ?, reviewed_by = ?, review_note = ?, reviewed_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    `).bind(newStatus, user.id, review_note || null, request_id).run();
-    let executeResult = null;
-    if (action === 'approve') {
+    if (idsToProcess.length === 0) {
+        return new Response(JSON.stringify({ success: true, count: 0, message: '未选择任何请求' }), {
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+        });
+    }
+    let successCount = 0;
+    let failCount = 0;
+    let accumulatedKeys = [];
+    let errors = [];
+    for (const id of idsToProcess) {
         try {
-            executeResult = await executeApprovedRequest(adminRequest, env);
-        } catch (e) {
-            console.error('执行审批操作失败:', e);
+            const adminRequest = await env.DB.prepare(
+                'SELECT * FROM admin_requests WHERE id = ? AND status = ?'
+            ).bind(id, 'pending').first();
+            if (!adminRequest) {
+                continue;
+            }
+            const newStatus = action === 'approve' ? 'approved' : 'rejected';
             await env.DB.prepare(`
-                UPDATE admin_requests SET status = 'pending', reviewed_by = NULL, review_note = NULL, reviewed_at = NULL
+                UPDATE admin_requests 
+                SET status = ?, reviewed_by = ?, review_note = ?, reviewed_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            `).bind(request_id).run();
-            return new Response(JSON.stringify({
-                success: false,
-                error: `执行操作失败: ${e.message}`
-            }), { status: 500, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            `).bind(newStatus, user.id, review_note || null, id).run();
+            if (action === 'approve') {
+                try {
+                    const execResult = await executeApprovedRequest(adminRequest, env);
+                    if (execResult && execResult.action_required === 'delete_files_frontend') {
+                        accumulatedKeys.push(...execResult.keys);
+                    }
+                } catch (execErr) {
+                    console.error(`Request ${id} execution failed:`, execErr);
+                    await env.DB.prepare(`
+                        UPDATE admin_requests SET status = 'pending', reviewed_by = NULL, review_note = NULL, reviewed_at = NULL
+                        WHERE id = ?
+                    `).bind(id).run();
+                    throw execErr;
+                }
+            }
+            successCount++;
+        } catch (e) {
+            console.error(`Batch process error for ID ${id}:`, e);
+            failCount++;
+            errors.push(`ID ${id}: ${e.message}`);
         }
     }
+    let executeResult = null;
+    if (accumulatedKeys.length > 0) {
+        executeResult = {
+            action_required: 'delete_files_frontend',
+            keys: accumulatedKeys
+        };
+    }
+    const message = successCount > 0
+        ? (action === 'approve' ? `成功批准 ${successCount} 个请求` : `成功拒绝 ${successCount} 个请求`)
+        : `操作失败`;
     return new Response(JSON.stringify({
-        success: true,
-        status: newStatus,
+        success: successCount > 0,
+        count: successCount,
+        failCount: failCount,
+        errors: errors,
         executeResult,
-        message: action === 'approve' ? '请求已批准并执行' : '请求已拒绝'
+        message: message + (failCount > 0 ? ` (${failCount} 个失败)` : '')
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function executeApprovedRequest(adminRequest, env) {
@@ -252,8 +289,6 @@ async function executeApprovedRequest(adminRequest, env) {
     switch (adminRequest.request_type) {
         case 'delete_file':
         case 'delete_folder':
-            // 文件删除不再由后端自动执行，改由前端并发调用 files.js
-            // 这里只返回 keys 供前端使用
             return {
                 action_required: 'delete_files_frontend',
                 keys: requestData.keys || [requestData.key],
@@ -267,7 +302,6 @@ async function executeApprovedRequest(adminRequest, env) {
             throw new Error(`未知的请求类型: ${adminRequest.request_type}`);
     }
 }
-
 async function executeBanUser(data, env) {
     const { user_id, guestbook_id } = data;
     let targetUserId = user_id;
@@ -293,7 +327,6 @@ async function executeBanUser(data, env) {
     ).bind(targetUserId).run();
     return { banned_user_id: targetUserId };
 }
-
 async function executeUnbanUser(data, env) {
     const { user_id } = data;
     if (!user_id) {

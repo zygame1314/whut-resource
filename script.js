@@ -1440,8 +1440,9 @@ async function handleBatchDelete() {
         selectedItems.clear();
         selectedDirectoryKeys.clear();
         selectedLinkKeys.clear();
-        updateSelectionUI();
-        fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage);
+        fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage).then(() => {
+            if (isSelectionMode) toggleSelectionMode();
+        });
     };
     try {
         let confirmMessage = `你确定要永久删除选中的 ${keysToDelete.length} 个项目吗？<br><b>此操作不可逆！</b>`;

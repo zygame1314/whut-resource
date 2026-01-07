@@ -1338,8 +1338,19 @@ async function showAdminRequestsModal(mode = 'all') {
             <div class="requests-header">
                 ${statusFilter}
                 <button id="refresh-requests-btn" class="secondary-btn">
-                    <i class="fas fa-refresh"></i> 刷新
+                    <i class="fas fa-sync-alt"></i> 刷新
                 </button>
+            </div>
+            <div id="requests-batch-toolbar" class="requests-batch-toolbar">
+                <div class="batch-check-group">
+                    <input type="checkbox" id="select-all-requests">
+                    <label for="select-all-requests">全选</label>
+                    <span id="batch-selected-count" class="batch-count"></span>
+                </div>
+                <div class="batch-actions">
+                    <button id="batch-approve-btn" class="primary-btn small"><i class="fas fa-check"></i> 批准</button>
+                    <button id="batch-reject-btn" class="secondary-btn small"><i class="fas fa-times"></i> 拒绝</button>
+                </div>
             </div>
             <div id="requests-list" class="requests-list"></div>
         </div>
@@ -1407,9 +1418,54 @@ async function showAdminRequestsModal(mode = 'all') {
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal();
     });
+    const batchToolbar = modal.querySelector('#requests-batch-toolbar');
+    const selectAllCheckbox = modal.querySelector('#select-all-requests');
+    const selectedCountSpan = modal.querySelector('#batch-selected-count');
+    const batchApproveBtn = modal.querySelector('#batch-approve-btn');
+    const batchRejectBtn = modal.querySelector('#batch-reject-btn');
+    let selectedRequestIds = new Set();
+    const updateBatchToolbar = () => {
+        const checkboxes = modal.querySelectorAll('.request-checkbox');
+        const checkedCount = selectedRequestIds.size;
+        if (checkboxes.length > 0 && modal.querySelector('#request-status-filter').value === 'pending') {
+            batchToolbar.classList.add('visible');
+        } else {
+            batchToolbar.classList.remove('visible');
+            selectedRequestIds.clear();
+        }
+        if (checkedCount > 0) {
+            selectedCountSpan.textContent = `已选 ${checkedCount} 项`;
+            batchApproveBtn.disabled = false;
+            batchRejectBtn.disabled = false;
+        } else {
+            selectedCountSpan.textContent = '';
+            batchApproveBtn.disabled = true;
+            batchRejectBtn.disabled = true;
+        }
+        if (checkboxes.length > 0) {
+            selectAllCheckbox.checked = checkedCount === checkboxes.length;
+            selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+    };
+    selectAllCheckbox.addEventListener('change', () => {
+        const checkboxes = modal.querySelectorAll('.request-checkbox');
+        const isChecked = selectAllCheckbox.checked;
+        checkboxes.forEach(cb => {
+            cb.checked = isChecked;
+            const id = cb.value;
+            if (isChecked) selectedRequestIds.add(id);
+            else selectedRequestIds.delete(id);
+        });
+        updateBatchToolbar();
+    });
     const loadRequests = async () => {
         const listContainer = modal.querySelector('#requests-list');
         listContainer.innerHTML = '<div class="loading-spinner"></div>';
+        selectedRequestIds.clear();
+        updateBatchToolbar();
         const statusSelect = modal.querySelector('#request-status-filter');
         const status = statusSelect ? statusSelect.value : 'all';
         const mineParam = mode === 'mine' ? '&mine=true' : '';
@@ -1420,6 +1476,7 @@ async function showAdminRequestsModal(mode = 'all') {
             const data = await response.json();
             if (!data.success || !data.data || data.data.length === 0) {
                 listContainer.innerHTML = '<p class="empty-state-small">暂无审批请求</p>';
+                batchToolbar.classList.remove('visible');
                 return;
             }
             listContainer.innerHTML = data.data.map(req => {
@@ -1462,25 +1519,39 @@ async function showAdminRequestsModal(mode = 'all') {
                         </button>
                     </div>
                 ` : '';
+                const showCheckbox = isSuperAdminUser && req.status === 'pending';
+                const checkboxHtml = showCheckbox
+                    ? `<div class="request-select"><input type="checkbox" class="request-checkbox" value="${req.id}"></div>`
+                    : '';
                 return `
-                    <div class="request-item" data-id="${req.id}">
-                        <div class="request-header">
-                            <span class="request-type">${typeLabels[req.request_type] || req.request_type}</span>
-                            ${statusLabels[req.status] || ''}
+                    <div class="request-item ${showCheckbox ? 'has-checkbox' : ''}" data-id="${req.id}">
+                        ${checkboxHtml}
+                        <div class="request-content-wrapper">
+                            <div class="request-header">
+                                <span class="request-type">${typeLabels[req.request_type] || req.request_type}</span>
+                                ${statusLabels[req.status] || ''}
+                            </div>
+                            <div class="request-meta">
+                                <span><i class="fas fa-user"></i> ${escapeHtml(req.requester_nickname || req.requester_email)}</span>
+                                <span><i class="fas fa-clock"></i> ${formatDateLocal(req.created_at)}</span>
+                            </div>
+                            <div class="request-details">
+                                ${detailsHtml}
+                            </div>
+                            ${req.review_note ? `<div class="review-note"><i class="fas fa-comment"></i> ${escapeHtml(req.review_note)}</div>` : ''}
+                            ${req.reviewer_nickname ? `<div class="reviewer-info"><i class="fas fa-user-check"></i> 由 ${escapeHtml(req.reviewer_nickname)} 处理</div>` : ''}
+                            ${actionButtons}
                         </div>
-                        <div class="request-meta">
-                            <span><i class="fas fa-user"></i> ${escapeHtml(req.requester_nickname || req.requester_email)}</span>
-                            <span><i class="fas fa-clock"></i> ${formatDateLocal(req.created_at)}</span>
-                        </div>
-                        <div class="request-details">
-                            ${detailsHtml}
-                        </div>
-                        ${req.review_note ? `<div class="review-note"><i class="fas fa-comment"></i> ${escapeHtml(req.review_note)}</div>` : ''}
-                        ${req.reviewer_nickname ? `<div class="reviewer-info"><i class="fas fa-user-check"></i> 由 ${escapeHtml(req.reviewer_nickname)} 处理</div>` : ''}
-                        ${actionButtons}
                     </div>
                 `;
             }).join('');
+            listContainer.querySelectorAll('.request-checkbox').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    if (e.target.checked) selectedRequestIds.add(e.target.value);
+                    else selectedRequestIds.delete(e.target.value);
+                    updateBatchToolbar();
+                });
+            });
             listContainer.querySelectorAll('.approve-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     await handleRequestAction(btn.dataset.id, 'approve', loadRequests);
@@ -1491,34 +1562,115 @@ async function showAdminRequestsModal(mode = 'all') {
                     let note = null;
                     try {
                         if (typeof window.showRejectPrompt === 'function') {
-                            note = await window.showRejectPrompt({
-                                title: '拒绝请求',
-                                placeholder: '请输入拒绝原因（可选）',
-                                confirmText: '拒绝',
-                                showPresets: false
-                            });
+                            note = await window.showRejectPrompt({ title: '拒绝请求', placeholder: '原因' });
                         } else {
                             note = prompt('请输入拒绝原因（可选）:');
                         }
-                    } catch (e) {
-                        return;
-                    }
+                    } catch (e) { return; }
                     if (note !== null) {
                         await handleRequestAction(btn.dataset.id, 'reject', loadRequests, note);
                     }
                 });
             });
+            updateBatchToolbar();
         } catch (e) {
             console.error('加载审批请求失败:', e);
             listContainer.innerHTML = '<p class="error-message">加载失败，请稍后重试</p>';
         }
     };
+    batchApproveBtn.addEventListener('click', async () => {
+        if (selectedRequestIds.size === 0) return;
+        if (typeof showConfirmation === 'function') {
+            const confirmed = await showConfirmation({
+                title: '确认批量批准',
+                message: `您确定要批准选中的 <span style="color:var(--primary-color);font-weight:bold;">${selectedRequestIds.size}</span> 个请求吗？`,
+                confirmText: '批准',
+                confirmClass: 'confirm-btn-primary'
+            });
+            if (!confirmed) return;
+        } else if (!confirm(`确定要批准这 ${selectedRequestIds.size} 个请求吗？`)) {
+            return;
+        }
+        await handleBatchAction(Array.from(selectedRequestIds), 'approve', loadRequests);
+    });
+    batchRejectBtn.addEventListener('click', async () => {
+        if (selectedRequestIds.size === 0) return;
+        let note = null;
+        if (typeof window.showRejectPrompt === 'function') {
+            try {
+                note = await window.showRejectPrompt({
+                    title: '批量拒绝请求',
+                    placeholder: '请输入拒绝所有选中请求的原因（可选）',
+                    confirmText: '批量拒绝',
+                    showPresets: false
+                });
+            } catch (e) {
+                return;
+            }
+        } else {
+            note = prompt('请输入拒绝所有选中请求的原因（可选）：');
+            if (note === null) return;
+        }
+        await handleBatchAction(Array.from(selectedRequestIds), 'reject', loadRequests, note);
+    });
     modal.querySelector('#refresh-requests-btn').addEventListener('click', loadRequests);
     const statusSelect = modal.querySelector('#request-status-filter');
     if (statusSelect) {
         statusSelect.addEventListener('change', loadRequests);
     }
     await loadRequests();
+}
+async function handleBatchAction(ids, action, refreshCallback, reviewNote = '') {
+    const token = localStorage.getItem('authToken');
+    const total = ids.length;
+    showNotification(`正在${action === 'approve' ? '批准' : '拒绝'} ${total} 个请求...`, 'info', 0);
+    try {
+        const response = await fetch(API_ENDPOINTS.adminRequests, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                request_ids: ids.map(id => parseInt(id)),
+                action: action,
+                review_note: reviewNote
+            })
+        });
+        const data = await response.json();
+        const successCount = data.count || 0;
+        const failCount = data.failCount || 0;
+        const allFrontendDeleteKeys = (data.executeResult && data.executeResult.keys) ? data.executeResult.keys : [];
+        if (allFrontendDeleteKeys.length > 0 && typeof window.executeBatchDelete === 'function') {
+            showNotification(`审批完成，正清理 ${allFrontendDeleteKeys.length} 个关联文件...`, 'info');
+            try {
+                const results = await window.executeBatchDelete(allFrontendDeleteKeys);
+                const deleteFailures = results.filter(r => r.status === 'error');
+                const deleteSuccess = results.filter(r => r.status === 'success' || r.status === 'pending').length;
+                let msg = `批量处理完成: 审批成功 ${successCount}`;
+                if (failCount > 0) msg += `, 审批失败 ${failCount}`;
+                if (deleteFailures.length > 0) {
+                    msg += `<br>文件清理: ${deleteSuccess} 成功, ${deleteFailures.length} 失败`;
+                    showNotification(msg, 'warning');
+                } else {
+                    msg += `<br>文件清理: ${deleteSuccess} 个已完成`;
+                    showNotification(msg, 'success');
+                }
+            } catch (e) {
+                showNotification(`批量处理完成，但文件清理出错: ${e.message}`, 'warning');
+            }
+        } else {
+            if (data.success) {
+                showNotification(`批量处理完成: ${successCount} 成功${failCount > 0 ? `, ${failCount} 失败` : ''}`, failCount > 0 ? 'warning' : 'success');
+            } else {
+                showNotification(data.message || '操作失败', 'error');
+            }
+        }
+    } catch (e) {
+        console.error('Batch action error:', e);
+        showNotification('批量操作请求失败: ' + e.message, 'error');
+    }
+    if (refreshCallback) refreshCallback();
 }
 async function handleRequestAction(requestId, action, refreshCallback, reviewNote = '') {
     try {

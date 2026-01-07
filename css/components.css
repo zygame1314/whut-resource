@@ -5461,3 +5461,136 @@ input#prompt-input {
         width: 100%;
     }
 }
+
+.requests-batch-toolbar {
+    display: none;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-hover);
+    align-items: center;
+    justify-content: space-between;
+}
+
+.requests-batch-toolbar.visible {
+    display: flex;
+}
+
+
+.batch-check-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.request-checkbox,
+.batch-check-group input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--text-secondary);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: var(--background);
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    vertical-align: middle;
+    /* Ensure consistent alignment */
+}
+
+.request-checkbox:hover,
+.batch-check-group input[type="checkbox"]:hover {
+    border-color: var(--primary-color);
+}
+
+.request-checkbox:checked,
+.batch-check-group input[type="checkbox"]:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.request-checkbox:checked::before,
+.batch-check-group input[type="checkbox"]:checked::before {
+    content: '\f00c';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    color: white;
+    font-size: 12px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.batch-check-group input[type="checkbox"]:indeterminate {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.batch-check-group input[type="checkbox"]:indeterminate::before {
+    content: '\f068';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    color: white;
+    font-size: 12px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.batch-check-group label {
+    margin: 0;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: var(--text-primary);
+}
+
+.batch-count {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    margin-left: 0.5rem;
+}
+
+.batch-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.request-item.has-checkbox {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.request-select {
+    padding-top: 4px;
+}
+
+.request-content-wrapper {
+    flex: 1;
+}
+
+@media (max-width: 768px) {
+    .requests-batch-toolbar {
+        flex-direction: column;
+        gap: 0.8rem;
+        align-items: stretch;
+    }
+
+    .batch-check-group {
+        justify-content: space-between;
+    }
+
+    .batch-actions {
+        justify-content: flex-end;
+    }
+
+    .batch-actions button {
+        flex: 1;
+    }
+}

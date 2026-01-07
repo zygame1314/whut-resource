@@ -271,9 +271,13 @@ CREATE TABLE admin_requests (
     FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
+-- Optimised for: List requests by status (e.g. pending) ordered by time
 CREATE INDEX idx_admin_requests_status_created ON admin_requests(status, created_at DESC);
+-- Optimised for: 'My Requests' list ordered by time
 CREATE INDEX idx_admin_requests_requester ON admin_requests(requested_by, created_at DESC);
+-- Optimised for: Reviewer history
 CREATE INDEX idx_admin_requests_reviewer ON admin_requests(reviewed_by, reviewed_at DESC);
+-- Optimised for: Automatic cleanup of old records
 CREATE INDEX idx_admin_requests_created_at ON admin_requests(created_at);
 
 DROP TABLE IF EXISTS admin_messages;
