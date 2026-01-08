@@ -13,7 +13,8 @@ const API_ENDPOINTS = {
     aiSearch: `${API_BASE}/api/ai-search`,
     reindex: `${API_BASE}/api/reindex`,
     pathRecommend: `${API_BASE}/api/path-recommend`,
-    adminRequests: `${API_BASE}/api/admin-requests`
+    adminRequests: `${API_BASE}/api/admin-requests`,
+    downloadLog: `${API_BASE.replace(/^http/, 'ws')}/api/ws`
 };
 window.filterTreeByKeyword = function (container, keyword, options = {}) {
     const {

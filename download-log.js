@@ -13,8 +13,7 @@
         connect();
     }
     function connect() {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/api/ws`;
+        const wsUrl = API_ENDPOINTS.downloadLog;
         socket = new WebSocket(wsUrl);
         socket.onopen = () => {
             console.log('Connected to download log');
