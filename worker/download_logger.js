@@ -17,7 +17,7 @@ export class DownloadLogger {
             this.broadcast(data);
             return new Response("OK", { status: 200 });
         }
-        return new Response("Not found", { status: 404 });
+        return new Response("未找到", { status: 404 });
     }
     async handleSession(webSocket) {
         webSocket.accept();
@@ -40,6 +40,6 @@ export class DownloadLogger {
 }
 export default {
     async fetch(request, env) {
-        return new Response("This worker is for Durable Objects only.", { status: 404 });
+        return new Response("该 Worker 仅用于 Durable Objects。", { status: 404 });
     }
 };

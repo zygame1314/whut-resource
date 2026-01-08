@@ -125,7 +125,7 @@ export async function onRequest(context) {
               });
             }
           } catch (err) {
-            console.error("Failed to broadcast download:", err);
+            console.error("广播下载信息失败:", err);
           }
         } catch (e) {
           console.error("更新统计信息时出错:", e);
@@ -205,7 +205,7 @@ export async function onRequest(context) {
             });
           }
         } catch (err) {
-          console.error("Failed to broadcast download:", err);
+          console.error("广播下载信息失败:", err);
         }
       } catch (e) {
         console.error("更新统计信息时出错:", e);

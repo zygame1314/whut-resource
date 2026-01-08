@@ -16,7 +16,7 @@
         const wsUrl = API_ENDPOINTS.downloadLog;
         socket = new WebSocket(wsUrl);
         socket.onopen = () => {
-            console.log('Connected to download log');
+            console.log('已成功连接到下载日志');
             reconnectInterval = 1000;
         };
         socket.onmessage = (event) => {
@@ -27,16 +27,16 @@
                 } else if (data.type === 'welcome') {
                 }
             } catch (e) {
-                console.error('Error parsing WebSocket message:', e);
+                console.error('解析 WebSocket 消息出错:', e);
             }
         };
         socket.onclose = () => {
-            console.log('Download log disconnected. Reconnecting in', reconnectInterval, 'ms');
+            console.log('下载日志链接已断开。', reconnectInterval, 'ms 后尝试重连');
             setTimeout(connect, reconnectInterval);
             reconnectInterval = Math.min(reconnectInterval * 2, MAX_RECONNECT_INTERVAL);
         };
         socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
+            console.error('WebSocket 发生错误:', error);
             socket.close();
         };
     }
