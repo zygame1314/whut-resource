@@ -3,8 +3,12 @@
     let socket;
     let reconnectInterval = 1000;
     let heartbeatTimer;
+    let visibilityDisconnectTimer;
+    let isPageVisible = !document.hidden;
+    let intentionalClose = false;
     const MAX_RECONNECT_INTERVAL = 30000;
     const HEARTBEAT_INTERVAL = 30000;
+    const VISIBILITY_DISCONNECT_DELAY = 60000;
     const isMobile = window.innerWidth <= 768;
     const MAX_VISIBLE_TOASTS = isMobile ? 1 : 3;
     const TOAST_DURATION = isMobile ? 3000 : 5000;
@@ -19,19 +23,67 @@
             container.className = 'download-log-container';
             document.body.appendChild(container);
         }
+        initVisibilityHandler();
         connect();
     }
+    function initVisibilityHandler() {
+        document.addEventListener('visibilitychange', () => {
+            isPageVisible = !document.hidden;
+            if (isPageVisible) {
+                onPageVisible();
+            } else {
+                onPageHidden();
+            }
+        });
+    }
+    function onPageVisible() {
+        if (visibilityDisconnectTimer) {
+            clearTimeout(visibilityDisconnectTimer);
+            visibilityDisconnectTimer = null;
+        }
+        if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+            console.log('页面可见，正在重新连接下载日志...');
+            reconnectInterval = 1000;
+            connect();
+        } else if (socket.readyState === WebSocket.OPEN && !heartbeatTimer) {
+            startHeartbeat();
+        }
+    }
+    function onPageHidden() {
+        stopHeartbeat();
+        visibilityDisconnectTimer = setTimeout(() => {
+            if (!isPageVisible && socket && socket.readyState === WebSocket.OPEN) {
+                console.log('页面长时间不可见，断开下载日志连接以节省资源');
+                intentionalClose = true;
+                socket.close();
+            }
+        }, VISIBILITY_DISCONNECT_DELAY);
+    }
+    function startHeartbeat() {
+        if (heartbeatTimer) return;
+        heartbeatTimer = setInterval(() => {
+            if (socket && socket.readyState === WebSocket.OPEN && isPageVisible) {
+                socket.send(JSON.stringify({ type: 'ping' }));
+            }
+        }, HEARTBEAT_INTERVAL);
+    }
+    function stopHeartbeat() {
+        if (heartbeatTimer) {
+            clearInterval(heartbeatTimer);
+            heartbeatTimer = null;
+        }
+    }
     function connect() {
+        if (!isPageVisible) {
+            return;
+        }
         const wsUrl = API_ENDPOINTS.downloadLog;
         socket = new WebSocket(wsUrl);
         socket.onopen = () => {
             console.log('已成功连接到下载日志');
             reconnectInterval = 1000;
-            heartbeatTimer = setInterval(() => {
-                if (socket.readyState === WebSocket.OPEN) {
-                    socket.send(JSON.stringify({ type: 'ping' }));
-                }
-            }, HEARTBEAT_INTERVAL);
+            intentionalClose = false;
+            startHeartbeat();
         };
         socket.onmessage = (event) => {
             try {
@@ -45,9 +97,10 @@
             }
         };
         socket.onclose = () => {
-            if (heartbeatTimer) {
-                clearInterval(heartbeatTimer);
-                heartbeatTimer = null;
+            stopHeartbeat();
+            if (intentionalClose || !isPageVisible) {
+                intentionalClose = false;
+                return;
             }
             console.log('下载日志链接已断开。', reconnectInterval, 'ms 后尝试重连');
             setTimeout(connect, reconnectInterval);

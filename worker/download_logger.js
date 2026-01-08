@@ -2,6 +2,12 @@ export class DownloadLogger {
     constructor(state, env) {
         this.state = state;
         this.env = env;
+        this.state.setWebSocketAutoResponse(
+            new WebSocketRequestResponsePair(
+                JSON.stringify({ type: 'ping' }),
+                JSON.stringify({ type: 'pong' })
+            )
+        );
     }
     async fetch(request) {
         const url = new URL(request.url);
@@ -30,13 +36,6 @@ export class DownloadLogger {
         }
     }
     async webSocketMessage(ws, message) {
-        try {
-            const data = JSON.parse(message);
-            if (data.type === 'ping') {
-                ws.send(JSON.stringify({ type: 'pong' }));
-            }
-        } catch (e) {
-        }
     }
     async webSocketClose(ws, code, reason, wasClean) {
     }
