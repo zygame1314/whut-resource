@@ -2,7 +2,9 @@
     const CONTAINER_ID = 'download-log-container';
     let socket;
     let reconnectInterval = 1000;
+    let heartbeatTimer;
     const MAX_RECONNECT_INTERVAL = 30000;
+    const HEARTBEAT_INTERVAL = 30000;
     function init() {
         if (!document.getElementById(CONTAINER_ID)) {
             const container = document.createElement('div');
@@ -18,19 +20,28 @@
         socket.onopen = () => {
             console.log('已成功连接到下载日志');
             reconnectInterval = 1000;
+            heartbeatTimer = setInterval(() => {
+                if (socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ type: 'ping' }));
+                }
+            }, HEARTBEAT_INTERVAL);
         };
         socket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'download') {
                     showDownloadToast(data.filename);
-                } else if (data.type === 'welcome') {
+                } else if (data.type === 'welcome' || data.type === 'pong') {
                 }
             } catch (e) {
                 console.error('解析 WebSocket 消息出错:', e);
             }
         };
         socket.onclose = () => {
+            if (heartbeatTimer) {
+                clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+            }
             console.log('下载日志链接已断开。', reconnectInterval, 'ms 后尝试重连');
             setTimeout(connect, reconnectInterval);
             reconnectInterval = Math.min(reconnectInterval * 2, MAX_RECONNECT_INTERVAL);

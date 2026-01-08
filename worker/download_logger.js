@@ -30,6 +30,13 @@ export class DownloadLogger {
         }
     }
     async webSocketMessage(ws, message) {
+        try {
+            const data = JSON.parse(message);
+            if (data.type === 'ping') {
+                ws.send(JSON.stringify({ type: 'pong' }));
+            }
+        } catch (e) {
+        }
     }
     async webSocketClose(ws, code, reason, wasClean) {
     }
