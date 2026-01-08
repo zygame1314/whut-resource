@@ -5621,7 +5621,7 @@ input#prompt-input {
     position: fixed;
     bottom: 20px;
     left: 20px;
-    z-index: 1000;
+    z-index: 2100;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -5643,7 +5643,7 @@ input#prompt-input {
     opacity: 0;
     animation: slideInLeft 0.5s forwards, slideDownClose 0.5s 4.5s forwards;
     pointer-events: auto;
-    max-width: 300px;
+    max-width: 400px;
     border-left: 3px solid var(--primary-color);
 }
 
@@ -5653,12 +5653,12 @@ input#prompt-input {
 
 .download-log-item .filename {
     font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 180px;
-    display: inline-block;
-    vertical-align: bottom;
+    max-width: 100%;
+    white-space: normal;
+    word-break: break-all;
+    line-height: 1.2;
+    display: block;
+    margin-bottom: 2px;
 }
 
 [data-theme="light"] .download-log-item {

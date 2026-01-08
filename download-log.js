@@ -46,12 +46,13 @@
         const item = document.createElement('div');
         item.className = 'download-log-item';
         const messages = [
-            '一位同学正在下载',
-            '有人发现了宝藏',
-            '知识 +1',
-            '不再孤单',
-            '并在努力学习',
-            '加油！'
+            '一位同学正在获取这份知识',
+            '有人发现了这份宝藏资源',
+            '学习路上，你并不孤单',
+            '满绩路上又多了一位同行者',
+            '点滴积累，终成江海',
+            '加油，未来的栋梁！',
+            '知识 +1，能力 +∞'
         ];
         const randomMsg = messages[Math.floor(Math.random() * messages.length)];
         item.innerHTML = `
