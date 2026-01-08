@@ -5,8 +5,9 @@
     let heartbeatTimer;
     const MAX_RECONNECT_INTERVAL = 30000;
     const HEARTBEAT_INTERVAL = 30000;
-    const MAX_VISIBLE_TOASTS = 3;
-    const TOAST_DURATION = 5000;
+    const isMobile = window.innerWidth <= 768;
+    const MAX_VISIBLE_TOASTS = isMobile ? 1 : 3;
+    const TOAST_DURATION = isMobile ? 3000 : 5000;
     const MERGE_WINDOW = 2000;
     const messageQueue = [];
     const activeToasts = new Map();

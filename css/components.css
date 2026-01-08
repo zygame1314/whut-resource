@@ -5716,14 +5716,35 @@ input#prompt-input {
 
 @media (max-width: 768px) {
     .download-log-container {
-        left: 10px;
+        left: auto;
         right: 10px;
         bottom: 70px;
+        max-width: 200px;
     }
 
     .download-log-item {
-        max-width: none;
-        font-size: 0.85rem;
-        padding: 10px 14px;
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        gap: 8px;
+        border-radius: 8px;
+    }
+
+    .download-log-item>i {
+        font-size: 0.9rem;
+        margin-top: 0;
+    }
+
+    .download-log-subtitle {
+        display: none;
+    }
+
+    .download-log-item .filename {
+        font-size: 0.8rem;
+        max-width: 140px;
+    }
+
+    .download-count {
+        font-size: 0.7rem;
+        padding: 1px 5px;
     }
 }

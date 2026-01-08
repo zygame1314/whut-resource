@@ -1306,7 +1306,7 @@
 
     .status-filters {
         width: 100%;
-        justify-content: center;
+        justify-content: flex-start;
         overflow-x: auto;
         overflow-y: hidden;
         padding: 0.25rem 0.5rem 6px;
@@ -1318,6 +1318,9 @@
         background: var(--background);
         border-radius: 8px;
         border: 1px solid var(--border-color);
+        position: relative;
+        mask-image: linear-gradient(to right, black, black calc(100% - 20px), transparent);
+        -webkit-mask-image: linear-gradient(to right, black, black calc(100% - 20px), transparent);
     }
 
     .status-filters::-webkit-scrollbar {
@@ -1338,6 +1341,7 @@
         font-size: 0.78rem;
         white-space: nowrap;
         flex-shrink: 0;
+        min-width: max-content;
     }
 
     .toolbar-divider {
