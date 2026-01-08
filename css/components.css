@@ -5652,18 +5652,6 @@ input#prompt-input {
     animation: slideOutLeft 0.3s ease-in forwards;
 }
 
-@keyframes slideOutLeft {
-    from {
-        transform: translateX(0);
-        opacity: 1;
-    }
-
-    to {
-        transform: translateX(-120%);
-        opacity: 0;
-    }
-}
-
 .download-log-item>i {
     color: var(--primary-color);
     font-size: 1.1rem;
