@@ -5,6 +5,12 @@
     let heartbeatTimer;
     const MAX_RECONNECT_INTERVAL = 30000;
     const HEARTBEAT_INTERVAL = 30000;
+    const MAX_VISIBLE_TOASTS = 3;
+    const TOAST_DURATION = 5000;
+    const MERGE_WINDOW = 2000;
+    const messageQueue = [];
+    const activeToasts = new Map();
+    let isProcessingQueue = false;
     function init() {
         if (!document.getElementById(CONTAINER_ID)) {
             const container = document.createElement('div');
@@ -30,7 +36,7 @@
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'download') {
-                    showDownloadToast(data.filename);
+                    queueDownloadToast(data.filename);
                 } else if (data.type === 'welcome' || data.type === 'pong') {
                 }
             } catch (e) {
@@ -51,7 +57,58 @@
             socket.close();
         };
     }
-    function showDownloadToast(filename) {
+    function queueDownloadToast(filename) {
+        if (activeToasts.has(filename)) {
+            const toastData = activeToasts.get(filename);
+            toastData.count++;
+            updateToastCount(toastData);
+            return;
+        }
+        const existingInQueue = messageQueue.find(m => m.filename === filename && (Date.now() - m.timestamp) < MERGE_WINDOW);
+        if (existingInQueue) {
+            existingInQueue.count++;
+            return;
+        }
+        messageQueue.push({
+            filename,
+            count: 1,
+            timestamp: Date.now()
+        });
+        processQueue();
+    }
+    function processQueue() {
+        if (isProcessingQueue) return;
+        isProcessingQueue = true;
+        const tryShowNext = () => {
+            if (activeToasts.size >= MAX_VISIBLE_TOASTS) {
+                isProcessingQueue = false;
+                return;
+            }
+            if (messageQueue.length === 0) {
+                isProcessingQueue = false;
+                return;
+            }
+            const message = messageQueue.shift();
+            showDownloadToast(message.filename, message.count);
+            if (activeToasts.size < MAX_VISIBLE_TOASTS && messageQueue.length > 0) {
+                setTimeout(tryShowNext, 300);
+            } else {
+                isProcessingQueue = false;
+            }
+        };
+        tryShowNext();
+    }
+    function updateToastCount(toastData) {
+        const countBadge = toastData.element.querySelector('.download-count');
+        if (countBadge) {
+            countBadge.textContent = `×${toastData.count}`;
+            countBadge.style.display = 'inline';
+            countBadge.classList.remove('count-bump');
+            void countBadge.offsetWidth;
+            countBadge.classList.add('count-bump');
+        }
+    }
+    function showDownloadToast(filename, initialCount = 1) {
         const container = document.getElementById(CONTAINER_ID);
         if (!container) return;
         const item = document.createElement('div');
@@ -66,19 +123,44 @@
             '知识 +1，能力 +∞'
         ];
         const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+        const countDisplay = initialCount > 1 ? `×${initialCount}` : '';
+        const countStyle = initialCount > 1 ? '' : 'display: none;';
         item.innerHTML = `
             <i class="fas fa-download"></i>
-            <div>
-                <span class="filename" title="${filename}">${filename}</span>
-                <div style="font-size: 0.8em; opacity: 0.8;">${randomMsg}</div>
+            <div class="download-log-content">
+                <div class="download-log-title">
+                    <span class="filename" title="${filename}">${filename}</span>
+                    <span class="download-count" style="${countStyle}">${countDisplay}</span>
+                </div>
+                <div class="download-log-subtitle">${randomMsg}</div>
             </div>
         `;
         container.appendChild(item);
+        const toastData = {
+            element: item,
+            count: initialCount,
+            filename
+        };
+        activeToasts.set(filename, toastData);
         setTimeout(() => {
-            if (item.parentNode) {
-                item.parentNode.removeChild(item);
-            }
-        }, 5000);
+            removeToast(filename);
+        }, TOAST_DURATION);
+    }
+    function removeToast(filename) {
+        const toastData = activeToasts.get(filename);
+        if (toastData && toastData.element.parentNode) {
+            toastData.element.classList.add('download-log-item-exit');
+            setTimeout(() => {
+                if (toastData.element.parentNode) {
+                    toastData.element.parentNode.removeChild(toastData.element);
+                }
+                activeToasts.delete(filename);
+                processQueue();
+            }, 300);
+        } else {
+            activeToasts.delete(filename);
+            processQueue();
+        }
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

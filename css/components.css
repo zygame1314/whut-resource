@@ -5629,40 +5629,113 @@ input#prompt-input {
 }
 
 .download-log-item {
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(10px);
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(12px);
     color: white;
-    padding: 10px 16px;
-    border-radius: 8px;
+    padding: 12px 16px;
+    border-radius: 10px;
     font-size: 0.9rem;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transform: translateX(-100%);
-    opacity: 0;
-    animation: slideInLeft 0.5s forwards, slideDownClose 0.5s 4.5s forwards;
+    align-items: flex-start;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateX(0);
+    opacity: 1;
+    animation: slideInLeft 0.3s ease-out forwards;
     pointer-events: auto;
-    max-width: 400px;
+    max-width: 360px;
     border-left: 3px solid var(--primary-color);
+    transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-.download-log-item i {
+.download-log-item-exit {
+    animation: slideOutLeft 0.3s ease-in forwards;
+}
+
+@keyframes slideOutLeft {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(-120%);
+        opacity: 0;
+    }
+}
+
+.download-log-item>i {
     color: var(--primary-color);
+    font-size: 1.1rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.download-log-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.download-log-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .download-log-item .filename {
     font-weight: 600;
     max-width: 100%;
-    white-space: normal;
-    word-break: break-all;
-    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
     display: block;
-    margin-bottom: 2px;
+}
+
+.download-log-subtitle {
+    font-size: 0.8em;
+    opacity: 0.75;
+    margin-top: 4px;
+}
+
+.download-count {
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    line-height: 1.2;
+}
+
+.count-bump {
+    animation: countBump 0.3s ease;
 }
 
 [data-theme="light"] .download-log-item {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.9);
     color: #333;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-left: 3px solid var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .download-log-subtitle {
+    opacity: 0.65;
+}
+
+@media (max-width: 768px) {
+    .download-log-container {
+        left: 10px;
+        right: 10px;
+        bottom: 70px;
+    }
+
+    .download-log-item {
+        max-width: none;
+        font-size: 0.85rem;
+        padding: 10px 14px;
+    }
 }
