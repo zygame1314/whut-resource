@@ -5492,7 +5492,6 @@ input#prompt-input {
     justify-content: center;
     position: relative;
     vertical-align: middle;
-    /* Ensure consistent alignment */
 }
 
 .request-checkbox:hover,
@@ -5616,4 +5615,54 @@ input#prompt-input {
     .batch-actions button {
         flex: 1;
     }
+}
+
+.download-log-container {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.download-log-item {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateX(-100%);
+    opacity: 0;
+    animation: slideInLeft 0.5s forwards, slideDownClose 0.5s 4.5s forwards;
+    pointer-events: auto;
+    max-width: 300px;
+    border-left: 3px solid var(--primary-color);
+}
+
+.download-log-item i {
+    color: var(--primary-color);
+}
+
+.download-log-item .filename {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+    display: inline-block;
+    vertical-align: bottom;
+}
+
+[data-theme="light"] .download-log-item {
+    background: rgba(255, 255, 255, 0.8);
+    color: #333;
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }

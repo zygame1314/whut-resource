@@ -18,3 +18,8 @@ binding = "AI"
 [[vectorize]]
 binding = "VECTORIZE"
 index_name = "whut-resource-index"
+
+[[durable_objects]]
+binding = "DOWNLOAD_LOGGER"
+class_name = "DownloadLogger"
+script_name = "whut-resource-do"
