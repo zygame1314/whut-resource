@@ -2,14 +2,14 @@ export class DownloadLogger {
     constructor(state, env) {
         this.state = state;
         this.env = env;
-        this.sessions = [];
     }
     async fetch(request) {
         const url = new URL(request.url);
         if (request.headers.get("Upgrade") === "websocket") {
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
-            await this.handleSession(server);
+            this.state.acceptWebSocket(server);
+            server.send(JSON.stringify({ type: 'welcome', message: '已连接到实时下载日志' }));
             return new Response(null, { status: 101, webSocket: client });
         }
         if (url.pathname === "/broadcast" && request.method === "POST") {
@@ -19,23 +19,21 @@ export class DownloadLogger {
         }
         return new Response("未找到", { status: 404 });
     }
-    async handleSession(webSocket) {
-        webSocket.accept();
-        this.sessions.push(webSocket);
-        webSocket.send(JSON.stringify({ type: 'welcome', message: '已连接到实时下载日志' }));
-        webSocket.addEventListener("close", async () => {
-            this.sessions = this.sessions.filter((session) => session !== webSocket);
-        });
-    }
     broadcast(data) {
-        this.sessions = this.sessions.filter(session => {
+        const msg = JSON.stringify(data);
+        for (const ws of this.state.getWebSockets()) {
             try {
-                session.send(JSON.stringify(data));
-                return true;
+                ws.send(msg);
             } catch (err) {
-                return false;
+                ws.close();
             }
-        });
+        }
+    }
+    async webSocketMessage(ws, message) {
+    }
+    async webSocketClose(ws, code, reason, wasClean) {
+    }
+    async webSocketError(ws, error) {
     }
 }
 export default {
