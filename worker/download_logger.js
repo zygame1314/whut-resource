@@ -15,7 +15,7 @@ export class DownloadLogger {
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
             this.state.acceptWebSocket(server);
-            server.send(JSON.stringify({ type: 'welcome', message: '已连接到实时下载日志' }));
+            server.send(JSON.stringify({ type: 'welcome', message: '已成功连接到实时下载日志' }));
             return new Response(null, { status: 101, webSocket: client });
         }
         if (url.pathname === "/broadcast" && request.method === "POST") {
