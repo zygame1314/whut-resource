@@ -235,21 +235,18 @@ async function addWatermarkToPDF(file) {
         const watermarkDims = watermarkImage.scale(1);
         for (const page of pages) {
             const { width, height } = page.getSize();
-            const horizontalSpacing = width / 2.5;
-            const verticalSpacing = height / 2.5;
-            for (let x = 0; x < 3; x++) {
-                for (let y = 0; y < 3; y++) {
-                    const xPos = (x * horizontalSpacing) + horizontalSpacing / 4;
-                    const yPos = (y * verticalSpacing) + verticalSpacing / 4;
-                    page.drawImage(watermarkImage, {
-                        x: xPos - watermarkDims.width / 2,
-                        y: yPos - watermarkDims.height / 2,
-                        width: watermarkDims.width,
-                        height: watermarkDims.height,
-                        opacity: 0.5,
-                    });
-                }
-            }
+            
+            // 在页面正中间添加水印
+            const xPos = (width - watermarkDims.width) / 2;
+            const yPos = (height - watermarkDims.height) / 2;
+            
+            page.drawImage(watermarkImage, {
+                x: xPos,
+                y: yPos,
+                width: watermarkDims.width,
+                height: watermarkDims.height,
+                opacity: 0.5,
+            });
         }
         const pdfBytes = await pdfDoc.save();
         const newFile = new File([pdfBytes], file.name, {
