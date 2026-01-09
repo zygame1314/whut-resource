@@ -21,6 +21,74 @@
 </head>
 
 <body>
+    <div id="maintenance-overlay"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 10, 20, 0.98); z-index: 99999; justify-content: center; align-items: center; flex-direction: column; color: white; backdrop-filter: blur(10px);">
+        <div
+            style="text-align: center; padding: 2rem; border-radius: 20px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);">
+            <i class="fas fa-tools"
+                style="font-size: 4rem; margin-bottom: 1.5rem; color: #64b5f6; animation: wrench-spin 2.5s ease-in-out infinite;"></i>
+            <h1 style="font-size: 2rem; margin-bottom: 1rem; font-family: 'Segoe UI', sans-serif;">系统维护中</h1>
+            <p id="maintenance-message" style="font-size: 1.1rem; color: #a0a0a0; max-width: 400px; line-height: 1.6;">
+                系统正在进行升级维护，请稍候访问...</p>
+            <div style="margin-top: 2rem; font-size: 0.9rem; color: #666;">
+                <span class="loading-dots">正在努力施工</span>
+            </div>
+        </div>
+        <style>
+            @keyframes wrench-spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+
+                20% {
+                    transform: rotate(-20deg);
+                }
+
+                40% {
+                    transform: rotate(20deg);
+                }
+
+                60% {
+                    transform: rotate(-20deg);
+                }
+
+                80% {
+                    transform: rotate(20deg);
+                }
+
+                100% {
+                    transform: rotate(0deg);
+                }
+            }
+
+            .loading-dots::after {
+                content: '.';
+                animation: dots 1.5s steps(5, end) infinite;
+            }
+
+            @keyframes dots {
+
+                0%,
+                20% {
+                    content: '.';
+                }
+
+                40% {
+                    content: '..';
+                }
+
+                60% {
+                    content: '...';
+                }
+
+                80%,
+                100% {
+                    content: '';
+                }
+            }
+        </style>
+    </div>
+
     <div id="particles-background"></div>
 
     <nav class="top-nav">
@@ -489,6 +557,35 @@
     <script src="https://cdn.jsdmirror.com/npm/dompurify@3.0.5/dist/purify.min.js"></script>
     <script src="https://cdn.jsdmirror.com/npm/shepherd.js@10.0.1/dist/js/shepherd.min.js"></script>
     <script src="config.js"></script>
+    <script>
+        if (typeof MAINTENANCE_MODE !== 'undefined' && MAINTENANCE_MODE) {
+            const overlay = document.getElementById('maintenance-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                if (typeof MAINTENANCE_MSG !== 'undefined') {
+                    const msgEl = document.getElementById('maintenance-message');
+                    if (msgEl) msgEl.textContent = MAINTENANCE_MSG;
+                }
+                document.body.style.overflow = 'hidden';
+            }
+
+            console.warn('%c 维护模式已开启，已拦截所有网络请求 ', 'background: #ff0000; color: #ffffff; font-size: 14px; padding: 4px;');
+
+            window.fetch = function () {
+                console.log('Fetch request blocked by maintenance mode');
+                return new Promise(() => { });
+            };
+
+            function NoOpRequest() { }
+            NoOpRequest.prototype.open = function () { };
+            NoOpRequest.prototype.send = function () { };
+            NoOpRequest.prototype.setRequestHeader = function () { };
+            NoOpRequest.prototype.addEventListener = function () { };
+            NoOpRequest.prototype.onreadystatechange = null;
+            window.XMLHttpRequest = NoOpRequest;
+
+        }
+    </script>
     <script src="tutorial.js"></script>
     <script src="script.js"></script>
     <script src="announcements.js"></script>
