@@ -16,7 +16,7 @@ const API_ENDPOINTS = {
     adminRequests: `${API_BASE}/api/admin-requests`,
     downloadLog: `${API_BASE.replace(/^http/, 'ws')}/api/ws`
 };
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 const MAINTENANCE_MSG = "系统正在进行升级维护，请稍候访问...";
 window.filterTreeByKeyword = function (container, keyword, options = {}) {
     const {
