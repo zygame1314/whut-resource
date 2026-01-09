@@ -5716,8 +5716,8 @@ input#prompt-input {
 
 @media (max-width: 768px) {
     .download-log-container {
-        left: auto;
-        right: 10px;
+        left: 10px;
+        right: auto;
         bottom: 70px;
         max-width: 200px;
     }

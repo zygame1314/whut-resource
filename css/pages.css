@@ -1306,42 +1306,21 @@
 
     .status-filters {
         width: 100%;
-        justify-content: flex-start;
-        overflow-x: auto;
-        overflow-y: hidden;
-        padding: 0.25rem 0.5rem 6px;
-        -webkit-overflow-scrolling: touch;
-        flex-wrap: nowrap;
-        gap: 0.3rem;
-        scrollbar-width: thin;
-        scrollbar-color: var(--border-color) transparent;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.25rem;
+        padding: 0.25rem;
         background: var(--background);
         border-radius: 8px;
         border: 1px solid var(--border-color);
-        position: relative;
-        mask-image: linear-gradient(to right, black, black calc(100% - 20px), transparent);
-        -webkit-mask-image: linear-gradient(to right, black, black calc(100% - 20px), transparent);
-    }
-
-    .status-filters::-webkit-scrollbar {
-        height: 4px;
-    }
-
-    .status-filters::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .status-filters::-webkit-scrollbar-thumb {
-        background: var(--border-color);
-        border-radius: 2px;
     }
 
     .guestbook-status-btn {
-        padding: 0.4rem 0.7rem;
-        font-size: 0.78rem;
+        padding: 0.4rem 0.5rem;
+        font-size: 0.75rem;
         white-space: nowrap;
-        flex-shrink: 0;
-        min-width: max-content;
+        text-align: center;
+        min-width: 0;
     }
 
     .toolbar-divider {
@@ -1386,9 +1365,13 @@
         padding: 0.45rem 0.5rem;
     }
 
+    .status-filters {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
     .guestbook-status-btn {
-        font-size: 0.72rem;
-        padding: 0.35rem 0.55rem;
+        font-size: 0.75rem;
+        padding: 0.4rem 0.5rem;
     }
 
     .guestbook-sort-btn {
