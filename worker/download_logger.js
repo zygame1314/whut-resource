@@ -1,3 +1,30 @@
+async function verifyToken(token, secret) {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const [encodedHeader, encodedPayload, encodedSignature] = parts;
+        const key = await crypto.subtle.importKey(
+            "raw",
+            new TextEncoder().encode(secret),
+            { name: "HMAC", hash: "SHA-256" },
+            false,
+            ["verify"]
+        );
+        const signature = Uint8Array.from(atob(encodedSignature.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+        const isValid = await crypto.subtle.verify(
+            "HMAC",
+            key,
+            signature,
+            new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
+        );
+        if (!isValid) return null;
+        const payload = JSON.parse(atob(encodedPayload.replace(/-/g, "+").replace(/_/g, "/")));
+        if (payload.exp && Date.now() > payload.exp) return null;
+        return payload;
+    } catch (e) {
+        return null;
+    }
+}
 export class DownloadLogger {
     constructor(state, env) {
         this.state = state;
@@ -12,6 +39,15 @@ export class DownloadLogger {
     async fetch(request) {
         const url = new URL(request.url);
         if (request.headers.get("Upgrade") === "websocket") {
+            const token = url.searchParams.get('token');
+            if (!token) {
+                return new Response('未授权：缺少认证令牌', { status: 401 });
+            }
+            const jwtSecret = this.env.JWT_SECRET || 'secret';
+            const user = await verifyToken(token, jwtSecret);
+            if (!user) {
+                return new Response('未授权：无效或过期的令牌', { status: 401 });
+            }
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
             this.state.acceptWebSocket(server);

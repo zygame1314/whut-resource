@@ -77,7 +77,11 @@
         if (!isPageVisible) {
             return;
         }
-        const wsUrl = API_ENDPOINTS.downloadLog;
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            return;
+        }
+        const wsUrl = `${API_ENDPOINTS.downloadLog}?token=${encodeURIComponent(authToken)}`;
         socket = new WebSocket(wsUrl);
         socket.onopen = () => {
             console.log('已成功连接到下载日志');
