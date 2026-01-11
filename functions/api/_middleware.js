@@ -1,4 +1,9 @@
 import { verifyToken, isAdmin, addCorsHeaders } from '../utils.js';
+let maintenanceCache = {
+    status: null,
+    lastChecked: 0,
+    TTL: 30000
+};
 export async function onRequest(context) {
     const { request, env, next } = context;
     const url = new URL(request.url);
@@ -11,7 +16,15 @@ export async function onRequest(context) {
     try {
         const DB = env.DB;
         if (!DB) return next();
-        const status = await DB.prepare('SELECT maintenance_mode, maintenance_msg FROM system_stats WHERE id = 1').first();
+        let status;
+        const now = Date.now();
+        if (maintenanceCache.status && (now - maintenanceCache.lastChecked < maintenanceCache.TTL)) {
+            status = maintenanceCache.status;
+        } else {
+            status = await DB.prepare('SELECT maintenance_mode, maintenance_msg FROM system_stats WHERE id = 1').first();
+            maintenanceCache.status = status;
+            maintenanceCache.lastChecked = now;
+        }
         const isMaintenance = status?.maintenance_mode === 1 || status?.maintenance_mode === true;
         if (isMaintenance) {
             const authHeader = request.headers.get('Authorization');
