@@ -1,6 +1,7 @@
 const AUTH_API_URL = API_ENDPOINTS.auth;
 let currentUser = null;
 let token = localStorage.getItem('authToken');
+const originalFetch = window.fetch;
 function initPasswordToggles(container) {
     const toggles = container.querySelectorAll('.password-toggle');
     toggles.forEach(btn => {
@@ -22,6 +23,7 @@ function initPasswordToggles(container) {
 async function checkAuth() {
     if (!token) {
         updateAuthUI();
+        if (window.releaseRequests) window.releaseRequests(true);
         return;
     }
     try {
@@ -36,16 +38,21 @@ async function checkAuth() {
             checkMaintenanceMode();
         } else {
             logout();
+            if (window.releaseRequests) window.releaseRequests(true);
         }
     } catch (e) {
         console.error("认证检查失败", e);
         logout();
+        if (window.releaseRequests) window.releaseRequests(true);
     }
     updateAuthUI();
 }
 async function checkMaintenanceMode() {
     if (window._maintenanceChecked) return;
-    if (!token || !currentUser) return;
+    if (!token || !currentUser) {
+        if (window.releaseRequests) window.releaseRequests(true);
+        return;
+    }
     window._maintenanceChecked = true;
     try {
         const response = await fetch(API_ENDPOINTS.maintenance, {
@@ -57,7 +64,10 @@ async function checkMaintenanceMode() {
                 'Authorization': `Bearer ${token}`
             }
         });
-        if (!response.ok) return;
+        if (!response.ok) {
+            if (window.releaseRequests) window.releaseRequests(true);
+            return;
+        }
         const data = await response.json();
         if (data.success && data.maintenance === true) {
             const overlay = document.getElementById('maintenance-overlay');
@@ -70,9 +80,13 @@ async function checkMaintenanceMode() {
                 document.body.style.overflow = 'hidden';
             }
             console.warn('%c 维护模式已开启 ', 'background: #ff0000; color: #ffffff; font-size: 14px; padding: 4px;');
+            if (window.releaseRequests) window.releaseRequests(false);
+        } else {
+            if (window.releaseRequests) window.releaseRequests(true);
         }
     } catch (error) {
         console.warn('维护状态检查出错:', error.message);
+        if (window.releaseRequests) window.releaseRequests(true);
     }
 }
 function logout() {
