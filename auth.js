@@ -711,7 +711,10 @@ async function showMaintenanceModal() {
     try {
         const response = await fetch(API_ENDPOINTS.maintenance, {
             method: 'GET',
-            cache: 'no-store'
+            cache: 'no-store',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
         });
         const data = await response.json();
         if (data.success) {
