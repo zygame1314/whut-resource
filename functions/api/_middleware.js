@@ -27,9 +27,15 @@ export async function onRequest(context) {
         }
         const isMaintenance = status?.maintenance_mode === 1 || status?.maintenance_mode === true;
         if (isMaintenance) {
+            let token = null;
             const authHeader = request.headers.get('Authorization');
             if (authHeader && authHeader.startsWith('Bearer ')) {
-                const token = authHeader.substring(7);
+                token = authHeader.substring(7);
+            }
+            if (!token) {
+                token = url.searchParams.get('token');
+            }
+            if (token) {
                 try {
                     const user = await verifyToken(token, env.JWT_SECRET || 'secret');
                     if (isAdmin(user)) {
