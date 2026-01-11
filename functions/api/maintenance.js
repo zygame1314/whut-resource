@@ -1,5 +1,17 @@
 import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 export async function onRequestGet({ request, env }) {
+    const authHeader = request.headers.get('Authorization');
+    let user = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        user = await verifyToken(token, env.JWT_SECRET || 'secret');
+    }
+    if (!user) {
+        return new Response(JSON.stringify({ success: false, error: '未授权' }), {
+            status: 401,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+        });
+    }
     const DB = env.DB;
     if (!DB) {
         return new Response(JSON.stringify({
@@ -21,16 +33,8 @@ export async function onRequestGet({ request, env }) {
         ).first();
         let maintenanceMode = result?.maintenance_mode === 1 || result?.maintenance_mode === true;
         const maintenanceMsg = result?.maintenance_msg || '系统正在进行升级维护，请稍候访问...';
-        // 如果是管理员，绕过维护模式
-        if (maintenanceMode) {
-            const authHeader = request.headers.get('Authorization');
-            if (authHeader && authHeader.startsWith('Bearer ')) {
-                const token = authHeader.substring(7);
-                const user = await verifyToken(token, env.JWT_SECRET || 'secret');
-                if (user && isAdmin(user)) {
-                    maintenanceMode = false;
-                }
-            }
+        if (maintenanceMode && isAdmin(user)) {
+            maintenanceMode = false;
         }
         return new Response(JSON.stringify({
             success: true,

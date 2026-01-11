@@ -457,3 +457,50 @@
         transform: scale(1);
     }
 }
+
+@keyframes wrench-spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    20% {
+        transform: rotate(-20deg);
+    }
+
+    40% {
+        transform: rotate(20deg);
+    }
+
+    60% {
+        transform: rotate(-20deg);
+    }
+
+    80% {
+        transform: rotate(20deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+@keyframes dots {
+
+    0%,
+    20% {
+        content: '.';
+    }
+
+    40% {
+        content: '..';
+    }
+
+    60% {
+        content: '...';
+    }
+
+    80%,
+    100% {
+        content: '';
+    }
+}

@@ -1395,3 +1395,59 @@
     border-color: var(--primary-color) !important;
     box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.15) !important;
 }
+
+.maintenance-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 20, 0.98);
+    z-index: 99999;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    color: white;
+    backdrop-filter: blur(10px);
+}
+
+.maintenance-box {
+    text-align: center;
+    padding: 2rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.maintenance-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    color: #64b5f6;
+    animation: wrench-spin 2.5s ease-in-out infinite;
+}
+
+.maintenance-title {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.maintenance-message {
+    font-size: 1.1rem;
+    color: #a0a0a0;
+    max-width: 400px;
+    line-height: 1.6;
+}
+
+.maintenance-footer {
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.loading-dots::after {
+    content: '.';
+    animation: dots 1.5s steps(5, end) infinite;
+}

@@ -33,6 +33,7 @@ async function checkAuth() {
             currentUser = data.user;
             window.currentUser = currentUser;
             document.dispatchEvent(new Event('authSuccess'));
+            checkMaintenanceMode();
         } else {
             logout();
         }
@@ -41,6 +42,38 @@ async function checkAuth() {
         logout();
     }
     updateAuthUI();
+}
+async function checkMaintenanceMode() {
+    if (window._maintenanceChecked) return;
+    if (!token || !currentUser) return;
+    window._maintenanceChecked = true;
+    try {
+        const response = await fetch(API_ENDPOINTS.maintenance, {
+            method: 'GET',
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.success && data.maintenance === true) {
+            const overlay = document.getElementById('maintenance-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                const msgEl = document.getElementById('maintenance-message');
+                if (msgEl && data.message) {
+                    msgEl.textContent = data.message;
+                }
+                document.body.style.overflow = 'hidden';
+            }
+            console.warn('%c 维护模式已开启 ', 'background: #ff0000; color: #ffffff; font-size: 14px; padding: 4px;');
+        }
+    } catch (error) {
+        console.warn('维护状态检查出错:', error.message);
+    }
 }
 function logout() {
     token = null;
@@ -637,27 +670,27 @@ async function showMaintenanceModal() {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';
     modal.innerHTML = `
-        <div class="auth-box" style="max-width: 500px;">
+        <div class="auth-box maintenance-modal-box">
             <button id="close-modal" class="close-modal-btn">
                 <i class="fas fa-times"></i>
             </button>
             <h2 class="auth-title"><i class="fas fa-hard-hat"></i> 维护模式管理</h2>
-            <div id="maintenance-loading" style="text-align: center; padding: 2rem;">
+            <div id="maintenance-loading" class="maintenance-modal-loading">
                 <div class="loading-spinner"></div>
                 <p>正在加载当前状态...</p>
             </div>
-            <div id="maintenance-content" style="display: none;">
+            <div id="maintenance-content" class="maintenance-modal-content">
                 <div class="form-group">
                     <label>当前状态</label>
-                    <div id="current-status" style="padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"></div>
+                    <div id="current-status" class="maintenance-status-display"></div>
                 </div>
                 <div class="form-group">
                     <label for="maintenance-msg-input">维护提示信息</label>
                     <textarea id="maintenance-msg-input" class="form-control" rows="3" placeholder="输入维护期间显示给用户的提示信息"></textarea>
                 </div>
-                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button id="toggle-maintenance-btn" class="primary-btn" style="flex: 1;"></button>
-                    <button id="update-msg-btn" class="secondary-btn" style="flex: 1;">
+                <div class="maintenance-actions">
+                    <button id="toggle-maintenance-btn" class="primary-btn"></button>
+                    <button id="update-msg-btn" class="secondary-btn">
                         <i class="fas fa-save"></i> 仅更新信息
                     </button>
                 </div>
@@ -689,26 +722,20 @@ async function showMaintenanceModal() {
         loadingDiv.style.display = 'none';
         contentDiv.style.display = 'block';
     } catch (error) {
-        loadingDiv.innerHTML = '<p style="color: var(--error-color);"><i class="fas fa-exclamation-circle"></i> 加载失败，请重试</p>';
+        loadingDiv.innerHTML = '<p class="maintenance-error"><i class="fas fa-exclamation-circle"></i> 加载失败，请重试</p>';
         console.error('加载维护状态失败:', error);
     }
     function updateStatusDisplay() {
         if (currentStatus) {
-            statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ff9800;"></i> <strong style="color: #ff9800;">维护模式已开启</strong><br><small>普通用户将无法访问网站</small>';
-            statusDiv.style.background = 'rgba(255, 152, 0, 0.1)';
-            statusDiv.style.border = '1px solid rgba(255, 152, 0, 0.3)';
+            statusDiv.className = 'maintenance-status-display status-on';
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle status-icon-warning"></i> <strong class="status-text-warning">维护模式已开启</strong><br><small>普通用户将无法访问网站</small>';
             toggleBtn.innerHTML = '<i class="fas fa-play"></i> 关闭维护模式';
-            toggleBtn.classList.remove('primary-btn');
-            toggleBtn.classList.add('success-btn');
-            toggleBtn.style.background = '#4caf50';
+            toggleBtn.className = 'success-btn';
         } else {
-            statusDiv.innerHTML = '<i class="fas fa-check-circle" style="color: #4caf50;"></i> <strong style="color: #4caf50;">网站正常运行中</strong><br><small>用户可以正常访问</small>';
-            statusDiv.style.background = 'rgba(76, 175, 80, 0.1)';
-            statusDiv.style.border = '1px solid rgba(76, 175, 80, 0.3)';
+            statusDiv.className = 'maintenance-status-display status-off';
+            statusDiv.innerHTML = '<i class="fas fa-check-circle status-icon-success"></i> <strong class="status-text-success">网站正常运行中</strong><br><small>用户可以正常访问</small>';
             toggleBtn.innerHTML = '<i class="fas fa-pause"></i> 开启维护模式';
-            toggleBtn.classList.add('primary-btn');
-            toggleBtn.classList.remove('success-btn');
-            toggleBtn.style.background = '';
+            toggleBtn.className = 'primary-btn';
         }
     }
     async function setMaintenance(enabled, message) {

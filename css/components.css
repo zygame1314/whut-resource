@@ -150,6 +150,26 @@
     transform: translateY(-2px);
 }
 
+.success-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.2rem;
+    background: linear-gradient(135deg, #4caf50, #2e7d32);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+
+.success-btn:hover {
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, #66bb6a, #388e3c);
+}
+
 .text-gradient {
     background: var(--primary-gradient);
     -webkit-background-clip: text;
@@ -3968,6 +3988,68 @@ textarea.form-input {
 
 .ban-user-details strong {
     color: var(--text-primary);
+}
+
+
+.maintenance-modal-box {
+    max-width: 500px;
+}
+
+.maintenance-modal-loading {
+    text-align: center;
+    padding: 2rem;
+}
+
+.maintenance-modal-content {
+    display: none;
+}
+
+.maintenance-status-display {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.maintenance-status-display.status-on {
+    background: rgba(255, 152, 0, 0.1);
+    border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.maintenance-status-display.status-off {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.maintenance-status-display .status-icon-warning {
+    color: #ff9800;
+}
+
+.maintenance-status-display .status-icon-success {
+    color: #4caf50;
+}
+
+.maintenance-status-display .status-text-warning {
+    color: #ff9800;
+}
+
+.maintenance-status-display .status-text-success {
+    color: #4caf50;
+}
+
+.maintenance-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.maintenance-actions .primary-btn,
+.maintenance-actions .secondary-btn,
+.maintenance-actions .success-btn {
+    flex: 1;
+}
+
+.maintenance-error {
+    color: var(--error-color);
 }
 
 .dropdown-container {
