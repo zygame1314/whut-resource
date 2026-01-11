@@ -114,7 +114,7 @@ function updateAuthUI() {
             }
             if (isAdmin(currentUser)) {
                 dropdownItems += `
-                    <button id="admin-logs-btn" class="dropdown-item"><i class="fas fa-history"></i> AI操作日志</button>
+                    <button id="admin-logs-btn" class="dropdown-item"><i class="fas fa-history"></i> 系统操作日志</button>
                 `;
                 if (!isSuperAdmin(currentUser)) {
                     dropdownItems += `
@@ -1205,7 +1205,7 @@ async function showAdminLogsModal() {
     modal.innerHTML = `
         <div class="auth-box">
             <div class="admin-modal-header">
-                <h2 class="auth-title">AI 操作日志</h2>
+                <h2 class="auth-title">系统操作日志</h2>
                 <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             </div>
             <div id="logs-container" class="admin-scrollable-container">
