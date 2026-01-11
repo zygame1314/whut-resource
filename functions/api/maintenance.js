@@ -32,6 +32,7 @@ export async function onRequestGet({ request, env }) {
             'SELECT maintenance_mode, maintenance_msg FROM system_stats WHERE id = 1'
         ).first();
         let maintenanceMode = result?.maintenance_mode === 1 || result?.maintenance_mode === true;
+        const realMaintenanceMode = maintenanceMode;
         const maintenanceMsg = result?.maintenance_msg || '系统正在进行升级维护，请稍候访问...';
         if (maintenanceMode && isAdmin(user)) {
             maintenanceMode = false;
@@ -39,6 +40,7 @@ export async function onRequestGet({ request, env }) {
         return new Response(JSON.stringify({
             success: true,
             maintenance: maintenanceMode,
+            real_maintenance: realMaintenanceMode,
             message: maintenanceMsg
         }), {
             status: 200,

@@ -731,7 +731,7 @@ async function showMaintenanceModal() {
         });
         const data = await response.json();
         if (data.success) {
-            currentStatus = data.maintenance;
+            currentStatus = (data.real_maintenance !== undefined) ? data.real_maintenance : data.maintenance;
             msgInput.value = data.message || '';
             updateStatusDisplay();
         }
