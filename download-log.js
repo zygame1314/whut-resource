@@ -77,6 +77,11 @@
         if (!isPageVisible) {
             return;
         }
+        const maintenanceOverlay = document.getElementById('maintenance-overlay');
+        if (maintenanceOverlay && getComputedStyle(maintenanceOverlay).display !== 'none') {
+            console.log('维护模式开启中，暂停下载日志连接');
+            return;
+        }
         const authToken = localStorage.getItem('authToken');
         if (!authToken) {
             return;
@@ -104,6 +109,11 @@
             stopHeartbeat();
             if (intentionalClose || !isPageVisible) {
                 intentionalClose = false;
+                return;
+            }
+            const maintenanceOverlay = document.getElementById('maintenance-overlay');
+            if (maintenanceOverlay && getComputedStyle(maintenanceOverlay).display !== 'none') {
+                console.log('检测到维护模式，停止自动重连');
                 return;
             }
             console.log('下载日志链接已断开。', reconnectInterval, 'ms 后尝试重连');
