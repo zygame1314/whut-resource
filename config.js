@@ -14,10 +14,9 @@ const API_ENDPOINTS = {
     reindex: `${API_BASE}/api/reindex`,
     pathRecommend: `${API_BASE}/api/path-recommend`,
     adminRequests: `${API_BASE}/api/admin-requests`,
-    downloadLog: `${API_BASE.replace(/^http/, 'ws')}/api/ws`
+    downloadLog: `${API_BASE.replace(/^http/, 'ws')}/api/ws`,
+    maintenance: `${API_BASE}/api/maintenance`
 };
-const MAINTENANCE_MODE = false;
-const MAINTENANCE_MSG = "系统正在进行升级维护，请稍候访问...";
 window.filterTreeByKeyword = function (container, keyword, options = {}) {
     const {
         nodeSelector = '.folder-tree-node',

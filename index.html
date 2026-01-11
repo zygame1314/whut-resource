@@ -558,33 +558,57 @@
     <script src="https://cdn.jsdmirror.com/npm/shepherd.js@10.0.1/dist/js/shepherd.min.js"></script>
     <script src="config.js"></script>
     <script>
-        if (typeof MAINTENANCE_MODE !== 'undefined' && MAINTENANCE_MODE) {
-            const overlay = document.getElementById('maintenance-overlay');
-            if (overlay) {
-                overlay.style.display = 'flex';
-                if (typeof MAINTENANCE_MSG !== 'undefined') {
-                    const msgEl = document.getElementById('maintenance-message');
-                    if (msgEl) msgEl.textContent = MAINTENANCE_MSG;
+        (async function checkMaintenanceMode() {
+            try {
+                const headers = {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                };
+                const savedToken = localStorage.getItem('authToken');
+                if (savedToken) {
+                    headers['Authorization'] = `Bearer ${savedToken}`;
                 }
-                document.body.style.overflow = 'hidden';
+                const response = await fetch(API_ENDPOINTS.maintenance, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: headers
+                });
+                if (!response.ok) {
+                    console.warn('维护状态检查失败，继续正常加载');
+                    return;
+                }
+                const data = await response.json();
+                if (data.success && data.maintenance === true) {
+                    const overlay = document.getElementById('maintenance-overlay');
+                    if (overlay) {
+                        overlay.style.display = 'flex';
+                        const msgEl = document.getElementById('maintenance-message');
+                        if (msgEl && data.message) {
+                            msgEl.textContent = data.message;
+                        }
+                        document.body.style.overflow = 'hidden';
+                    }
+                    console.warn('%c 维护模式已开启，已拦截所有网络请求 ', 'background: #ff0000; color: #ffffff; font-size: 14px; padding: 4px;');
+                    const originalFetch = window.fetch;
+                    window.fetch = function (url, options) {
+                        if (typeof url === 'string' && url.includes('/api/maintenance')) {
+                            return originalFetch(url, options);
+                        }
+                        console.log('Fetch request blocked by maintenance mode');
+                        return new Promise(() => { });
+                    };
+                    function NoOpRequest() { }
+                    NoOpRequest.prototype.open = function () { };
+                    NoOpRequest.prototype.send = function () { };
+                    NoOpRequest.prototype.setRequestHeader = function () { };
+                    NoOpRequest.prototype.addEventListener = function () { };
+                    NoOpRequest.prototype.onreadystatechange = null;
+                    window.XMLHttpRequest = NoOpRequest;
+                }
+            } catch (error) {
+                console.warn('维护状态检查出错，继续正常加载:', error.message);
             }
-
-            console.warn('%c 维护模式已开启，已拦截所有网络请求 ', 'background: #ff0000; color: #ffffff; font-size: 14px; padding: 4px;');
-
-            window.fetch = function () {
-                console.log('Fetch request blocked by maintenance mode');
-                return new Promise(() => { });
-            };
-
-            function NoOpRequest() { }
-            NoOpRequest.prototype.open = function () { };
-            NoOpRequest.prototype.send = function () { };
-            NoOpRequest.prototype.setRequestHeader = function () { };
-            NoOpRequest.prototype.addEventListener = function () { };
-            NoOpRequest.prototype.onreadystatechange = null;
-            window.XMLHttpRequest = NoOpRequest;
-
-        }
+        })();
     </script>
     <script src="tutorial.js"></script>
     <script src="script.js"></script>

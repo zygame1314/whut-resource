@@ -148,11 +148,13 @@ CREATE TABLE IF NOT EXISTS system_stats (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     total_files INTEGER DEFAULT 0,
     total_size INTEGER DEFAULT 0,
+    maintenance_mode BOOLEAN DEFAULT FALSE,
+    maintenance_msg TEXT DEFAULT '系统正在进行升级维护，请稍候访问...',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT OR REPLACE INTO system_stats (id, total_files, total_size)
-SELECT 1, COUNT(*), COALESCE(SUM(size), 0) FROM files;
+INSERT OR REPLACE INTO system_stats (id, total_files, total_size, maintenance_mode, maintenance_msg)
+SELECT 1, COUNT(*), COALESCE(SUM(size), 0), FALSE, '系统正在进行升级维护，请稍候访问...' FROM files;
 
 DROP TRIGGER IF EXISTS update_stats_after_insert;
 CREATE TRIGGER update_stats_after_insert

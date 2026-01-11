@@ -72,6 +72,7 @@ function updateAuthUI() {
             let dropdownItems = '';
             if (isSuperAdmin(currentUser)) {
                 dropdownItems += `
+                    <button id="maintenance-toggle-btn" class="dropdown-item"><i class="fas fa-hard-hat"></i> 维护模式</button>
                     <button id="sync-btn" class="dropdown-item"><i class="fas fa-sync"></i> 同步R2文件</button>
                     <button id="vector-sync-btn" class="dropdown-item"><i class="fas fa-brain"></i> 同步向量索引</button>
                     <button id="banned-users-btn" class="dropdown-item"><i class="fas fa-user-lock"></i> 封禁用户管理</button>
@@ -143,6 +144,7 @@ function updateAuthUI() {
                 document.getElementById('sync-btn').addEventListener('click', syncFiles);
                 document.getElementById('vector-sync-btn').addEventListener('click', syncVectorIndex);
                 document.getElementById('banned-users-btn').addEventListener('click', showBannedUsersModal);
+                document.getElementById('maintenance-toggle-btn').addEventListener('click', showMaintenanceModal);
                 const reqBtn = document.getElementById('admin-requests-btn');
                 if (reqBtn) reqBtn.addEventListener('click', () => showAdminRequestsModal('all'));
             }
@@ -630,6 +632,140 @@ async function syncVectorIndex() {
         btn.innerHTML = originalIcon;
         btn.disabled = false;
     }
+}
+async function showMaintenanceModal() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.innerHTML = `
+        <div class="auth-box" style="max-width: 500px;">
+            <button id="close-modal" class="close-modal-btn">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="auth-title"><i class="fas fa-hard-hat"></i> 维护模式管理</h2>
+            <div id="maintenance-loading" style="text-align: center; padding: 2rem;">
+                <div class="loading-spinner"></div>
+                <p>正在加载当前状态...</p>
+            </div>
+            <div id="maintenance-content" style="display: none;">
+                <div class="form-group">
+                    <label>当前状态</label>
+                    <div id="current-status" style="padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"></div>
+                </div>
+                <div class="form-group">
+                    <label for="maintenance-msg-input">维护提示信息</label>
+                    <textarea id="maintenance-msg-input" class="form-control" rows="3" placeholder="输入维护期间显示给用户的提示信息"></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button id="toggle-maintenance-btn" class="primary-btn" style="flex: 1;"></button>
+                    <button id="update-msg-btn" class="secondary-btn" style="flex: 1;">
+                        <i class="fas fa-save"></i> 仅更新信息
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    const closeBtn = modal.querySelector('#close-modal');
+    closeBtn.onclick = () => modal.remove();
+    modal.onmousedown = (e) => { if (e.target === modal) modal.remove(); };
+    const loadingDiv = modal.querySelector('#maintenance-loading');
+    const contentDiv = modal.querySelector('#maintenance-content');
+    const statusDiv = modal.querySelector('#current-status');
+    const msgInput = modal.querySelector('#maintenance-msg-input');
+    const toggleBtn = modal.querySelector('#toggle-maintenance-btn');
+    const updateMsgBtn = modal.querySelector('#update-msg-btn');
+    let currentStatus = false;
+    try {
+        const response = await fetch(API_ENDPOINTS.maintenance, {
+            method: 'GET',
+            cache: 'no-store'
+        });
+        const data = await response.json();
+        if (data.success) {
+            currentStatus = data.maintenance;
+            msgInput.value = data.message || '';
+            updateStatusDisplay();
+        }
+        loadingDiv.style.display = 'none';
+        contentDiv.style.display = 'block';
+    } catch (error) {
+        loadingDiv.innerHTML = '<p style="color: var(--error-color);"><i class="fas fa-exclamation-circle"></i> 加载失败，请重试</p>';
+        console.error('加载维护状态失败:', error);
+    }
+    function updateStatusDisplay() {
+        if (currentStatus) {
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ff9800;"></i> <strong style="color: #ff9800;">维护模式已开启</strong><br><small>普通用户将无法访问网站</small>';
+            statusDiv.style.background = 'rgba(255, 152, 0, 0.1)';
+            statusDiv.style.border = '1px solid rgba(255, 152, 0, 0.3)';
+            toggleBtn.innerHTML = '<i class="fas fa-play"></i> 关闭维护模式';
+            toggleBtn.classList.remove('primary-btn');
+            toggleBtn.classList.add('success-btn');
+            toggleBtn.style.background = '#4caf50';
+        } else {
+            statusDiv.innerHTML = '<i class="fas fa-check-circle" style="color: #4caf50;"></i> <strong style="color: #4caf50;">网站正常运行中</strong><br><small>用户可以正常访问</small>';
+            statusDiv.style.background = 'rgba(76, 175, 80, 0.1)';
+            statusDiv.style.border = '1px solid rgba(76, 175, 80, 0.3)';
+            toggleBtn.innerHTML = '<i class="fas fa-pause"></i> 开启维护模式';
+            toggleBtn.classList.add('primary-btn');
+            toggleBtn.classList.remove('success-btn');
+            toggleBtn.style.background = '';
+        }
+    }
+    async function setMaintenance(enabled, message) {
+        const btn = enabled !== currentStatus ? toggleBtn : updateMsgBtn;
+        const originalContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+        try {
+            const response = await fetch(API_ENDPOINTS.maintenance, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    maintenance: enabled,
+                    message: message
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                currentStatus = enabled;
+                updateStatusDisplay();
+                showNotification(data.message, 'success');
+            } else {
+                showNotification(data.error || '操作失败', 'error');
+            }
+        } catch (error) {
+            showNotification('请求失败: ' + error.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+            updateStatusDisplay();
+        }
+    }
+    toggleBtn.onclick = async () => {
+        const newStatus = !currentStatus;
+        const action = newStatus ? '开启' : '关闭';
+        const confirmed = await showConfirmation({
+            title: `${action}维护模式`,
+            message: newStatus
+                ? '开启后，普通用户将无法访问网站，只能看到维护提示页面。<br><br>确定要开启维护模式吗？'
+                : '关闭后，网站将恢复正常访问。<br><br>确定要关闭维护模式吗？',
+            confirmText: `确认${action}`
+        });
+        if (confirmed) {
+            await setMaintenance(newStatus, msgInput.value.trim());
+        }
+    };
+    updateMsgBtn.onclick = async () => {
+        const message = msgInput.value.trim();
+        if (!message) {
+            showNotification('请输入维护提示信息', 'warning');
+            return;
+        }
+        await setMaintenance(currentStatus, message);
+    };
 }
 function showChangeNicknameModal() {
     const modal = document.createElement('div');
