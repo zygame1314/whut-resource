@@ -677,7 +677,6 @@ async function showMaintenanceModal() {
             <h2 class="auth-title"><i class="fas fa-hard-hat"></i> 维护模式管理</h2>
             <div id="maintenance-loading" class="maintenance-modal-loading">
                 <div class="loading-spinner"></div>
-                <p>正在加载当前状态...</p>
             </div>
             <div id="maintenance-content" class="maintenance-modal-content">
                 <div class="form-group">
