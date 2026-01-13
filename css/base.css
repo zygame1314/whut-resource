@@ -183,6 +183,7 @@ input:-webkit-autofill:hover,
 input:-webkit-autofill:active {
     -webkit-box-shadow: 0 0 0 30px var(--background) inset !important;
     -webkit-text-fill-color: var(--text-primary) !important;
+    caret-color: var(--text-primary) !important;
     transition: background-color 5000s ease-in-out 0s,
         box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
         transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -194,6 +195,7 @@ input:-webkit-autofill:focus {
         0 0 0 4px rgba(var(--primary-rgb), 0.12),
         0 4px 16px rgba(var(--primary-rgb), 0.15) !important;
     -webkit-text-fill-color: var(--text-primary) !important;
+    caret-color: var(--text-primary) !important;
     transition: background-color 5000s ease-in-out 0s,
         box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
         transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);

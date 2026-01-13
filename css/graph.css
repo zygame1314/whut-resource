@@ -436,7 +436,7 @@
     border-radius: 10px;
     color: var(--primary-color);
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
 }

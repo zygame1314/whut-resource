@@ -370,7 +370,6 @@
 
 .file-list-container.grid-view .file-name {
     font-size: 0.9rem;
-    font-weight: 500;
     overflow-wrap: break-word;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -679,7 +678,7 @@
 .hot-folder-downloads {
     font-size: 0.9rem;
     color: var(--accent-color);
-    font-weight: 500;
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 6px;

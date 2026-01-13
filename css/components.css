@@ -186,7 +186,7 @@
     color: var(--accent-color);
     border-radius: 25px;
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     animation: fadeInUp 0.8s ease 0.4s both;
     border: 1px solid rgba(255, 107, 107, 0.2);
 }
@@ -233,6 +233,129 @@
     border-color: var(--primary-color);
 }
 
+.file-tools-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    flex-wrap: wrap;
+}
+
+
+.folder-search-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1;
+    min-width: 180px;
+    background: var(--background);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 0.45rem 1rem;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.folder-search-wrapper:hover {
+    border-color: var(--text-secondary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.folder-search-wrapper:focus-within {
+    border-color: var(--primary-color);
+    background: var(--background);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15), 0 4px 12px rgba(var(--primary-rgb), 0.08);
+    transform: translateY(-1px);
+}
+
+.folder-search-wrapper i {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    transition: color 0.3s ease;
+}
+
+.folder-search-wrapper:focus-within i {
+    color: var(--primary-color);
+}
+
+
+.folder-search-wrapper input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+    min-width: 100px;
+    height: 24px;
+    line-height: 24px;
+}
+
+.folder-search-wrapper input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.folder-search-wrapper input:-webkit-autofill,
+.folder-search-wrapper input:-webkit-autofill:hover,
+.folder-search-wrapper input:-webkit-autofill:focus,
+.folder-search-wrapper input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px var(--background) inset !important;
+    box-shadow: 0 0 0 30px var(--background) inset !important;
+    border: none !important;
+    caret-color: var(--text-primary) !important;
+}
+
+.clear-folder-search-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    opacity: 0.6;
+    margin-right: -4px;
+}
+
+.clear-folder-search-btn:hover {
+    background: var(--background-secondary);
+    color: var(--danger-color, #e74c3c);
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+
+.sort-wrapper {
+    min-width: 140px;
+}
+
+
+@media (max-width: 768px) {
+    .file-tools-bar {
+        gap: 0.6rem;
+    }
+
+    .folder-search-wrapper {
+        min-width: 140px;
+        order: 1;
+        flex-basis: 100%;
+    }
+
+    .sort-wrapper {
+        order: 2;
+        flex: 1;
+        min-width: 0;
+    }
+}
+
 .ai-search-toggle {
     position: absolute;
     right: 56px;
@@ -262,7 +385,7 @@
 .toggle-label {
     font-size: 0.85rem;
     color: var(--text-secondary);
-    font-weight: 500;
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -349,7 +472,7 @@
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
@@ -371,7 +494,7 @@
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
@@ -393,7 +516,7 @@
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
@@ -415,7 +538,7 @@
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
@@ -436,7 +559,7 @@
     color: white;
     text-decoration: none;
     border-radius: 15px;
-    font-weight: 500;
+    font-weight: 600;
     transition: all var(--transition-fast);
     box-shadow: var(--shadow-light);
 }
@@ -593,7 +716,7 @@
 .support-us-section a {
     color: var(--primary-light);
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 600;
     padding: 2px 6px;
     border-radius: 4px;
     transition: all var(--transition-fast);
@@ -846,7 +969,7 @@
 .section-subtitle a {
     color: var(--primary-color);
     text-decoration: underline;
-    font-weight: 500;
+    font-weight: 600;
     transition: color 0.2s ease;
 }
 
@@ -897,7 +1020,7 @@
 .ai-powered-notice a {
     color: #667eea;
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 600;
     transition: color 0.2s ease;
 }
 
@@ -1436,7 +1559,7 @@
     align-items: center;
     gap: 0.5rem;
     color: var(--text-primary);
-    font-weight: 500;
+    font-weight: 600;
     font-size: 0.95rem;
     cursor: pointer;
 }
@@ -1505,7 +1628,7 @@
     align-items: center;
     gap: 0.5rem;
     color: var(--text-secondary);
-    font-weight: 500;
+    font-weight: 600;
     white-space: nowrap;
 }
 
@@ -1523,7 +1646,7 @@
 
 .upload-path-selector .upload-path-info span {
     color: var(--text-primary);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .path-dropdown-wrapper {
@@ -1569,7 +1692,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .path-dropdown-btn i.fa-chevron-down {
@@ -1616,7 +1739,7 @@
     border-radius: 10px;
     cursor: pointer;
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all 0.3s ease;
     white-space: nowrap;
     box-shadow: 0 4px 12px rgba(168, 85, 247, 0.25);
@@ -1848,7 +1971,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .resolve-path-selector .path-dropdown-btn i.fa-chevron-down {
@@ -2258,7 +2381,7 @@
     padding: 0 1rem;
     color: var(--text-secondary);
     font-size: 0.95rem;
-    font-weight: 500;
+    font-weight: 600;
     white-space: nowrap;
     background: var(--background);
 }
@@ -2854,7 +2977,7 @@
     margin-bottom: 0.5rem;
     color: var(--text-secondary);
     font-size: 0.95rem;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .form-input {
@@ -2968,7 +3091,7 @@ textarea.form-input {
     border-radius: 6px;
     cursor: pointer;
     font-size: 0.85rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all 0.2s;
 }
 
@@ -3087,7 +3210,7 @@ textarea.form-input {
 }
 
 .warning-check-row span {
-    font-weight: 500;
+    font-weight: 600;
     color: var(--text-primary);
 }
 
@@ -3342,7 +3465,7 @@ textarea.form-input {
     border: 1px solid rgba(220, 38, 38, 0.3);
     border-radius: 8px;
     color: #dc2626;
-    font-weight: 500;
+    font-weight: 600;
     font-size: 0.9rem;
 }
 
@@ -3622,7 +3745,7 @@ textarea.form-input {
 .search-tips-toggle .tips-toggle-label {
     font-size: 0.85rem;
     color: var(--text-secondary);
-    font-weight: 500;
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -4110,6 +4233,12 @@ textarea.form-input {
     color: var(--primary-color);
 }
 
+.dropdown-item.selected {
+    background: var(--background-secondary);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
 .dropdown-item i {
     width: 20px;
     text-align: center;
@@ -4167,16 +4296,22 @@ textarea.form-input {
     }
 
     .custom-select-options.dropdown-menu {
-        position: fixed;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
         opacity: 0;
         visibility: hidden;
-        transform: translateY(-10px);
+        transform: translateY(10px);
         background: var(--background);
         border: 1px solid var(--border-color);
         border-radius: var(--border-radius-medium);
         box-shadow: var(--shadow-medium);
         padding: 0.5rem 0;
         display: block;
+        margin-top: 0.5rem;
+        width: auto;
     }
 
     .custom-select-options.dropdown-menu.show {
@@ -4334,7 +4469,7 @@ textarea.form-input {
     border-radius: 10px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     max-width: 500px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     transform: translateX(calc(100% + 20px));
     opacity: 0;
@@ -4417,7 +4552,7 @@ textarea.form-input {
     border-radius: 10px;
     border: none;
     cursor: pointer;
-    font-weight: 500;
+    font-weight: 600;
     transition: all 0.2s ease;
 }
 
@@ -4786,7 +4921,7 @@ input#prompt-input {
 
 .browse-text {
     color: var(--primary-color);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .file-types {
@@ -4823,7 +4958,7 @@ input#prompt-input {
 }
 
 .file-details .file-name {
-    font-weight: 500;
+    font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 0.2rem;
 }
@@ -4903,7 +5038,7 @@ input#prompt-input {
     border: none;
     border-radius: 12px;
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
@@ -4934,7 +5069,7 @@ input#prompt-input {
     gap: 0.8rem;
     padding: 1rem;
     border-radius: 10px;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .status-success {
@@ -5035,7 +5170,7 @@ input#prompt-input {
     background: var(--background-alt);
     color: var(--text-secondary);
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
 }
@@ -5073,7 +5208,7 @@ input#prompt-input {
     gap: 0.5rem;
     margin-bottom: 0.5rem;
     color: var(--text-primary);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .link-input-group label i {
@@ -5647,7 +5782,7 @@ input#prompt-input {
     transition: all 0.2s ease;
     background: var(--background);
     color: var(--text-secondary);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .batch-action-btn:hover {

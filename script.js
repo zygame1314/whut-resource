@@ -360,6 +360,9 @@ let currentTotalItems = 0;
 let currentFetchedData = null;
 let currentPaginationData = null;
 let highlightKey = null;
+let currentSortOption = 'date-desc';
+let currentFolderSearchTerm = '';
+let currentRawData = null;
 function createParticleBackground() {
     const particlesContainer = document.getElementById('particles-background');
     if (!particlesContainer) return;
@@ -461,9 +464,125 @@ function getFileType(fileName) {
         'gif': 'image',
         'mp4': 'video',
         'avi': 'video',
-        'mov': 'video'
+        'mov': 'video',
+        'mkv': 'video',
+        'mp3': 'audio',
+        'wav': 'audio',
+        'flac': 'audio',
+        'zip': 'archive',
+        'rar': 'archive',
+        '7z': 'archive',
+        'tar': 'archive',
+        'gz': 'archive',
+        'url': 'link'
     };
     return typeMap[ext] || 'default';
+}
+function sortData(data, sortOption) {
+    if (!data) return data;
+    const sortedData = {
+        directories: [...(data.directories || [])],
+        files: [...(data.files || [])]
+    };
+    const [field, direction] = sortOption.split('-');
+    const dirMultiplier = direction === 'asc' ? 1 : -1;
+    const compareFunction = (a, b) => {
+        let valA, valB;
+        switch (field) {
+            case 'name':
+                valA = (a.name || '').toLowerCase();
+                valB = (b.name || '').toLowerCase();
+                return valA.localeCompare(valB, 'zh-CN') * dirMultiplier;
+            case 'date':
+                valA = new Date(a.uploaded || 0).getTime();
+                valB = new Date(b.uploaded || 0).getTime();
+                break;
+            case 'size':
+                valA = a.size || 0;
+                valB = b.size || 0;
+                break;
+            case 'downloads':
+                valA = a.downloads || 0;
+                valB = b.downloads || 0;
+                break;
+            default:
+                return 0;
+        }
+        if (valA < valB) return -1 * dirMultiplier;
+        if (valA > valB) return 1 * dirMultiplier;
+        return 0;
+    };
+    // 文件夹和文件都应用选定的排序规则
+    sortedData.directories.sort(compareFunction);
+    sortedData.files.sort(compareFunction);
+    return sortedData;
+}
+function filterByFolderSearch(data, searchTerm) {
+    if (!data || !searchTerm || searchTerm.trim() === '') {
+        return data;
+    }
+    const lowerTerm = searchTerm.toLowerCase().trim();
+    return {
+        directories: (data.directories || []).filter(dir =>
+            (dir.name || '').toLowerCase().includes(lowerTerm)
+        ),
+        files: (data.files || []).filter(file =>
+            (file.name || '').toLowerCase().includes(lowerTerm)
+        )
+    };
+}
+function applyLocalSortAndFilter() {
+    if (!currentRawData) return;
+    let processedData = sortData(currentRawData, currentSortOption);
+    processedData = filterByFolderSearch(processedData, currentFolderSearchTerm);
+    reRenderWithData(
+        processedData,
+        isShowingSearchResults,
+        isShowingSearchResults ? (searchInput ? searchInput.value.trim() : '') : ''
+    );
+}
+function reRenderWithData(data, isGlobalSearch, searchTerm) {
+    const allDirs = data.directories || [];
+    const allFiles = data.files || [];
+    const totalItems = allDirs.length + allFiles.length;
+    const newTotalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+    if (currentPage > newTotalPages) {
+        currentPage = newTotalPages;
+    }
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const displayedData = { files: [], directories: [] };
+    if (startIndex < allDirs.length) {
+        const dirEnd = Math.min(endIndex, allDirs.length);
+        displayedData.directories = allDirs.slice(startIndex, dirEnd);
+    }
+    if (endIndex > allDirs.length) {
+        const fileStart = Math.max(0, startIndex - allDirs.length);
+        const fileEnd = endIndex - allDirs.length;
+        displayedData.files = allFiles.slice(fileStart, fileEnd);
+    }
+    const paginationData = {
+        currentPage: currentPage,
+        totalPages: newTotalPages,
+        totalItems: totalItems,
+        limit: itemsPerPage
+    };
+    currentTotalItems = totalItems;
+    totalPages = newTotalPages;
+    currentFetchedData = displayedData;
+    currentPaginationData = paginationData;
+    const aiSearchToggle = document.getElementById('ai-search-toggle');
+    const useAISearch = aiSearchToggle && aiSearchToggle.checked && isGlobalSearch;
+    renderFileList(
+        isGlobalSearch ? '' : currentPrefix,
+        displayedData,
+        isGlobalSearch,
+        searchTerm,
+        paginationData,
+        useAISearch
+    );
+    updateUploadButtonLink();
+    updateSelectAllButtonState();
 }
 async function fetchFileStats() {
     const token = localStorage.getItem('authToken');
@@ -1710,6 +1829,10 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
                 dir.name.toLowerCase().includes(lowerLocalSearchTerm)
             );
         }
+        // 按类型过滤：如果选择的不是 'all' 且不是 'folder'，则隐藏文件夹
+        if (currentFilter !== 'all' && currentFilter !== 'folder') {
+            filteredDirectories = [];
+        }
         displayedDirectories = filteredDirectories;
         const dirFragment = document.createDocumentFragment();
         displayedDirectories.forEach((dir, index) => {
@@ -1727,11 +1850,16 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
             );
         }
         if (currentFilter !== 'all') {
-            filteredFiles = filteredFiles.filter(file => {
-                if (file.isDirectory) return true;
-                const fileType = getFileType(file.name);
-                return fileType === currentFilter;
-            });
+            if (currentFilter === 'folder') {
+                filteredFiles = [];
+            } else {
+                filteredFiles = filteredFiles.filter(file => {
+                    if (file.isDirectory) return true;
+                    // getFileType 已经更新支持 link, audio, archive 等
+                    const fileType = getFileType(file.name);
+                    return fileType === currentFilter;
+                });
+            }
         }
         displayedFiles = filteredFiles;
         const fileFragment = document.createDocumentFragment();
@@ -1886,6 +2014,15 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
     }
     if (!isGlobal) {
         currentPrefix = prefix;
+        currentFolderSearchTerm = '';
+        const folderSearchInput = document.getElementById('folder-search-input');
+        const clearFolderSearchBtn = document.getElementById('clear-folder-search');
+        if (folderSearchInput) {
+            folderSearchInput.value = '';
+        }
+        if (clearFolderSearchBtn) {
+            clearFolderSearchBtn.style.display = 'none';
+        }
     }
     if (prefix !== currentPrefix || (isGlobal && !isShowingSearchResults) || page === undefined) {
         currentPage = 1;
@@ -1938,17 +2075,24 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                 }
                 const allDirs = cachedResult.directories || [];
                 const allFiles = cachedResult.files || [];
-                const totalItems = allDirs.length + allFiles.length;
+                currentRawData = {
+                    directories: [...allDirs],
+                    files: [...allFiles]
+                };
+                const sortedData = sortData(currentRawData, currentSortOption);
+                const sortedDirs = sortedData.directories;
+                const sortedFiles = sortedData.files;
+                const totalItems = sortedDirs.length + sortedFiles.length;
                 const startIndex = (currentPage - 1) * itemsPerPage;
                 const endIndex = startIndex + itemsPerPage;
                 receivedData = { files: [], directories: [] };
-                if (startIndex < allDirs.length) {
-                    receivedData.directories = allDirs.slice(startIndex, Math.min(endIndex, allDirs.length));
+                if (startIndex < sortedDirs.length) {
+                    receivedData.directories = sortedDirs.slice(startIndex, Math.min(endIndex, sortedDirs.length));
                 }
-                if (endIndex > allDirs.length) {
-                    const fileStart = Math.max(0, startIndex - allDirs.length);
-                    const fileEnd = endIndex - allDirs.length;
-                    receivedData.files = allFiles.slice(fileStart, fileEnd);
+                if (endIndex > sortedDirs.length) {
+                    const fileStart = Math.max(0, startIndex - sortedDirs.length);
+                    const fileEnd = endIndex - sortedDirs.length;
+                    receivedData.files = sortedFiles.slice(fileStart, fileEnd);
                 }
                 paginationData = {
                     currentPage: currentPage,
@@ -2006,18 +2150,24 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                         timestamp: Date.now()
                     });
                     console.log(`AI 搜索结果已缓存: "${searchTerm}", 共 ${totalFound} 条`);
-                    const allDirs = allDirectories;
-                    const totalItems = allDirs.length + allFiles.length;
+                    currentRawData = {
+                        directories: [...allDirectories],
+                        files: [...allFiles]
+                    };
+                    const sortedData = sortData(currentRawData, currentSortOption);
+                    const sortedDirs = sortedData.directories;
+                    const sortedFiles = sortedData.files;
+                    const totalItems = sortedDirs.length + sortedFiles.length;
                     const startIndex = (currentPage - 1) * itemsPerPage;
                     const endIndex = startIndex + itemsPerPage;
                     receivedData = { files: [], directories: [] };
-                    if (startIndex < allDirs.length) {
-                        receivedData.directories = allDirs.slice(startIndex, Math.min(endIndex, allDirs.length));
+                    if (startIndex < sortedDirs.length) {
+                        receivedData.directories = sortedDirs.slice(startIndex, Math.min(endIndex, sortedDirs.length));
                     }
-                    if (endIndex > allDirs.length) {
-                        const fileStart = Math.max(0, startIndex - allDirs.length);
-                        const fileEnd = endIndex - allDirs.length;
-                        receivedData.files = allFiles.slice(fileStart, fileEnd);
+                    if (endIndex > sortedDirs.length) {
+                        const fileStart = Math.max(0, startIndex - sortedDirs.length);
+                        const fileEnd = endIndex - sortedDirs.length;
+                        receivedData.files = sortedFiles.slice(fileStart, fileEnd);
                     }
                     paginationData = {
                         currentPage: currentPage,
@@ -2053,11 +2203,16 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                         renderPaginationControls(null);
                         return;
                     }
+                    currentRawData = {
+                        directories: [...(cachedResult.directories || [])],
+                        files: [...cachedResult.files]
+                    };
+                    const sortedData = sortData(currentRawData, currentSortOption);
                     const startIndex = (currentPage - 1) * itemsPerPage;
                     const endIndex = startIndex + itemsPerPage;
                     receivedData = {
-                        files: cachedResult.files.slice(startIndex, endIndex),
-                        directories: cachedResult.directories || []
+                        files: sortedData.files.slice(startIndex, endIndex),
+                        directories: sortedData.directories || []
                     };
                     paginationData = {
                         currentPage: currentPage,
@@ -2124,11 +2279,16 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                             timestamp: Date.now()
                         });
                         console.log(`搜索结果已缓存: "${searchTerm}", 共 ${totalFound} 条`);
+                        currentRawData = {
+                            directories: [...allDirectories],
+                            files: [...allFiles]
+                        };
+                        const sortedData = sortData(currentRawData, currentSortOption);
                         const startIndex = (currentPage - 1) * itemsPerPage;
                         const endIndex = startIndex + itemsPerPage;
                         receivedData = {
-                            files: allFiles.slice(startIndex, endIndex),
-                            directories: allDirectories
+                            files: sortedData.files.slice(startIndex, endIndex),
+                            directories: sortedData.directories
                         };
                         paginationData = {
                             currentPage: currentPage,
@@ -2185,8 +2345,14 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                             throw new Error(result?.error || `HTTP 错误 ${response.status}`);
                         }
                     }
-                    const allDirs = receivedData.directories || [];
-                    const allFiles = receivedData.files || [];
+                    currentRawData = {
+                        directories: [...(receivedData.directories || [])],
+                        files: [...(receivedData.files || [])]
+                    };
+                    let processedData = sortData(currentRawData, currentSortOption);
+                    processedData = filterByFolderSearch(processedData, currentFolderSearchTerm);
+                    const allDirs = processedData.directories || [];
+                    const allFiles = processedData.files || [];
                     const totalFilesAndDirs = allDirs.length + allFiles.length;
                     const startIndex = (currentPage - 1) * itemsPerPage;
                     const endIndex = startIndex + itemsPerPage;
@@ -2208,6 +2374,8 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                     };
                     currentTotalItems = totalFilesAndDirs;
                     totalPages = paginationData.totalPages;
+                    currentFetchedData = displayedData;
+                    currentPaginationData = paginationData;
                     renderFileList(isGlobal ? '' : prefix, displayedData, isGlobal, isGlobal ? searchTerm.trim() : '', paginationData, false);
                     fileListElement.style.minHeight = '';
                     updateUploadButtonLink();
@@ -2416,6 +2584,96 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+    const sortTrigger = document.getElementById('sort-trigger');
+    const sortOptions = document.getElementById('sort-options');
+    const sortLabel = document.getElementById('sort-label');
+    if (sortTrigger && sortOptions) {
+        sortTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = sortOptions.classList.contains('show');
+            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                if (menu !== sortOptions) menu.classList.remove('show');
+            });
+            document.querySelectorAll('.custom-select-trigger.active').forEach(trigger => {
+                if (trigger !== sortTrigger) trigger.classList.remove('active');
+            });
+            sortOptions.classList.toggle('show', !isOpen);
+            sortTrigger.classList.toggle('active', !isOpen);
+        });
+        sortOptions.addEventListener('click', (e) => {
+            const item = e.target.closest('.dropdown-item');
+            if (!item) return;
+            e.stopPropagation();
+            const value = item.dataset.value;
+            const text = item.textContent;
+            currentSortOption = value;
+            sortLabel.textContent = text;
+            sortOptions.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
+            sortOptions.classList.remove('show');
+            sortTrigger.classList.remove('active');
+            currentPage = 1;
+            if (currentRawData) {
+                applyLocalSortAndFilter();
+            } else {
+                fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', 1);
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!sortTrigger.contains(e.target) && !sortOptions.contains(e.target)) {
+                sortOptions.classList.remove('show');
+                sortTrigger.classList.remove('active');
+            }
+        });
+    }
+    const folderSearchInput = document.getElementById('folder-search-input');
+    const clearFolderSearchBtn = document.getElementById('clear-folder-search');
+    if (folderSearchInput) {
+        let folderSearchTimeout = null;
+        const updateClearBtn = () => {
+            if (clearFolderSearchBtn) {
+                clearFolderSearchBtn.style.display = folderSearchInput.value.length > 0 ? 'flex' : 'none';
+            }
+        };
+        folderSearchInput.addEventListener('input', (e) => {
+            updateClearBtn();
+            if (folderSearchTimeout) {
+                clearTimeout(folderSearchTimeout);
+            }
+            folderSearchTimeout = setTimeout(() => {
+                const newTerm = e.target.value.trim();
+                if (newTerm === currentFolderSearchTerm) return;
+                currentFolderSearchTerm = newTerm;
+                currentPage = 1;
+                if (currentRawData) {
+                    applyLocalSortAndFilter();
+                }
+            }, 600);
+        });
+        folderSearchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                folderSearchInput.value = '';
+                currentFolderSearchTerm = '';
+                updateClearBtn();
+                if (currentRawData) {
+                    currentPage = 1;
+                    applyLocalSortAndFilter();
+                }
+            }
+        });
+        if (clearFolderSearchBtn) {
+            clearFolderSearchBtn.addEventListener('click', () => {
+                folderSearchInput.value = '';
+                currentFolderSearchTerm = '';
+                updateClearBtn();
+                folderSearchInput.focus();
+                if (currentRawData) {
+                    currentPage = 1;
+                    applyLocalSortAndFilter();
+                }
+            });
+        }
+    }
     if (closePreviewBtn && previewModal) {
         const closeAndCleanup = () => {
             previewModal.classList.remove('visible');

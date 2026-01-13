@@ -207,7 +207,7 @@
 
 .search-box.ai-mode-active #search-input::placeholder {
     color: #667eea;
-    font-weight: 500;
+    font-weight: 600;
     opacity: 1;
 }
 
@@ -263,7 +263,7 @@
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 400px) {
     #search-input::placeholder {
         color: transparent !important;
         opacity: 0 !important;
@@ -294,6 +294,7 @@
 
 .search-filters {
     display: flex;
+    justify-content: center;
     gap: 0.8rem;
     flex-wrap: wrap;
 }
@@ -356,7 +357,7 @@
 
 .breadcrumb-item[aria-current="page"] {
     color: var(--text-primary);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .file-list-container {
@@ -511,7 +512,6 @@
 }
 
 .file-name {
-    font-weight: 500;
     color: var(--text-primary);
     text-decoration: none;
     transition: color var(--transition-fast);
@@ -623,10 +623,6 @@
 
     .floating-elements {
         display: none;
-    }
-
-    .search-filters {
-        justify-content: center;
     }
 
     .selection-toolbar {
@@ -760,7 +756,7 @@
 }
 
 .selection-info {
-    font-weight: 500;
+    font-weight: 600;
     font-size: 0.9rem;
 }
 
@@ -873,7 +869,7 @@
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all 0.2s ease;
 }
 
@@ -1162,7 +1158,7 @@
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .guestbook-filter-btn:hover {
@@ -1204,7 +1200,7 @@
     background: var(--background);
     border-color: var(--border-color);
     color: var(--primary-color);
-    font-weight: 500;
+    font-weight: 600;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
@@ -1250,7 +1246,7 @@
 .guestbook-sort-btn.active {
     color: var(--primary-color);
     background: rgba(var(--primary-rgb), 0.08);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 @media (max-width: 768px) {
