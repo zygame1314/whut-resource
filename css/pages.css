@@ -185,6 +185,17 @@
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
+#search-input:-webkit-autofill,
+#search-input:-webkit-autofill:hover,
+#search-input:-webkit-autofill:focus,
+#search-input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px var(--background) inset !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    border: 2px solid var(--border-color) !important;
+    transition: background-color 5000s ease-in-out 0s;
+    caret-color: var(--text-primary);
+}
+
 .search-box.ai-mode-active #search-input {
     border: 2px solid transparent;
     background:
@@ -203,6 +214,18 @@
         0 0 25px rgba(102, 126, 234, 0.35),
         0 0 50px rgba(118, 75, 162, 0.2),
         inset 0 0 25px rgba(102, 126, 234, 0.08);
+}
+
+.search-box.ai-mode-active #search-input:-webkit-autofill,
+.search-box.ai-mode-active #search-input:-webkit-autofill:hover,
+.search-box.ai-mode-active #search-input:-webkit-autofill:focus,
+.search-box.ai-mode-active #search-input:-webkit-autofill:active {
+    border: 2px solid #667eea !important;
+    -webkit-box-shadow:
+        0 0 0 1000px var(--background) inset,
+        0 0 20px rgba(102, 126, 234, 0.25) !important;
+    transition: background-color 5000s ease-in-out 0s;
+    -webkit-text-fill-color: var(--text-primary) !important;
 }
 
 .search-box.ai-mode-active #search-input::placeholder {

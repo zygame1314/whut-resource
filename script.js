@@ -473,8 +473,7 @@ function getFileType(fileName) {
         'rar': 'archive',
         '7z': 'archive',
         'tar': 'archive',
-        'gz': 'archive',
-        'url': 'link'
+        'gz': 'archive'
     };
     return typeMap[ext] || 'default';
 }
@@ -512,7 +511,6 @@ function sortData(data, sortOption) {
         if (valA > valB) return 1 * dirMultiplier;
         return 0;
     };
-    // 文件夹和文件都应用选定的排序规则
     sortedData.directories.sort(compareFunction);
     sortedData.files.sort(compareFunction);
     return sortedData;
@@ -1829,7 +1827,6 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
                 dir.name.toLowerCase().includes(lowerLocalSearchTerm)
             );
         }
-        // 按类型过滤：如果选择的不是 'all' 且不是 'folder'，则隐藏文件夹
         if (currentFilter !== 'all' && currentFilter !== 'folder') {
             filteredDirectories = [];
         }
@@ -1855,7 +1852,9 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
             } else {
                 filteredFiles = filteredFiles.filter(file => {
                     if (file.isDirectory) return true;
-                    // getFileType 已经更新支持 link, audio, archive 等
+                    if (currentFilter === 'link') {
+                        return file.is_link === 1 || file.is_link === true;
+                    }
                     const fileType = getFileType(file.name);
                     return fileType === currentFilter;
                 });
