@@ -4,7 +4,9 @@
     "description": "武理资源共享平台静态资源构建",
     "scripts": {
         "build": "node build.js",
-        "deploy": "npm run build && wrangler pages deploy"
+        "deploy": "npm run build && wrangler pages deploy",
+        "preview": "npx -y http-server dist",
+        "dev": "node scripts/dev.js"
     },
     "devDependencies": {
         "clean-css": "^5.3.3",
