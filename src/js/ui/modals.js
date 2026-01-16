@@ -3,7 +3,8 @@ function showConfirmation({
     message,
     confirmText = '确认',
     cancelText = '取消',
-    confirmClass = ''
+    confirmClass = '',
+    onShow = null
 }) {
     return new Promise((resolve) => {
         const modalOverlay = document.createElement('div');
@@ -11,7 +12,7 @@ function showConfirmation({
         modalOverlay.innerHTML = `
             <div class="confirmation-modal">
                 <h3>${title}</h3>
-                <p>${message}</p>
+                <div class="modal-message" style="margin: 1rem 0; line-height: 1.6; color: var(--text-secondary);">${message}</div>
                 <div class="confirmation-buttons">
                     <button class="confirm-btn-cancel">${cancelText}</button>
                     <button class="confirm-btn ${confirmClass}">${confirmText}</button>
@@ -19,6 +20,11 @@ function showConfirmation({
             </div>
         `;
         document.body.appendChild(modalOverlay);
+        if (typeof onShow === 'function') {
+            requestAnimationFrame(() => {
+                onShow();
+            });
+        }
         const closeModal = (result) => {
             modalOverlay.classList.add('closing');
             modalOverlay.addEventListener('animationend', () => {
@@ -39,7 +45,6 @@ function showConfirmation({
         });
     });
 }
-
 function showPrompt({
     title,
     message,

@@ -140,6 +140,83 @@ async function openLink(fileKey, linkUrl, openBtn) {
     }
     try {
         if (linkUrl) {
+            let domain = '外部链接';
+            try {
+                const urlObj = new URL(linkUrl);
+                domain = urlObj.hostname;
+            } catch (e) { }
+            const safetyStatusId = 'link-safety-' + Date.now();
+            const confirmed = await showConfirmation({
+                title: '',
+                message: `
+                    <div class="link-confirm-modern">
+                        <div class="link-confirm-visual">
+                            <i class="fas fa-external-link-alt"></i>
+                        </div>
+                        <h3 class="link-confirm-headline">即将访问外部网站</h3>
+                        <p class="link-confirm-description">你即将离开本站，前往第三方页面。请确保你信任该链接的目标来源。</p>
+                        <div id="${safetyStatusId}" class="link-safety-status checking">
+                            <i class="fas fa-circle-notch"></i>
+                            <span>正在检测链接安全性...</span>
+                        </div>
+                        <div class="link-confirm-card">
+                            <div class="link-favicon">
+                                <i class="fas fa-globe"></i>
+                            </div>
+                            <div class="link-info">
+                                <div class="link-domain">${domain}</div>
+                                <div class="link-full-url" title="${linkUrl.replace(/"/g, '&quot;')}">${linkUrl.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                            </div>
+                        </div>
+                        <div class="link-confirm-note">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>由 Google Safe Browsing 提供安全检测</span>
+                        </div>
+                    </div>
+                `,
+                confirmText: '继续访问',
+                confirmClass: 'confirm-btn-primary',
+                cancelText: '取消',
+                onShow: async () => {
+                    try {
+                        const response = await fetch('/api/url-safety', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ url: linkUrl }),
+                        });
+                        const result = await response.json();
+                        const statusEl = document.getElementById(safetyStatusId);
+                        if (statusEl && result.success) {
+                            statusEl.classList.remove('checking');
+                            if (result.status === 'safe') {
+                                statusEl.classList.add('safe');
+                                statusEl.innerHTML = '<i class="fas fa-check-circle"></i><span>未检测到已知威胁</span>';
+                            } else if (result.status === 'dangerous') {
+                                statusEl.classList.add('dangerous');
+                                const threatLabels = result.threats.map(t => t.label).join('、');
+                                statusEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i><span>警告：该链接可能存在风险</span><div class="link-threat-list">${threatLabels}</div>`;
+                            } else {
+                                statusEl.classList.add('unknown');
+                                statusEl.innerHTML = '<i class="fas fa-question-circle"></i><span>无法确定安全性</span>';
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('安全检测失败:', e);
+                        const statusEl = document.getElementById(safetyStatusId);
+                        if (statusEl) {
+                            statusEl.classList.remove('checking');
+                            statusEl.classList.add('unknown');
+                            statusEl.innerHTML = '<i class="fas fa-question-circle"></i><span>安全检测暂不可用</span>';
+                        }
+                    }
+                }
+            });
+            if (!confirmed) {
+                showNotification('跳转已取消', 'info');
+                return;
+            }
             try {
                 await fetch(`${FILES_API_URL}?action=recordLinkClick&key=${encodeURIComponent(fileKey)}`, {
                     method: 'GET',
