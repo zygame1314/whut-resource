@@ -3,7 +3,7 @@ const path = require('path');
 const { minify: minifyHtml } = require('html-minifier-terser');
 const CleanCSS = require('clean-css');
 const { minify: minifyJs } = require('terser');
-const { srcDir, distDir, jsSrcDir, excludeDirs, excludeFiles, jsModules, uploadModules, authModules, singleModules } = require('./config');
+const { srcDir, distDir, jsSrcDir, excludeDirs, excludeFiles, jsBundles } = require('./config');
 const { calculateHash, copyFile } = require('./utils');
 async function processAssetsAndBuildMap(currentDir, fileHashMap) {
     const entries = fs.readdirSync(currentDir, { withFileTypes: true });
@@ -73,13 +73,8 @@ async function buildScripts(fileHashMap) {
             fileHashMap[outputName] = outputName;
         }
     };
-    await buildBundle(jsModules, 'script.js');
-    await buildBundle(uploadModules, 'upload.js');
-    await buildBundle(authModules, 'auth.js');
-    if (singleModules) {
-        for (const [outputName, modules] of Object.entries(singleModules)) {
-            await buildBundle(modules, outputName);
-        }
+    for (const [outputName, modules] of Object.entries(jsBundles)) {
+        await buildBundle(modules, outputName);
     }
 }
 async function processHtmlAndOthers(currentDir, fileHashMap) {

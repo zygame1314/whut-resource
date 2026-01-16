@@ -1,0 +1,234 @@
+function renderGuestbook(messages) {
+    if (!guestbookList) return;
+    if (!messages || messages.length === 0) {
+        guestbookList.innerHTML = '<p class="empty-state-small">暂无留言，快来发布第一条心愿吧！</p>';
+        return;
+    }
+    const isAdmin = isGuestbookAdmin(window.currentUser);
+    const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
+    const currentUserId = window.currentUser ? window.currentUser.id : null;
+    guestbookList.innerHTML = messages.map(msg => {
+        const isAuthor = currentUserId === msg.user_id;
+        const likedClass = msg.has_liked ? 'liked' : '';
+        const likeAction = msg.has_liked ? `unlikeGuestbook(${msg.id}, this)` : `likeGuestbook(${msg.id}, this)`;
+        const likeIcon = msg.has_liked ? 'fas fa-heart' : 'far fa-heart';
+        let adminControls = '';
+        let authorControls = '';
+        if (isAdmin) {
+            const visibilityIcon = msg.is_hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+            const visibilityTitle = msg.is_hidden ? '取消隐藏' : '隐藏留言';
+            const visibilityClass = msg.is_hidden ? 'status-hidden' : '';
+            const pinIcon = msg.is_pinned ? 'fas fa-thumbtack' : 'fas fa-thumbtack';
+            const pinTitle = msg.is_pinned ? '取消置顶' : '置顶留言';
+            const pinClass = msg.is_pinned ? 'active' : '';
+            const pinAction = msg.is_pinned ? 'unpin' : 'pin';
+            const statusIcon = msg.status === 'resolved' ? 'fas fa-check-circle' : 'far fa-check-circle';
+            const statusTitle = msg.status === 'resolved' ? '标记为未解决' : '标记为已解决';
+            const statusClass = msg.status === 'resolved' ? 'success' : '';
+            const rejectIcon = msg.status === 'rejected' ? 'fas fa-times-circle' : 'far fa-times-circle';
+            const rejectTitle = msg.status === 'rejected' ? '取消驳回' : '驳回留言';
+            const rejectClass = msg.status === 'rejected' ? 'danger' : '';
+            const encodedContent = btoa(encodeURIComponent(msg.content));
+            adminControls = `
+                <div class="guestbook-admin-controls">
+                    <button class="icon-btn small ai-btn" onclick="aiProcessGuestbook(${msg.id})" title="AI 分析处理">
+                        <i class="fas fa-robot"></i>
+                    </button>
+                    <button class="icon-btn small ${pinClass}" onclick="handleGuestbookAction(${msg.id}, '${pinAction}')" title="${pinTitle}">
+                        <i class="${pinIcon}"></i>
+                    </button>
+                    <button class="icon-btn small ${statusClass}" onclick="${msg.status === 'resolved' ? `handleGuestbookAction(${msg.id}, 'unresolve')` : `resolveGuestbook(${msg.id})`}" title="${statusTitle}">
+                        <i class="${statusIcon}"></i>
+                    </button>
+                    <button class="icon-btn small ${rejectClass}" onclick="${msg.status === 'rejected' ? `handleGuestbookAction(${msg.id}, 'unreject')` : `rejectGuestbook(${msg.id})`}" title="${rejectTitle}">
+                        <i class="${rejectIcon}"></i>
+                    </button>
+                    <button class="icon-btn small ${visibilityClass}" onclick="toggleGuestbookVisibility(${msg.id}, ${msg.is_hidden})" title="${visibilityTitle}">
+                        <i class="${visibilityIcon}"></i>
+                    </button>
+                    <button class="icon-btn small" onclick="editGuestbook(${msg.id}, '${encodedContent}')" title="编辑留言">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    ${msg.is_banned ? `
+                    <button class="icon-btn small success" onclick="confirmUnbanUser(${msg.id})" title="解封用户${!isSuperAdmin ? '（需审批）' : ''}">
+                        <i class="fas fa-user-check"></i>
+                    </button>
+                    ` : `
+                    <button class="icon-btn small danger" onclick="confirmBanUser(${msg.id})" title="封禁用户${!isSuperAdmin ? '（需审批）' : ''}">
+                        <i class="fas fa-user-slash"></i>
+                    </button>
+                    `}
+                    <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }
+        if (isAuthor && !isAdmin) {
+            const encodedContent = btoa(encodeURIComponent(msg.content));
+            authorControls = `
+                <div class="guestbook-author-controls">
+                    <button class="icon-btn small" onclick="editGuestbook(${msg.id}, '${encodedContent}')" title="编辑留言">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="icon-btn small danger" onclick="deleteGuestbook(${msg.id})" title="删除留言">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }
+        const nickname = msg.nickname || '匿名用户';
+        const safeNickname = escapeHtml(nickname);
+        const avatarChar = safeNickname.charAt(0).toUpperCase();
+        const avatarColor = getAvatarColor(nickname);
+        let statusBadge = '';
+        let rejectReasonHtml = '';
+        let resolveNoteHtml = '';
+        if (msg.status === 'resolved') {
+            statusBadge = '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>';
+            if (msg.resolve_note) {
+                resolveNoteHtml = renderResolveNote(msg.resolve_note);
+            }
+        } else if (msg.status === 'rejected') {
+            statusBadge = '<span class="status-badge rejected"><i class="fas fa-times"></i> 已驳回</span>';
+            if (msg.reject_reason) {
+                rejectReasonHtml = `<div class="reject-reason"><i class="fas fa-comment-slash"></i> 驳回原因：${escapeHtml(msg.reject_reason)}</div>`;
+            }
+        } else {
+            statusBadge = '<span class="status-badge unresolved">未解决</span>';
+        }
+        if (msg.is_hidden && msg.status !== 'rejected') {
+            statusBadge = '<span class="status-badge auditing"><i class="fas fa-hourglass-half"></i> 审核中</span>';
+        }
+        let pinnedBadge = '';
+        if (msg.is_pinned) {
+            pinnedBadge = '<span class="pinned-badge"><i class="fas fa-thumbtack"></i> 置顶</span>';
+        }
+        return `
+            <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''} ${msg.is_pinned ? 'is-pinned' : ''}">
+                <div class="guestbook-left">
+                    <div class="user-avatar-placeholder" style="background: ${avatarColor}">${avatarChar}</div>
+                </div>
+                <div class="guestbook-main">
+                    <div class="guestbook-header">
+                        <div class="guestbook-user-info">
+                            <div class="user-info-top">
+                                <div class="nickname-wrapper">
+                                    <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
+                                    ${msg.isAdmin ? `<span class="admin-badge${msg.isSuperAdmin ? ' super' : ''}"><i class="fas fa-${msg.isSuperAdmin ? 'crown' : 'shield-alt'}"></i> ${msg.isSuperAdmin ? '超级管理员' : '管理员'}</span>` : ''}
+                                </div>
+                                <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
+                            </div>
+                            <div class="user-badges">
+                                ${pinnedBadge}
+                                ${statusBadge}
+                            </div>
+                        </div>
+                        ${adminControls}${authorControls}
+                    </div>
+                    <div class="guestbook-content">${escapeHtml(msg.content)}</div>
+                    ${rejectReasonHtml}
+                    ${resolveNoteHtml}
+                    <div class="guestbook-footer">
+                        <button class="like-btn ${likedClass}" onclick="${likeAction}">
+                            <i class="${likeIcon}"></i> <span>${msg.likes}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+function renderResolveNote(note) {
+    if (!note) return '';
+    let path = null;
+    let remark = null;
+    try {
+        if (note.trim().startsWith('{')) {
+            const obj = JSON.parse(note);
+            if (typeof obj === 'object' && obj !== null) {
+                path = obj.path;
+                remark = obj.note;
+            }
+        }
+    } catch (e) {
+    }
+    if (path || remark) {
+        let html = '';
+        if (path) {
+            const escapedPath = path.trim().replace(/'/g, "\\'").replace(/"/g, '\\"');
+            const safePath = escapeHtml(path);
+            html += `<div class="resolve-note"><i class="fas fa-folder-open"></i> 资源位置：<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safePath}</a></div>`;
+        }
+        if (remark) {
+            html += `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 管理员备注：${escapeHtml(remark)}</div>`;
+        }
+        return html;
+    }
+    const safeNote = escapeHtml(note);
+    const isLikelyPath = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\.()（）\s]+(?:\/[\u4e00-\u9fa5a-zA-Z0-9_\-\.()（）\s]+)*\/?$/.test(note.trim());
+    if (isLikelyPath) {
+        const escapedPath = note.trim().replace(/'/g, "\\'").replace(/"/g, '\\"');
+        return `<div class="resolve-note"><i class="fas fa-folder-open"></i> 资源位置：<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safeNote}</a></div>`;
+    } else {
+        return `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 管理员备注：${safeNote}</div>`;
+    }
+}
+function renderGuestbookPagination() {
+    if (!guestbookPagination) return;
+    if (totalGuestbookPages <= 1) {
+        guestbookPagination.innerHTML = '';
+        guestbookPagination.style.display = 'none';
+        return;
+    }
+    guestbookPagination.style.display = 'flex';
+    guestbookPagination.innerHTML = `
+        <button class="secondary-btn small" onclick="changeGuestbookPage(${currentGuestbookPage - 1})" ${currentGuestbookPage === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <div style="display:flex; align-items:center;">
+            <input type="number" min="1" max="${totalGuestbookPages}" value="${currentGuestbookPage}" 
+                class="pagination-jump-input" 
+                onchange="let val = parseInt(this.value); if(val >= 1 && val <= ${totalGuestbookPages}) changeGuestbookPage(val); else this.value = ${currentGuestbookPage}"
+                onkeydown="if(event.key === 'Enter') this.blur()"
+            >
+            <span class="pagination-info">/ ${totalGuestbookPages}</span>
+        </div>
+        <button class="secondary-btn small" onclick="changeGuestbookPage(${currentGuestbookPage + 1})" ${currentGuestbookPage === totalGuestbookPages ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    `;
+}
+function renderGuestbookStats(stats) {
+    let statsWrapper = document.getElementById('guestbook-stats-wrapper');
+    if (!statsWrapper) return;
+    let statsContainer = document.getElementById('guestbook-stats-container');
+    if (!statsContainer) {
+        statsContainer = document.createElement('div');
+        statsContainer.id = 'guestbook-stats-container';
+        statsContainer.className = 'guestbook-stats-container';
+        statsWrapper.appendChild(statsContainer);
+    }
+    let lastCleanupDate = '从未';
+    if (stats.last_cleanup_at) {
+        const date = new Date(stats.last_cleanup_at + (stats.last_cleanup_at.endsWith('Z') ? '' : 'Z'));
+        lastCleanupDate = date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    statsContainer.innerHTML = `
+        <div class="stats-item" title="自建站以来的总留言数">
+            <i class="fas fa-history"></i> 
+            <span>历史总数: <strong>${stats.total_messages_all_time}</strong></span>
+        </div>
+        <div class="stats-divider"></div>
+        <div class="stats-item" title="当前显示的留言数">
+            <i class="fas fa-layer-group"></i> 
+            <span>当前存留: <strong>${stats.current_messages_count}</strong></span>
+        </div>
+        <div class="stats-divider"></div>
+        <div class="stats-item" title="最近一次自动清理情况">
+            <i class="fas fa-broom"></i> 
+            <span>上次清理: <strong>${stats.last_cleanup_count}</strong> 条 <span class="stats-date">(${lastCleanupDate})</span></span>
+        </div>
+    `;
+    statsContainer.style.display = 'flex';
+}
