@@ -205,7 +205,16 @@ export async function onRequestPost({ request, env, waitUntil }) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
-    const key = sanitizedFilename;
+
+    // 优先使用前端传递的 key (包含路径)，如果不存在则使用 sanitizedFilename
+    let key = sanitizedFilename;
+    const providedKey = formData.get('key');
+    if (providedKey && typeof providedKey === 'string') {
+      const cleanKey = providedKey.trim().replace(/^[\/]+/, ''); // 移除开头的 /
+      if (cleanKey && !cleanKey.includes('..')) { // 简单安全检查
+        key = cleanKey;
+      }
+    }
     const existingFile = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(key).first();
     if (existingFile) {
       return new Response(JSON.stringify({ success: false, error: '文件已存在。' }), { status: 409, headers: addCorsHeaders() });
