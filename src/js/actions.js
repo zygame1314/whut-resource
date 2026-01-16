@@ -474,7 +474,16 @@ function showDirectoryPicker(itemsToMove = []) {
                 if (searchInput) {
                     searchInput.addEventListener('click', (e) => e.stopPropagation());
                     searchInput.addEventListener('input', (e) => {
-                        try { filterTreeByKeyword(treeContainer, e.target.value); } catch (ex) { }
+                        try {
+                            filterTreeByKeyword(treeContainer, e.target.value, {
+                                nodeSelector: '.folder-tree-node',
+                                itemSelector: '.folder-tree-item',
+                                nameSelector: '.folder-name',
+                                listSelector: '.folder-tree-list',
+                                toggleSelector: '.folder-toggle-icon',
+                                useTransform: false
+                            });
+                        } catch (ex) { }
                     });
                 }
             } else {
@@ -483,13 +492,6 @@ function showDirectoryPicker(itemsToMove = []) {
         } catch (error) {
             treeContainer.innerHTML = `<p class="u-text-secondary-small">${error.message}</p>`;
         }
-    });
-}
-function filterTreeByKeyword(container, keyword) {
-    const items = container.querySelectorAll('.folder-tree-item');
-    const term = keyword.toLowerCase();
-    items.forEach(item => {
-        const name = item.querySelector('.folder-name').textContent.toLowerCase();
     });
 }
 window.executeBatchDelete = async (keys) => {

@@ -148,3 +148,53 @@ function filterByFolderSearch(data, searchTerm) {
         )
     };
 }
+function filterTreeByKeyword(container, keyword, options = {}) {
+    const {
+        nodeSelector = '.path-tree-node',
+        itemSelector = '.path-tree-item',
+        nameSelector = '.path-folder-name',
+        listSelector = '.path-tree-list',
+        toggleSelector = '.path-toggle-icon',
+        useTransform = true
+    } = options;
+    const term = keyword.toLowerCase().trim();
+    const allNodes = container.querySelectorAll(nodeSelector);
+    if (!term) {
+        allNodes.forEach(node => {
+            node.style.display = '';
+            const sublist = node.querySelector(':scope > ' + listSelector);
+            if (sublist) sublist.style.display = 'none';
+            const toggle = node.querySelector(toggleSelector);
+            if (toggle && useTransform) toggle.style.transform = '';
+            if (toggle) toggle.classList.remove('expanded');
+        });
+        const rootList = container.querySelector(':scope > ' + listSelector);
+        if (rootList) rootList.style.display = 'block';
+        return;
+    }
+    allNodes.forEach(node => {
+        node.style.display = 'none';
+    });
+    allNodes.forEach(node => {
+        const nameEl = node.querySelector(nameSelector);
+        const name = nameEl ? nameEl.textContent.toLowerCase() : '';
+        if (name.includes(term)) {
+            node.style.display = 'block';
+            let parent = node.parentElement;
+            while (parent && parent !== container) {
+                if (parent.matches(listSelector)) {
+                    parent.style.display = 'block';
+                }
+                if (parent.matches(nodeSelector)) {
+                    parent.style.display = 'block';
+                    const toggle = parent.querySelector(toggleSelector);
+                    if (toggle) {
+                        if (useTransform) toggle.style.transform = 'rotate(90deg)';
+                        toggle.classList.add('expanded');
+                    }
+                }
+                parent = parent.parentElement;
+            }
+        }
+    });
+}
