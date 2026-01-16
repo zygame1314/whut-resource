@@ -3,6 +3,7 @@ const { cleanDist } = require('./scripts/build/utils');
 const {
     processAssetsAndBuildMap,
     buildScripts,
+    buildCss,
     processHtmlAndOthers,
     processServiceWorker
 } = require('./scripts/build/tasks');
@@ -14,6 +15,7 @@ async function build() {
         cleanDist();
         await processAssetsAndBuildMap(srcDir, fileHashMap);
         await buildScripts(fileHashMap);
+        await buildCss(fileHashMap);
         await processHtmlAndOthers(srcDir, fileHashMap);
         await processServiceWorker(fileHashMap);
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);

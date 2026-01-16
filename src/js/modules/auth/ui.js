@@ -19,12 +19,14 @@ function initPasswordToggles(container) {
 function updateAuthUI() {
     const authSection = document.getElementById('auth-section');
     const uploadLink = document.getElementById('upload-btn-link');
+    const path = window.location.pathname;
+    const isMainPage = path === '/' || path.endsWith('/index.html') || path.endsWith('/');
     if (currentUser) {
         const quotaDisplay = isAdmin(currentUser)
             ? '无限'
             : `${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次`;
         if (authSection) {
-            const requestButton = isSuperAdmin(currentUser) ? `
+            const requestButton = (isSuperAdmin(currentUser) && isMainPage) ? `
                 <button id="admin-requests-btn" class="secondary-btn" title="审批请求">
                     <i class="fas fa-clipboard-check"></i> 审批
                     <span id="pending-requests-badge" class="badge u-hidden">0</span>
@@ -60,12 +62,9 @@ function updateAuthUI() {
                 <button id="change-nickname-btn" class="dropdown-item"><i class="fas fa-id-card"></i> 修改昵称</button>
                 <button id="change-pwd-btn" class="dropdown-item"><i class="fas fa-key"></i> 修改密码</button>
             `;
-            authSection.innerHTML = `
-                <span class="user-info">
-                    <i class="fas fa-user"></i> ${escapeHtml(currentUser.nickname || currentUser.email)}
-                    <span class="quota">(${quotaDisplay})</span>
-                </span>
-                ${requestButton}
+            let dropdownHtml = '';
+            if (isMainPage) {
+                dropdownHtml = `
                 <div class="dropdown-container">
                     <button id="admin-tools-toggle" class="secondary-btn" title="工具菜单">
                         <i class="fas fa-tools"></i> 管理 <i class="fas fa-chevron-down u-font-small u-margin-left-small"></i>
@@ -73,44 +72,61 @@ function updateAuthUI() {
                     <div id="admin-tools-menu" class="dropdown-menu">
                         ${dropdownItems}
                     </div>
-                </div>
+                </div>`;
+            }
+            authSection.innerHTML = `
+                <span class="user-info">
+                    <i class="fas fa-user"></i> ${escapeHtml(currentUser.nickname || currentUser.email)}
+                    <span class="quota">(${quotaDisplay})</span>
+                </span>
+                ${requestButton}
+                ${dropdownHtml}
                 <button id="logout-btn" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>
             `;
             document.getElementById('logout-btn').addEventListener('click', logout);
-            const toggleBtn = document.getElementById('admin-tools-toggle');
-            const menu = document.getElementById('admin-tools-menu');
-            if (toggleBtn && menu) {
-                toggleBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    menu.classList.toggle('show');
-                    toggleBtn.classList.toggle('active');
-                });
-                document.addEventListener('click', (e) => {
-                    if (!menu.contains(e.target) && !toggleBtn.contains(e.target)) {
-                        menu.classList.remove('show');
-                        toggleBtn.classList.remove('active');
-                    }
-                });
-            }
-            document.getElementById('change-nickname-btn').addEventListener('click', showChangeNicknameModal);
-            document.getElementById('change-pwd-btn').addEventListener('click', showChangePasswordModal);
-            if (isAdmin(currentUser)) {
-                document.getElementById('admin-logs-btn').addEventListener('click', showAdminLogsModal);
-                const myRequestsBtn = document.getElementById('my-requests-btn');
-                if (myRequestsBtn) {
-                    myRequestsBtn.addEventListener('click', () => showAdminRequestsModal('mine'));
+            if (isMainPage) {
+                const toggleBtn = document.getElementById('admin-tools-toggle');
+                const menu = document.getElementById('admin-tools-menu');
+                if (toggleBtn && menu) {
+                    toggleBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        menu.classList.toggle('show');
+                        toggleBtn.classList.toggle('active');
+                    });
+                    document.addEventListener('click', (e) => {
+                        if (!menu.contains(e.target) && !toggleBtn.contains(e.target)) {
+                            menu.classList.remove('show');
+                            toggleBtn.classList.remove('active');
+                        }
+                    });
                 }
-            }
-            if (isSuperAdmin(currentUser)) {
-                document.getElementById('sync-btn').addEventListener('click', syncFiles);
-                document.getElementById('vector-sync-btn').addEventListener('click', syncVectorIndex);
-                document.getElementById('banned-users-btn').addEventListener('click', showBannedUsersModal);
-                document.getElementById('maintenance-toggle-btn').addEventListener('click', showMaintenanceModal);
-                const reqBtn = document.getElementById('admin-requests-btn');
-                if (reqBtn) reqBtn.addEventListener('click', () => showAdminRequestsModal('all'));
-            }
-            if (isAdmin(currentUser)) {
-                fetchPendingRequestsCount();
+                const changeNicknameBtn = document.getElementById('change-nickname-btn');
+                if (changeNicknameBtn) changeNicknameBtn.addEventListener('click', showChangeNicknameModal);
+                const changePwdBtn = document.getElementById('change-pwd-btn');
+                if (changePwdBtn) changePwdBtn.addEventListener('click', showChangePasswordModal);
+                if (isAdmin(currentUser)) {
+                    const adminLogsBtn = document.getElementById('admin-logs-btn');
+                    if (adminLogsBtn) adminLogsBtn.addEventListener('click', showAdminLogsModal);
+                    const myRequestsBtn = document.getElementById('my-requests-btn');
+                    if (myRequestsBtn) {
+                        myRequestsBtn.addEventListener('click', () => showAdminRequestsModal('mine'));
+                    }
+                }
+                if (isSuperAdmin(currentUser)) {
+                    const syncBtn = document.getElementById('sync-btn');
+                    if (syncBtn) syncBtn.addEventListener('click', syncFiles);
+                    const vectorSyncBtn = document.getElementById('vector-sync-btn');
+                    if (vectorSyncBtn) vectorSyncBtn.addEventListener('click', syncVectorIndex);
+                    const bannedUsersBtn = document.getElementById('banned-users-btn');
+                    if (bannedUsersBtn) bannedUsersBtn.addEventListener('click', showBannedUsersModal);
+                    const maintenanceBtn = document.getElementById('maintenance-toggle-btn');
+                    if (maintenanceBtn) maintenanceBtn.addEventListener('click', showMaintenanceModal);
+                    const reqBtn = document.getElementById('admin-requests-btn');
+                    if (reqBtn) reqBtn.addEventListener('click', () => showAdminRequestsModal('all'));
+                }
+                if (isAdmin(currentUser)) {
+                    fetchPendingRequestsCount();
+                }
             }
         }
         if (uploadLink) {
@@ -122,12 +138,16 @@ function updateAuthUI() {
         }
     } else {
         if (authSection) {
-            authSection.innerHTML = `
-                <button id="login-btn" class="primary-btn"><i class="fas fa-sign-in-alt"></i> 登录</button>
-                <button id="register-btn" class="secondary-btn"><i class="fas fa-user-plus"></i> 注册</button>
-            `;
-            document.getElementById('login-btn').addEventListener('click', () => showAuthModal('login'));
-            document.getElementById('register-btn').addEventListener('click', () => showAuthModal('register'));
+            if (isMainPage) {
+                authSection.innerHTML = `
+                    <button id="login-btn" class="primary-btn"><i class="fas fa-sign-in-alt"></i> 登录</button>
+                    <button id="register-btn" class="secondary-btn"><i class="fas fa-user-plus"></i> 注册</button>
+                `;
+                document.getElementById('login-btn').addEventListener('click', () => showAuthModal('login'));
+                document.getElementById('register-btn').addEventListener('click', () => showAuthModal('register'));
+            } else {
+                authSection.innerHTML = '';
+            }
         }
         if (uploadLink) uploadLink.style.display = 'none';
     }

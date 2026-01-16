@@ -3,7 +3,7 @@ const path = require('path');
 const { minify: minifyHtml } = require('html-minifier-terser');
 const CleanCSS = require('clean-css');
 const { minify: minifyJs } = require('terser');
-const { srcDir, distDir, jsSrcDir, excludeDirs, excludeFiles, jsBundles } = require('./config');
+const { srcDir, distDir, jsSrcDir, cssSrcDir, excludeDirs, excludeFiles, jsBundles, cssBundles } = require('./config');
 const { calculateHash, copyFile } = require('./utils');
 async function processAssetsAndBuildMap(currentDir, fileHashMap) {
     const entries = fs.readdirSync(currentDir, { withFileTypes: true });
@@ -74,6 +74,42 @@ async function buildScripts(fileHashMap) {
         }
     };
     for (const [outputName, modules] of Object.entries(jsBundles)) {
+        await buildBundle(modules, outputName);
+    }
+}
+async function buildCss(fileHashMap) {
+    const buildBundle = async (modules, outputName) => {
+        console.log(`正在打包 CSS ${outputName}...`);
+        let content = '';
+        for (const module of modules) {
+            const modulePath = path.join(cssSrcDir, module);
+            try {
+                if (fs.existsSync(modulePath)) {
+                    content += fs.readFileSync(modulePath, 'utf8') + '\n';
+                } else {
+                    console.error(`警告：未在 ${modulePath} 找到模块 (for ${outputName}) ${module}`);
+                }
+            } catch (e) {
+                console.error(`读取模块失败: ${modulePath}`, e);
+            }
+        }
+        try {
+            const minified = new CleanCSS({}).minify(content).styles;
+            const output = minified || content;
+            const hash = calculateHash(output);
+            const parsed = path.parse(outputName);
+            const hashedName = path.join(parsed.dir, `${parsed.name}.${hash}.css`).replace(/\\/g, '/');
+            fileHashMap[outputName] = hashedName;
+            const destPath = path.join(distDir, hashedName);
+            const destDir = path.dirname(destPath);
+            if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+            fs.writeFileSync(destPath, output);
+            console.log(`已打包并哈希: ${outputName} -> ${hashedName}`);
+        } catch (e) {
+            console.error(`打包 CSS ${outputName} 时出错:`, e);
+        }
+    };
+    for (const [outputName, modules] of Object.entries(cssBundles)) {
         await buildBundle(modules, outputName);
     }
 }
@@ -148,6 +184,7 @@ async function processServiceWorker(fileHashMap) {
 module.exports = {
     processAssetsAndBuildMap,
     buildScripts,
+    buildCss,
     processHtmlAndOthers,
     processServiceWorker
 };

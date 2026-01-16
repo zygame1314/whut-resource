@@ -2,6 +2,7 @@ const path = require('path');
 const srcDir = path.resolve(__dirname, '../../');
 const distDir = path.join(srcDir, 'dist');
 const jsSrcDir = path.join(srcDir, 'src', 'js');
+const cssSrcDir = path.join(srcDir, 'src', 'css');
 const excludeDirs = [
     '.git',
     'node_modules',
@@ -64,6 +65,17 @@ const jsBundles = {
     'tutorial.js': ['modules/tutorial.js'],
     'download-log.js': ['modules/download-log.js']
 };
+const cssBundles = {
+    'css/style.css': [
+        'modules/base.css',
+        'modules/animations.css',
+        'modules/layout.css',
+        'modules/components.css',
+        'modules/pages.css',
+        'modules/dynamic.css'
+    ],
+    'css/graph.css': ['modules/graph.css']
+};
 const excludeFiles = [
     'package.json',
     'package-lock.json',
@@ -74,7 +86,8 @@ const excludeFiles = [
     'LICENSE',
     '.DS_Store',
     'Thumbs.db',
-    ...Object.keys(jsBundles)
+    ...Object.keys(jsBundles),
+    ...Object.keys(cssBundles)
 ];
 const copyFiles = [
     'manifest.json',
@@ -87,8 +100,10 @@ module.exports = {
     srcDir,
     distDir,
     jsSrcDir,
+    cssSrcDir,
     excludeDirs,
     excludeFiles,
     jsBundles,
+    cssBundles,
     copyFiles
 };
