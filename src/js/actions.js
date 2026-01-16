@@ -147,7 +147,7 @@ async function openLink(fileKey, linkUrl, openBtn) {
             } catch (e) { }
             const safetyStatusId = 'link-safety-' + Date.now();
             const confirmed = await showConfirmation({
-                title: '',
+                title: '外链安全提醒',
                 message: `
                     <div class="link-confirm-modern">
                         <div class="link-confirm-visual">
@@ -179,7 +179,7 @@ async function openLink(fileKey, linkUrl, openBtn) {
                 cancelText: '取消',
                 onShow: async () => {
                     try {
-                        const response = await fetch('/api/url-safety', {
+                        const response = await fetch(API_ENDPOINTS.urlSafety, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',

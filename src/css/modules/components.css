@@ -4536,7 +4536,7 @@ textarea.form-input {
 
 .confirmation-modal p {
     margin-top: 0;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     color: var(--text-secondary);
     line-height: 1.6;
 }
@@ -6094,6 +6094,7 @@ input#prompt-input {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 10px 16px;
     border-radius: 10px;
@@ -6129,7 +6130,11 @@ input#prompt-input {
 }
 
 .link-threat-list {
-    margin-top: 8px;
+    width: 100%;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(231, 76, 60, 0.2);
     font-size: 0.8rem;
     font-weight: 400;
+    text-align: center;
 }

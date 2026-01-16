@@ -15,7 +15,8 @@ const API_ENDPOINTS = {
     pathRecommend: `${API_BASE}/api/path-recommend`,
     adminRequests: `${API_BASE}/api/admin-requests`,
     downloadLog: `${API_BASE.replace(/^http/, 'ws')}/api/ws`,
-    maintenance: `${API_BASE}/api/maintenance`
+    maintenance: `${API_BASE}/api/maintenance`,
+    urlSafety: `${API_BASE}/api/url-safety`
 };
 window.filterTreeByKeyword = function (container, keyword, options = {}) {
     const {
