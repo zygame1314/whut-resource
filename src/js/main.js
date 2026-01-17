@@ -361,18 +361,29 @@ if (searchButton && searchInput) {
     }
 }
 if (themeToggle) {
+    const updateThemeIcon = (isDark) => {
+        const icon = themeToggle.querySelector('i');
+        if (icon) {
+            icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+        }
+    };
     const savedTheme = localStorage.getItem('theme') || 'light';
     if (savedTheme === 'dark') {
         document.body.setAttribute('data-theme', 'dark');
-        themeToggle.checked = true;
+        updateThemeIcon(true);
+    } else {
+        updateThemeIcon(false);
     }
-    themeToggle.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            document.body.setAttribute('data-theme', 'dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
+    themeToggle.addEventListener('click', () => {
+        const isCurrentDark = document.body.getAttribute('data-theme') === 'dark';
+        if (isCurrentDark) {
             document.body.removeAttribute('data-theme');
             localStorage.setItem('theme', 'light');
+            updateThemeIcon(false);
+        } else {
+            document.body.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            updateThemeIcon(true);
         }
         createParticleBackground();
     });
