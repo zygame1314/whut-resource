@@ -83,7 +83,8 @@ async function addWatermarkToPDF(file) {
         return file;
     }
     const match = file.name.match(/【(.+?)】/);
-    const watermarkText = match ? (match[1] + "无偿") : "武理资源共享平台";
+    const subText = match ? (match[1] + "无偿") : "无偿分享";
+    const mainText = "武理资源共享平台";
     try {
         if (typeof PDFLib === 'undefined') {
             console.warn('PDFLib未加载，跳过水印添加');
@@ -94,24 +95,71 @@ async function addWatermarkToPDF(file) {
         const { PDFDocument } = PDFLib;
         const pdfDoc = await PDFDocument.load(arrayBuffer);
         const pages = pdfDoc.getPages();
+        let logoBitmap = null;
+        try {
+            const logoRes = await fetch('/favicon.png');
+            if (logoRes.ok) {
+                const blob = await logoRes.blob();
+                logoBitmap = await createImageBitmap(blob);
+            }
+        } catch (e) {
+            console.warn('Logo 加载失败：', e);
+        }
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        const fontSize = 40;
-        const textWidth = watermarkText.length * fontSize;
-        const diagonal = Math.sqrt(2) * textWidth;
-        canvas.width = Math.max(400, diagonal + 40);
-        canvas.height = Math.max(200, diagonal / 2 + 40);
-        ctx.font = `${fontSize}px "Microsoft YaHei", sans-serif`;
-        ctx.fillStyle = 'rgba(128, 128, 128, 0.3)';
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'center';
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.rotate(-45 * Math.PI / 180);
-        ctx.fillText(watermarkText, 0, 0);
+        const scale = 4;
+        const fontStack = '"PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif';
+        const logoTargetSize = 48 * scale;
+        const separatorHeight = 40 * scale;
+        const separatorWidth = 2 * scale;
+        const gap = 15 * scale;
+        const mainFontSize = 18 * scale;
+        const subFontSize = 16 * scale;
+        let logoW = 0, logoH = 0;
+        if (logoBitmap) {
+            const ratio = logoBitmap.height / logoBitmap.width;
+            logoW = logoTargetSize;
+            logoH = logoTargetSize * ratio;
+        }
+        ctx.font = `bold ${mainFontSize}px ${fontStack}`;
+        const mainTextWidth = ctx.measureText(mainText).width;
+        ctx.font = `normal ${subFontSize}px ${fontStack}`;
+        const subTextWidth = ctx.measureText(subText).width;
+        const maxTextWidth = Math.max(mainTextWidth, subTextWidth);
+        const totalWidth = (logoBitmap ? (logoW + gap) : 0) + separatorWidth + gap + maxTextWidth;
+        const totalHeight = Math.max(logoH, separatorHeight, mainFontSize + (4 * scale) + subFontSize);
+        const padding = 20 * scale;
+        canvas.width = totalWidth + padding * 2;
+        canvas.height = totalHeight + padding * 2;
+        const startX = padding;
+        const centerY = canvas.height / 2;
+        let currentX = startX;
+        if (logoBitmap) {
+            const logoY = centerY - logoH / 2;
+            ctx.drawImage(logoBitmap, currentX, logoY, logoW, logoH);
+            currentX += logoW + gap;
+        }
+        ctx.beginPath();
+        const lineX = Math.floor(currentX) + (0.5 * scale);
+        ctx.moveTo(lineX, centerY - separatorHeight / 2);
+        ctx.lineTo(lineX, centerY + separatorHeight / 2);
+        ctx.strokeStyle = '#aaaaaa';
+        ctx.lineWidth = separatorWidth;
+        ctx.stroke();
+        currentX += separatorWidth + gap;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.font = `bold ${mainFontSize}px ${fontStack}`;
+        ctx.fillStyle = '#333333';
+        ctx.fillText(mainText, currentX, centerY - (2 * scale));
+        ctx.textBaseline = 'top';
+        ctx.font = `normal ${subFontSize}px ${fontStack}`;
+        ctx.fillStyle = '#666666';
+        ctx.fillText(subText, currentX, centerY + (2 * scale));
         const imageUrl = canvas.toDataURL('image/png');
         const imageBytes = await fetch(imageUrl).then(res => res.arrayBuffer());
         const watermarkImage = await pdfDoc.embedPng(imageBytes);
-        const watermarkDims = watermarkImage.scale(1);
+        const watermarkDims = watermarkImage.scale(1 / scale);
         for (const page of pages) {
             const { width, height } = page.getSize();
             const xPos = (width - watermarkDims.width) / 2;
@@ -121,7 +169,7 @@ async function addWatermarkToPDF(file) {
                 y: yPos,
                 width: watermarkDims.width,
                 height: watermarkDims.height,
-                opacity: 0.5,
+                opacity: 0.3,
             });
         }
         const pdfBytes = await pdfDoc.save();
@@ -246,7 +294,7 @@ function showUploadResultsPanel(successFiles, failedFiles) {
             });
         });
     } else {
-        failedList.innerHTML = '<div class="empty-list"><i class="fas fa-smile-beam"></i><span>全部成功！</span></div>';
+        failedList.innerHTML = '<div class="empty-list"><i class="fas fa-check-circle"></i><span>全部上传成功</span></div>';
     }
     panel.style.display = 'block';
     if (closeBtn) {
