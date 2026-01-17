@@ -313,12 +313,15 @@ async function handleUpload(event) {
                             filesUploaded += processedFiles.length;
                         }
                         if (processedFiles.length > 0) {
-                            const f = processedFiles[0];
-                            const displayName = f.webkitRelativePath || f._webkitRelativePath || f.name;
-                            if (processedFiles.length > 1) {
-                                console.log(`批量上传成功: 包括 ${displayName} 等 ${processedFiles.length} 个文件`);
-                            } else {
-                                showNotification(`文件 "${displayName}" 上传成功！`, 'success');
+                            const successCountInBatch = result.results ? result.results.filter(r => r.success).length : processedFiles.length;
+                            if (successCountInBatch > 0) {
+                                const f = processedFiles[0];
+                                const displayName = f.webkitRelativePath || f._webkitRelativePath || f.name;
+                                if (processedFiles.length > 1) {
+                                    showNotification(`本批次 ${successCountInBatch} 个文件上传成功`, 'success');
+                                } else {
+                                    showNotification(`文件 "${displayName}" 上传成功！`, 'success');
+                                }
                             }
                         }
                     } catch (error) {
