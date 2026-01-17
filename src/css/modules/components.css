@@ -5090,6 +5090,230 @@ input#prompt-input {
     border: 1px solid rgba(52, 152, 219, 0.2);
 }
 
+.upload-results-panel {
+    margin-top: 1.5rem;
+    background: var(--background);
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    animation: fadeInUp 0.3s ease;
+}
+
+.upload-results-panel .results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: var(--background-alt);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.upload-results-panel .results-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.upload-results-panel .results-header h3 i {
+    color: var(--primary-color);
+}
+
+.upload-results-panel .close-results-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-results-panel .close-results-btn:hover {
+    background: var(--background-hover);
+    color: var(--accent-color);
+}
+
+.upload-results-panel .results-summary {
+    padding: 0.75rem 1.5rem;
+    background: var(--background-alt);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.upload-results-panel .results-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border-color);
+}
+
+.upload-results-panel .results-column {
+    background: var(--background);
+    padding: 1rem;
+    min-height: 120px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.upload-results-panel .column-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.upload-results-panel .success-column .column-header {
+    color: var(--success-color);
+}
+
+.upload-results-panel .success-column .column-header i {
+    color: var(--success-color);
+}
+
+.upload-results-panel .failed-column .column-header {
+    color: var(--accent-color);
+}
+
+.upload-results-panel .failed-column .column-header i {
+    color: var(--accent-color);
+}
+
+.upload-results-panel .results-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.upload-results-panel .results-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-bottom: 1px dashed var(--border-color);
+    word-break: break-all;
+}
+
+.upload-results-panel .results-list li:last-child {
+    border-bottom: none;
+}
+
+.upload-results-panel .results-list li i {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.upload-results-panel .success-column .results-list li i {
+    color: var(--success-color);
+}
+
+.upload-results-panel .failed-column .results-list li i {
+    color: var(--accent-color);
+}
+
+.upload-results-panel .results-list .file-error {
+    font-size: 0.75rem;
+    color: var(--accent-color);
+    display: block;
+    margin-top: 2px;
+}
+
+.upload-results-panel .empty-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem;
+    color: var(--text-light);
+    font-size: 0.85rem;
+}
+
+.upload-results-panel .empty-list i {
+    font-size: 1.8rem;
+    opacity: 0.5;
+}
+
+.upload-results-panel .success-column .empty-list i {
+    color: var(--text-light);
+}
+
+.upload-results-panel .failed-column .empty-list i {
+    color: var(--success-color);
+    opacity: 0.7;
+}
+
+.upload-results-panel .failed-file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.upload-results-panel .retry-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: rgba(52, 152, 219, 0.1);
+    color: var(--secondary-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+}
+
+.upload-results-panel .retry-btn:hover:not(:disabled) {
+    background: var(--secondary-color);
+    color: white;
+    transform: scale(1.1);
+}
+
+.upload-results-panel .retry-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.upload-results-panel .results-list li.retry-success {
+    background: rgba(39, 174, 96, 0.05);
+    border-radius: 6px;
+    padding: 0.5rem;
+    margin: 0.25rem 0;
+}
+
+.upload-results-panel .results-list li.retry-success i {
+    color: var(--success-color);
+}
+
+.upload-results-panel .retry-success-label {
+    font-size: 0.75rem;
+    color: var(--success-color);
+    background: rgba(39, 174, 96, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: auto;
+}
+
+@media (max-width: 600px) {
+    .upload-results-panel .results-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
 .upload-guide {
     background: var(--background);
     border-radius: 15px;

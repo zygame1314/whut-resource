@@ -147,32 +147,148 @@ async function handleFileSelect(files) {
         const processedFiles = await Promise.all(
             originalFiles.map(file => compressImage(file))
         );
-        let allValid = true;
+        const validFiles = [];
+        const ignoredFiles = [];
         for (const file of processedFiles) {
             const validation = validateFile(file);
-            if (!validation.valid) {
-                showNotification(`${file.name}: ${validation.error}`, 'error');
-                allValid = false;
+            if (validation.valid) {
+                validFiles.push(file);
+            } else {
+                ignoredFiles.push({ name: file.name, error: validation.error });
             }
         }
-        if (!allValid) {
+        if (validFiles.length === 0) {
+            if (ignoredFiles.length > 0) {
+                showNotification(`所有文件均无效: ${ignoredFiles[0].error}`, 'error');
+            }
             clearSelectedFile();
             return;
         }
-        showSelectedFile(processedFiles);
-        const originalSize = originalFiles.reduce((sum, f) => sum + f.size, 0);
-        const compressedSize = processedFiles.reduce((sum, f) => sum + f.size, 0);
-        const savedSize = originalSize - compressedSize;
-        if (savedSize > 1024) {
-            showNotification(`${processedFiles.length} 个文件处理完成，压缩节省 ${formatBytes(savedSize)}`, 'success');
-        } else {
-            showNotification(`${processedFiles.length} 个文件选择成功`, 'success');
+        if (ignoredFiles.length > 0) {
+            console.warn('部分文件被忽略:', ignoredFiles);
+            showNotification(`${ignoredFiles.length} 个文件被忽略 (如: ${ignoredFiles[0].name} ${ignoredFiles[0].error})`, 'warning');
+        }
+        showSelectedFile(validFiles);
+        if (validFiles.length > 0) {
+            showNotification(`${validFiles.length} 个文件选择成功` + (ignoredFiles.length > 0 ? ` (忽略 ${ignoredFiles.length} 个无效文件)` : ''), 'success');
         }
     } catch (error) {
         console.error('文件处理失败:', error);
         showNotification('处理文件时发生错误', 'error');
         clearSelectedFile();
     }
+}
+let pendingRetryFiles = new Map();
+function showUploadResultsPanel(successFiles, failedFiles) {
+    const panel = document.getElementById('upload-results-panel');
+    const successList = document.getElementById('success-list');
+    const failedList = document.getElementById('failed-list');
+    const successCount = document.getElementById('success-count');
+    const failedCount = document.getElementById('failed-count');
+    const summaryText = document.getElementById('results-summary-text');
+    const closeBtn = document.getElementById('close-results-btn');
+    if (!panel) return;
+    pendingRetryFiles.clear();
+    failedFiles.forEach((f, idx) => {
+        if (f.file) pendingRetryFiles.set(`retry-${idx}`, f.file);
+    });
+    successCount.textContent = successFiles.length;
+    failedCount.textContent = failedFiles.length;
+    summaryText.textContent = `共处理 ${successFiles.length + failedFiles.length} 个文件`;
+    if (successFiles.length > 0) {
+        successList.innerHTML = successFiles.map(f => `
+            <li>
+                <i class="fas fa-check"></i>
+                <span>${f.name}</span>
+            </li>
+        `).join('');
+    } else {
+        successList.innerHTML = '<div class="empty-list"><i class="fas fa-inbox"></i><span>暂无成功文件</span></div>';
+    }
+    if (failedFiles.length > 0) {
+        failedList.innerHTML = failedFiles.map((f, idx) => `
+            <li data-retry-id="retry-${idx}">
+                <i class="fas fa-times"></i>
+                <div class="failed-file-info">
+                    <span>${f.name}</span>
+                    <span class="file-error">${f.error || '未知错误'}</span>
+                </div>
+                ${f.file ? `<button type="button" class="retry-btn" data-retry-id="retry-${idx}" title="重试上传">
+                    <i class="fas fa-redo"></i>
+                </button>` : ''}
+            </li>
+        `).join('');
+        failedList.querySelectorAll('.retry-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const retryId = btn.dataset.retryId;
+                const file = pendingRetryFiles.get(retryId);
+                if (!file) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                try {
+                    await retrySingleFileUpload(file);
+                    const li = btn.closest('li');
+                    if (li) {
+                        li.classList.add('retry-success');
+                        li.innerHTML = `
+                            <i class="fas fa-check"></i>
+                            <span>${file.name}</span>
+                            <span class="retry-success-label">重试成功</span>
+                        `;
+                    }
+                    pendingRetryFiles.delete(retryId);
+                    showNotification(`文件 "${file.name}" 重试上传成功！`, 'success');
+                } catch (err) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-redo"></i>';
+                    showNotification(`重试失败: ${err.message}`, 'error');
+                }
+            });
+        });
+    } else {
+        failedList.innerHTML = '<div class="empty-list"><i class="fas fa-smile-beam"></i><span>全部成功！</span></div>';
+    }
+    panel.style.display = 'block';
+    if (closeBtn) {
+        closeBtn.onclick = () => {
+            panel.style.display = 'none';
+        };
+    }
+}
+async function retrySingleFileUpload(file) {
+    const formData = new FormData();
+    const targetPath = currentUploadPath || '';
+    const relativeName = file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath || file.name;
+    let fullPath = relativeName;
+    if (targetPath) {
+        const prefix = targetPath.endsWith('/') ? targetPath : targetPath + '/';
+        if (!relativeName.startsWith(prefix)) {
+            fullPath = prefix + relativeName;
+        }
+    }
+    const enableWatermark = watermarkToggle ? watermarkToggle.checked : true;
+    const processedFile = enableWatermark ? await addWatermarkToPDF(file) : file;
+    formData.append('file', processedFile, fullPath);
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.addEventListener('load', () => {
+            try {
+                const result = JSON.parse(xhr.responseText);
+                if (xhr.status === 200 && result.success) {
+                    resolve(result);
+                } else {
+                    const errMsg = result.results?.[0]?.error || result.error || `HTTP ${xhr.status}`;
+                    reject(new Error(errMsg));
+                }
+            } catch (error) {
+                reject(error);
+            }
+        });
+        xhr.addEventListener('error', () => reject(new Error('网络错误')));
+        xhr.open('POST', API_ENDPOINTS.upload);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('authToken'));
+        xhr.send(formData);
+    });
 }
 async function handleUpload(event) {
     event.preventDefault();
@@ -207,6 +323,7 @@ async function handleUpload(event) {
     const totalFiles = selectedFiles.length;
     const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
     const fileProgress = new Map();
+    const allUploadResults = { success: [], failed: [] };
     const updateTotalProgress = () => {
         let totalUploadedSize = 0;
         for (const file of selectedFiles) {
@@ -305,12 +422,21 @@ async function handleUpload(event) {
                             result.results.forEach(res => {
                                 if (res.success) {
                                     filesUploaded++;
+                                    allUploadResults.success.push({ name: res.name });
                                 } else {
-                                    showNotification(`文件 "${res.name}" 上传失败: ${res.error}`, 'error');
+                                    const originalFile = batchFiles.find(pf => {
+                                        const fullPath = pf._webkitRelativePath || pf.webkitRelativePath || pf.originalRelativePath || pf.name;
+                                        return fullPath === res.name ||
+                                            res.name.endsWith('/' + pf.name) ||
+                                            res.name === pf.name ||
+                                            fullPath.endsWith(res.name);
+                                    });
+                                    allUploadResults.failed.push({ name: res.name, error: res.error, file: originalFile || null });
                                 }
                             });
                         } else if (result.success) {
                             filesUploaded += processedFiles.length;
+                            processedFiles.forEach(f => allUploadResults.success.push({ name: f.name }));
                         }
                         if (processedFiles.length > 0) {
                             const successCountInBatch = result.results ? result.results.filter(r => r.success).length : processedFiles.length;
@@ -340,6 +466,7 @@ async function handleUpload(event) {
         const successRate = totalFiles > 0 ? (filesUploaded / totalFiles) * 100 : 0;
         const statusType = successRate === 100 ? 'success' : (successRate > 0 ? 'warning' : 'error');
         showUploadStatus(`${filesUploaded} / ${totalFiles} 个文件上传成功！`, statusType);
+        showUploadResultsPanel(allUploadResults.success, allUploadResults.failed);
         setTimeout(() => {
             clearSelectedFile();
             resetProgress();

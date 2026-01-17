@@ -213,6 +213,34 @@
                     </form>
 
                     <div id="upload-status" class="upload-status"></div>
+
+                    <div id="upload-results-panel" class="upload-results-panel" style="display: none;">
+                        <div class="results-header">
+                            <h3><i class="fas fa-clipboard-list"></i> 上传结果</h3>
+                            <button type="button" id="close-results-btn" class="close-results-btn">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="results-summary">
+                            <span id="results-summary-text"></span>
+                        </div>
+                        <div class="results-columns">
+                            <div class="results-column success-column">
+                                <div class="column-header">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>上传成功 (<span id="success-count">0</span>)</span>
+                                </div>
+                                <ul id="success-list" class="results-list"></ul>
+                            </div>
+                            <div class="results-column failed-column">
+                                <div class="column-header">
+                                    <i class="fas fa-times-circle"></i>
+                                    <span>上传失败 (<span id="failed-count">0</span>)</span>
+                                </div>
+                                <ul id="failed-list" class="results-list"></ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="upload-guide">
