@@ -193,7 +193,9 @@ async function handleUpload(event) {
         showNotification('请选择要上传的文件或文件夹', 'error');
         return;
     }
-    const CONCURRENT_UPLOADS = 5;
+    const CONCURRENT_UPLOADS = 3;
+    const BATCH_SIZE_COUNT = 5;
+    const BATCH_SIZE_BYTES = 50 * 1024 * 1024;
     if (uploadSubmitBtn) {
         uploadSubmitBtn.disabled = true;
         uploadSubmitBtn.innerHTML = `
@@ -219,27 +221,36 @@ async function handleUpload(event) {
         }
         updateProgress(overallPercentage, status);
     };
-    const uploadFile = (file) => {
+    const uploadBatch = (files) => {
         const formData = new FormData();
-        const relativeName = file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath || file.name;
         const targetPath = currentUploadPath || '';
-        const key = targetPath + relativeName;
-        formData.append('file', file, relativeName);
-        formData.append('key', key);
+        files.forEach(file => {
+            const relativeName = file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath || file.name;
+            let fullPath = relativeName;
+            if (targetPath) {
+                const prefix = targetPath.endsWith('/') ? targetPath : targetPath + '/';
+                if (!relativeName.startsWith(prefix)) {
+                    fullPath = prefix + relativeName;
+                }
+            }
+            formData.append('file', file, fullPath);
+        });
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.upload.addEventListener('progress', (e) => {
                 if (e.lengthComputable) {
-                    fileProgress.set(file, e.loaded / e.total);
+                    const percent = e.loaded / e.total;
+                    files.forEach(f => {
+                        fileProgress.set(f, percent);
+                    });
                     updateTotalProgress();
                 }
             });
             xhr.addEventListener('load', () => {
                 try {
                     const result = JSON.parse(xhr.responseText);
-                    if (xhr.status === 200 && result.success) {
-                        filesUploaded++;
-                        fileProgress.set(file, 1);
+                    if (xhr.status === 200) {
+                        files.forEach(f => fileProgress.set(f, 1));
                         updateTotalProgress();
                         resolve(result);
                     } else {
@@ -255,24 +266,64 @@ async function handleUpload(event) {
             xhr.send(formData);
         });
     };
+    const createBatches = (files) => {
+        const batches = [];
+        let currentBatch = [];
+        let currentBatchSize = 0;
+        for (const file of files) {
+            if (currentBatch.length >= BATCH_SIZE_COUNT || (currentBatchSize + file.size > BATCH_SIZE_BYTES && currentBatch.length > 0)) {
+                batches.push(currentBatch);
+                currentBatch = [];
+                currentBatchSize = 0;
+            }
+            currentBatch.push(file);
+            currentBatchSize += file.size;
+        }
+        if (currentBatch.length > 0) batches.push(currentBatch);
+        return batches;
+    };
     try {
         updateProgress(0, `准备上传 ${totalFiles} 个文件...`);
-        const queue = [...selectedFiles];
+        const rawBatches = createBatches(selectedFiles);
+        const queue = [...rawBatches];
         const worker = async () => {
             while (queue.length > 0) {
-                const file = queue.shift();
-                if (file) {
+                const batchFiles = queue.shift();
+                if (batchFiles && batchFiles.length > 0) {
                     try {
                         const enableWatermark = watermarkToggle ? watermarkToggle.checked : true;
-                        const fileToUpload = enableWatermark ? await addWatermarkToPDF(file) : file;
-                        const result = await uploadFile(fileToUpload);
-                        const displayName = file.webkitRelativePath || file._webkitRelativePath || file.name;
-                        showNotification(`文件 "${displayName}" 上传成功！`, 'success');
+                        const processedFiles = await Promise.all(batchFiles.map(async (file) => {
+                            try {
+                                return enableWatermark ? await addWatermarkToPDF(file) : file;
+                            } catch (e) {
+                                console.error(`预处理失败: ${file.name}`, e);
+                                return file;
+                            }
+                        }));
+                        const result = await uploadBatch(processedFiles);
+                        if (result.results) {
+                            result.results.forEach(res => {
+                                if (res.success) {
+                                    filesUploaded++;
+                                } else {
+                                    showNotification(`文件 "${res.name}" 上传失败: ${res.error}`, 'error');
+                                }
+                            });
+                        } else if (result.success) {
+                            filesUploaded += processedFiles.length;
+                        }
+                        if (processedFiles.length > 0) {
+                            const f = processedFiles[0];
+                            const displayName = f.webkitRelativePath || f._webkitRelativePath || f.name;
+                            if (processedFiles.length > 1) {
+                                console.log(`批量上传成功: 包括 ${displayName} 等 ${processedFiles.length} 个文件`);
+                            } else {
+                                showNotification(`文件 "${displayName}" 上传成功！`, 'success');
+                            }
+                        }
                     } catch (error) {
-                        const displayName = file.webkitRelativePath || file._webkitRelativePath || file.name;
                         const errorMsg = error.message || '未知错误';
-                        showUploadStatus(`上传文件 "${displayName}" 失败: ${errorMsg}`, 'error');
-                        showNotification(`上传失败: ${errorMsg}`, 'error');
+                        showNotification(`一批次 (${batchFiles.length}个) 上传失败: ${errorMsg}`, 'error');
                     }
                 }
             }
@@ -283,7 +334,9 @@ async function handleUpload(event) {
         }
         await Promise.all(workers);
         updateProgress(100, '所有文件上传完成！');
-        showUploadStatus(`${filesUploaded} / ${totalFiles} 个文件上传成功！`, filesUploaded === totalFiles ? 'success' : 'error');
+        const successRate = totalFiles > 0 ? (filesUploaded / totalFiles) * 100 : 0;
+        const statusType = successRate === 100 ? 'success' : (successRate > 0 ? 'warning' : 'error');
+        showUploadStatus(`${filesUploaded} / ${totalFiles} 个文件上传成功！`, statusType);
         setTimeout(() => {
             clearSelectedFile();
             resetProgress();

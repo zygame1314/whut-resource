@@ -183,81 +183,85 @@ export async function onRequestPost({ request, env, waitUntil }) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
-    const file = formData.get('file');
-    const filename = file?.name;
-    if (!file || !(file instanceof File)) {
+    const files = formData.getAll('file');
+    if (!files || files.length === 0) {
       return new Response(JSON.stringify({ success: false, error: '文件数据缺失或无效。' }), {
         status: 400,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
-    const MAX_FILE_SIZE = 100 * 1024 * 1024;
-    if (file.size > MAX_FILE_SIZE) {
-      return new Response(JSON.stringify({ success: false, error: '文件大小超过100MB限制。' }), {
-        status: 413,
-        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-      });
-    }
-    const sanitizedFilename = sanitizeFileName(filename);
-    if (!sanitizedFilename) {
-      return new Response(JSON.stringify({ success: false, error: '文件名包含无效字符或过长。' }), {
-        status: 400,
-        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-      });
-    }
-
-    // 优先使用前端传递的 key (包含路径)，如果不存在则使用 sanitizedFilename
-    let key = sanitizedFilename;
-    const providedKey = formData.get('key');
-    if (providedKey && typeof providedKey === 'string') {
-      const cleanKey = providedKey.trim().replace(/^[\/]+/, ''); // 移除开头的 /
-      if (cleanKey && !cleanKey.includes('..')) { // 简单安全检查
-        key = cleanKey;
-      }
-    }
-    const existingFile = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(key).first();
-    if (existingFile) {
-      return new Response(JSON.stringify({ success: false, error: '文件已存在。' }), { status: 409, headers: addCorsHeaders() });
-    }
-    await R2_BUCKET.put(key, file.stream(), {
-      httpMetadata: { contentType: file.type },
-    });
-    const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
-    await ensureDirectoryExists(DB, key, env);
-    const fileName = sanitizedFilename.split('/').pop();
-    const fileInsertResult = await DB.prepare(
-      'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(
-      key,
-      fileName,
-      file.size,
-      new Date().toISOString(),
-      file.type,
-      parentPath,
-      false,
-      false,
-      null,
-      0,
-      user.id
-    ).run();
-    if (env.AI && env.VECTORIZE && fileInsertResult.meta?.last_row_id) {
+    const uploadResults = await Promise.all(files.map(async (file) => {
       try {
-        const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [key] });
-        if (embedding?.data?.[0]) {
-          await env.VECTORIZE.upsert([{
-            id: fileInsertResult.meta.last_row_id.toString(),
-            values: embedding.data[0],
-            metadata: {
-              name: fileName,
-              path: key
-            }
-          }]);
+        if (!(file instanceof File)) {
+          return { name: 'unknown', success: false, error: '无效的文件对象' };
         }
-      } catch (indexError) {
-        console.error('向量索引写入失败（文件）:', indexError);
+        const filename = file.name;
+        const MAX_FILE_SIZE = 100 * 1024 * 1024;
+        if (file.size > MAX_FILE_SIZE) {
+          return { name: filename, success: false, error: '文件大小超过100MB限制' };
+        }
+        const sanitizedFilename = sanitizeFileName(filename);
+        if (!sanitizedFilename) {
+          return { name: filename, success: false, error: '文件名包含无效字符或过长' };
+        }
+        let key = sanitizedFilename;
+        const existingFile = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(key).first();
+        if (existingFile) {
+          return { name: filename, success: false, error: '文件已存在' };
+        }
+        await R2_BUCKET.put(key, file.stream(), {
+          httpMetadata: { contentType: file.type },
+        });
+        const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
+        await ensureDirectoryExists(DB, key, env);
+        const fileName = sanitizedFilename.split('/').pop();
+        const fileInsertResult = await DB.prepare(
+          'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(
+          key,
+          fileName,
+          file.size,
+          new Date().toISOString(),
+          file.type,
+          parentPath,
+          false,
+          false,
+          null,
+          0,
+          user.id
+        ).run();
+        if (env.AI && env.VECTORIZE && fileInsertResult.meta?.last_row_id) {
+          waitUntil((async () => {
+            try {
+              const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [key] });
+              if (embedding?.data?.[0]) {
+                await env.VECTORIZE.upsert([{
+                  id: fileInsertResult.meta.last_row_id.toString(),
+                  values: embedding.data[0],
+                  metadata: {
+                    name: fileName,
+                    path: key
+                  }
+                }]);
+              }
+            } catch (indexError) {
+              console.error('向量索引写入失败（文件）:', indexError);
+            }
+          })());
+        }
+        return { name: filename, success: true };
+      } catch (err) {
+        console.error(`处理文件 ${file?.name} 时出错:`, err);
+        return { name: file?.name, success: false, error: err.message };
       }
-    }
-    return new Response(JSON.stringify({ success: true, message: '文件上传成功。' }), {
+    }));
+    const successCount = uploadResults.filter(r => r.success).length;
+    const failCount = uploadResults.length - successCount;
+    return new Response(JSON.stringify({
+      success: successCount > 0,
+      message: `上传完成: 成功 ${successCount} 个, 失败 ${failCount} 个`,
+      results: uploadResults
+    }), {
       status: 200,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
