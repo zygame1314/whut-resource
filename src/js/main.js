@@ -515,3 +515,13 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+document.addEventListener('click', (e) => {
+    if (e.target.closest('.file-actions')) return;
+    if (e.target.closest('.mobile-actions-toggle')) return;
+    const visibleItems = document.querySelectorAll('.file-list-item.actions-visible');
+    if (visibleItems.length > 0) {
+        visibleItems.forEach(item => {
+            item.classList.remove('actions-visible');
+        });
+    }
+});

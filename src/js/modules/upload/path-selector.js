@@ -212,15 +212,31 @@ async function initUploadPathSelector() {
         pathTreeContainer.appendChild(ul);
         pathTreeContainer.addEventListener('click', (e) => {
             const toggleIcon = e.target.closest('.path-toggle-icon');
+            const folderIcon = e.target.closest('.path-folder-icon');
             const treeItem = e.target.closest('.path-tree-item');
+            let actAsToggle = false;
+            let targetToggleIcon = toggleIcon;
             if (toggleIcon && !toggleIcon.classList.contains('invisible')) {
+                actAsToggle = true;
+            } else if (folderIcon) {
+                const parentItem = folderIcon.closest('.path-tree-item');
+                if (parentItem) {
+                    const siblingToggle = parentItem.querySelector('.path-toggle-icon');
+                    if (siblingToggle && !siblingToggle.classList.contains('invisible')) {
+                        actAsToggle = true;
+                        targetToggleIcon = siblingToggle;
+                    }
+                }
+            }
+            if (actAsToggle && targetToggleIcon) {
                 e.stopPropagation();
-                const parentLi = toggleIcon.closest('.path-tree-node');
+                const parentLi = targetToggleIcon.closest('.path-tree-node');
                 const sublist = parentLi.querySelector(':scope > .path-tree-list');
                 if (sublist) {
                     const isExpanded = sublist.style.display !== 'none';
                     sublist.style.display = isExpanded ? 'none' : 'block';
-                    toggleIcon.style.transform = isExpanded ? '' : 'rotate(90deg)';
+                    targetToggleIcon.style.transform = isExpanded ? '' : 'rotate(90deg)';
+                    targetToggleIcon.classList.toggle('expanded', !isExpanded);
                 }
             } else if (treeItem) {
                 pathTreeContainer.querySelectorAll('.path-tree-item').forEach(item => {

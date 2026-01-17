@@ -1834,12 +1834,13 @@
 .path-tree-item {
     display: flex;
     align-items: center;
-    gap: 0.8rem;
-    padding: 0.5rem 0.8rem;
+    gap: 0.5rem;
+    padding: 0.7rem 0.8rem;
     border-radius: 8px;
     cursor: pointer;
     transition: all var(--transition-fast);
     color: var(--text-primary);
+    user-select: none;
 }
 
 .path-tree-item:hover {
@@ -1856,11 +1857,33 @@
 }
 
 .path-toggle-icon {
-    width: 16px;
-    font-size: 0.7rem;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 14px !important;
     color: var(--text-secondary);
-    transition: transform var(--transition-fast);
+    transition: transform var(--transition-fast), color 0.2s, background-color 0.2s;
     cursor: pointer;
+    border-radius: 6px;
+    margin: 0 !important;
+    padding: 0 0 0 2px !important;
+    flex-shrink: 0;
+    line-height: 1 !important;
+    text-indent: 0 !important;
+    transform-origin: center center;
+    border: none !important;
+}
+
+.path-toggle-icon:hover {
+    color: var(--primary-color);
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .path-toggle-icon:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .path-toggle-icon.invisible {
@@ -4746,14 +4769,15 @@ input#prompt-input {
 .directory-picker-tree .folder-tree-item {
     display: flex;
     align-items: center;
-    padding: 0.5rem 0.8rem;
+    padding: 0.6rem 0.8rem;
     cursor: pointer;
     border-radius: 8px;
     transition: background-color 0.2s ease, color 0.2s ease;
-    gap: 0.75rem;
+    gap: 0.5rem;
     margin-top: 4px;
     margin-bottom: 4px;
     justify-content: flex-start;
+    user-select: none;
 }
 
 .directory-picker-tree .folder-tree-item:hover {
@@ -4775,9 +4799,32 @@ input#prompt-input {
 }
 
 .directory-picker-tree .folder-toggle-icon {
-    transition: transform 0.2s ease;
-    font-size: 0.8em;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 14px !important;
     color: var(--text-secondary);
+    transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+    border-radius: 6px;
+    flex-shrink: 0;
+    margin: 0 !important;
+    padding: 0 0 0 2px !important;
+    text-indent: 0 !important;
+    line-height: 1 !important;
+    transform-origin: center center;
+    border: none !important;
+}
+
+.directory-picker-tree .folder-toggle-icon:hover {
+    color: var(--primary-color);
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .directory-picker-tree .folder-toggle-icon:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .directory-picker-tree .folder-toggle-icon.expanded {

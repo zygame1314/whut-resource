@@ -501,13 +501,23 @@ function showDirectoryPicker(itemsToMove = []) {
         treeContainer.addEventListener('click', (e) => {
             const itemTarget = e.target.closest('.folder-tree-item');
             if (!itemTarget) return;
-            const liNode = itemTarget.parentElement;
-            const sublist = liNode.querySelector('.folder-tree-list');
-            if (e.target.closest('.folder-toggle-icon') && sublist) {
+            const toggleIcon = e.target.closest('.folder-toggle-icon');
+            const folderIcon = e.target.closest('.folder-icon');
+            const sublist = itemTarget.parentElement.querySelector('.folder-tree-list');
+            let actAsToggle = false;
+            let targetToggleIcon = itemTarget.querySelector('.folder-toggle-icon');
+            if (toggleIcon && sublist) {
+                actAsToggle = true;
+            } else if (folderIcon && sublist) {
+                if (targetToggleIcon && !targetToggleIcon.classList.contains('hidden')) {
+                    actAsToggle = true;
+                }
+            }
+            if (actAsToggle && targetToggleIcon) {
                 e.stopPropagation();
                 const isExpanded = sublist.style.display === 'block';
                 sublist.style.display = isExpanded ? 'none' : 'block';
-                itemTarget.querySelector('.folder-toggle-icon').classList.toggle('expanded', !isExpanded);
+                targetToggleIcon.classList.toggle('expanded', !isExpanded);
             } else {
                 const path = itemTarget.dataset.path;
                 const isInvalidMove = itemsToMove.some(itemKey => path.startsWith(itemKey + '/'));
