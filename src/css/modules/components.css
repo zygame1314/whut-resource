@@ -6324,7 +6324,14 @@ input#prompt-input {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     flex-shrink: 0;
     font-size: 1.2rem;
-    color: var(--text-primary);
+    color: var(--text-secondary);
+    overflow: hidden;
+}
+
+.link-favicon img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
 }
 
 [data-theme="dark"] .link-favicon {
@@ -6336,16 +6343,37 @@ input#prompt-input {
     min-width: 0;
 }
 
-.link-domain {
+.link-title {
     font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.link-title.has-title {
+    font-size: 0.95rem;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 2px;
+}
+
+.link-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .link-full-url {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

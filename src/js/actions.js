@@ -146,6 +146,7 @@ async function openLink(fileKey, linkUrl, openBtn) {
                 domain = urlObj.hostname;
             } catch (e) { }
             const safetyStatusId = 'link-safety-' + Date.now();
+            const pageInfoId = 'link-page-info-' + Date.now();
             const confirmed = await showConfirmation({
                 title: '外链安全提醒',
                 message: `
@@ -154,17 +155,18 @@ async function openLink(fileKey, linkUrl, openBtn) {
                             <i class="fas fa-external-link-alt"></i>
                         </div>
                         <h3 class="link-confirm-headline">即将访问外部网站</h3>
-                        <p class="link-confirm-description">你即将离开本站，前往第三方页面。请确保你信任该链接的目标来源。</p>
+                        <p class="link-confirm-description">你即将离开本站，前往第三方页面。本站不对外部链接的内容、安全性或合法性负责，请在访问前自行甄别风险。</p>
                         <div id="${safetyStatusId}" class="link-safety-status checking">
                             <i class="fas fa-circle-notch"></i>
                             <span>正在检测链接安全性...</span>
                         </div>
                         <div class="link-confirm-card">
-                            <div class="link-favicon">
+                            <div class="link-favicon" id="${pageInfoId}-favicon">
                                 <i class="fas fa-globe"></i>
                             </div>
                             <div class="link-info">
-                                <div class="link-domain">${domain}</div>
+                                <div class="link-title" id="${pageInfoId}-title">${domain}</div>
+                                <div class="link-description" id="${pageInfoId}-desc" style="display:none;"></div>
                                 <div class="link-full-url" title="${linkUrl.replace(/"/g, '&quot;')}">${linkUrl.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
                             </div>
                         </div>
@@ -200,6 +202,30 @@ async function openLink(fileKey, linkUrl, openBtn) {
                             } else {
                                 statusEl.classList.add('unknown');
                                 statusEl.innerHTML = '<i class="fas fa-question-circle"></i><span>无法确定安全性</span>';
+                            }
+                        }
+                        if (result.pageInfo) {
+                            const info = result.pageInfo;
+                            const faviconEl = document.getElementById(`${pageInfoId}-favicon`);
+                            const titleEl = document.getElementById(`${pageInfoId}-title`);
+                            const descEl = document.getElementById(`${pageInfoId}-desc`);
+                            if (info.favicon && faviconEl) {
+                                const img = document.createElement('img');
+                                img.src = info.favicon;
+                                img.alt = 'favicon';
+                                img.onerror = () => { img.style.display = 'none'; };
+                                img.onload = () => { faviconEl.innerHTML = ''; faviconEl.appendChild(img); };
+                            }
+                            if (info.title && titleEl) {
+                                titleEl.textContent = info.title;
+                                titleEl.classList.add('has-title');
+                            }
+                            if (info.description && descEl) {
+                                descEl.textContent = info.description;
+                                descEl.style.display = 'block';
+                            }
+                            if (info.contentType && !info.title) {
+                                if (titleEl) titleEl.textContent = `文件类型: ${info.contentType}`;
                             }
                         }
                     } catch (e) {

@@ -18,6 +18,67 @@ const ThreatTypeLabels = {
     'POTENTIALLY_HARMFUL_APPLICATION': '潜在有害应用',
     'THREAT_TYPE_UNSPECIFIED': '未知威胁',
 };
+async function fetchPageInfo(url) {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            },
+            signal: controller.signal,
+            redirect: 'follow',
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+            return null;
+        }
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('text/html')) {
+            return { title: null, description: null, favicon: null, contentType: contentType.split(';')[0] };
+        }
+        const html = await response.text();
+        const urlObj = new URL(url);
+        const origin = urlObj.origin;
+        let title = null;
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (titleMatch) {
+            title = titleMatch[1].trim().replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+            if (title.length > 100) title = title.substring(0, 100) + '...';
+        }
+        let description = null;
+        const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+            html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i) ||
+            html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+        if (descMatch) {
+            description = descMatch[1].trim().replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+            if (description.length > 200) description = description.substring(0, 200) + '...';
+        }
+        let favicon = null;
+        const iconMatch = html.match(/<link[^>]+rel=["'](?:shortcut )?icon["'][^>]+href=["']([^"']+)["']/i) ||
+            html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:shortcut )?icon["']/i) ||
+            html.match(/<link[^>]+rel=["']apple-touch-icon["'][^>]+href=["']([^"']+)["']/i);
+        if (iconMatch) {
+            favicon = iconMatch[1];
+            if (favicon.startsWith('//')) {
+                favicon = 'https:' + favicon;
+            } else if (favicon.startsWith('/')) {
+                favicon = origin + favicon;
+            } else if (!favicon.startsWith('http')) {
+                favicon = origin + '/' + favicon;
+            }
+        } else {
+            favicon = origin + '/favicon.ico';
+        }
+        return { title, description, favicon };
+    } catch (e) {
+        console.warn('抓取页面信息失败:', e.message);
+        return null;
+    }
+}
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -68,18 +129,27 @@ export async function onRequest(context) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
+    const [safetyResult, pageInfo] = await Promise.all([
+        checkUrlSafety(url, env),
+        fetchPageInfo(url)
+    ]);
+    return new Response(JSON.stringify({
+        success: true,
+        ...safetyResult,
+        pageInfo: pageInfo,
+    }), {
+        status: 200,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
+}
+async function checkUrlSafety(url, env) {
     const apiKey = env.GOOGLE_SAFE_BROWSING_API_KEY;
     if (!apiKey) {
-        console.warn('未配置 GOOGLE_SAFE_BROWSING_API_KEY，跳过安全检测');
-        return new Response(JSON.stringify({
-            success: true,
+        return {
             status: SafetyStatus.UNKNOWN,
             message: '安全检测服务未启用',
             threats: [],
-        }), {
-            status: 200,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+        };
     }
     try {
         const safeBrowsingUrl = `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`;
@@ -102,23 +172,15 @@ export async function onRequest(context) {
         };
         const response = await fetch(safeBrowsingUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody),
         });
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Google Safe Browsing API 错误:', response.status, errorText);
-            return new Response(JSON.stringify({
-                success: true,
+            return {
                 status: SafetyStatus.UNKNOWN,
                 message: '安全检测服务暂时不可用',
                 threats: [],
-            }), {
-                status: 200,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
+            };
         }
         const result = await response.json();
         if (result.matches && result.matches.length > 0) {
@@ -129,35 +191,26 @@ export async function onRequest(context) {
             const uniqueThreats = Array.from(
                 new Map(threats.map(t => [t.type, t])).values()
             );
-            return new Response(JSON.stringify({
-                success: true,
+            return {
                 status: SafetyStatus.DANGEROUS,
                 message: '该链接可能存在安全风险',
                 threats: uniqueThreats,
-            }), {
-                status: 200,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
+            };
         }
-        return new Response(JSON.stringify({
-            success: true,
+        return {
             status: SafetyStatus.SAFE,
             message: '未检测到已知威胁',
             threats: [],
-        }), {
-            status: 200,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+        };
     } catch (error) {
         console.error('URL 安全检测出错:', error);
-        return new Response(JSON.stringify({
-            success: true,
+        return {
             status: SafetyStatus.UNKNOWN,
             message: '检测过程中发生错误',
             threats: [],
-        }), {
-            status: 200,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
+        };
     }
+}
+export async function onRequestOptions() {
+    return new Response(null, { status: 204, headers: addCorsHeaders() });
 }
