@@ -535,6 +535,22 @@
     background: linear-gradient(135deg, #795548, #5D4037);
 }
 
+.file-icon.code {
+    background: linear-gradient(135deg, #2c3e50, #2c3e50);
+}
+
+.file-icon.app {
+    background: linear-gradient(135deg, #607D8B, #455A64);
+}
+
+.file-icon.book {
+    background: linear-gradient(135deg, #5C6BC0, #3949AB);
+}
+
+.file-icon.cad {
+    background: linear-gradient(135deg, #039BE5, #0277BD);
+}
+
 .file-icon.default {
     background: linear-gradient(135deg, #95A5A6, #7F8C8D);
 }
