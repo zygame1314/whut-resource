@@ -123,6 +123,10 @@ function sortData(data, sortOption) {
                 valA = a.downloads || 0;
                 valB = b.downloads || 0;
                 break;
+            case 'likes':
+                valA = a.likes || 0;
+                valB = b.likes || 0;
+                break;
             default:
                 return 0;
         }

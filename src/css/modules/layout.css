@@ -394,6 +394,8 @@
     max-width: calc(100% - 12px);
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
+    gap: 3px;
     opacity: 0;
     transition: opacity 0.2s ease, transform 0.2s ease;
     transform: translateY(5px);
@@ -404,6 +406,18 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     border: 1px solid var(--border-color);
     z-index: 10;
+}
+
+.file-list-container.grid-view .file-actions .reaction-group {
+    order: -1;
+    margin-right: 0;
+    margin-bottom: 2px;
+}
+
+.file-list-container.grid-view .file-actions::before {
+    content: '';
+    width: 100%;
+    order: 0;
 }
 
 .file-list-container.grid-view .file-list-item:hover .file-actions {

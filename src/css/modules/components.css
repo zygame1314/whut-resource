@@ -4220,6 +4220,8 @@ textarea.form-input {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-medium);
     box-shadow: var(--shadow-medium);
+    max-height: 450px;
+    overflow-y: auto;
     min-width: 200px;
     padding: 0.5rem 0;
     z-index: 1000;
@@ -4334,6 +4336,8 @@ textarea.form-input {
         padding: 0.5rem 0;
         display: block;
         margin-top: 0.5rem;
+        max-height: 200px;
+        overflow-y: auto;
         width: auto;
     }
 
@@ -6410,41 +6414,137 @@ input#prompt-input {
     text-align: center;
 }
 
-.reaction-btn {
-    width: 26px;
-    height: 26px;
-    padding: 0;
-    margin-right: 4px;
-    background: transparent;
-    border: 1px solid transparent;
-    font-size: 0.85rem;
-    cursor: pointer;
-    opacity: 0.5;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+.reaction-group {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    border-radius: 6px;
+    gap: 4px;
+    margin-right: 8px;
+    padding: 2px 4px;
+    background: var(--background-alt);
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+}
+
+.reaction-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 8px;
+    background: transparent;
+    border: none;
+    font-size: 0.8rem;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+    border-radius: 12px;
 }
 
 .reaction-btn:hover {
     opacity: 1;
-    background: var(--background-alt);
-    transform: scale(1.15);
+    background: rgba(var(--text-primary-rgb), 0.08);
 }
 
 .reaction-btn:active {
-    transform: scale(0.9);
+    transform: scale(0.95);
+}
+
+.reaction-btn .reaction-icon {
+    font-size: 0.8rem;
+    line-height: 1;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+}
+
+.reaction-btn.like-btn:hover .reaction-icon,
+.reaction-btn.like-btn.active .reaction-icon {
+    color: #27ae60;
+}
+
+.reaction-btn.dislike-btn:hover .reaction-icon,
+.reaction-btn.dislike-btn.active .reaction-icon {
+    color: #e74c3c;
+}
+
+.reaction-btn .reaction-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 0;
+}
+
+.reaction-btn.like-btn.active {
+    opacity: 1;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.15), rgba(46, 204, 113, 0.15));
+}
+
+.reaction-btn.like-btn.active .reaction-count {
+    color: #27ae60;
+}
+
+.reaction-btn.dislike-btn.active {
+    opacity: 1;
+    background: rgba(231, 76, 60, 0.12);
+}
+
+.reaction-btn.dislike-btn.active .reaction-count {
+    color: #e74c3c;
 }
 
 .reaction-btn.like-btn:hover {
-    background: rgba(var(--primary-rgb), 0.08);
+    background: rgba(46, 204, 113, 0.15);
 }
 
 .reaction-btn.dislike-btn:hover {
-    background: rgba(255, 82, 82, 0.08);
+    background: rgba(231, 76, 60, 0.12);
+}
+
+[data-theme="dark"] .reaction-group {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 [data-theme="dark"] .reaction-btn:hover {
     background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .reaction-btn.like-btn.active {
+    background: rgba(46, 204, 113, 0.2);
+}
+
+[data-theme="dark"] .reaction-btn.dislike-btn.active {
+    background: rgba(231, 76, 60, 0.2);
+}
+
+@media (max-width: 768px) {
+    .reaction-group {
+        margin-right: 4px;
+        padding: 1px 2px;
+        border-radius: 12px;
+        gap: 2px;
+        background: transparent;
+        border-color: transparent;
+    }
+
+    .reaction-btn {
+        padding: 4px 6px;
+        border-radius: 8px;
+    }
+
+    .reaction-btn .reaction-icon {
+        font-size: 0.9rem;
+    }
+
+    .reaction-btn .reaction-count {
+        font-size: 0.7rem;
+        display: none;
+    }
+
+    .reaction-btn.active .reaction-count {
+        display: inline;
+    }
+
+    .reaction-group:has(.active) {
+        background: var(--background-alt);
+        border-color: var(--border-color);
+    }
 }

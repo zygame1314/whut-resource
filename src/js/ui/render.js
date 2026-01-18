@@ -215,13 +215,20 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const isAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
     let reactionButtonsHTML = '';
     if (!isDirectory) {
+        const likeCount = item.likes || 0;
+        const dislikeCount = item.dislikes || 0;
+        const userReaction = item.user_reaction || null;
         reactionButtonsHTML = `
-            <button class="reaction-btn like-btn" title="有用">
-                👍
-            </button>
-            <button class="reaction-btn dislike-btn" title="无用">
-                👎
-            </button>
+            <div class="reaction-group">
+                <button class="reaction-btn like-btn${userReaction === 'like' ? ' active' : ''}" title="有用" data-count="${likeCount}">
+                    <i class="fas fa-thumbs-up reaction-icon"></i>
+                    <span class="reaction-count">${likeCount > 0 ? likeCount : ''}</span>
+                </button>
+                <button class="reaction-btn dislike-btn${userReaction === 'dislike' ? ' active' : ''}" title="无用" data-count="${dislikeCount}">
+                    <i class="fas fa-thumbs-down reaction-icon"></i>
+                    <span class="reaction-count">${dislikeCount > 0 ? dislikeCount : ''}</span>
+                </button>
+            </div>
         `;
     }
     fileActionsDiv.innerHTML = `
@@ -293,12 +300,17 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         const likeBtn = fileActionsDiv.querySelector('.like-btn');
         const dislikeBtn = fileActionsDiv.querySelector('.dislike-btn');
         if (likeBtn && dislikeBtn) {
-            if (item.user_reaction === 'like') likeBtn.classList.add('active');
-            if (item.user_reaction === 'dislike') dislikeBtn.classList.add('active');
+            const updateCounts = (likes, dislikes) => {
+                const likeCountEl = likeBtn.querySelector('.reaction-count');
+                const dislikeCountEl = dislikeBtn.querySelector('.reaction-count');
+                if (likeCountEl) likeCountEl.textContent = likes > 0 ? likes : '';
+                if (dislikeCountEl) dislikeCountEl.textContent = dislikes > 0 ? dislikes : '';
+            };
             likeBtn.onclick = async (e) => {
                 e.stopPropagation();
                 const result = await toggleReaction(item.key, 'like', likeBtn);
                 if (result) {
+                    updateCounts(result.likes, result.dislikes);
                     if (result.userReaction === 'like') {
                         likeBtn.classList.add('active');
                         dislikeBtn.classList.remove('active');
@@ -311,6 +323,7 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
                 e.stopPropagation();
                 const result = await toggleReaction(item.key, 'dislike', dislikeBtn);
                 if (result) {
+                    updateCounts(result.likes, result.dislikes);
                     if (result.userReaction === 'dislike') {
                         dislikeBtn.classList.add('active');
                         likeBtn.classList.remove('active');
@@ -412,7 +425,7 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
             const backLi = document.createElement('li');
             backLi.className = 'file-list-item back-item';
             backLi.innerHTML = `
-        < div class="file-item" >
+                <div class="file-item">
                     <div class="file-icon folder">
                         <i class="fas fa-arrow-left"></i>
                     </div>
@@ -420,8 +433,8 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
                         <div class="file-name">返回上一级</div>
                         <div class="file-meta">上级目录</div>
                     </div>
-                </div >
-        `;
+                </div>
+            `;
             backLi.style.cursor = 'pointer';
             backLi.onclick = (e) => {
                 e.preventDefault();

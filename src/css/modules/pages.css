@@ -566,7 +566,7 @@
     transition: all 0.2s ease;
     z-index: 10;
     display: flex;
-    gap: 0.5rem;
+    gap: 0.3rem;
 }
 
 .file-list li:hover .file-actions {
@@ -642,6 +642,19 @@
 
     .file-actions {
         flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .file-actions .reaction-group {
+        order: -1;
+        margin-right: 0;
+        margin-bottom: 4px;
+    }
+
+    .file-actions::before {
+        content: '';
+        width: 100%;
+        order: 0;
     }
 
     .floating-elements {
