@@ -141,20 +141,15 @@ async function fetchAndRenderRecentUploads(showToast = false) {
             if (isLink) {
                 const openLinkBtn = li.querySelector('.recent-open-link-btn');
                 if (openLinkBtn) {
-                    openLinkBtn.addEventListener('click', async (e) => {
+                    openLinkBtn.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        try {
-                            const token = localStorage.getItem('authToken');
-                            if (token) {
-                                await fetch(`${FILES_API_URL}?action=recordLinkClick&key=${encodeURIComponent(file.key)}`, {
-                                    headers: { 'Authorization': `Bearer ${token}` }
-                                });
-                            }
-                        } catch (err) {
-                            console.warn('记录链接点击失败:', err);
+                        if (typeof openLink === 'function') {
+                            openLink(file.key, file.link_url, openLinkBtn);
+                        } else {
+                            console.warn('未找到 openLink 函数，将直接打开链接');
+                            window.open(file.link_url, '_blank');
                         }
-                        window.open(file.link_url, '_blank');
                     });
                 }
             } else {
