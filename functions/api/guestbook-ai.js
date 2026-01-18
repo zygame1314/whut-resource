@@ -225,8 +225,10 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         留言内容：${guestbookEntry.content}
         提交时间：${guestbookEntry.created_at}`;
     const toolsToUse = autoMode ? AUTO_MODE_TOOLS : TOOLS;
+    const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+    const basePrompt = SYSTEM_PROMPT + `\n当前时间：${now}`;
     const systemPromptToUse = autoMode
-        ? SYSTEM_PROMPT + `\n\n【自动审核模式】当前为自动审核模式，你需要检查内容是否合规，并尝试搜索资源。
+        ? basePrompt + `\n\n【自动审核模式】当前为自动审核模式，你需要检查内容是否合规，并尝试搜索资源。
             处理规则：
             1. 违规检查（含昵称） -> 若内容违规使用delete_message/ban_user；若昵称违规【必须】使用 ban_user
             2. 模糊/不完整请求 -> 仍需驳回（如：仅课程名无类型、表述不清、含无关内容）
@@ -235,7 +237,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
             5. 如果搜索到匹配资源（通过二次调用判断） -> 使用 mark_resolved 标记为已解决，必须提供 matched_file_index，同时在 note 中填写版本/年份等说明。
             6. 如果未搜索到资源 -> keep_pending 等待人工处理
             注意：主提示词中的规则在自动模式下同样适用！`
-        : SYSTEM_PROMPT;
+        : basePrompt;
     const aiResponse = await fetchAIChatCompletion(
         [
             { role: 'system', content: systemPromptToUse },

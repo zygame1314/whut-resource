@@ -42,8 +42,9 @@ export async function onRequestPost({ request, env }) {
         let keywords = validFileNames.join(' ');
         try {
             try {
+                const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
                 const keywordResponse = await fetchAIChatCompletion(
-                    [{ role: 'system', content: KEYWORD_PROMPT }, { role: 'user', content: `文件名：${validFileNames.join(', ')}` }],
+                    [{ role: 'system', content: KEYWORD_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: `文件名：${validFileNames.join(', ')}` }],
                     null,
                     env
                 );
@@ -91,8 +92,9 @@ export async function onRequestPost({ request, env }) {
             });
         }
         const numberedList = directories.map((dir, i) => `${i + 1}. ${dir}`).join('\n');
+        const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         const pickData = await fetchAIChatCompletion(
-            [{ role: 'system', content: PICK_PROMPT }, { role: 'user', content: `文件：${validFileNames.join(', ')}\n\n搜索到的目录：\n${numberedList}\n\n请返回最佳目录的编号：` }],
+            [{ role: 'system', content: PICK_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: `文件：${validFileNames.join(', ')}\n\n搜索到的目录：\n${numberedList}\n\n请返回最佳目录的编号：` }],
             null,
             env
         );

@@ -49,8 +49,9 @@ export async function onRequestGet({ request, env }) {
     try {
         let finalKeywords = query;
         try {
+            const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
             const llmResponse = await fetchAIChatCompletion(
-                [{ role: 'system', content: SEARCH_PROMPT }, { role: 'user', content: query }],
+                [{ role: 'system', content: SEARCH_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: query }],
                 null,
                 env
             );

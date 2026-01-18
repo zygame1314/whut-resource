@@ -411,9 +411,9 @@ async function checkAndCleanup(env) {
             WHERE id = 1
         `).bind(deletedCount).run();
         if (deletedCount > 0) {
-            console.log(`Auto cleanup: deleted ${deletedCount} messages older than ${CLEANUP_DAYS} days.`);
+            console.log(`自动清理：已删除 ${deletedCount} 条超过 ${CLEANUP_DAYS} 天的留言。`);
         }
     } catch (err) {
-        console.error('Auto cleanup failed:', err);
+        console.error('自动清理失败：', err);
     }
 }
