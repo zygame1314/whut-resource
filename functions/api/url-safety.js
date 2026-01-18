@@ -18,10 +18,13 @@ const ThreatTypeLabels = {
     'POTENTIALLY_HARMFUL_APPLICATION': '潜在有害应用',
     'THREAT_TYPE_UNSPECIFIED': '未知威胁',
 };
-async function fetchPageInfo(url) {
+async function fetchPageInfo(url, externalSignal = null) {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
+        if (externalSignal) {
+            externalSignal.addEventListener('abort', () => controller.abort());
+        }
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -48,38 +51,59 @@ async function fetchPageInfo(url) {
         if (!contentType.includes('text/html')) {
             return { title: null, description: null, favicon: null, contentType: contentType.split(';')[0] };
         }
-        const html = await response.text();
         const urlObj = new URL(url);
         const origin = urlObj.origin;
-        let title = null;
-        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) ||
-            html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
-            html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:title["']/i);
-        if (titleMatch) {
-            title = titleMatch[1].trim()
-                .replace(/&amp;/g, '&')
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .replace(/&quot;/g, '"')
-                .replace(/&#39;/g, "'")
-                .replace(/\s+/g, ' ');
+        const info = {
+            title: null,
+            description: null,
+            iconHref: null,
+            ogTitle: null,
+            ogDesc: null
+        };
+        const rewriter = new HTMLRewriter()
+            .on('title', {
+                text(text) {
+                    if (!info.title) info.title = '';
+                    info.title += text.text;
+                }
+            })
+            .on('meta[property="og:title"]', {
+                element(element) {
+                    const content = element.getAttribute('content');
+                    if (content) info.ogTitle = content;
+                }
+            })
+            .on('meta[name="description"]', {
+                element(element) {
+                    const content = element.getAttribute('content');
+                    if (content) info.description = content;
+                }
+            })
+            .on('meta[property="og:description"]', {
+                element(element) {
+                    const content = element.getAttribute('content');
+                    if (content) info.ogDesc = content;
+                }
+            })
+            .on('link[rel~="icon"]', {
+                element(element) {
+                    const href = element.getAttribute('href');
+                    if (href && !info.iconHref) info.iconHref = href;
+                }
+            });
+        await rewriter.transform(response).text();
+        let title = info.title || info.ogTitle;
+        if (title) {
+            title = title.trim();
             if (title.length > 100) title = title.substring(0, 100) + '...';
         }
-        let description = null;
-        const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i) ||
-            html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i) ||
-            html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i) ||
-            html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:description["']/i);
-        if (descMatch) {
-            description = descMatch[1].trim().replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        let description = info.description || info.ogDesc;
+        if (description) {
+            description = description.trim();
             if (description.length > 200) description = description.substring(0, 200) + '...';
         }
-        let favicon = null;
-        const iconMatch = html.match(/<link[^>]+rel=["'](?:shortcut )?icon["'][^>]+href=["']([^"']+)["']/i) ||
-            html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:shortcut )?icon["']/i) ||
-            html.match(/<link[^>]+rel=["']apple-touch-icon["'][^>]+href=["']([^"']+)["']/i);
-        if (iconMatch) {
-            favicon = iconMatch[1];
+        let favicon = info.iconHref;
+        if (favicon) {
             if (favicon.startsWith('//')) {
                 favicon = 'https:' + favicon;
             } else if (favicon.startsWith('/')) {
@@ -146,14 +170,22 @@ export async function onRequest(context) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
+    const abortController = new AbortController();
+    const safetyPromise = checkUrlSafety(url, env);
+    const pageInfoPromise = fetchPageInfo(url, abortController.signal);
+    safetyPromise.then(result => {
+        if (result.status === 'dangerous') {
+            abortController.abort();
+        }
+    });
     const [safetyResult, pageInfo] = await Promise.all([
-        checkUrlSafety(url, env),
-        fetchPageInfo(url)
+        safetyPromise,
+        pageInfoPromise.catch(() => null)
     ]);
     return new Response(JSON.stringify({
         success: true,
         ...safetyResult,
-        pageInfo: pageInfo,
+        pageInfo: safetyResult.status === 'dangerous' ? null : pageInfo,
     }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
