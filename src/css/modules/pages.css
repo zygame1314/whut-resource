@@ -495,6 +495,10 @@
     background: linear-gradient(135deg, #F39C12, #E67E22);
 }
 
+.file-icon.link {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+}
+
 .file-icon.pdf {
     background: linear-gradient(135deg, #E74C3C, #C0392B);
 }
@@ -521,6 +525,14 @@
 
 .file-icon.video {
     background: linear-gradient(135deg, #1ABC9C, #16A085);
+}
+
+.file-icon.audio {
+    background: linear-gradient(135deg, #E91E63, #C2185B);
+}
+
+.file-icon.archive {
+    background: linear-gradient(135deg, #795548, #5D4037);
 }
 
 .file-icon.default {
@@ -872,14 +884,6 @@
 
 .file-list-item.link-item {
     border-left: 3px solid var(--secondary-color);
-}
-
-.file-list-item.link-item .file-icon.link {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-}
-
-.file-list-item.link-item .file-icon.link i {
-    color: white;
 }
 
 .link-badge {
