@@ -501,13 +501,13 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
         emptyLi.className = 'empty-state';
         let emptyMessage = '';
         if (isGlobalSearch) {
-            emptyMessage = `< i class="fas fa-search u-font-large-icon" ></i >
+            emptyMessage = `<i class="fas fa-search u-font-large-icon"></i>
         找不到包含 "${localSearchTerm}" 的文件或文件夹`;
         } else if (lowerLocalSearchTerm) {
-            emptyMessage = `< i class="fas fa-folder-open u-font-large-icon" ></i >
+            emptyMessage = `<i class="fas fa-folder-open u-font-large-icon"></i>
         在当前目录中找不到包含 "${localSearchTerm}" 的文件或文件夹`;
         } else {
-            emptyMessage = `< i class="fas fa-folder-open u-font-large-icon" ></i >
+            emptyMessage = `<i class="fas fa-folder-open u-font-large-icon"></i>
         此目录为空`;
         }
         emptyLi.innerHTML = emptyMessage;

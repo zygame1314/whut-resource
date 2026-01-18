@@ -435,8 +435,11 @@ export async function onRequestPut({ request, env }) {
             for (const child of childItems || []) {
                 const relativePath = child.key.substring(oldFolderPath.length);
                 const newChildKey = `${newFolderKey}${relativePath}`;
-                const newChildParentPath = newChildKey.includes('/')
-                    ? newChildKey.substring(0, newChildKey.lastIndexOf('/') + 1)
+                const keyForParentCalc = child.is_directory && newChildKey.endsWith('/')
+                    ? newChildKey.slice(0, -1)
+                    : newChildKey;
+                const newChildParentPath = keyForParentCalc.includes('/')
+                    ? keyForParentCalc.substring(0, keyForParentCalc.lastIndexOf('/') + 1)
                     : '';
                 batchOperations.push(
                     DB.prepare(`
@@ -659,8 +662,11 @@ export async function onRequestPost({ request, env }) {
             for (const child of childItems || []) {
                 const relativePath = child.key.substring(oldFolderPath.length);
                 const newChildKey = `${newFolderKey}${relativePath}`;
-                const newChildParentPath = newChildKey.includes('/')
-                    ? newChildKey.substring(0, newChildKey.lastIndexOf('/') + 1)
+                const keyForParentCalc = child.is_directory && newChildKey.endsWith('/')
+                    ? newChildKey.slice(0, -1)
+                    : newChildKey;
+                const newChildParentPath = keyForParentCalc.includes('/')
+                    ? keyForParentCalc.substring(0, keyForParentCalc.lastIndexOf('/') + 1)
                     : '';
                 batchOperations.push(
                     DB.prepare(`
