@@ -26,8 +26,16 @@ async function fetchPageInfo(url) {
             method: 'GET',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Upgrade-Insecure-Requests': '1'
             },
             signal: controller.signal,
             redirect: 'follow',
@@ -44,15 +52,24 @@ async function fetchPageInfo(url) {
         const urlObj = new URL(url);
         const origin = urlObj.origin;
         let title = null;
-        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) ||
+            html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
+            html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:title["']/i);
         if (titleMatch) {
-            title = titleMatch[1].trim().replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+            title = titleMatch[1].trim()
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .replace(/\s+/g, ' ');
             if (title.length > 100) title = title.substring(0, 100) + '...';
         }
         let description = null;
-        const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
-            html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i) ||
-            html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+        const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i) ||
+            html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i) ||
+            html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i) ||
+            html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:description["']/i);
         if (descMatch) {
             description = descMatch[1].trim().replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
             if (description.length > 200) description = description.substring(0, 200) + '...';
