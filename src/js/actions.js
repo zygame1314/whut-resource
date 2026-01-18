@@ -618,3 +618,37 @@ window.executeBatchDelete = async (keys) => {
     }
     return results;
 };
+async function toggleReaction(fileKey, reactionType, btnElement) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("请先登录。", 'error');
+        return null;
+    }
+    if (btnElement) btnElement.disabled = true;
+    try {
+        const response = await fetch(`${FILES_API_URL}?action=toggleReaction`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                key: fileKey,
+                reaction: reactionType
+            }),
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            return result;
+        } else {
+            showNotification(result.error || '操作失败', 'error');
+            return null;
+        }
+    } catch (error) {
+        console.error('Reaction error:', error);
+        showNotification('操作失败', 'error');
+        return null;
+    } finally {
+        if (btnElement) btnElement.disabled = false;
+    }
+}

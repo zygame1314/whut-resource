@@ -7,7 +7,6 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
-
 function createParticleBackground() {
     const particlesContainer = document.getElementById('particles-background');
     if (!particlesContainer) return;
@@ -27,7 +26,6 @@ function createParticleBackground() {
         particlesContainer.appendChild(particle);
     }
 }
-
 function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch = false) {
     if (!breadcrumbListElement) return;
     breadcrumbListElement.innerHTML = '';
@@ -76,7 +74,6 @@ function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch 
         });
     }
 }
-
 function buildTree(paths) {
     const tree = {};
     paths.forEach(path => {
@@ -91,7 +88,6 @@ function buildTree(paths) {
     });
     return tree;
 }
-
 function renderFolderTree(tree, container) {
     container.innerHTML = '';
     const ul = document.createElement('ul');
@@ -103,7 +99,6 @@ function renderFolderTree(tree, container) {
     });
     container.appendChild(ul);
 }
-
 function renderFolderNode(name, node, currentPath) {
     const li = document.createElement('li');
     li.className = 'folder-tree-node';
@@ -150,7 +145,6 @@ function renderFolderNode(name, node, currentPath) {
     }
     return li;
 }
-
 function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const li = document.createElement('li');
     li.className = 'file-list-item';
@@ -219,12 +213,24 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             <i class="fas fa-share-alt"></i>
         </button>`;
     const isAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
+    let reactionButtonsHTML = '';
+    if (!isDirectory) {
+        reactionButtonsHTML = `
+            <button class="reaction-btn like-btn" title="有用">
+                👍
+            </button>
+            <button class="reaction-btn dislike-btn" title="无用">
+                👎
+            </button>
+        `;
+    }
     fileActionsDiv.innerHTML = `
         ${isDirectory ? `
             <button class="enter-folder-button" title="进入文件夹">
                 <i class="fas fa-folder-open"></i>
             </button>
         ` : `
+            ${reactionButtonsHTML}
             ${previewButtonHTML}
             ${downloadButtonHTML}
         `}
@@ -281,6 +287,38 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         const downloadBtn = fileActionsDiv.querySelector('.download-button');
         if (downloadBtn) {
             downloadBtn.onclick = () => downloadFile(item.key, downloadBtn);
+        }
+    }
+    if (!isDirectory) {
+        const likeBtn = fileActionsDiv.querySelector('.like-btn');
+        const dislikeBtn = fileActionsDiv.querySelector('.dislike-btn');
+        if (likeBtn && dislikeBtn) {
+            if (item.user_reaction === 'like') likeBtn.classList.add('active');
+            if (item.user_reaction === 'dislike') dislikeBtn.classList.add('active');
+            likeBtn.onclick = async (e) => {
+                e.stopPropagation();
+                const result = await toggleReaction(item.key, 'like', likeBtn);
+                if (result) {
+                    if (result.userReaction === 'like') {
+                        likeBtn.classList.add('active');
+                        dislikeBtn.classList.remove('active');
+                    } else {
+                        likeBtn.classList.remove('active');
+                    }
+                }
+            };
+            dislikeBtn.onclick = async (e) => {
+                e.stopPropagation();
+                const result = await toggleReaction(item.key, 'dislike', dislikeBtn);
+                if (result) {
+                    if (result.userReaction === 'dislike') {
+                        dislikeBtn.classList.add('active');
+                        likeBtn.classList.remove('active');
+                    } else {
+                        dislikeBtn.classList.remove('active');
+                    }
+                }
+            };
         }
     }
     const shareBtn = fileActionsDiv.querySelector('.share-button');
@@ -359,7 +397,6 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     };
     return li;
 }
-
 function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = '', paginationData = null, isAISearch = false) {
     fileListElement.innerHTML = '';
     const lowerLocalSearchTerm = localSearchTerm.trim().toLowerCase();
@@ -375,7 +412,7 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
             const backLi = document.createElement('li');
             backLi.className = 'file-list-item back-item';
             backLi.innerHTML = `
-                <div class="file-item">
+        < div class="file-item" >
                     <div class="file-icon folder">
                         <i class="fas fa-arrow-left"></i>
                     </div>
@@ -383,8 +420,8 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
                         <div class="file-name">返回上一级</div>
                         <div class="file-meta">上级目录</div>
                     </div>
-                </div>
-            `;
+                </div >
+        `;
             backLi.style.cursor = 'pointer';
             backLi.onclick = (e) => {
                 e.preventDefault();
@@ -451,21 +488,20 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
         emptyLi.className = 'empty-state';
         let emptyMessage = '';
         if (isGlobalSearch) {
-            emptyMessage = `<i class="fas fa-search u-font-large-icon"></i>
-                           找不到包含 "${localSearchTerm}" 的文件或文件夹`;
+            emptyMessage = `< i class="fas fa-search u-font-large-icon" ></i >
+        找不到包含 "${localSearchTerm}" 的文件或文件夹`;
         } else if (lowerLocalSearchTerm) {
-            emptyMessage = `<i class="fas fa-folder-open u-font-large-icon"></i>
-                           在当前目录中找不到包含 "${localSearchTerm}" 的文件或文件夹`;
+            emptyMessage = `< i class="fas fa-folder-open u-font-large-icon" ></i >
+        在当前目录中找不到包含 "${localSearchTerm}" 的文件或文件夹`;
         } else {
-            emptyMessage = `<i class="fas fa-folder-open u-font-large-icon"></i>
-                           此目录为空`;
+            emptyMessage = `< i class="fas fa-folder-open u-font-large-icon" ></i >
+        此目录为空`;
         }
         emptyLi.innerHTML = emptyMessage;
         fileListElement.appendChild(emptyLi);
     }
     renderPaginationControls(paginationData);
 }
-
 function renderPaginationControls(paginationData) {
     let controlsContainer = document.getElementById('pagination-controls');
     if (!controlsContainer) {
@@ -524,7 +560,7 @@ function renderPaginationControls(paginationData) {
         if (e.key === 'Enter') pageInput.blur();
     };
     const totalPageSpan = document.createElement('span');
-    totalPageSpan.textContent = ` / ${totalPages} 页 (共 ${totalItems} 项)`;
+    totalPageSpan.textContent = ` / ${totalPages} 页(共 ${totalItems} 项)`;
     pageInfoContainer.appendChild(document.createTextNode('第 '));
     pageInfoContainer.appendChild(pageInput);
     pageInfoContainer.appendChild(totalPageSpan);

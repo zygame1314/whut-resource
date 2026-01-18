@@ -237,7 +237,9 @@ export async function onRequestGet({ request, env, waitUntil }) {
         if (action === 'recentUploads') {
             const limit = parseInt(url.searchParams.get('limit') || '6');
             const stmt = DB.prepare(`
-                SELECT * FROM files
+                SELECT *,
+                ${user ? `(SELECT reaction FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as user_reaction` : 'NULL as user_reaction'}
+                FROM files
                 WHERE is_directory = FALSE
                 ORDER BY uploaded DESC
                 LIMIT ?
@@ -280,7 +282,9 @@ export async function onRequestGet({ request, env, waitUntil }) {
         let itemsResult;
         if (search) {
             const ftsQuery = `
-                SELECT files.* FROM files
+                SELECT files.*,
+                ${user ? `(SELECT reaction FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as user_reaction` : 'NULL as user_reaction'}
+                FROM files
                 JOIN files_fts ON files.id = files_fts.rowid
                 WHERE files_fts MATCH ?
                 ORDER BY rank
@@ -298,7 +302,9 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 searchPath += '/';
             }
             const combinedQuery = `
-                SELECT * FROM files
+                SELECT *,
+                ${user ? `(SELECT reaction FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as user_reaction` : 'NULL as user_reaction'}
+                FROM files
                 WHERE parent_path = ?
                 ORDER BY is_directory DESC,
                         is_link DESC,
@@ -514,7 +520,9 @@ export async function onRequestPost({ request, env }) {
         const token = authHeader.substring(7);
         user = await verifyToken(token, env.JWT_SECRET || 'secret');
     }
-    if (!isAdmin(user)) {
+    const url = new URL(request.url);
+    const action = url.searchParams.get('action');
+    if (!isAdmin(user) && action !== 'toggleReaction') {
         return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -530,12 +538,44 @@ export async function onRequestPost({ request, env }) {
     }
     try {
         const body = await request.json();
+        if (action === 'toggleReaction') {
+            const { key, reaction } = body;
+            if (!key || !['like', 'dislike'].includes(reaction)) {
+                return new Response(JSON.stringify({ success: false, error: '无效的参数' }), {
+                    status: 400,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            const existing = await DB.prepare('SELECT reaction FROM file_reactions WHERE user_id = ? AND file_key = ?').bind(user.id, key).first();
+            let currentUserReaction = null;
+            if (existing) {
+                if (existing.reaction === reaction) {
+                    await DB.prepare('DELETE FROM file_reactions WHERE user_id = ? AND file_key = ?').bind(user.id, key).run();
+                    currentUserReaction = null;
+                } else {
+                    await DB.prepare('UPDATE file_reactions SET reaction = ? WHERE user_id = ? AND file_key = ?').bind(reaction, user.id, key).run();
+                    currentUserReaction = reaction;
+                }
+            } else {
+                await DB.prepare('INSERT INTO file_reactions (user_id, file_key, reaction) VALUES (?, ?, ?)').bind(user.id, key, reaction).run();
+                currentUserReaction = reaction;
+            }
+            const stats = await DB.prepare('SELECT likes, dislikes FROM files WHERE key = ?').bind(key).first();
+            return new Response(JSON.stringify({
+                success: true,
+                likes: stats ? stats.likes : 0,
+                dislikes: stats ? stats.dislikes : 0,
+                userReaction: currentUserReaction
+            }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
         const { sourceKey, destinationPath } = body;
         if (!sourceKey || destinationPath === undefined) {
-            return new Response(JSON.stringify({ success: false, error: '缺少sourceKey或destinationPath。' }), {
-                status: 400,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
+            if (!action) {
+                return new Response(JSON.stringify({ success: false, error: '缺少sourceKey或destinationPath。' }), {
+                    status: 400,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
         }
         const fileRecord = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(sourceKey).first();
         if (!fileRecord) {

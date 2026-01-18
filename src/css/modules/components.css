@@ -6409,3 +6409,42 @@ input#prompt-input {
     font-weight: 400;
     text-align: center;
 }
+
+.reaction-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    margin-right: 4px;
+    background: transparent;
+    border: 1px solid transparent;
+    font-size: 0.85rem;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+.reaction-btn:hover {
+    opacity: 1;
+    background: var(--background-alt);
+    transform: scale(1.15);
+}
+
+.reaction-btn:active {
+    transform: scale(0.9);
+}
+
+.reaction-btn.like-btn:hover {
+    background: rgba(var(--primary-rgb), 0.08);
+}
+
+.reaction-btn.dislike-btn:hover {
+    background: rgba(255, 82, 82, 0.08);
+}
+
+[data-theme="dark"] .reaction-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
