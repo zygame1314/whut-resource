@@ -308,8 +308,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 WHERE parent_path = ?
                 ORDER BY is_directory DESC,
                         is_link DESC,
-                        CASE WHEN is_directory = 1 THEN name END ASC,
-                        CASE WHEN is_directory = 0 THEN uploaded END DESC
+                        name ASC
                 LIMIT ?
             `;
             itemsResult = await DB.prepare(combinedQuery).bind(searchPath, MAX_LIMIT).all();

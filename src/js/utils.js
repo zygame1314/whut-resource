@@ -154,6 +154,13 @@ function sortData(data, sortOption) {
     const [field, direction] = sortOption.split('-');
     const dirMultiplier = direction === 'asc' ? 1 : -1;
     const compareFunction = (a, b) => {
+        if (field === 'name') {
+            const isLinkA = a.is_link === 1 || a.is_link === true;
+            const isLinkB = b.is_link === 1 || b.is_link === true;
+            if (isLinkA !== isLinkB) {
+                return isLinkA ? -1 : 1;
+            }
+        }
         let valA, valB;
         switch (field) {
             case 'name':

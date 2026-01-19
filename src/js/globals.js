@@ -36,6 +36,6 @@ let currentTotalItems = 0;
 let currentFetchedData = null;
 let currentPaginationData = null;
 let highlightKey = null;
-let currentSortOption = 'date-desc';
+let currentSortOption = 'name-asc';
 let currentFolderSearchTerm = '';
 let currentRawData = null;
