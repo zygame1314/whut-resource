@@ -18,8 +18,88 @@ const ThreatTypeLabels = {
     'POTENTIALLY_HARMFUL_APPLICATION': '潜在有害应用',
     'THREAT_TYPE_UNSPECIFIED': '未知威胁',
 };
+const SPA_PRESETS = [
+    {
+        pattern: /bilibili\.com/,
+        title: '哔哩哔哩 (bilibili)',
+        description: '哔哩哔哩 (bilibili.com) 是国内知名的视频弹幕网站，这里有及时的动漫新番，活跃的ACG氛围，有创意的Up主。'
+    },
+    {
+        pattern: /123pan\.com/,
+        title: '123云盘',
+        description: '123云盘为您提供高速、安全、稳定的网盘存储服务。'
+    },
+    {
+        pattern: /douyin\.com/,
+        title: '抖音',
+        description: '抖音-记录美好生活'
+    },
+    {
+        pattern: /kdocs\.cn/,
+        title: '金山文档 | WPS云文档',
+        description: '金山文档是一款可多人实时协作编辑的在线文档，修改后自动保存，无需转换格式，支持多人在线协作编辑文档和表格。'
+    },
+    {
+        pattern: /docs\.qq\.com/,
+        title: '腾讯文档',
+        description: '腾讯文档是一款可多人协作的在线文档，支持Word、Excel和PPT类型，支持多人实时编辑、批注和修订。'
+    },
+    {
+        pattern: /shimo\.im/,
+        title: '石墨文档',
+        description: '石墨文档，全新一代云端 Office，支持多人在线协作编辑文档和表格。'
+    },
+    {
+        pattern: /yuque\.com/,
+        title: '语雀',
+        description: '语雀，专业的云端知识库，面向个人和团队，提供构建知识体系的全新方式。'
+    },
+    {
+        pattern: /pan\.baidu\.com/,
+        title: '百度网盘',
+        description: '百度网盘为您提供文件的网络备份、同步和分享服务。空间大、速度快、安全稳固。'
+    },
+    {
+        pattern: /pan\.quark\.cn/,
+        title: '夸克网盘',
+        description: '夸克网盘是夸克推出的云端存储服务，覆盖手机、PC、iPad三端，致力于为用户提供高效、智能、安全的数据存储与处理服务。'
+    },
+    {
+        pattern: /lanzou.\.com/,
+        title: '蓝奏云',
+        description: '蓝奏云网盘，不限速，支持云存储、云分享。'
+    },
+    {
+        pattern: /feishu\.cn/,
+        title: '飞书',
+        description: '飞书是字节跳动旗下先进企业协作与管理平台，一站式整合即时沟通、日历、音视频会议、云文档、云盘、工作台等功能。'
+    },
+    {
+        pattern: /alipan\.com/,
+        title: '阿里云盘',
+        description: '阿里云盘是一款速度快、不打扰、够安全、易于分享的网盘。'
+    },
+    {
+        pattern: /xiaohongshu\.com/,
+        title: '小红书',
+        description: '小红书 - 你的生活指南。'
+    }
+];
 async function fetchPageInfo(url, externalSignal = null) {
     try {
+        try {
+            const urlObj = new URL(url);
+            const preset = SPA_PRESETS.find(p => p.pattern.test(urlObj.hostname));
+            if (preset) {
+                return {
+                    title: preset.title,
+                    description: preset.description,
+                    favicon: `https://favicon.im/${urlObj.hostname}`
+                };
+            }
+        } catch (e) {
+            console.warn('预置列表匹配出错:', e);
+        }
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         if (externalSignal) {
