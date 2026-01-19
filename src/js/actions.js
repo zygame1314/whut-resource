@@ -71,6 +71,7 @@ async function deleteFile(key, isDirectory) {
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
+        if (typeof searchCache !== 'undefined') searchCache.clear();
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
     };
     try {
@@ -308,6 +309,7 @@ async function editLinkUrl(fileKey, currentUrl) {
         if (response.ok && result.success) {
             showNotification('链接地址已更新', 'success');
             if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
+            if (typeof searchCache !== 'undefined') searchCache.clear();
             fetchAndDisplayFiles(currentPrefix, '', currentPage);
         } else {
             showNotification(result.error || '更新链接失败', 'error');
@@ -389,6 +391,7 @@ async function moveItem(key, currentName, isDirectory) {
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
         if (directoryCache[destinationPath]) delete directoryCache[destinationPath];
+        if (typeof searchCache !== 'undefined') searchCache.clear();
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
     };
     try {
@@ -442,6 +445,7 @@ async function renameFile(key, currentName, isDirectory) {
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
+        if (typeof searchCache !== 'undefined') searchCache.clear();
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
     };
     try {

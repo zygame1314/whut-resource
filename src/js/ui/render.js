@@ -310,6 +310,9 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
                 e.stopPropagation();
                 const result = await toggleReaction(item.key, 'like', likeBtn);
                 if (result) {
+                    item.likes = result.likes;
+                    item.dislikes = result.dislikes;
+                    item.user_reaction = result.userReaction;
                     updateCounts(result.likes, result.dislikes);
                     if (result.userReaction === 'like') {
                         likeBtn.classList.add('active');
@@ -323,6 +326,9 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
                 e.stopPropagation();
                 const result = await toggleReaction(item.key, 'dislike', dislikeBtn);
                 if (result) {
+                    item.likes = result.likes;
+                    item.dislikes = result.dislikes;
+                    item.user_reaction = result.userReaction;
                     updateCounts(result.likes, result.dislikes);
                     if (result.userReaction === 'dislike') {
                         dislikeBtn.classList.add('active');

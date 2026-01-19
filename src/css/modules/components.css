@@ -4363,7 +4363,6 @@ textarea.form-input {
 .file-path {
     font-size: 0.8rem;
     color: var(--text-secondary);
-    margin-top: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     transition: color 0.2s ease;

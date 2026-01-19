@@ -146,6 +146,7 @@ async function handleBatchDelete() {
             }
         });
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
+        if (typeof searchCache !== 'undefined') searchCache.clear();
         selectedItems.clear();
         selectedDirectoryKeys.clear();
         selectedLinkKeys.clear();
@@ -360,6 +361,7 @@ async function handleBatchMove() {
         }
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         if (directoryCache[destinationPath]) delete directoryCache[destinationPath];
+        if (typeof searchCache !== 'undefined') searchCache.clear();
         selectedItems.clear();
         selectedDirectoryKeys.clear();
         selectedLinkKeys.clear();
