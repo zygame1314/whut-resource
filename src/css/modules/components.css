@@ -5682,6 +5682,31 @@ input#prompt-input {
 .h-captcha,
 .turnstile-widget-container {
     margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    overflow: visible;
+}
+
+.h-captcha>iframe,
+.h-captcha>div {
+    transform-origin: center center;
+}
+
+@media (max-width: 400px) {
+    .h-captcha {
+        transform: scale(0.85);
+        transform-origin: center center;
+        margin: -10px 0;
+    }
+}
+
+@media (max-width: 340px) {
+    .h-captcha {
+        transform: scale(0.75);
+        margin: -15px 0;
+    }
 }
 
 .spinner-sm {
