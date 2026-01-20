@@ -1,7 +1,22 @@
 async function fetchAndRenderHotFolders() {
     const token = localStorage.getItem('authToken');
     if (!token || !hotFoldersListElement) return;
-    hotFoldersListElement.innerHTML = '<div class="loading-spinner"></div>';
+    const skeletonHTML = `
+        <div class="sidebar-skeleton-hot">
+            <div class="skeleton-hot-item">
+                <div class="skeleton-hot-left"><div class="skeleton-folder-icon"></div><div class="skeleton-text medium"></div></div>
+                <div class="skeleton-hot-right"><div class="skeleton-fire-icon"></div><div class="skeleton-count"></div></div>
+            </div>
+            <div class="skeleton-hot-item">
+                <div class="skeleton-hot-left"><div class="skeleton-folder-icon"></div><div class="skeleton-text short"></div></div>
+                <div class="skeleton-hot-right"><div class="skeleton-fire-icon"></div><div class="skeleton-count"></div></div>
+            </div>
+            <div class="skeleton-hot-item">
+                <div class="skeleton-hot-left"><div class="skeleton-folder-icon"></div><div class="skeleton-text"></div></div>
+                <div class="skeleton-hot-right"><div class="skeleton-fire-icon"></div><div class="skeleton-count"></div></div>
+            </div>
+        </div>`;
+    hotFoldersListElement.innerHTML = skeletonHTML;
     try {
         const response = await fetch(`${FILES_API_URL}?action=getHotFolders`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -214,7 +229,16 @@ if (refreshRecentUploadsBtn) {
 async function fetchAndBuildFolderTree() {
     const token = localStorage.getItem('authToken');
     if (!token || !folderTreeElement) return;
-    folderTreeElement.innerHTML = '<div class="loading-spinner u-loading-spinner-container"></div>';
+    const skeletonHTML = `
+        <div class="sidebar-skeleton">
+            <div class="sidebar-skeleton-item"><div class="skeleton-icon"></div><div class="skeleton-text"></div></div>
+            <div class="sidebar-skeleton-item indent-1"><div class="skeleton-icon"></div><div class="skeleton-text medium"></div></div>
+            <div class="sidebar-skeleton-item indent-1"><div class="skeleton-icon"></div><div class="skeleton-text short"></div></div>
+            <div class="sidebar-skeleton-item indent-2"><div class="skeleton-icon"></div><div class="skeleton-text medium"></div></div>
+            <div class="sidebar-skeleton-item"><div class="skeleton-icon"></div><div class="skeleton-text short"></div></div>
+            <div class="sidebar-skeleton-item indent-1"><div class="skeleton-icon"></div><div class="skeleton-text"></div></div>
+        </div>`;
+    folderTreeElement.innerHTML = skeletonHTML;
     try {
         const response = await fetch(`${FILES_API_URL}?action=listAllDirs`, {
             headers: { 'Authorization': `Bearer ${token}` }
