@@ -79,8 +79,7 @@ function showAuthModal(mode = 'login') {
                                     </div>
                                 </label>
                             </div>
-                            <!-- Cloudflare Turnstile Widget -->
-                            <div id="turnstile-widget" class="turnstile-widget-container"></div>
+                            <div id="hcaptcha-widget" class="h-captcha" data-sitekey="7fa4e782-2a74-482c-9878-31386b04d486"></div>
                         </div>
                         <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
                     </form>
@@ -202,13 +201,10 @@ function showAuthModal(mode = 'login') {
             }
         };
     } else {
-        let turnstileWidgetId;
-        if (window.turnstile) {
-            turnstileWidgetId = turnstile.render('#turnstile-widget', {
-                sitekey: '0x4AAAAAABfgqCmMGBV9Nf8U',
-                callback: function (token) {
-                    console.log('Turnstile success');
-                },
+        let hcaptchaWidgetId;
+        if (window.hcaptcha) {
+            hcaptchaWidgetId = hcaptcha.render('hcaptcha-widget', {
+                sitekey: '7fa4e782-2a74-482c-9878-31386b04d486'
             });
         }
         const step1Form = modal.querySelector('#register-form-step1');
@@ -257,8 +253,8 @@ function showAuthModal(mode = 'login') {
                 return;
             }
             let cfToken = '';
-            if (window.turnstile) {
-                cfToken = turnstile.getResponse(turnstileWidgetId);
+            if (window.hcaptcha) {
+                cfToken = hcaptcha.getResponse(hcaptchaWidgetId);
                 if (!cfToken) {
                     showNotification('请先完成人机验证', 'error');
                     return;
@@ -344,16 +340,16 @@ function showAuthModal(mode = 'login') {
                     showNotification(data.error, 'error');
                     getCodeBtn.disabled = false;
                     getCodeBtn.innerHTML = '获取验证码';
-                    if (window.turnstile && turnstileWidgetId) {
-                        turnstile.reset(turnstileWidgetId);
+                    if (window.hcaptcha && hcaptchaWidgetId) {
+                        hcaptcha.reset(hcaptchaWidgetId);
                     }
                 }
             } catch (err) {
                 showNotification('请求失败: ' + err.message, 'error');
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
-                if (window.turnstile && turnstileWidgetId) {
-                    turnstile.reset(turnstileWidgetId);
+                if (window.hcaptcha && hcaptchaWidgetId) {
+                    hcaptcha.reset(hcaptchaWidgetId);
                 }
             }
         };
@@ -366,8 +362,8 @@ function showAuthModal(mode = 'login') {
             const getCodeBtn = modal.querySelector('#get-code-btn');
             getCodeBtn.disabled = false;
             getCodeBtn.innerHTML = '获取验证码';
-            if (window.turnstile && turnstileWidgetId) {
-                turnstile.reset(turnstileWidgetId);
+            if (window.hcaptcha && hcaptchaWidgetId) {
+                hcaptcha.reset(hcaptchaWidgetId);
             }
         };
         goLoginBtn.onclick = () => {

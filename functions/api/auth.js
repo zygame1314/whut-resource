@@ -8,22 +8,23 @@ export async function onRequestPost({ request, env }) {
     }
     if (action === 'prepare-register') {
       const { cfToken, nickname } = body;
-      if (env.TURNSTILE_SECRET_KEY) {
+      if (env.HCAPTCHA_SECRET_KEY) {
         if (!cfToken) {
           return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
         }
         const ip = request.headers.get('CF-Connecting-IP');
         const formData = new FormData();
-        formData.append('secret', env.TURNSTILE_SECRET_KEY);
+        formData.append('secret', env.HCAPTCHA_SECRET_KEY);
         formData.append('response', cfToken);
         formData.append('remoteip', ip);
-        const url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+        const url = 'https://hcaptcha.com/siteverify';
         const result = await fetch(url, {
           body: formData,
           method: 'POST',
         });
         const outcome = await result.json();
         if (!outcome.success) {
+          console.error('hCaptcha 验证失败:', outcome);
           return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新页面重试' }), { status: 403, headers: addCorsHeaders() });
         }
       }
@@ -111,22 +112,23 @@ export async function onRequestPost({ request, env }) {
     }
     if (action === 'prepare-reset') {
       const { cfToken, newPassword } = body;
-      if (env.TURNSTILE_SECRET_KEY) {
+      if (env.HCAPTCHA_SECRET_KEY) {
         if (!cfToken) {
           return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
         }
         const ip = request.headers.get('CF-Connecting-IP');
         const formData = new FormData();
-        formData.append('secret', env.TURNSTILE_SECRET_KEY);
+        formData.append('secret', env.HCAPTCHA_SECRET_KEY);
         formData.append('response', cfToken);
         formData.append('remoteip', ip);
-        const url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+        const url = 'https://hcaptcha.com/siteverify';
         const result = await fetch(url, {
           body: formData,
           method: 'POST',
         });
         const outcome = await result.json();
         if (!outcome.success) {
+          console.error('hCaptcha 验证失败:', outcome);
           return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新页面重试' }), { status: 403, headers: addCorsHeaders() });
         }
       }

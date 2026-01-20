@@ -5679,6 +5679,7 @@ input#prompt-input {
     border-radius: 50%;
 }
 
+.h-captcha,
 .turnstile-widget-container {
     margin-top: 10px;
 }

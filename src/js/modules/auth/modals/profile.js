@@ -93,8 +93,7 @@ function showForgotPasswordModal() {
                         </div>
                     </div>
                     <div class="form-group">
-                        <!-- Cloudflare Turnstile Widget -->
-                        <div id="turnstile-reset-widget"></div>
+                        <div id="hcaptcha-reset-widget" class="h-captcha" data-sitekey="7fa4e782-2a74-482c-9878-31386b04d486"></div>
                     </div>
                     <button type="submit" id="get-reset-code-btn" class="primary-btn full-width">获取验证码</button>
                 </form>
@@ -179,13 +178,10 @@ function showForgotPasswordModal() {
         modal.remove();
         showAuthModal('login');
     };
-    let turnstileWidgetId;
-    if (window.turnstile) {
-        turnstileWidgetId = turnstile.render('#turnstile-reset-widget', {
-            sitekey: '0x4AAAAAABfgqCmMGBV9Nf8U',
-            callback: function (token) {
-                console.log('Turnstile success');
-            },
+    let hcaptchaWidgetId;
+    if (window.hcaptcha) {
+        hcaptchaWidgetId = hcaptcha.render('hcaptcha-reset-widget', {
+            sitekey: '7fa4e782-2a74-482c-9878-31386b04d486'
         });
     }
     const step1Form = modal.querySelector('#reset-form-step1');
@@ -214,8 +210,8 @@ function showForgotPasswordModal() {
             return;
         }
         let cfToken = '';
-        if (window.turnstile) {
-            cfToken = turnstile.getResponse(turnstileWidgetId);
+        if (window.hcaptcha) {
+            cfToken = hcaptcha.getResponse(hcaptchaWidgetId);
             if (!cfToken) {
                 showNotification('请先完成人机验证', 'error');
                 return;
@@ -300,16 +296,16 @@ function showForgotPasswordModal() {
                 showNotification(data.error, 'error');
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
-                if (window.turnstile && turnstileWidgetId) {
-                    turnstile.reset(turnstileWidgetId);
+                if (window.hcaptcha && hcaptchaWidgetId) {
+                    hcaptcha.reset(hcaptchaWidgetId);
                 }
             }
         } catch (err) {
             showNotification('请求失败: ' + err.message, 'error');
             getCodeBtn.disabled = false;
             getCodeBtn.innerHTML = '获取验证码';
-            if (window.turnstile && turnstileWidgetId) {
-                turnstile.reset(turnstileWidgetId);
+            if (window.hcaptcha && hcaptchaWidgetId) {
+                hcaptcha.reset(hcaptchaWidgetId);
             }
         }
     };
@@ -322,8 +318,8 @@ function showForgotPasswordModal() {
         const getCodeBtn = modal.querySelector('#get-reset-code-btn');
         getCodeBtn.disabled = false;
         getCodeBtn.innerHTML = '获取验证码';
-        if (window.turnstile && turnstileWidgetId) {
-            turnstile.reset(turnstileWidgetId);
+        if (window.hcaptcha && hcaptchaWidgetId) {
+            hcaptcha.reset(hcaptchaWidgetId);
         }
     };
     goLoginBtn.onclick = () => {
