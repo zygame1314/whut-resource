@@ -18,6 +18,7 @@ const API_ENDPOINTS = {
     maintenance: `${API_BASE}/api/maintenance`,
     urlSafety: `${API_BASE}/api/url-safety`
 };
+const HCAPTCHA_SITEKEY = '1c847708-56b8-4c60-96ec-3968456c4442';
 window.filterTreeByKeyword = function (container, keyword, options = {}) {
     const {
         nodeSelector = '.folder-tree-node',

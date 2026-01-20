@@ -82,7 +82,7 @@ function showAuthModal(mode = 'login') {
                                     </div>
                                 </label>
                             </div>
-                            <div id="hcaptcha-widget" class="h-captcha" data-sitekey="7fa4e782-2a74-482c-9878-31386b04d486"></div>
+                            <div id="hcaptcha-widget" class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}"></div>
                         </div>
                         <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
                     </form>
@@ -212,7 +212,7 @@ function showAuthModal(mode = 'login') {
                         captchaContainer.style.display = 'block';
                         if (window.hcaptcha && !loginCaptchaWidgetId) {
                             loginCaptchaWidgetId = hcaptcha.render('hcaptcha-login-widget', {
-                                sitekey: '7fa4e782-2a74-482c-9878-31386b04d486'
+                                sitekey: HCAPTCHA_SITEKEY
                             });
                         }
                         showNotification(data.error + ' 请完成人机验证后重试', 'error');
@@ -231,7 +231,7 @@ function showAuthModal(mode = 'login') {
         let hcaptchaWidgetId;
         if (window.hcaptcha) {
             hcaptchaWidgetId = hcaptcha.render('hcaptcha-widget', {
-                sitekey: '7fa4e782-2a74-482c-9878-31386b04d486'
+                sitekey: HCAPTCHA_SITEKEY
             });
         }
         const step1Form = modal.querySelector('#register-form-step1');

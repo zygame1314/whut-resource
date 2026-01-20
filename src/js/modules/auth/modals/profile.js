@@ -93,7 +93,7 @@ function showForgotPasswordModal() {
                         </div>
                     </div>
                     <div class="form-group">
-                        <div id="hcaptcha-reset-widget" class="h-captcha" data-sitekey="7fa4e782-2a74-482c-9878-31386b04d486"></div>
+                        <div id="hcaptcha-reset-widget" class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}"></div>
                     </div>
                     <button type="submit" id="get-reset-code-btn" class="primary-btn full-width">获取验证码</button>
                 </form>
@@ -181,7 +181,7 @@ function showForgotPasswordModal() {
     let hcaptchaWidgetId;
     if (window.hcaptcha) {
         hcaptchaWidgetId = hcaptcha.render('hcaptcha-reset-widget', {
-            sitekey: '7fa4e782-2a74-482c-9878-31386b04d486'
+            sitekey: HCAPTCHA_SITEKEY
         });
     }
     const step1Form = modal.querySelector('#reset-form-step1');
