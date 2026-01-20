@@ -917,6 +917,7 @@
         left: 0;
         max-height: none;
         height: 100%;
+        width: 400px;
         max-width: 90%;
         z-index: 1002;
         transform: translateX(-100%);
