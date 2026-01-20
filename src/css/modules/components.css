@@ -6257,6 +6257,27 @@ input#prompt-input {
     justify-content: center;
     margin: 0 auto 20px;
     position: relative;
+    transition: all 0.3s ease;
+}
+
+.link-confirm-visual.dangerous {
+    background: rgba(231, 76, 60, 0.15);
+    color: #e74c3c;
+    animation: danger-pulse 2s infinite;
+}
+
+@keyframes danger-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+    }
 }
 
 .link-confirm-visual i {
@@ -6421,9 +6442,21 @@ input#prompt-input {
 }
 
 .link-safety-status.dangerous {
-    background: rgba(231, 76, 60, 0.1);
-    color: #e74c3c;
-    border: 1px solid rgba(231, 76, 60, 0.3);
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+    animation: shake-attention 0.5s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+.link-safety-status.dangerous i {
+    font-size: 1.1em;
+}
+
+.link-safety-status.dangerous .link-threat-list {
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    margin-top: 8px;
+    padding-top: 8px;
 }
 
 .link-safety-status.unknown {

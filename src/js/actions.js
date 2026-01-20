@@ -148,11 +148,12 @@ async function openLink(fileKey, linkUrl, openBtn) {
             } catch (e) { }
             const safetyStatusId = 'link-safety-' + Date.now();
             const pageInfoId = 'link-page-info-' + Date.now();
+            const visualId = 'link-visual-' + Date.now();
             const confirmed = await showConfirmation({
                 title: '外链安全提醒',
                 message: `
                     <div class="link-confirm-modern">
-                        <div class="link-confirm-visual">
+                        <div id="${visualId}" class="link-confirm-visual">
                             <i class="fas fa-external-link-alt"></i>
                         </div>
                         <h3 class="link-confirm-headline">即将访问外部网站</h3>
@@ -191,6 +192,7 @@ async function openLink(fileKey, linkUrl, openBtn) {
                         });
                         const result = await response.json();
                         const statusEl = document.getElementById(safetyStatusId);
+                        const visualEl = document.getElementById(visualId);
                         if (statusEl && result.success) {
                             statusEl.classList.remove('checking');
                             if (result.status === 'safe') {
@@ -199,7 +201,11 @@ async function openLink(fileKey, linkUrl, openBtn) {
                             } else if (result.status === 'dangerous') {
                                 statusEl.classList.add('dangerous');
                                 const threatLabels = result.threats.map(t => t.label).join('、');
-                                statusEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i><span>警告：该链接可能存在风险</span><div class="link-threat-list">${threatLabels}</div>`;
+                                statusEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i><span>警告：该链接检测到安全风险</span><div class="link-threat-list">类型：${threatLabels}</div>`;
+                                if (visualEl) {
+                                    visualEl.classList.add('dangerous');
+                                    visualEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+                                }
                             } else {
                                 statusEl.classList.add('unknown');
                                 statusEl.innerHTML = '<i class="fas fa-question-circle"></i><span>无法确定安全性</span>';
