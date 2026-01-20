@@ -82,7 +82,7 @@ const SPA_PRESETS = [
     {
         pattern: /xiaohongshu\.com/,
         title: '小红书',
-        description: '小红书 - 你的生活指南。'
+        description: '小红书 - 你的生活兴趣社区。'
     }
 ];
 async function fetchPageInfo(url, externalSignal = null) {
