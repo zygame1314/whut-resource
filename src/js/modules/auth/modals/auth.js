@@ -6,30 +6,33 @@ function showAuthModal(mode = 'login') {
     if (isLogin) {
         modal.innerHTML = `
             <div class="auth-box">
-                <button id="close-modal" class="close-modal-btn">
-                    <i class="fas fa-times"></i>
-                </button>
-                <h2 class="auth-title">${title}</h2>
-                <form id="auth-form">
-                    <div class="form-group">
-                        <label>邮箱</label>
-                        <input type="email" id="auth-email" required class="form-control" placeholder="请输入学校邮箱">
-                    </div>
-                    <div class="form-group">
-                        <label>密码</label>
-                        <div class="password-input-wrapper">
-                            <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码">
+            <button id="close-modal" class="close-modal-btn">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="auth-title">${title}</h2>
+            <form id="auth-form">
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <input type="email" id="auth-email" required class="form-control" placeholder="请输入学校邮箱">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码">
                             <button type="button" class="password-toggle" data-target="auth-password" title="显示/隐藏密码">
                                 <i class="fas fa-eye"></i>
                             </button>
-                        </div>
                     </div>
-                    <button type="submit" class="primary-btn full-width">${title}</button>
-                </form>
-                <p class="auth-footer">
-                    没有账号? <a href="#" id="switch-mode">去注册</a> | <a href="#" id="forgot-password">忘记密码?</a>
-                </p>
-            </div>
+                </div>
+                <div id="login-captcha-container" class="form-group" style="display: none;">
+                    <div id="hcaptcha-login-widget" class="h-captcha"></div>
+                </div>
+                <button type="submit" class="primary-btn full-width">${title}</button>
+            </form>
+            <p class="auth-footer">
+                没有账号? <a href="#" id="switch-mode">去注册</a> | <a href="#" id="forgot-password">忘记密码?</a>
+            </p>
+        </div>
         `;
     } else {
         modal.innerHTML = `
@@ -136,8 +139,8 @@ function showAuthModal(mode = 'login') {
                 <p class="auth-footer">
                     已有账号? <a href="#" id="switch-mode">去登录</a>
                 </p>
-            </div>
-        `;
+            </div >
+            `;
     }
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
@@ -165,6 +168,7 @@ function showAuthModal(mode = 'login') {
         showAuthModal(isLogin ? 'register' : 'login');
     };
     initPasswordToggles(modal);
+    let loginCaptchaWidgetId = null;
     if (isLogin) {
         const form = modal.querySelector('#auth-form');
         const forgotPasswordLink = modal.querySelector('#forgot-password');
@@ -179,11 +183,20 @@ function showAuthModal(mode = 'login') {
             e.preventDefault();
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
+            const captchaContainer = modal.querySelector('#login-captcha-container');
+            let cfToken = '';
+            if (captchaContainer.style.display !== 'none' && window.hcaptcha && loginCaptchaWidgetId) {
+                cfToken = hcaptcha.getResponse(loginCaptchaWidgetId);
+                if (!cfToken) {
+                    showNotification('请先完成人机验证', 'error');
+                    return;
+                }
+            }
             try {
                 const res = await fetch(AUTH_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'login', email, password })
+                    body: JSON.stringify({ action: 'login', email, password, cfToken: cfToken || undefined })
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -194,7 +207,21 @@ function showAuthModal(mode = 'login') {
                     modal.remove();
                     window.location.reload();
                 } else {
-                    showNotification(data.error, 'error');
+                    const needCaptcha = data.requireCaptcha;
+                    if (needCaptcha && captchaContainer.style.display === 'none') {
+                        captchaContainer.style.display = 'block';
+                        if (window.hcaptcha && !loginCaptchaWidgetId) {
+                            loginCaptchaWidgetId = hcaptcha.render('hcaptcha-login-widget', {
+                                sitekey: '7fa4e782-2a74-482c-9878-31386b04d486'
+                            });
+                        }
+                        showNotification(data.error + ' 请完成人机验证后重试', 'error');
+                    } else if (needCaptcha && window.hcaptcha && loginCaptchaWidgetId) {
+                        hcaptcha.reset(loginCaptchaWidgetId);
+                        showNotification(data.error, 'error');
+                    } else {
+                        showNotification(data.error, 'error');
+                    }
                 }
             } catch (err) {
                 showNotification('Error: ' + err.message, 'error');
@@ -281,7 +308,7 @@ function showAuthModal(mode = 'login') {
                     step1Div.style.display = 'none';
                     step2Div.style.display = 'block';
                     modal.querySelector('#display-verify-code').textContent = data.verifyCode;
-                    modal.querySelector('#display-user-email').textContent = `${studentId}@whut.edu.cn`;
+                    modal.querySelector('#display-user-email').textContent = `${studentId} @whut.edu.cn`;
                     modal.querySelector('#display-bot-email').textContent = data.botEmail;
                     modal.querySelector('.verify-steps ol li:nth-child(4) code').textContent = data.verifyCode;
                     modal.querySelector('#copy-code-btn').onclick = () => {
@@ -298,7 +325,7 @@ function showAuthModal(mode = 'login') {
                         remainingSeconds--;
                         const mins = Math.floor(remainingSeconds / 60);
                         const secs = remainingSeconds % 60;
-                        countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                        countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')} `;
                         if (remainingSeconds <= 0) {
                             clearInterval(countdownTimer);
                             modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';

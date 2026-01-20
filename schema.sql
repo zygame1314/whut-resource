@@ -335,3 +335,15 @@ CREATE TABLE admin_messages (
 );
 
 CREATE INDEX idx_admin_messages_request ON admin_messages(request_id, created_at ASC);
+
+DROP TABLE IF EXISTS login_attempts;
+CREATE TABLE login_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    identifier TEXT NOT NULL,
+    attempt_type TEXT NOT NULL CHECK (attempt_type IN ('ip', 'email')),
+    fail_count INTEGER DEFAULT 1,
+    last_attempt_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_login_attempts_identifier ON login_attempts(identifier, attempt_type);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_expires ON login_attempts(expires_at);

@@ -1,4 +1,20 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders } from '../utils.js';
+async function recordLoginAttempt(db, identifier, type) {
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const now = new Date().toISOString();
+  const existing = await db.prepare(
+    'SELECT id, fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ?'
+  ).bind(identifier, type).first();
+  if (existing) {
+    await db.prepare(
+      'UPDATE login_attempts SET fail_count = fail_count + 1, last_attempt_at = ?, expires_at = ? WHERE id = ?'
+    ).bind(now, expiresAt, existing.id).run();
+  } else {
+    await db.prepare(
+      'INSERT INTO login_attempts (identifier, attempt_type, fail_count, last_attempt_at, expires_at) VALUES (?, ?, 1, ?, ?)'
+    ).bind(identifier, type, now, expiresAt).run();
+  }
+}
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
@@ -240,14 +256,73 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({ success: true, message: '密码修改成功。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'login') {
+      const { cfToken } = body;
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const now = new Date().toISOString();
+      await env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run();
+      const ipAttempt = await env.DB.prepare(
+        'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
+      ).bind(ip, 'ip', now).first();
+      const emailAttempt = await env.DB.prepare(
+        'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
+      ).bind(email, 'email', now).first();
+      const ipFailCount = ipAttempt?.fail_count || 0;
+      const emailFailCount = emailAttempt?.fail_count || 0;
+      const maxFailCount = Math.max(ipFailCount, emailFailCount);
+      const requireCaptcha = maxFailCount >= 3;
+      if (requireCaptcha) {
+        if (!cfToken) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: '登录失败次数过多，请完成人机验证',
+            requireCaptcha: true
+          }), { status: 403, headers: addCorsHeaders() });
+        }
+        if (env.HCAPTCHA_SECRET_KEY) {
+          const formData = new FormData();
+          formData.append('secret', env.HCAPTCHA_SECRET_KEY);
+          formData.append('response', cfToken);
+          formData.append('remoteip', ip);
+          const url = 'https://hcaptcha.com/siteverify';
+          const result = await fetch(url, {
+            body: formData,
+            method: 'POST',
+          });
+          const outcome = await result.json();
+          if (!outcome.success) {
+            console.error('hCaptcha 验证失败:', outcome);
+            return new Response(JSON.stringify({
+              success: false,
+              error: '人机验证失败，请刷新页面重试',
+              requireCaptcha: true
+            }), { status: 403, headers: addCorsHeaders() });
+          }
+        }
+      }
       const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
       if (!user) {
-        return new Response(JSON.stringify({ success: false, error: '用户名或密码错误。' }), { status: 401, headers: addCorsHeaders() });
+        await recordLoginAttempt(env.DB, ip, 'ip');
+        await recordLoginAttempt(env.DB, email, 'email');
+        const newMaxFail = Math.max(ipFailCount + 1, emailFailCount + 1);
+        return new Response(JSON.stringify({
+          success: false,
+          error: '用户名或密码错误。',
+          requireCaptcha: newMaxFail >= 3
+        }), { status: 401, headers: addCorsHeaders() });
       }
       const isValid = await verifyPasswordHash(password, user.password_hash, env.SALT);
       if (!isValid) {
-        return new Response(JSON.stringify({ success: false, error: '用户名或密码错误。' }), { status: 401, headers: addCorsHeaders() });
+        await recordLoginAttempt(env.DB, ip, 'ip');
+        await recordLoginAttempt(env.DB, email, 'email');
+        const newMaxFail = Math.max(ipFailCount + 1, emailFailCount + 1);
+        return new Response(JSON.stringify({
+          success: false,
+          error: '用户名或密码错误。',
+          requireCaptcha: newMaxFail >= 3
+        }), { status: 401, headers: addCorsHeaders() });
       }
+      await env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(ip, 'ip').run();
+      await env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(email, 'email').run();
       const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
       const today = new Date().toISOString().split('T')[0];
       if (user.last_download_date !== today) {
