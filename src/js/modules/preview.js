@@ -80,24 +80,32 @@ async function previewFile(fileKey, fileName, fileSize) {
             if (isTxtPreview) {
                 const textPreviewWrapper = document.createElement('div');
                 textPreviewWrapper.className = 'preview-text-wrapper';
+                textPreviewWrapper.style.opacity = '0';
+                textPreviewWrapper.style.transition = 'opacity 0.3s ease';
                 const pre = document.createElement('pre');
                 pre.className = 'preview-text';
                 pre.textContent = data.content;
                 textPreviewWrapper.appendChild(pre);
                 previewIframe.parentElement.appendChild(textPreviewWrapper);
                 hideLoader();
+                requestAnimationFrame(() => {
+                    textPreviewWrapper.style.opacity = '1';
+                });
             } else {
                 const previewUrl = data.url;
                 if (isImagePreview) {
                     const previewContent = previewIframe.parentElement;
                     const imageWrapper = document.createElement('div');
                     imageWrapper.className = 'preview-image-wrapper';
+                    imageWrapper.style.opacity = '0';
+                    imageWrapper.style.transition = 'opacity 0.3s ease';
                     const img = document.createElement('img');
                     img.src = previewUrl;
                     img.className = 'preview-image';
                     img.onload = () => {
                         hideLoader();
                         img.style.display = 'block';
+                        imageWrapper.style.opacity = '1';
                     };
                     img.onerror = () => {
                         hideLoader();
@@ -173,7 +181,13 @@ async function previewFile(fileKey, fileName, fileSize) {
                     audioWrapper.appendChild(audioCard);
                     previewContent.appendChild(audioWrapper);
                 } else {
-                    previewIframe.onload = hideLoader;
+                    previewIframe.style.opacity = '0';
+                    previewIframe.style.transition = 'opacity 0.3s ease';
+                    const showIframe = () => {
+                        hideLoader();
+                        previewIframe.style.opacity = '1';
+                    };
+                    previewIframe.onload = showIframe;
                     previewIframe.onerror = () => {
                         hideLoader();
                         showNotification('预览加载失败', 'error');
@@ -201,6 +215,7 @@ async function previewFile(fileKey, fileName, fileSize) {
                         previewIframe.src = previewUrl;
                     }
                     previewIframe.style.display = 'block';
+                    setTimeout(showIframe, 5000);
                 }
             }
         } else {
