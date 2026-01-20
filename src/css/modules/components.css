@@ -5727,8 +5727,6 @@ input#prompt-input {
     margin-bottom: 0.3rem;
     max-width: 400px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .preview-audio-hint {
@@ -5745,18 +5743,11 @@ input#prompt-input {
     margin-top: 10px;
 }
 
-/* 
- * 专门针对 WebKit 浏览器（Chrome/Edge/Safari）的暗黑模式适配 
- * 原生控件通常是浅色背景+深色图标。
- * 使用反转滤镜将背景变为深色，图标变为浅色。
- */
 .preview-audio::-webkit-media-controls-panel {
     background-color: #f0f2f5;
-    /* 设置一个明确的浅色基底 */
     border-radius: 25px;
 }
 
-/* 如果当前是暗黑模式（这里假设卡片背景是深色的），我们需要反转播放器颜色使其融入 */
 .preview-audio {
     filter: invert(0.92) hue-rotate(180deg) brightness(1.1);
     opacity: 0.9;
@@ -5797,6 +5788,37 @@ input#prompt-input {
 .h-captcha>iframe,
 .h-captcha>div {
     transform-origin: center center;
+}
+
+@media (max-width: 600px) {
+    .preview-audio-card {
+        width: 90%;
+        padding: 1.5rem 1rem;
+        gap: 1rem;
+    }
+
+    .preview-audio-icon {
+        width: 60px;
+        height: 60px;
+    }
+
+    .preview-audio-icon i {
+        font-size: 1.5rem;
+    }
+
+    .preview-audio-wrapper::before {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .preview-audio-title {
+        font-size: 1rem;
+        max-width: 250px;
+    }
+
+    .preview-audio {
+        height: 40px;
+    }
 }
 
 @media (max-width: 400px) {
