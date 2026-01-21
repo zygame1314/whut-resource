@@ -40,7 +40,6 @@ export async function onRequestGet({ request, env }) {
     const DB = env.DB;
     const AI = env.AI;
     const VECTORIZE = env.VECTORIZE;
-    const cerebrasKey = env.CEREBRAS_API_KEY;
     if (!DB || !AI || !VECTORIZE) {
         return new Response(JSON.stringify({ success: false, error: '服务器配置错误' }), {
             status: 500, headers: addCorsHeaders({ 'Content-Type': 'application/json' })

@@ -12,7 +12,7 @@
     const isMobile = window.innerWidth <= 768;
     const MAX_VISIBLE_TOASTS = isMobile ? 1 : 3;
     const TOAST_DURATION = isMobile ? 3000 : 5000;
-    const MERGE_WINDOW = 2000;
+    const MAX_QUEUE_SIZE = 20;
     const messageQueue = [];
     const activeToasts = new Map();
     let isProcessingQueue = false;
@@ -132,7 +132,7 @@
             updateToastCount(toastData);
             return;
         }
-        const existingInQueue = messageQueue.find(m => m.filename === filename && (Date.now() - m.timestamp) < MERGE_WINDOW);
+        const existingInQueue = messageQueue.find(m => m.filename === filename);
         if (existingInQueue) {
             existingInQueue.count++;
             return;
@@ -142,6 +142,9 @@
             count: 1,
             timestamp: Date.now()
         });
+        if (messageQueue.length > MAX_QUEUE_SIZE) {
+            messageQueue.shift();
+        }
         processQueue();
     }
     function processQueue() {
