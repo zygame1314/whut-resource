@@ -252,6 +252,8 @@
         padding: 1rem;
         z-index: 100;
         gap: 0.5rem;
+        max-height: 80vh;
+        overflow-y: auto;
     }
 
     .nav-actions.active {
