@@ -34,9 +34,9 @@ async function fetchAndRenderHotFolders() {
                 const li = document.createElement('li');
                 li.className = 'hot-folder-item';
                 li.innerHTML = `
-                    <span class="hot-folder-name" title="${folder.name}">
+                    <span class="hot-folder-name" title="${folder.path}">
                        <i class="fas fa-folder"></i>
-                       ${folder.name}
+                       ${folder.display_path || folder.name}
                     </span>
                     <span class="hot-folder-downloads">
                         <i class="fas fa-fire"></i> ${folder.total_downloads}
@@ -113,7 +113,20 @@ async function fetchAndRenderRecentUploads(showToast = false) {
             const iconClass = isLink ? 'fas fa-link' : getFileIcon(file.name, false);
             const parentPath = typeof file.parent_path === 'string' ? file.parent_path : '';
             const normalizedPath = parentPath.endsWith('/') ? parentPath.slice(0, -1) : parentPath;
-            const folderName = normalizedPath ? normalizedPath.split('/').filter(Boolean).pop() || '根目录' : '根目录';
+            const parts = normalizedPath ? normalizedPath.split('/').filter(Boolean) : [];
+            let displayPath = '根目录';
+            if (parts.length > 0) {
+                let current = parts.pop();
+                if (parts.length > 0) {
+                    let parent = parts.pop();
+                    displayPath = `${parent}/${current}`;
+                    if (parts.length > 0) {
+                        displayPath = `.../${displayPath}`;
+                    }
+                } else {
+                    displayPath = current;
+                }
+            }
             const folderLabel = parentPath && parentPath !== '' ? parentPath : '根目录';
             const downloadsLabel = typeof file.downloads === 'number' ? file.downloads : 0;
             const sizeDisplay = isLink ? '外部链接' : formatBytes(file.size);
@@ -131,7 +144,7 @@ async function fetchAndRenderRecentUploads(showToast = false) {
                     <div class="recent-upload-meta">
                         <span class="recent-upload-path" title="${folderLabel}">
                             <i class="fas fa-folder-open"></i>
-                            ${folderName}
+                            ${displayPath}
                         </span>
                     </div>
                 </div>

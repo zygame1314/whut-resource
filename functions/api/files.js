@@ -162,11 +162,24 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 cacheExists = true;
                 try {
                     const parsed = JSON.parse(cacheData.data);
-                    hotFolders = parsed.map(row => ({
-                        path: row.path,
-                        name: row.path.endsWith('/') ? row.path.slice(0, -1).split('/').pop() : row.path.split('/').pop(),
-                        total_downloads: row.total_downloads
-                    }));
+                    hotFolders = parsed.map(row => {
+                        const rawPath = row.path.endsWith('/') ? row.path.slice(0, -1) : row.path;
+                        const parts = rawPath.split('/');
+                        let displayPath = parts.pop();
+                        if (parts.length > 0) {
+                            const parent = parts.pop();
+                            displayPath = `${parent}/${displayPath}`;
+                            if (parts.length > 0) {
+                                displayPath = `.../${displayPath}`;
+                            }
+                        }
+                        return {
+                            path: row.path,
+                            name: row.path.endsWith('/') ? row.path.slice(0, -1).split('/').pop() : row.path.split('/').pop(),
+                            display_path: displayPath,
+                            total_downloads: row.total_downloads
+                        };
+                    });
                     if (cacheData.updated_at) {
                         const updatedAt = new Date(cacheData.updated_at + 'Z').getTime();
                         const now = Date.now();
@@ -194,11 +207,24 @@ export async function onRequestGet({ request, env, waitUntil }) {
                         await DB.prepare('INSERT OR REPLACE INTO system_cache (id, data, updated_at) VALUES (1, ?, CURRENT_TIMESTAMP)')
                             .bind(freshResult.data).run();
                         const parsed = JSON.parse(freshResult.data);
-                        hotFolders = parsed.map(row => ({
-                            path: row.path,
-                            name: row.path.endsWith('/') ? row.path.slice(0, -1).split('/').pop() : row.path.split('/').pop(),
-                            total_downloads: row.total_downloads
-                        }));
+                        hotFolders = parsed.map(row => {
+                            const rawPath = row.path.endsWith('/') ? row.path.slice(0, -1) : row.path;
+                            const parts = rawPath.split('/');
+                            let displayPath = parts.pop();
+                            if (parts.length > 0) {
+                                const parent = parts.pop();
+                                displayPath = `${parent}/${displayPath}`;
+                                if (parts.length > 0) {
+                                    displayPath = `.../${displayPath}`;
+                                }
+                            }
+                            return {
+                                path: row.path,
+                                name: row.path.endsWith('/') ? row.path.slice(0, -1).split('/').pop() : row.path.split('/').pop(),
+                                display_path: displayPath,
+                                total_downloads: row.total_downloads
+                            };
+                        });
                     }
                 } catch (e) {
                     console.error('同步获取热门文件夹失败:', e);
