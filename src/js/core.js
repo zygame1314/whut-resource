@@ -33,16 +33,56 @@ async function fetchAndRenderHotFolders() {
             result.hotFolders.forEach(folder => {
                 const li = document.createElement('li');
                 li.className = 'hot-folder-item';
+                const truncateMiddle = (str, len = 12) => {
+                    if (!str || str.length <= len) return str;
+                    return str.slice(0, Math.ceil(len / 2)) + '...' + str.slice(-Math.floor(len / 2));
+                };
+                let displayHtml = folder.name;
+                if (folder.display_path) {
+                    const parts = folder.display_path.split('/');
+                    const truncatedParts = parts.map(part => {
+                        if (part === '...') return part;
+                        return truncateMiddle(part, 14);
+                    });
+                    displayHtml = truncatedParts.join('/');
+                    displayHtml = displayHtml.replace('.../', '<span class="path-prefix">.../</span>');
+                }
                 li.innerHTML = `
                     <span class="hot-folder-name" title="${folder.path}">
                        <i class="fas fa-folder"></i>
-                       ${folder.display_path || folder.name}
+                       ${displayHtml}
                     </span>
                     <span class="hot-folder-downloads">
                         <i class="fas fa-fire"></i> ${folder.total_downloads}
                     </span>
                 `;
-                li.addEventListener('click', () => {
+                let pressTimer = null;
+                let isLongPress = false;
+                li.addEventListener('touchstart', (e) => {
+                    isLongPress = false;
+                    pressTimer = setTimeout(() => {
+                        isLongPress = true;
+                        showNotification(`完整路径: ${folder.path || '根目录'}`, 'info', 3000);
+                    }, 500);
+                }, { passive: true });
+                li.addEventListener('touchend', () => {
+                    clearTimeout(pressTimer);
+                });
+                li.addEventListener('touchcancel', () => {
+                    clearTimeout(pressTimer);
+                });
+                li.addEventListener('contextmenu', (e) => {
+                    if (isLongPress) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                });
+                li.addEventListener('click', (e) => {
+                    if (isLongPress) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
                     fetchAndDisplayFiles(folder.path);
                     const folderLinks = document.querySelectorAll('.folder-tree-item');
                     folderLinks.forEach(link => {
@@ -113,12 +153,18 @@ async function fetchAndRenderRecentUploads(showToast = false) {
             const iconClass = isLink ? 'fas fa-link' : getFileIcon(file.name, false);
             const parentPath = typeof file.parent_path === 'string' ? file.parent_path : '';
             const normalizedPath = parentPath.endsWith('/') ? parentPath.slice(0, -1) : parentPath;
+            const truncateMiddle = (str, len = 12) => {
+                if (!str || str.length <= len) return str;
+                return str.slice(0, Math.ceil(len / 2)) + '...' + str.slice(-Math.floor(len / 2));
+            };
             const parts = normalizedPath ? normalizedPath.split('/').filter(Boolean) : [];
             let displayPath = '根目录';
             if (parts.length > 0) {
                 let current = parts.pop();
+                current = truncateMiddle(current, 14);
                 if (parts.length > 0) {
                     let parent = parts.pop();
+                    parent = truncateMiddle(parent, 14);
                     displayPath = `${parent}/${current}`;
                     if (parts.length > 0) {
                         displayPath = `.../${displayPath}`;
@@ -144,7 +190,7 @@ async function fetchAndRenderRecentUploads(showToast = false) {
                     <div class="recent-upload-meta">
                         <span class="recent-upload-path" title="${folderLabel}">
                             <i class="fas fa-folder-open"></i>
-                            ${displayPath}
+                            <span>${displayPath.replace('.../', '<span class="path-prefix">.../</span>')}</span>
                         </span>
                     </div>
                 </div>
@@ -209,9 +255,34 @@ async function fetchAndRenderRecentUploads(showToast = false) {
             }
             const pathChip = li.querySelector('.recent-upload-path');
             if (pathChip) {
+                let pressTimer = null;
+                let isLongPress = false;
+                const fullPath = parentPath || '根目录';
+                pathChip.addEventListener('touchstart', (e) => {
+                    isLongPress = false;
+                    pressTimer = setTimeout(() => {
+                        isLongPress = true;
+                        showNotification(`完整路径: ${fullPath}`, 'info', 3000);
+                    }, 500);
+                }, { passive: true });
+                pathChip.addEventListener('touchend', () => {
+                    clearTimeout(pressTimer);
+                });
+                pathChip.addEventListener('touchcancel', () => {
+                    clearTimeout(pressTimer);
+                });
+                pathChip.addEventListener('contextmenu', (e) => {
+                    if (isLongPress) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                });
                 pathChip.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (isLongPress) {
+                        return;
+                    }
                     if (searchInput) searchInput.value = '';
                     fetchAndDisplayFiles(parentPath || '');
                 });

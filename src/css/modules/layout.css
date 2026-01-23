@@ -695,10 +695,23 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+}
+
+.hot-folder-name span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .hot-folder-name .fa-folder {
     color: var(--primary-color);
+}
+
+.path-prefix {
+    opacity: 0.5;
+    margin-right: 2px;
 }
 
 .hot-folder-downloads {
@@ -730,6 +743,26 @@
 
 .sidebar-cache-notice i {
     margin-right: 0.3rem;
+}
+
+.sidebar-touch-hint {
+    display: none;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+    opacity: 0.7;
+}
+
+.sidebar-touch-hint i {
+    margin-right: 0.3rem;
+    color: var(--primary-color);
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .sidebar-touch-hint {
+        display: block;
+    }
 }
 
 .sidebar-skeleton {

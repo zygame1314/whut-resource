@@ -795,7 +795,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .recent-uploads-header .section-title {
@@ -803,6 +803,27 @@
     display: flex;
     align-items: center;
     gap: 0.6rem;
+    flex-shrink: 0;
+}
+
+.touch-hint-block {
+    display: none;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    margin-bottom: 1rem;
+    margin-left: 0.2rem;
+}
+
+.touch-hint-block i {
+    color: var(--primary-color);
+    margin-right: 0.25rem;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .touch-hint-block {
+        display: block;
+    }
 }
 
 .recent-uploads-list {
@@ -895,6 +916,15 @@
     color: var(--text-secondary);
     cursor: pointer;
     transition: all var(--transition-fast);
+    max-width: 100%;
+    overflow: hidden;
+    vertical-align: middle;
+    flex-shrink: 1;
+}
+
+.recent-upload-path span,
+.recent-upload-path {
+    text-overflow: ellipsis;
 }
 
 .recent-upload-path:hover {
