@@ -20,10 +20,9 @@ const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。必须将用
        - 返回2-3个最相关的搜索词
        - 必须保留课程后缀（A/B、(一)、1）
        - 用空格分隔
-    3. 严禁废话，只返回关键词字符串
-    示例：
-    输入："搜一下大物期末" -> 输出："大学物理 期末试卷"
-    输入："求高数下" -> 输出："高等数学(下) 高等数学A"`;
+    3. 边界处理：
+       - 如果用户查询内容明显与【大学课程、考试资料、学习资源】无关（如"想吃火锅"、"天气"、"聊天"），请直接返回 "NULL"
+       - 严禁废话，只返回关键词字符串或 "NULL"`;
 export async function onRequestGet({ request, env }) {
     const authHeader = request.headers.get('Authorization');
     let user = null;
@@ -65,6 +64,18 @@ export async function onRequestGet({ request, env }) {
             let content = llmResponse.choices?.[0]?.message?.content?.trim();
             if (content) {
                 content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                if (content === 'NULL' || content.includes('无相关')) {
+                    return new Response(JSON.stringify({
+                        success: true,
+                        files: [],
+                        directories: [],
+                        keywords: query,
+                        message: '未识别到相关课程信息',
+                        isAISearch: true
+                    }), {
+                        status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+                    });
+                }
                 finalKeywords = content;
             }
         } catch (e) {
