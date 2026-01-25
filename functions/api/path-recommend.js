@@ -1,18 +1,29 @@
 import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
-const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
-const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'qwen-3-32b';
-const NVIDIA_MODEL = 'qwen/qwq-32b';
-const GROQ_MODEL = 'qwen/qwen3-32b';
+const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+const MODEL = 'Qwen/Qwen3-8B';
 const KEYWORD_PROMPT = `你是一个大学课程目录推荐助手。用户上传了一些文件名，你需要提取出文件所属的课程全称。
     规则：
-    1. 识别并扩展缩写：
+    1. 识别并扩展缩写（严格映射）：
        - 大物→大学物理
        - 高数→高等数学
-       - 毛概→毛泽东思想
        - 线代→线性代数
-       - 马原→马克思主义
+       - 概统/概率→概率论与数理统计
+       - 数电→数字电子技术
+       - 模电→模拟电子技术
+       - 计组→计算机组成原理
+       - 计网→计算机网络
+       - 复变→复变函数
+       - 思修→思想道德与法治
+       - 史纲/近代史→中国近现代史纲要
+       - 马原→马克思主义基本原理
+       - 毛概→毛泽东思想和中国特色社会主义理论体系概论
+       - 习概→习近平新时代中国特色社会主义思想概论
+       - 数分→数学分析
+       - 高代→高等代数
+       - 材力→材料力学
+       - 理力→理论力学
+       - 工图→工程图学
+       - 电工→电工与电子技术基础
     2. 生成搜索词：返回1-3个最相关的关键词，用于在数据库中搜索目录。
     3. 只返回关键词，用空格分隔。`;
 const PICK_PROMPT = `你是文件归档助手。根据用户要上传的文件，从搜索结果中选择最合适的目录。
@@ -36,7 +47,6 @@ export async function onRequestPost({ request, env }) {
             return new Response(JSON.stringify({ error: '文件名为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const validFileNames = fileNames.slice(0, 5).filter(n => typeof n === 'string' && n.trim().length > 0);
-        const cerebrasKey = env.CEREBRAS_API_KEY;
         const AI = env.AI;
         const VECTORIZE = env.VECTORIZE;
         let keywords = validFileNames.join(' ');
@@ -129,51 +139,31 @@ export async function onRequestOptions() {
     return new Response(null, { headers: addCorsHeaders() });
 }
 async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.1) {
-    const callProvider = async (url, key, model, providerName) => {
-        const body = {
-            model: model,
-            messages: messages,
-            temperature: temperature
-        };
-        if (tools) {
-            body.tools = tools;
-            body.tool_choice = toolChoice;
-        }
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${key}`
-            },
-            body: JSON.stringify(body)
-        });
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`${providerName} API Error: ${response.status} - ${errorText}`);
-        }
-        return await response.json();
+    if (!env.SILICONFLOW_API_KEY) {
+        throw new Error('未配置 SILICONFLOW_API_KEY');
+    }
+    const body = {
+        model: MODEL,
+        messages: messages,
+        temperature: temperature,
+        stream: false,
+        enable_thinking: false
     };
-    if (env.CEREBRAS_API_KEY) {
-        try {
-            return await callProvider(CEREBRAS_API_URL, env.CEREBRAS_API_KEY, MODEL, 'Cerebras');
-        } catch (error) {
-            console.error('Cerebras API 失败:', error.message);
-            if (!env.NVIDIA_API_KEY) throw error;
-        }
+    if (tools) {
+        body.tools = tools;
+        body.tool_choice = toolChoice;
     }
-    if (env.NVIDIA_API_KEY) {
-        try {
-            return await callProvider(NVIDIA_API_URL, env.NVIDIA_API_KEY, NVIDIA_MODEL, 'NVIDIA');
-        } catch (error) {
-            if (!env.GROQ_API_KEY) throw error;
-        }
+    const response = await fetch(SILICONFLOW_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
+        },
+        body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`SiliconFlow API Error: ${response.status} - ${errorText}`);
     }
-    if (env.GROQ_API_KEY) {
-        try {
-            return await callProvider(GROQ_API_URL, env.GROQ_API_KEY, GROQ_MODEL, 'Groq');
-        } catch (error) {
-            throw new Error(`所有 API 失败: ${error.message}`);
-        }
-    }
-    throw new Error('未配置 API Key');
+    return await response.json();
 }
