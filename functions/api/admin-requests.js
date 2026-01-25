@@ -187,11 +187,6 @@ async function handlePost(request, env, user) {
             message: '超级管理员可直接执行此操作'
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    try {
-        await env.DB.prepare("DELETE FROM admin_requests WHERE created_at < datetime('now', '-7 days')").run();
-    } catch (cleanupErr) {
-        console.error('自动清理旧请求失败:', cleanupErr);
-    }
     const result = await env.DB.prepare(`
         INSERT INTO admin_requests (request_type, request_data, requested_by, status)
         VALUES (?, ?, ?, 'pending')
