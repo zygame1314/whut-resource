@@ -495,6 +495,10 @@
     background: linear-gradient(135deg, #F39C12, #E67E22);
 }
 
+.file-icon.back-folder {
+    background: linear-gradient(135deg, #7f8c8d, #2c3e50);
+}
+
 .file-icon.link {
     background: linear-gradient(135deg, #3498db, #2980b9);
 }

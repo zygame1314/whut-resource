@@ -115,6 +115,9 @@ async function handleGet(request, env, user) {
     }
     if (conditions.length > 0) {
         query += ' WHERE ' + conditions.join(' AND ');
+        query += " AND r.created_at >= datetime('now', '-7 days')";
+    } else {
+        query += " WHERE r.created_at >= datetime('now', '-7 days')";
     }
     query += ' ORDER BY r.created_at DESC LIMIT ?';
     params.push(limit);
@@ -171,6 +174,11 @@ async function handlePost(request, env, user) {
             status: 400,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
+    }
+    try {
+        await env.DB.prepare("DELETE FROM admin_requests WHERE created_at < datetime('now', '-7 days')").run();
+    } catch (cleanupErr) {
+        console.error('自动清理旧请求失败:', cleanupErr);
     }
     if (isSuperAdmin(user)) {
         return new Response(JSON.stringify({

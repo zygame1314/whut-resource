@@ -432,7 +432,7 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
             backLi.className = 'file-list-item back-item';
             backLi.innerHTML = `
                 <div class="file-item">
-                    <div class="file-icon folder">
+                    <div class="file-icon back-folder">
                         <i class="fas fa-arrow-left"></i>
                     </div>
                     <div class="file-info">
