@@ -323,19 +323,6 @@ CREATE INDEX idx_admin_requests_requester ON admin_requests(requested_by, create
 CREATE INDEX idx_admin_requests_reviewer ON admin_requests(reviewed_by, reviewed_at DESC);
 CREATE INDEX idx_admin_requests_created_at ON admin_requests(created_at);
 
-DROP TABLE IF EXISTS admin_messages;
-CREATE TABLE admin_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    request_id INTEGER NOT NULL,
-    sender_id INTEGER NOT NULL,
-    content TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (request_id) REFERENCES admin_requests(id) ON DELETE CASCADE,
-    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_admin_messages_request ON admin_messages(request_id, created_at ASC);
-
 DROP TABLE IF EXISTS login_attempts;
 CREATE TABLE login_attempts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -56,41 +56,6 @@ async function handleGet(request, env, user) {
             count: result?.count || 0
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    if (action === 'messages') {
-        const requestId = url.searchParams.get('request_id');
-        if (!requestId) {
-            return new Response(JSON.stringify({ error: '缺少 request_id' }), {
-                status: 400,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-            });
-        }
-        const adminRequest = await env.DB.prepare(
-            'SELECT requested_by FROM admin_requests WHERE id = ?'
-        ).bind(requestId).first();
-        if (!adminRequest) {
-            return new Response(JSON.stringify({ error: '请求不存在' }), {
-                status: 404,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-            });
-        }
-        if (!isSuperAdmin(user) && adminRequest.requested_by !== user.id) {
-            return new Response(JSON.stringify({ error: '无权查看此请求的消息' }), {
-                status: 403,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-            });
-        }
-        const messages = await env.DB.prepare(`
-            SELECT m.*, u.nickname, u.email, u.role
-            FROM admin_messages m
-            LEFT JOIN users u ON m.sender_id = u.id
-            WHERE m.request_id = ?
-            ORDER BY m.created_at ASC
-        `).bind(requestId).all();
-        return new Response(JSON.stringify({
-            success: true,
-            data: messages.results || []
-        }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-    }
     const status = url.searchParams.get('status') || 'all';
     const limit = Math.min(parseInt(url.searchParams.get('limit')) || 50, 200);
     let query = `
@@ -129,38 +94,6 @@ async function handleGet(request, env, user) {
 }
 async function handlePost(request, env, user) {
     const body = await request.json();
-    const { action } = body;
-    if (action === 'add_message') {
-        const { request_id, content } = body;
-        if (!request_id || !content?.trim()) {
-            return new Response(JSON.stringify({ error: '缺少必要参数' }), {
-                status: 400,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-            });
-        }
-        const existingRequest = await env.DB.prepare(
-            'SELECT id, requested_by FROM admin_requests WHERE id = ?'
-        ).bind(request_id).first();
-        if (!existingRequest) {
-            return new Response(JSON.stringify({ error: '请求不存在' }), {
-                status: 404,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-            });
-        }
-        if (!isSuperAdmin(user) && existingRequest.requested_by !== user.id) {
-            return new Response(JSON.stringify({ error: '无权对此请求发表消息' }), {
-                status: 403,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-            });
-        }
-        await env.DB.prepare(`
-            INSERT INTO admin_messages (request_id, sender_id, content)
-            VALUES (?, ?, ?)
-        `).bind(request_id, user.id, content.trim()).run();
-        return new Response(JSON.stringify({ success: true }), {
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-        });
-    }
     const { request_type, request_data } = body;
     if (!request_type || !request_data) {
         return new Response(JSON.stringify({ error: '缺少必要参数' }), {
