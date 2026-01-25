@@ -15,8 +15,6 @@ export async function onRequest(context) {
         switch (request.method) {
             case 'GET':
                 return await handleGet(request, env, user);
-            case 'POST':
-                return await handlePost(request, env, user);
             case 'PUT':
                 return await handlePut(request, env, user);
             default:
@@ -90,39 +88,6 @@ async function handleGet(request, env, user) {
     return new Response(JSON.stringify({
         success: true,
         data: requests.results || []
-    }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-}
-async function handlePost(request, env, user) {
-    const body = await request.json();
-    const { request_type, request_data } = body;
-    if (!request_type || !request_data) {
-        return new Response(JSON.stringify({ error: '缺少必要参数' }), {
-            status: 400,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-        });
-    }
-    const validTypes = ['delete_file', 'delete_folder', 'ban_user', 'unban_user'];
-    if (!validTypes.includes(request_type)) {
-        return new Response(JSON.stringify({ error: '无效的请求类型' }), {
-            status: 400,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-        });
-    }
-    if (isSuperAdmin(user)) {
-        return new Response(JSON.stringify({
-            success: true,
-            direct_execute: true,
-            message: '超级管理员可直接执行此操作'
-        }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-    }
-    const result = await env.DB.prepare(`
-        INSERT INTO admin_requests (request_type, request_data, requested_by, status)
-        VALUES (?, ?, ?, 'pending')
-    `).bind(request_type, JSON.stringify(request_data), user.id).run();
-    return new Response(JSON.stringify({
-        success: true,
-        request_id: result.meta.last_row_id,
-        message: '已提交审批请求，等待超级管理员处理'
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePut(request, env, user) {
