@@ -175,11 +175,6 @@ async function handlePost(request, env, user) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
-    try {
-        await env.DB.prepare("DELETE FROM admin_requests WHERE created_at < datetime('now', '-7 days')").run();
-    } catch (cleanupErr) {
-        console.error('自动清理旧请求失败:', cleanupErr);
-    }
     if (isSuperAdmin(user)) {
         return new Response(JSON.stringify({
             success: true,
@@ -203,6 +198,11 @@ async function handlePut(request, env, user) {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
+    }
+    try {
+        await env.DB.prepare("DELETE FROM admin_requests WHERE created_at < datetime('now', '-7 days')").run();
+    } catch (cleanupErr) {
+        console.error('自动清理旧请求失败:', cleanupErr);
     }
     const body = await request.json();
     const { request_id, request_ids, action, review_note } = body;

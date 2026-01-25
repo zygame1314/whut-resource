@@ -535,7 +535,9 @@ async function showAdminRequestsModal(mode = 'all') {
                         </button>
                     </div>
                 ` : '';
-                const showCheckbox = isSuperAdminUser && req.status === 'pending';
+                const statusSelect = modal.querySelector('#request-status-filter');
+                const currentFilter = statusSelect ? statusSelect.value : 'all';
+                const showCheckbox = isSuperAdminUser && req.status === 'pending' && currentFilter === 'pending';
                 const checkboxHtml = showCheckbox
                     ? `<div class="request-select"><input type="checkbox" class="request-checkbox" value="${req.id}"></div>`
                     : '';
