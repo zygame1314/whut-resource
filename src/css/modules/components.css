@@ -920,6 +920,9 @@
     overflow: hidden;
     vertical-align: middle;
     flex-shrink: 1;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .recent-upload-path span,
