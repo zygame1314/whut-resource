@@ -63,6 +63,8 @@ const jsBundles = {
     'announcements.js': ['modules/announcements.js'],
     'graph.js': ['modules/graph.js'],
     'tutorial.js': ['modules/tutorial.js'],
+    'download-manager.js': ['modules/download-manager.js'],
+    'download-manager-ui.js': ['modules/download-manager-ui.js'],
     'download-log.js': ['modules/download-log.js']
 };
 const cssBundles = {

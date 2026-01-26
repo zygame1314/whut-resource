@@ -47,7 +47,7 @@ CREATE TRIGGER files_ad AFTER DELETE ON files BEGIN
 END;
 
 DROP TRIGGER IF EXISTS files_au;
-CREATE TRIGGER files_au AFTER UPDATE ON files BEGIN
+CREATE TRIGGER files_au AFTER UPDATE OF name ON files BEGIN
     INSERT INTO files_fts(files_fts, rowid, name) VALUES('delete', old.id, old.name);
     INSERT INTO files_fts(rowid, name) VALUES (new.id, new.name);
 END;

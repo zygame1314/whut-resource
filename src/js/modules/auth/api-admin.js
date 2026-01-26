@@ -1,13 +1,12 @@
 async function syncFiles() {
     const confirmed = await showConfirmation({
-        title: 'R2文件同步 (分批模式)',
-        message: '此操作将全量遍历 R2 存储桶并与数据库比对。<br><br>适用于修复：<br>1. R2 有文件但列表没显示<br>2. 列表有文件但 R2 已删除<br><br>过程分为三个阶段：<br>1. 初始化<br>2. 分批比对 (数千个文件可能耗时较长)<br>3. 清理无效记录<br><br>确定要开始吗？',
-        confirmText: '开始全量同步'
+        title: 'R2文件同步',
+        message: '此操作将全量遍历 R2 存储桶并与数据库比对。<br><br><span style="color: #ff4444; font-weight: bold;">⚠️ 警告：全量同步会消耗大量数据库写入额度！</span><br>请勿频繁使用，仅在数据出现严重不一致（如文件丢失、无法删除）时执行。<br><br>过程分为三个阶段：<br>1. 初始化<br>2. 分批比对<br>3. 清理无效记录<br><br>确定要开始吗？',
+        confirmText: '明白，开始同步'
     });
     if (!confirmed) return;
     const btn = document.getElementById('sync-btn');
     const originalIcon = btn.innerHTML;
-    const originalText = btn.textContent;
     const updateStatus = (text, iconClass = 'fa-spin fa-spinner') => {
         btn.innerHTML = `<i class="fas ${iconClass}"></i> ${text}`;
     };

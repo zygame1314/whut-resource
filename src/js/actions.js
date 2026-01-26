@@ -4,6 +4,51 @@ async function downloadFile(fileKey, downloadBtn) {
         showNotification("无法下载：未获取到验证令牌。请重新登录。", 'error');
         return;
     }
+    if (!window.DownloadManager) {
+        await downloadFileLegacy(fileKey, downloadBtn);
+        return;
+    }
+    const filename = fileKey.includes('/') ? fileKey.substring(fileKey.lastIndexOf('/') + 1) : fileKey;
+    let originalBtnContent = '';
+    if (downloadBtn) {
+        originalBtnContent = downloadBtn.innerHTML;
+        downloadBtn.disabled = true;
+        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    }
+    try {
+        const previewApiUrl = `${API_ENDPOINTS.preview}?key=${encodeURIComponent(fileKey)}&expiresIn=86400`;
+        const response = await fetch(previewApiUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success || !result.url) {
+            throw new Error(result.error || '获取下载链接失败');
+        }
+        window.DownloadManager.addTask([{
+            key: fileKey,
+            filename: filename,
+            urlPath: new URL(result.url).pathname + new URL(result.url).search
+        }], {
+            name: filename
+        });
+        showNotification('已添加到下载队列', 'success');
+    } catch (error) {
+        console.error(`下载 ${fileKey} 请求出错:`, error);
+        const errorMsg = error.message.replace('预览', '下载');
+        showNotification(`下载错误: ${errorMsg}`, 'error');
+    } finally {
+        if (downloadBtn) {
+            downloadBtn.disabled = false;
+            downloadBtn.classList.remove('downloading');
+            downloadBtn.innerHTML = originalBtnContent || '<i class="fas fa-download"></i>';
+        }
+    }
+}
+async function downloadFileLegacy(fileKey, downloadBtn) {
+    const token = localStorage.getItem('authToken');
     let originalBtnContent = '';
     if (downloadBtn) {
         originalBtnContent = downloadBtn.innerHTML;

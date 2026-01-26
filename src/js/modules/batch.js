@@ -211,6 +211,70 @@ async function handleBatchDownload() {
         showNotification('未找到批量下载按钮，请刷新页面后重试。', 'error');
         return;
     }
+    if (!window.DownloadManager) {
+        await handleBatchDownloadLegacy(fileKeys, directoryKeys, linkKeys, downloadBtn);
+        return;
+    }
+    downloadBtn.disabled = true;
+    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="download-progress-text">获取链接...</span>';
+    const skippedMessages = [];
+    if (directoryKeys.length > 0) {
+        skippedMessages.push(`${directoryKeys.length} 个文件夹`);
+    }
+    if (linkKeys.length > 0) {
+        skippedMessages.push(`${linkKeys.length} 个外部链接`);
+    }
+    if (skippedMessages.length > 0) {
+        showNotification(`已跳过 ${skippedMessages.join('和')}，不支持批量下载。`, 'info');
+    }
+    try {
+        const response = await fetch(API_ENDPOINTS.batchDownload, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                keys: fileKeys
+            }),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || `HTTP error ${response.status}`);
+        }
+        const filesToDownload = result.files;
+        const files = filesToDownload.map(file => ({
+            key: file.key,
+            filename: file.filename,
+            urlPath: file.urlPath
+        }));
+        window.DownloadManager.addTask(files, {
+            name: files.length === 1 ? files[0].filename : `批量下载 (${files.length} 个文件)`,
+            zipName: `批量下载_${formatDateForZip()}.zip`
+        });
+        showNotification(`已添加 ${files.length} 个文件到下载队列`, 'success');
+        if (isSelectionMode) {
+            toggleSelectionMode();
+        }
+    } catch (error) {
+        console.error(`批量下载失败:`, error);
+        showNotification(`批量下载失败: ${error.message}`, 'error');
+    } finally {
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = '<i class="fas fa-download"></i> 批量下载';
+    }
+}
+function formatDateForZip() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${y}${m}${d}_${h}${min}`;
+}
+async function handleBatchDownloadLegacy(fileKeys, directoryKeys, linkKeys, downloadBtn) {
+    const token = localStorage.getItem('authToken');
     downloadBtn.disabled = true;
     downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="download-progress-text">获取链接...</span>';
     const skippedMessages = [];
