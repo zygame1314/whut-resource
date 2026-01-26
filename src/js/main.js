@@ -423,12 +423,12 @@ if (backToTopBtn) {
     const searchInputEl = document.getElementById('search-input');
     if (!aiSearchToggle || !searchInputEl) return;
     const aiPlaceholders = [
-        'AI 帮你找：大一高数期末试卷 📝',
-        '试试搜索：计算机学院 考研资料 📚',
-        '期末汇报神器👉 武理PPT模板、报告册模板 🎨',
-        'Python作业写不出？搜：Python参考代码 🐍',
-        '竞赛拿奖：CMC数学竞赛、周培源力学竞赛 🏆',
-        '选课不迷路：各学院培养方案、选课指南 🗺️'
+        'AI 帮你找：高数大物、思修毛概期末真题 📝',
+        '考证竞赛必备：英语竞赛 NECCS、数学竞赛 CMC 🏆',
+        '保研神器：保研简历模版、面试 PPT、个人陈述、毕设资料 📚',
+        '硬核专业课：流体力学、电路原理、信号与系统、材料力学 ⚙️',
+        '代码参考：Python、Java、常见数据结构源代码 💻',
+        '政策不迷路：2025 转专业政策、各学院培养方案 🗺️'
     ];
     const defaultPlaceholder = '输入关键词...';
     const aiShortPlaceholder = 'AI 智能搜索...';
