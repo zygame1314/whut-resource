@@ -57,25 +57,35 @@
         }
     }
     function togglePanel() {
-        isPanelOpen = !isPanelOpen;
         const container = document.getElementById(CONTAINER_ID);
         if (isPanelOpen) {
-            container.classList.add('expanded');
+            closePanel();
         } else {
-            container.classList.remove('expanded');
+            isPanelOpen = true;
+            container.classList.add('expanded');
+            container.classList.remove('closing');
+            const fab = document.getElementById(FAB_ID);
+            if (fab) fab.classList.remove('dm-fab-entering');
         }
     }
     function closePanel() {
+        if (!isPanelOpen) return;
         isPanelOpen = false;
         const container = document.getElementById(CONTAINER_ID);
         container.classList.remove('expanded');
+        container.classList.add('closing');
+        setTimeout(() => {
+            container.classList.remove('closing');
+        }, 400);
     }
     function onTaskAdded({ task }) {
-        showFab();
         renderTaskList();
         updateFabBadge();
         if (!isPanelOpen) {
             togglePanel();
+            showFab(false);
+        } else {
+            showFab(false);
         }
     }
     function onTaskUpdated({ task }) {
@@ -98,10 +108,22 @@
         updateFabBadge();
         checkHideFab();
     }
-    function showFab() {
+    let hideTimeout;
+    function showFab(animate = true) {
         const fab = document.getElementById(FAB_ID);
         if (fab) {
-            fab.style.display = 'flex';
+            if (hideTimeout) {
+                clearTimeout(hideTimeout);
+                hideTimeout = null;
+            }
+            fab.classList.remove('dm-fab-exiting');
+            if (fab.style.display !== 'flex') {
+                fab.style.display = 'flex';
+                if (animate) {
+                    fab.classList.add('dm-fab-entering');
+                    setTimeout(() => fab.classList.remove('dm-fab-entering'), 400);
+                }
+            }
         }
     }
     function checkHideFab() {
@@ -110,10 +132,34 @@
         const tasks = dm.getTasks();
         if (tasks.length === 0) {
             const fab = document.getElementById(FAB_ID);
-            if (fab) {
-                fab.style.display = 'none';
+            if (!fab || fab.style.display === 'none') return;
+            if (fab.classList.contains('dm-fab-exiting') && !isPanelOpen) return;
+            const wasExpanded = isPanelOpen;
+            if (isPanelOpen) {
+                closePanel();
             }
-            closePanel();
+            if (wasExpanded) {
+                fab.style.opacity = '0';
+                fab.style.transform = 'scale(0.8)';
+                fab.style.pointerEvents = 'none';
+                if (hideTimeout) clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                    fab.style.display = 'none';
+                    fab.style.opacity = '';
+                    fab.style.transform = '';
+                    fab.style.pointerEvents = '';
+                    hideTimeout = null;
+                }, 400);
+            } else {
+                fab.classList.remove('dm-fab-entering');
+                fab.classList.add('dm-fab-exiting');
+                if (hideTimeout) clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                    fab.style.display = 'none';
+                    fab.classList.remove('dm-fab-exiting');
+                    hideTimeout = null;
+                }, 400);
+            }
         }
     }
     function updateFabBadge() {

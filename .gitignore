@@ -17,6 +17,8 @@ dist/
 /graph.js
 /tutorial.js
 /download-log.js
+/download-manager.js
+/download-manager-ui.js
 
 # ==========================================
 # 开发模式生成的 CSS 合并文件

@@ -6804,6 +6804,7 @@ input#prompt-input {
     flex-direction: column;
     align-items: flex-end;
     gap: 12px;
+    pointer-events: none;
 }
 
 .download-manager-fab {
@@ -6819,19 +6820,28 @@ input#prompt-input {
     justify-content: center;
     font-size: 1.1rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
     position: absolute;
     bottom: 0;
     right: 0;
     z-index: 2;
-    transform: scale(1);
-    opacity: 1;
+    pointer-events: auto;
+}
+
+.download-manager-fab.dm-fab-entering {
+    animation: fadeInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.download-manager-fab.dm-fab-exiting {
+    animation: slideDownClose 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    pointer-events: none;
 }
 
 .download-manager-container.expanded .download-manager-fab {
-    transform: scale(0.5);
+    transform: scale(0.8);
     opacity: 0;
     pointer-events: none;
+    transition: all 0.3s ease;
 }
 
 .download-manager-fab:hover {
@@ -6872,18 +6882,14 @@ input#prompt-input {
     border: 1px solid var(--border-color);
     border-radius: 16px;
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
-    opacity: 0;
-    visibility: hidden;
-    transform-origin: bottom right;
-    transform: scale(0.2);
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    display: flex;
+    display: none;
     flex-direction: column;
     overflow: hidden;
     position: absolute;
     bottom: 0;
     right: 0;
     z-index: 1;
+    pointer-events: auto;
 }
 
 [data-theme="dark"] .download-manager-panel {
@@ -6891,9 +6897,14 @@ input#prompt-input {
 }
 
 .download-manager-container.expanded .download-manager-panel {
-    opacity: 1;
-    visibility: visible;
-    transform: scale(1);
+    display: flex;
+    animation: fadeInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    z-index: 3;
+}
+
+.download-manager-container.closing .download-manager-panel {
+    display: flex;
+    animation: slideDownClose 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     z-index: 3;
 }
 
