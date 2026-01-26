@@ -289,11 +289,17 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     if (!isDirectory && !isLink) {
         const previewBtn = fileActionsDiv.querySelector('.preview-button');
         if (previewBtn && !previewBtn.disabled) {
-            previewBtn.onclick = () => previewFile(item.key, item.name, item.size);
+            previewBtn.onclick = (e) => {
+                e.stopPropagation();
+                previewFile(item.key, item.name, item.size);
+            };
         }
         const downloadBtn = fileActionsDiv.querySelector('.download-button');
         if (downloadBtn) {
-            downloadBtn.onclick = () => downloadFile(item.key, downloadBtn);
+            downloadBtn.onclick = (e) => {
+                e.stopPropagation();
+                downloadFile(item.key, downloadBtn);
+            };
         }
     }
     if (!isDirectory) {
@@ -374,15 +380,24 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     }
     const deleteBtn = fileActionsDiv.querySelector('.delete-button');
     if (deleteBtn) {
-        deleteBtn.onclick = () => deleteFile(item.key, isDirectory);
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteFile(item.key, isDirectory);
+        };
     }
     const renameBtn = fileActionsDiv.querySelector('.rename-button');
     if (renameBtn) {
-        renameBtn.onclick = () => renameFile(item.key, item.name, isDirectory);
+        renameBtn.onclick = (e) => {
+            e.stopPropagation();
+            renameFile(item.key, item.name, isDirectory);
+        };
     }
     const moveBtn = fileActionsDiv.querySelector('.move-button');
     if (moveBtn) {
-        moveBtn.onclick = () => moveItem(item.key, item.name, isDirectory);
+        moveBtn.onclick = (e) => {
+            e.stopPropagation();
+            moveItem(item.key, item.name, isDirectory);
+        };
     }
     const editLinkBtn = fileActionsDiv.querySelector('.edit-link-button');
     if (editLinkBtn) {

@@ -77,23 +77,33 @@ export async function onRequest(context) {
       if (!userInfo) {
         return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
       }
-      const today = new Date().toISOString().split('T')[0];
+      const recentDuplicate = await env.DB.prepare(
+        `SELECT id FROM downloads
+           WHERE user_id = ? AND file_key = ?
+             AND downloaded_at > DATETIME('now', '-30 seconds')`
+      ).bind(user.id, key).first();
+      const shouldCountThisDownload = !recentDuplicate;
       let quotaUpdated = false;
-      if (userInfo.last_download_date !== today) {
-        await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
-        quotaUpdated = true;
-      } else {
-        const result = await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ? AND quota_used < quota_limit').bind(user.id).run();
-        if (result.success && result.meta.changes > 0) {
+      if (shouldCountThisDownload) {
+        const today = new Date().toISOString().split('T')[0];
+        if (userInfo.last_download_date !== today) {
+          await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
           quotaUpdated = true;
+        } else {
+          const result = await env.DB.prepare('UPDATE users SET quota_used = quota_used + 1 WHERE id = ? AND quota_used < quota_limit').bind(user.id).run();
+          if (result.success && result.meta.changes > 0) {
+            quotaUpdated = true;
+          }
         }
-      }
-      if (!quotaUpdated) {
-        return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!quotaUpdated) {
+          return new Response(JSON.stringify({ success: false, error: '今日下载次数已达上限。' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
       }
       context.waitUntil((async () => {
         try {
-          await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
+          if (shouldCountThisDownload) {
+            await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
+          }
           const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
           await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
             .bind(user.id, key, ip, object.size)

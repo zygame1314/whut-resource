@@ -1,4 +1,4 @@
-/** DEV MODE - Generated at 19:52:03 */
+/** DEV MODE - Generated at 22:32:41 */
 // --- Module: modules/download-manager-ui.js ---
 (function () {
     'use strict';
