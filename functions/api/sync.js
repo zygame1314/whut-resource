@@ -28,6 +28,8 @@ export async function onRequestPost({ request, env }) {
                 return await handleProcess(request, env, body);
             case 'cleanup':
                 return await handleCleanup(DB, body, VECTORIZE);
+            case 'repair':
+                return await handleRepair(DB);
             default:
                 return new Response(JSON.stringify({ success: false, error: '无效的操作类型' }), { status: 400, headers: addCorsHeaders() });
         }
@@ -35,6 +37,52 @@ export async function onRequestPost({ request, env }) {
         console.error('Sync error:', e);
         return new Response(JSON.stringify({ success: false, error: e.message, stack: e.stack }), { status: 500, headers: addCorsHeaders() });
     }
+}
+async function handleRepair(DB) {
+    const result = await DB.prepare("SELECT DISTINCT parent_path FROM files WHERE parent_path IS NOT NULL AND parent_path != ''").all();
+    const rows = result.results || [];
+    const neededDirs = new Set();
+    for (const row of rows) {
+        let path = row.parent_path;
+        if (path && !path.endsWith('/')) path += '/';
+        let current = path;
+        while (current) {
+            neededDirs.add(current);
+            if (current.endsWith('/')) current = current.slice(0, -1);
+            const lastSlash = current.lastIndexOf('/');
+            if (lastSlash === -1) break;
+            current = current.substring(0, lastSlash + 1);
+        }
+    }
+    const existResult = await DB.prepare("SELECT key FROM files WHERE is_directory = TRUE").all();
+    const existingDirs = new Set((existResult.results || []).map(r => r.key));
+    const statements = [];
+    const now = new Date().toISOString();
+    let repairCount = 0;
+    for (const dirPath of neededDirs) {
+        if (!existingDirs.has(dirPath)) {
+            const parts = dirPath.split('/').filter(p => p);
+            const name = parts[parts.length - 1];
+            const parentPath = parts.length > 1 ? parts.slice(0, parts.length - 1).join('/') + '/' : '';
+            statements.push(DB.prepare(`
+                INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads, last_verified)
+                VALUES (?, ?, 0, ?, 'inode/directory', ?, TRUE, 0, 0)
+            `).bind(dirPath, name, now, parentPath));
+            repairCount++;
+        }
+    }
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < statements.length; i += BATCH_SIZE) {
+        const chunk = statements.slice(i, i + BATCH_SIZE);
+        if (chunk.length > 0) {
+            await DB.batch(chunk);
+        }
+    }
+    return new Response(JSON.stringify({
+        success: true,
+        message: `目录结构修复完成。扫描路径: ${neededDirs.size}, 恢复缺失: ${repairCount}`,
+        repaired: repairCount
+    }), { status: 200, headers: addCorsHeaders() });
 }
 async function ensureSchema(DB) {
     try {
@@ -138,7 +186,8 @@ async function handleCleanup(DB, body, VECTORIZE) {
     const filesToDeleteResult = await DB.prepare(`
         SELECT id, key FROM files 
         WHERE (last_verified IS NULL OR last_verified != ?) 
-          AND is_link = FALSE
+          AND is_link = FALSE 
+          AND is_directory = FALSE
     `).bind(sessionId).all();
     const filesToDelete = filesToDeleteResult.results || [];
     const deleteStatements = [];
@@ -148,6 +197,21 @@ async function handleCleanup(DB, body, VECTORIZE) {
         if (file.id) {
             vectorIdsToDelete.push(file.id.toString());
         }
+    }
+    const dirsToDeleteResult = await DB.prepare(`
+        SELECT id, key FROM files 
+        WHERE is_directory = TRUE 
+          AND (last_verified IS NULL OR last_verified != ?)
+          AND key NOT IN (
+              SELECT DISTINCT parent_path 
+              FROM files 
+              WHERE parent_path IS NOT NULL 
+                AND (last_verified = ? OR is_link = TRUE)
+          )
+    `).bind(sessionId, sessionId).all();
+    const dirsToDelete = dirsToDeleteResult.results || [];
+    for (const dir of dirsToDelete) {
+        deleteStatements.push(DB.prepare('DELETE FROM files WHERE id = ?').bind(dir.id));
     }
     const BATCH_SIZE = 50;
     for (let i = 0; i < deleteStatements.length; i += BATCH_SIZE) {
@@ -180,6 +244,7 @@ async function handleCleanup(DB, body, VECTORIZE) {
         success: true,
         message: '同步完成',
         deletedFiles: filesToDelete.length,
+        deletedDirs: dirsToDelete.length,
         deletedVectors: deletedVectorsCount
     }), { status: 200, headers: addCorsHeaders() });
 }

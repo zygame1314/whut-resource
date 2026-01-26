@@ -40,6 +40,14 @@ async function syncFiles() {
             totalProcessed += (processData.processed || 0);
             totalDirs += (processData.dirsProcessed || 0);
         }
+        updateStatus('正在验证目录结构...');
+        const repairResp = await fetch(`${API_BASE}/api/sync`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'repair' })
+        });
+        const repairData = await repairResp.json();
+        const repairedCount = repairData.repaired || 0;
         updateStatus('正在清理无效记录...');
         const cleanupResp = await fetch(`${API_BASE}/api/sync`, {
             method: 'POST',
@@ -48,7 +56,7 @@ async function syncFiles() {
         });
         const cleanupData = await cleanupResp.json();
         if (!cleanupData.success) throw new Error(cleanupData.error || '清理阶段失败');
-        showNotification(`同步完成！<br>处理文件: ${totalProcessed}<br>清理记录: ${cleanupData.deletedFiles || 0}`, 'success');
+        showNotification(`同步完成！<br>处理文件: ${totalProcessed}<br>修复目录: ${repairedCount}<br>清理记录: ${cleanupData.deletedFiles || 0}`, 'success');
         btn.innerHTML = '<i class="fas fa-check"></i> 完成';
         setTimeout(() => window.location.reload(), 2000);
     } catch (e) {
