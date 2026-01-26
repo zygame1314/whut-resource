@@ -6,6 +6,7 @@
         "build": "node build.js",
         "deploy": "npm run build && wrangler pages deploy",
         "preview": "npx -y http-server dist",
+        "clean": "node scripts/clean.js",
         "dev": "node scripts/dev.js"
     },
     "devDependencies": {
