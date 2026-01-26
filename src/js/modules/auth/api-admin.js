@@ -1,32 +1,59 @@
 async function syncFiles() {
     const confirmed = await showConfirmation({
-        title: 'R2文件同步',
-        message: '此操作将全量同步 R2 存储桶。<br><br>正常上传/删除无需使用此功能。<br>仅在你直接操作过 R2 存储桶（如批量上传/改名）导致数据不一致时才使用。<br><br>确定要执行全量同步吗？这可能需要几十秒甚至更久。',
-        confirmText: '开始同步'
+        title: 'R2文件同步 (分批模式)',
+        message: '此操作将全量遍历 R2 存储桶并与数据库比对。<br><br>适用于修复：<br>1. R2 有文件但列表没显示<br>2. 列表有文件但 R2 已删除<br><br>过程分为三个阶段：<br>1. 初始化<br>2. 分批比对 (数千个文件可能耗时较长)<br>3. 清理无效记录<br><br>确定要开始吗？',
+        confirmText: '开始全量同步'
     });
     if (!confirmed) return;
     const btn = document.getElementById('sync-btn');
     const originalIcon = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    const originalText = btn.textContent;
+    const updateStatus = (text, iconClass = 'fa-spin fa-spinner') => {
+        btn.innerHTML = `<i class="fas ${iconClass}"></i> ${text}`;
+    };
     btn.disabled = true;
+    updateStatus('初始化...');
     try {
-        const response = await fetch(`${API_BASE}/api/sync`, {
+        const initResp = await fetch(`${API_BASE}/api/sync`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({})
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'init' })
         });
-        const result = await response.json();
-        if (!result.success) {
-            throw new Error(result.error || '未知错误');
+        const initData = await initResp.json();
+        if (!initData.success) throw new Error(initData.error || '初始化失败');
+        const sessionId = initData.sessionId;
+        let cursor = null;
+        let truncated = true;
+        let totalProcessed = 0;
+        let totalDirs = 0;
+        while (truncated) {
+            updateStatus(`同步中 (${totalProcessed})...`);
+            const processResp = await fetch(`${API_BASE}/api/sync`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'process', sessionId, cursor })
+            });
+            const processData = await processResp.json();
+            if (!processData.success) throw new Error(processData.error || '同步过程中断');
+            cursor = processData.cursor;
+            truncated = processData.truncated;
+            totalProcessed += (processData.processed || 0);
+            totalDirs += (processData.dirsProcessed || 0);
         }
-        showNotification(result.message, 'success');
+        updateStatus('正在清理无效记录...');
+        const cleanupResp = await fetch(`${API_BASE}/api/sync`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'cleanup', sessionId })
+        });
+        const cleanupData = await cleanupResp.json();
+        if (!cleanupData.success) throw new Error(cleanupData.error || '清理阶段失败');
+        showNotification(`同步完成！<br>处理文件: ${totalProcessed}<br>清理记录: ${cleanupData.deletedFiles || 0}`, 'success');
+        btn.innerHTML = '<i class="fas fa-check"></i> 完成';
         setTimeout(() => window.location.reload(), 2000);
     } catch (e) {
-        showNotification('同步出错: ' + e.message, 'error');
-    } finally {
+        console.error('Sync failed:', e);
+        showNotification('同步中断: ' + e.message, 'error');
         btn.innerHTML = originalIcon;
         btn.disabled = false;
     }

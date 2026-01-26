@@ -29,6 +29,7 @@ CREATE TABLE files (
     likes INTEGER DEFAULT 0,
     dislikes INTEGER DEFAULT 0,
     uploader_id INTEGER,
+    last_verified INTEGER DEFAULT 0,
     FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
@@ -114,6 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_files_recent_uploads ON files(is_directory, uploa
 CREATE INDEX IF NOT EXISTS idx_files_listing_optimized ON files(parent_path, is_directory DESC, is_link DESC, name ASC, uploaded DESC);
 CREATE INDEX IF NOT EXISTS idx_files_dir_key ON files(is_directory, key);
 CREATE INDEX IF NOT EXISTS idx_files_stats ON files(is_directory, parent_path, downloads);
+CREATE INDEX IF NOT EXISTS idx_files_cleanup_sync ON files(is_link, last_verified);
 
 DROP TABLE IF EXISTS file_reactions;
 CREATE TABLE file_reactions (
