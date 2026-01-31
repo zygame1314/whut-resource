@@ -50,7 +50,7 @@ function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch 
     rootLi.appendChild(rootLink);
     breadcrumbListElement.appendChild(rootLi);
     if (prefix) {
-        const parts = prefix.endsWith('/') ? prefix.slice(0, -1).split('/') : prefix.split('/');
+        const parts = getPathParts(prefix);
         let currentPath = '';
         parts.forEach((part, index) => {
             currentPath += part + '/';
@@ -74,11 +74,50 @@ function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch 
         });
     }
 }
+function getPathParts(path) {
+    if (!path) return [];
+    const raw = path.endsWith('/') ? path.slice(0, -1) : path;
+    const parts = [];
+    let current = '';
+    let balance = 0;
+    for (const char of raw) {
+        if (char === '(' || char === '（') {
+            balance++;
+            current += char;
+        } else if (char === ')' || char === '）') {
+            balance = Math.max(0, balance - 1);
+            current += char;
+        } else if (char === '/' && balance === 0) {
+            parts.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    parts.push(current);
+    return parts;
+}
+function getParentPath(path) {
+    if (!path) return '';
+    const raw = path.endsWith('/') ? path.slice(0, -1) : path;
+    let balance = 0;
+    for (let i = raw.length - 1; i >= 0; i--) {
+        const char = raw[i];
+        if (char === ')' || char === '）') {
+            balance++;
+        } else if (char === '(' || char === '（') {
+            balance = Math.max(0, balance - 1);
+        } else if (char === '/' && balance === 0) {
+            return raw.substring(0, i + 1);
+        }
+    }
+    return '';
+}
 function buildTree(paths) {
     const tree = {};
     paths.forEach(path => {
         let currentLevel = tree;
-        const parts = path.split('/').filter(p => p);
+        const parts = getPathParts(path).filter(p => p);
         parts.forEach(part => {
             if (!currentLevel[part]) {
                 currentLevel[part] = {};
@@ -441,8 +480,7 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
         isShowingSearchResults = false;
         updateBreadcrumb(prefix);
         if (prefix !== '') {
-            let lastSlashIndex = prefix.endsWith('/') ? prefix.lastIndexOf('/', prefix.length - 2) : prefix.lastIndexOf('/');
-            const parentPrefix = lastSlashIndex >= 0 ? prefix.substring(0, lastSlashIndex + 1) : '';
+            const parentPrefix = getParentPath(prefix);
             const backLi = document.createElement('li');
             backLi.className = 'file-list-item back-item';
             backLi.innerHTML = `
