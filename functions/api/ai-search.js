@@ -28,7 +28,11 @@ export async function onRequestGet({ request, env }) {
     let user = null;
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
+        if (env.AI_BOT_TOKEN && token === env.AI_BOT_TOKEN) {
+            user = { id: 0, role: 'bot', username: 'AI_BOT' };
+        } else {
+            user = await verifyToken(token, env.JWT_SECRET || 'secret');
+        }
     }
     if (!user) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), {
