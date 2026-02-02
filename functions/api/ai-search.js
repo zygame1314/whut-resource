@@ -1,7 +1,7 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
 const MODEL = 'Qwen/Qwen3-8B';
-const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。必须将用户的【搜索词】转化为【标准课程名】。
+const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。必须将用户的【搜索词】转化为【搜索关键词】。
     规则：
     1. 严格修正缩写：
        大物→大学物理、高数→高等数学、线代→线性代数
@@ -16,12 +16,22 @@ const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。必须将用
        习概→习近平新时代中国特色社会主义思想概论
        数分→数学分析、高代→高等代数
        材力→材料力学、理力→理论力学、工图→工程图学、电工→电工与电子技术基础
-    2. 生成关键词：
+    2. 识别学业相关活动：
+       保研/推免→保研 推免 研究生
+       考研→考研 研究生
+       四级/CET4→英语 四级 CET4
+       六级/CET6→英语 六级 CET6
+       竞赛/数模→竞赛 数学建模
+       实习/就业→实习 就业 招聘
+       毕设/毕业设计→毕业设计 论文
+       期末/复习→期末 复习 考试
+    3. 生成关键词：
        - 返回2-3个最相关的搜索词
        - 必须保留课程后缀（A/B、(一)、1）
        - 用空格分隔
-    3. 边界处理：
-       - 如果用户查询内容明显与【大学课程、考试资料、学习资源】无关（如"想吃火锅"、"天气"、"聊天"），请直接返回 "NULL"
+    4. 边界处理：
+       - 只有当用户查询内容明显与【大学学习、课程、考试、学业发展】完全无关时（如"想吃火锅"、"天气"、"今天心情"），才返回 "NULL"
+       - 对于任何可能与学业相关的查询，都应尝试返回关键词
        - 严禁废话，只返回关键词字符串或 "NULL"`;
 export async function onRequestGet({ request, env }) {
     const authHeader = request.headers.get('Authorization');
