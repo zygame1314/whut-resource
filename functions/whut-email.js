@@ -67,15 +67,15 @@ export default {
     },
     async handleRegistration(env, senderEmail, studentId, codeValue) {
         const fullCode = `Verify-${codeValue}`;
-        if (!/^\d{6}$/.test(studentId)) {
-            console.log(`[Email Worker] 注册验证需要6位数字学号邮箱，当前: ${studentId}`);
+        if (!/^\d+$/.test(studentId)) {
+            console.log(`[Email Worker] 注册验证需要校园卡号邮箱，当前: ${studentId}`);
             return;
         }
         const pending = await env.DB.prepare(
             'SELECT * FROM pending_registrations WHERE verify_code = ? AND student_id = ? AND expires_at > ?'
         ).bind(fullCode, studentId, new Date().toISOString()).first();
         if (!pending) {
-            console.log(`[Email Worker] 未找到匹配的待激活注册，验证码: ${fullCode}, 学号: ${studentId}`);
+            console.log(`[Email Worker] 未找到匹配的待激活注册，验证码: ${fullCode}, 卡号: ${studentId}`);
             return;
         }
         console.log(`[Email Worker] 找到待激活注册，ID: ${pending.id}`);

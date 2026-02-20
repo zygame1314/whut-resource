@@ -31,7 +31,6 @@ async function showMaintenanceModal() {
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
-    modal.onmousedown = (e) => { if (e.target === modal) modal.remove(); };
     const loadingDiv = modal.querySelector('#maintenance-loading');
     const contentDiv = modal.querySelector('#maintenance-content');
     const statusDiv = modal.querySelector('#current-status');
@@ -146,7 +145,6 @@ async function showAdminLogsModal() {
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
-    modal.onmousedown = (e) => { if (e.target === modal) modal.remove(); };
     let currentPage = 1;
     let allLogsCache = [];
     const LOGS_PER_PAGE = 20;
@@ -242,7 +240,6 @@ async function showBannedUsersModal() {
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
-    modal.onmousedown = (e) => { if (e.target === modal) modal.remove(); };
     const loadBannedUsers = async () => {
         const container = modal.querySelector('#banned-users-container');
         container.innerHTML = '<div class="loading-spinner"></div>';
@@ -431,9 +428,6 @@ async function showAdminRequestsModal(mode = 'all') {
         setTimeout(removeModal, 350);
     };
     modal.querySelector('#close-requests-modal').addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
     const batchToolbar = modal.querySelector('#requests-batch-toolbar');
     const selectAllCheckbox = modal.querySelector('#select-all-requests');
     const selectedCountSpan = modal.querySelector('#batch-selected-count');

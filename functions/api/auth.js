@@ -45,8 +45,8 @@ export async function onRequestPost({ request, env }) {
         }
       }
       const studentId = body.studentId;
-      if (!studentId || !/^\d{6}$/.test(studentId)) {
-        return new Response(JSON.stringify({ success: false, error: '请输入6位校园卡号。' }), { status: 400, headers: addCorsHeaders() });
+      if (!studentId || !/^\d+$/.test(studentId)) {
+        return new Response(JSON.stringify({ success: false, error: '请输入校园卡号。' }), { status: 400, headers: addCorsHeaders() });
       }
       const isSimpleId = (id) => {
         if (/^(\d)\1+$/.test(id)) return true;
@@ -111,8 +111,8 @@ export async function onRequestPost({ request, env }) {
     }
     if (action === 'check-register-status') {
       const studentId = body.studentId;
-      if (!studentId || !/^\d{6}$/.test(studentId)) {
-        return new Response(JSON.stringify({ success: false, error: '无效的学号' }), { status: 400, headers: addCorsHeaders() });
+      if (!studentId || !/^\d+$/.test(studentId)) {
+        return new Response(JSON.stringify({ success: false, error: '无效的卡号' }), { status: 400, headers: addCorsHeaders() });
       }
       const email = `${studentId}@whut.edu.cn`;
       const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();

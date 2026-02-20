@@ -19,7 +19,6 @@ function showChangeNicknameModal() {
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => modal.remove();
-    modal.onmousedown = (e) => { if (e.target === modal) modal.remove(); };
     const form = modal.querySelector('#change-nickname-form');
     form.onsubmit = async (e) => {
         e.preventDefault();
@@ -161,14 +160,6 @@ function showForgotPasswordModal() {
             clearInterval(window.resetPollingTimer);
         }
         modal.remove();
-    };
-    modal.onclick = (e) => {
-        if (e.target === modal) {
-            if (window.resetPollingTimer) {
-                clearInterval(window.resetPollingTimer);
-            }
-            modal.remove();
-        }
     };
     backToLoginLink.onclick = (e) => {
         e.preventDefault();

@@ -46,7 +46,7 @@ function showAuthModal(mode = 'login') {
                         <div class="form-group">
                             <label>校园卡号</label>
                             <div class="email-input-group">
-                                <input type="text" id="auth-email" required class="form-control" placeholder="6位卡号" maxlength="6" pattern="\\d{6}" inputmode="numeric">
+                                <input type="text" id="auth-email" required class="form-control" placeholder="校园卡号" pattern="\\d+" inputmode="numeric">
                                 <span class="email-suffix">@whut.edu.cn</span>
                             </div>
                         </div>
@@ -106,7 +106,7 @@ function showAuthModal(mode = 'login') {
                         <div class="verify-steps">
                             <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
                             <ol>
-                                <li>打开你的学校邮箱 <strong id="display-user-email">xxxxxx@whut.edu.cn</strong><br><small class="verify-warning-text">⚠️ 如果你使用的是姓名别名邮箱，请在发件人处切换为6位学号邮箱</small></li>
+                                <li>打开你的学校邮箱 <strong id="display-user-email">xxxxxx@whut.edu.cn</strong><br><small class="verify-warning-text">⚠️ 如果你使用的是姓名别名邮箱，请在发件人处切换校园卡号邮箱</small></li>
                                 <li>新建一封邮件</li>
                                 <li>收件人填写：<span class="copy-target"><strong id="display-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span>
                                 </li>
@@ -150,14 +150,6 @@ function showAuthModal(mode = 'login') {
             clearInterval(window.registerPollingTimer);
         }
         modal.remove();
-    };
-    modal.onclick = (e) => {
-        if (e.target === modal) {
-            if (window.registerPollingTimer) {
-                clearInterval(window.registerPollingTimer);
-            }
-            modal.remove();
-        }
     };
     switchLink.onclick = (e) => {
         e.preventDefault();
@@ -247,8 +239,8 @@ function showAuthModal(mode = 'login') {
             const password = document.getElementById('auth-password').value;
             const nickname = document.getElementById('auth-nickname').value.trim();
             const confirmCheckbox = document.getElementById('confirm-activation');
-            if (!studentId || !/^\d{6}$/.test(studentId)) {
-                showNotification('请输入6位校园卡号', 'error');
+            if (!studentId || !/^\d+$/.test(studentId)) {
+                showNotification('请输入校园卡号', 'error');
                 return;
             }
             if (!password || password.length < 6) {
