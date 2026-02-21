@@ -343,6 +343,11 @@ export async function onRequestGet({ request, env, waitUntil }) {
             `;
             itemsResult = await DB.prepare(combinedQuery).bind(searchPath, MAX_LIMIT).all();
         }
+
+        let currentFolder = null;
+        if (!search && prefix) {
+            currentFolder = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(prefix).first();
+        }
         const items = itemsResult.results || [];
         const directories = items.filter(item => item.is_directory);
         const files = items.filter(item => !item.is_directory);
@@ -351,7 +356,8 @@ export async function onRequestGet({ request, env, waitUntil }) {
             success: true,
             files,
             directories,
-            totalItems
+            totalItems,
+            currentFolder
         }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     } catch (error) {
         console.error('文件API错误:', error);

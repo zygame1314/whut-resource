@@ -14,7 +14,7 @@ function showConfirmation({
                 <h3>${title}</h3>
                 <div class="modal-message" style="margin: 1rem 0; line-height: 1.6; color: var(--text-secondary);">${message}</div>
                 <div class="confirmation-buttons">
-                    <button class="confirm-btn-cancel">${cancelText}</button>
+                    ${cancelText ? `<button class="confirm-btn-cancel">${cancelText}</button>` : ''}
                     <button class="confirm-btn ${confirmClass}">${confirmText}</button>
                 </div>
             </div>
@@ -37,7 +37,9 @@ function showConfirmation({
             });
         };
         modalOverlay.querySelector('.confirm-btn').addEventListener('click', () => closeModal(true));
-        modalOverlay.querySelector('.confirm-btn-cancel').addEventListener('click', () => closeModal(false));
+        if (cancelText) {
+            modalOverlay.querySelector('.confirm-btn-cancel').addEventListener('click', () => closeModal(false));
+        }
         modalOverlay.addEventListener('mousedown', (e) => {
             if (e.target === modalOverlay) {
                 closeModal(false);

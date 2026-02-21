@@ -4441,6 +4441,96 @@ textarea.form-input {
     box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
 }
 
+.edit-desc-button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: #9b59b6;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-desc-button:hover {
+    background: #8e44ad;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+}
+
+.folder-desc-badge {
+    color: var(--primary-color);
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+}
+
+.folder-desc-badge.clickable-badge {
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(46, 139, 87, 0.1);
+    border: 1px solid rgba(46, 139, 87, 0.2);
+    transition: all 0.2s ease;
+}
+
+.folder-desc-badge.clickable-badge:hover {
+    background: rgba(46, 139, 87, 0.2);
+    transform: translateY(-1px);
+}
+
+.folder-description-card {
+    background: var(--background-alt);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    animation: fadeIn 0.4s ease forwards;
+    cursor: default;
+}
+
+.folder-description-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+}
+
+.folder-description-card .folder-desc-header {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.8rem;
+}
+
+.folder-description-card .folder-desc-body {
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    max-height: none;
+    overflow-y: visible;
+}
+
 .rename-button {
     width: 32px;
     height: 32px;
@@ -4577,8 +4667,11 @@ textarea.form-input {
     padding: 2rem;
     border-radius: 16px;
     box-shadow: var(--shadow-heavy);
-    max-width: 420px;
+    max-width: 550px;
     width: 90%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
     text-align: center;
     animation: fadeInUp 0.3s ease;
 }
@@ -4587,13 +4680,18 @@ textarea.form-input {
     animation: slideDownClose 0.3s ease forwards;
 }
 
+.confirmation-modal:has(.markdown-body) {
+    max-width: 800px;
+    padding: 1.5rem 2rem;
+}
+
 .confirmation-modal h3 {
     margin-top: 0;
     margin-bottom: 1rem;
     color: var(--text-primary);
 }
 
-.confirmation-modal p {
+.confirmation-modal p:not(.markdown-body p) {
     margin-top: 0;
     margin-bottom: 1rem;
     color: var(--text-secondary);
@@ -4641,6 +4739,104 @@ textarea.form-input {
 
 .confirm-btn-danger:hover {
     box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);
+}
+
+.confirmation-modal .markdown-body {
+    text-align: left;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 1.25rem;
+    background: var(--background-alt);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin: 1rem 0;
+}
+
+.confirmation-modal .markdown-body>*:first-child {
+    margin-top: 0 !important;
+}
+
+.confirmation-modal .markdown-body>*:last-child {
+    margin-bottom: 0 !important;
+}
+
+.confirmation-modal .markdown-body h1,
+.confirmation-modal .markdown-body h2,
+.confirmation-modal .markdown-body h3 {
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+    line-height: 1.25;
+}
+
+.confirmation-modal .markdown-body h1 {
+    font-size: 1.5em;
+}
+
+.confirmation-modal .markdown-body h2 {
+    font-size: 1.3em;
+}
+
+.confirmation-modal .markdown-body h3 {
+    font-size: 1.1em;
+}
+
+.confirmation-modal .markdown-body p,
+.confirmation-modal .markdown-body blockquote,
+.confirmation-modal .markdown-body ul,
+.confirmation-modal .markdown-body ol {
+    margin-top: 0;
+    margin-bottom: 1em;
+}
+
+.confirmation-modal .markdown-body blockquote p:last-child,
+.confirmation-modal .markdown-body li p:last-child {
+    margin-bottom: 0 !important;
+}
+
+.confirmation-modal .markdown-body ul,
+.confirmation-modal .markdown-body ol {
+    padding-left: 2em;
+}
+
+.confirmation-modal .markdown-body blockquote {
+    padding: 0.5em 1em;
+    color: var(--text-secondary);
+    border-left: 0.25em solid var(--primary-color);
+    background: rgba(var(--primary-rgb), 0.05);
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 0 4px 4px 0;
+}
+
+.confirmation-modal .markdown-body img {
+    max-width: 100%;
+    box-sizing: content-box;
+    background-color: var(--background);
+}
+
+.confirmation-modal .markdown-body pre {
+    background-color: var(--background-dark);
+    padding: 1em;
+    overflow: auto;
+    border-radius: 6px;
+    font-size: 85%;
+    line-height: 1.45;
+}
+
+.confirmation-modal .markdown-body code {
+    background-color: rgba(110, 118, 129, 0.15);
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    border-radius: 6px;
+}
+
+.confirmation-modal .markdown-body pre code {
+    background-color: transparent;
+    padding: 0;
 }
 
 .prompt-input-container {

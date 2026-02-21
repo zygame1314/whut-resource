@@ -206,7 +206,8 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     fileItemDiv.className = 'file-item';
     let metaContent = '';
     if (isDirectory) {
-        metaContent = '<div class="file-meta">文件夹</div>';
+        const descHtml = item.description ? `<span class="folder-desc-badge clickable-badge" title="点击查看说明"><i class="fas fa-file-alt"></i> 查看说明</span>` : '';
+        metaContent = `<div class="file-meta">文件夹${descHtml ? ' • ' + descHtml : ''}</div>`;
     } else if (isLink) {
         metaContent = `<div class="file-meta"><i class="fas fa-link"></i> 外部链接 • ${formatDate(item.uploaded)} • <i class="fas fa-mouse-pointer"></i> ${item.downloads || 0}</div>`;
     } else {
@@ -287,6 +288,11 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
           <i class="fas fa-link"></i>
         </button>
         ` : ''}
+        ${isDirectory ? `
+        <button class="edit-desc-button" title="编辑描述">
+          <i class="fas fa-quote-left"></i>
+        </button>
+        ` : ''}
         <button class="rename-button" title="重命名">
           <i class="fas fa-pencil-alt"></i>
         </button>
@@ -302,6 +308,35 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     li.appendChild(fileItemDiv);
     li.appendChild(fileActionsDiv);
     const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    const descBadge = fileItemDiv.querySelector('.folder-desc-badge.clickable-badge');
+    if (descBadge) {
+        descBadge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            try {
+                let parsedContent = '';
+                if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+                    parsedContent = DOMPurify.sanitize(marked.parse(item.description, { breaks: true, gfm: true }));
+                } else {
+                    parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(item.description)}</div>`;
+                }
+
+                showConfirmation({
+                    title: `<i class="fas fa-info-circle"></i> ${item.name} - 说明`,
+                    message: `<div class="markdown-body" style="text-align: left; font-size: 0.95rem; max-height: 50vh; overflow-y: auto; padding: 15px; background: var(--background-alt); border-radius: 8px; border: 1px solid var(--border-color); user-select: text;">${parsedContent}</div>`,
+                    confirmText: '关闭',
+                    cancelText: null
+                });
+            } catch (err) {
+                console.error('Markdown rendering error:', err);
+                showConfirmation({
+                    title: `<i class="fas fa-info-circle"></i> ${item.name} - 说明`,
+                    message: `<div style="text-align: left; white-space: pre-wrap; font-size: 0.95rem; max-height: 50vh; overflow-y: auto; padding: 15px; background: var(--background-alt); border-radius: 8px; border: 1px solid var(--border-color); user-select: text;">${escapeHtml(item.description)}</div>`,
+                    confirmText: '关闭',
+                    cancelText: null
+                });
+            }
+        });
+    }
     if (isTouchDevice) {
         const mobileToggle = document.createElement('button');
         mobileToggle.className = 'mobile-actions-toggle';
@@ -431,6 +466,13 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             renameFile(item.key, item.name, isDirectory);
         };
     }
+    const editDescBtn = fileActionsDiv.querySelector('.edit-desc-button');
+    if (editDescBtn) {
+        editDescBtn.onclick = (e) => {
+            e.stopPropagation();
+            editDescription(item.key, item.name, item.description);
+        };
+    }
     const moveBtn = fileActionsDiv.querySelector('.move-button');
     if (moveBtn) {
         moveBtn.onclick = (e) => {
@@ -470,7 +512,7 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     };
     return li;
 }
-function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = '', paginationData = null, isAISearch = false) {
+function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = '', paginationData = null, isAISearch = false, currentFolder = null) {
     fileListElement.innerHTML = '';
     const lowerLocalSearchTerm = localSearchTerm.trim().toLowerCase();
     if (isGlobalSearch) {
@@ -501,6 +543,30 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
                 fetchAndDisplayFiles(parentPrefix);
             };
             fileListElement.appendChild(backLi);
+        }
+
+        if (currentFolder && currentFolder.description) {
+            const descLi = document.createElement('li');
+            descLi.className = 'folder-description-card';
+            let parsedContent = '';
+            if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+                try {
+                    parsedContent = DOMPurify.sanitize(marked.parse(currentFolder.description, { breaks: true, gfm: true }));
+                } catch (e) {
+                    parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(currentFolder.description)}</div>`;
+                }
+            } else {
+                parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(currentFolder.description)}</div>`;
+            }
+            descLi.innerHTML = `
+                <div class="folder-desc-header">
+                    <i class="fas fa-info-circle"></i> 说明 / 公告
+                </div>
+                <div class="markdown-body folder-desc-body">
+                    ${parsedContent}
+                </div>
+            `;
+            fileListElement.appendChild(descLi);
         }
     }
     let displayedDirectories = [];

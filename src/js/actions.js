@@ -509,6 +509,61 @@ async function renameFile(key, currentName, isDirectory) {
         }
     }
 }
+async function editDescription(key, currentName, currentDescription) {
+    let newDescription;
+    try {
+        newDescription = await showPrompt({
+            title: '编辑属性',
+            message: `为文件夹 "${currentName}" 输入新描述:`,
+            initialValue: currentDescription || '',
+            placeholder: '输入文件夹描述或公告（留空以清除），支持较长文本、换行。',
+            confirmText: '保存',
+            useTextarea: true,
+            rows: 8
+        });
+    } catch (error) {
+        showNotification('操作已取消', 'info');
+        return;
+    }
+    if (newDescription === (currentDescription || '')) {
+        showNotification('描述未改变。', 'info');
+        return;
+    }
+    const performUpdate = async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            throw new Error("需要进行验证。");
+        }
+        const response = await fetch(`${FILES_API_URL}?action=updateDescription`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                key: key,
+                description: newDescription
+            }),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || '更新失败，请稍后重试。');
+        }
+        showNotification(`成功更新描述`, 'success');
+        if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
+        if (typeof searchCache !== 'undefined') searchCache.clear();
+        fetchAndDisplayFiles(currentPrefix, '', currentPage);
+    };
+    try {
+        await performUpdate();
+    } catch (error) {
+        if (error.message !== '用户取消验证') {
+            showNotification(`操作失败: ${error.message}`, 'error');
+        } else {
+            showNotification('操作已取消', 'info');
+        }
+    }
+}
 function showDirectoryPicker(itemsToMove = []) {
     return new Promise(async (resolve, reject) => {
         const token = localStorage.getItem('authToken');

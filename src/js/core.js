@@ -819,6 +819,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                             receivedData = {
                                 files: result.files || [],
                                 directories: result.directories || [],
+                                currentFolder: result.currentFolder || null
                             };
                             directoryCache[prefix] = {
                                 data: receivedData,
@@ -859,7 +860,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                     totalPages = paginationData.totalPages;
                     currentFetchedData = displayedData;
                     currentPaginationData = paginationData;
-                    renderFileList(isGlobal ? '' : prefix, displayedData, isGlobal, isGlobal ? searchTerm.trim() : '', paginationData, false);
+                    renderFileList(isGlobal ? '' : prefix, displayedData, isGlobal, isGlobal ? searchTerm.trim() : '', paginationData, false, receivedData.currentFolder);
                     fileListElement.style.minHeight = '';
                     updateUploadButtonLink();
                     updateSelectAllButtonState();
@@ -895,7 +896,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                     file.isDirectoryPlaceholder = false;
                 });
             }
-            renderFileList(isGlobal ? '' : prefix, slicedData, isGlobal, isGlobal ? searchTerm.trim() : '', finalPagination, false);
+            renderFileList(isGlobal ? '' : prefix, slicedData, isGlobal, isGlobal ? searchTerm.trim() : '', finalPagination, false, receivedData.currentFolder);
         }
     } catch (error) {
         console.error("获取文件列表请求出错:", error);
