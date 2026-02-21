@@ -45,22 +45,8 @@ export async function onRequestPost({ request, env }) {
         }
       }
       const studentId = body.studentId;
-      if (!studentId || !/^\d+$/.test(studentId)) {
-        return new Response(JSON.stringify({ success: false, error: '请输入校园卡号。' }), { status: 400, headers: addCorsHeaders() });
-      }
-      const isSimpleId = (id) => {
-        if (/^(\d)\1+$/.test(id)) return true;
-        const seq = '01234567890123456789';
-        const revSeq = '98765432109876543210';
-        if (seq.includes(id) || revSeq.includes(id)) return true;
-        if (/^(\d{2})\1\1$/.test(id)) return true;
-        if (/^(\d{3})\1$/.test(id)) return true;
-        if (/^(\d)\1(\d)\2(\d)\3$/.test(id)) return true;
-        if (/^(\d)\1\1(\d)\2\2$/.test(id)) return true;
-        return ['114514'].includes(id);
-      };
-      if (isSimpleId(studentId)) {
-        return new Response(JSON.stringify({ success: false, error: '请不要使用简单卡号注册' }), { status: 400, headers: addCorsHeaders() });
+      if (!studentId) {
+        return new Response(JSON.stringify({ success: false, error: '请输入邮箱前缀。' }), { status: 400, headers: addCorsHeaders() });
       }
       const email = `${studentId}@whut.edu.cn`;
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
@@ -111,8 +97,8 @@ export async function onRequestPost({ request, env }) {
     }
     if (action === 'check-register-status') {
       const studentId = body.studentId;
-      if (!studentId || !/^\d+$/.test(studentId)) {
-        return new Response(JSON.stringify({ success: false, error: '无效的卡号' }), { status: 400, headers: addCorsHeaders() });
+      if (!studentId) {
+        return new Response(JSON.stringify({ success: false, error: '无效的邮箱前缀' }), { status: 400, headers: addCorsHeaders() });
       }
       const email = `${studentId}@whut.edu.cn`;
       const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
