@@ -25,6 +25,7 @@ CREATE TABLE files (
     is_directory BOOLEAN DEFAULT FALSE,
     is_link BOOLEAN DEFAULT FALSE,
     link_url TEXT,
+    description TEXT,
     downloads INTEGER DEFAULT 0,
     likes INTEGER DEFAULT 0,
     dislikes INTEGER DEFAULT 0,

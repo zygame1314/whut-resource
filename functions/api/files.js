@@ -383,7 +383,23 @@ export async function onRequestPut({ request, env }) {
         });
     }
     try {
+        const url = new URL(request.url);
+        const action = url.searchParams.get('action');
         const body = await request.json();
+
+        if (action === 'updateDescription') {
+            const { key, description } = body;
+            if (!key) {
+                return new Response(JSON.stringify({ success: false, error: '缺少key。' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            }
+            const fileRecord = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(key).first();
+            if (!fileRecord || !(fileRecord.is_directory === 1 || fileRecord.is_directory === true)) {
+                return new Response(JSON.stringify({ success: false, error: '未找到该文件夹。' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            }
+            await DB.prepare('UPDATE files SET description = ? WHERE key = ?').bind(description || null, key).run();
+            return new Response(JSON.stringify({ success: true, message: '描述已更新' }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+
         const { key, newName } = body;
         if (!key || !newName) {
             return new Response(JSON.stringify({ success: false, error: '缺少key或newName。' }), {
