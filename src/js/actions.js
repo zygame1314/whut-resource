@@ -519,7 +519,8 @@ async function editDescription(key, currentName, currentDescription) {
             placeholder: '输入文件夹描述或公告（留空以清除），支持较长文本、换行。',
             confirmText: '保存',
             useTextarea: true,
-            rows: 8
+            rows: 12,
+            showPreview: true
         });
     } catch (error) {
         showNotification('操作已取消', 'info');

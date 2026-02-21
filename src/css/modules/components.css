@@ -4798,6 +4798,73 @@ input#prompt-input {
     box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.1);
 }
 
+.modal-large {
+    max-width: 800px !important;
+    width: 95% !important;
+}
+
+.prompt-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.prompt-tab-btn {
+    padding: 0.4rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.prompt-tab-btn:hover {
+    background: var(--background-dark);
+    color: var(--text-primary);
+}
+
+.prompt-tab-btn.active {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 2px 6px rgba(46, 139, 87, 0.2);
+}
+
+.prompt-input-wrapper {
+    position: relative;
+    margin-bottom: 1.5rem;
+    min-height: 300px;
+}
+
+.prompt-input-wrapper #prompt-input {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--background-alt);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    box-sizing: border-box;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    resize: vertical;
+    line-height: 1.6;
+}
+
+.prompt-input-wrapper .prompt-preview {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px dashed var(--border-color);
+    background: var(--background);
+    color: var(--text-primary);
+    text-align: left;
+    box-sizing: border-box;
+}
+
 .directory-picker-modal {
     max-width: 480px;
     text-align: left;
