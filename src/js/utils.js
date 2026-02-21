@@ -258,3 +258,70 @@ function filterTreeByKeyword(container, keyword, options = {}) {
         }
     });
 }
+function renderMarkdown(content) {
+    if (!content) return '';
+    try {
+        if (typeof marked === 'undefined') {
+            return `<div style="white-space: pre-wrap;">${escapeHtml(content)}</div>`;
+        }
+        if (!marked.customConfigured) {
+            marked.customConfigured = true;
+            marked.use({
+                breaks: true,
+                gfm: true,
+                mangle: false,
+                headerIds: false
+            });
+            const katexExt = window.markedKatex || window.markedKatexExtension;
+            if (typeof katexExt === 'function') {
+                marked.use(katexExt({
+                    throwOnError: false,
+                    nonStandard: true,
+                    katex: window.katex
+                }));
+            }
+            const footnoteExt = window.markedFootnote || window.markedFootnotes;
+            if (typeof footnoteExt === 'function') {
+                marked.use(footnoteExt());
+            }
+            if (typeof window.markedHighlight !== 'undefined' && typeof hljs !== 'undefined') {
+                const mh = window.markedHighlight.markedHighlight || window.markedHighlight;
+                marked.use(mh({
+                    langPrefix: 'hljs language-',
+                    highlight(code, lang) {
+                        if (lang && hljs.getLanguage(lang)) {
+                            return hljs.highlight(code, { language: lang }).value;
+                        }
+                        return hljs.highlightAuto(code).value;
+                    }
+                }));
+            }
+        }
+        let processed = content.trim()
+            .replace(/([^\n])\n(\$\$)/g, '$1\n\n$2')
+            .replace(/(\$\$)\n([^\n$])/g, '$1\n\n$2')
+            .replace(/([^\n])\n([ \t]*([-*_])[ \t]*\3[ \t]*\3[ \t]*)$/gm, '$1\n\n$2');
+        let parsed = marked.parse(processed);
+        if (typeof DOMPurify !== 'undefined') {
+            parsed = DOMPurify.sanitize(parsed, {
+                ADD_TAGS: [
+                    'details', 'summary', 'iframe', 'hr', 'section', 'sup', 'sub',
+                    'a', 'li', 'ol', 'span', 'math', 'style', 'svg', 'path', 'g', 'use',
+                    'annotation', 'semantics', 'mrow', 'mi', 'mn', 'mo', 'msup', 'msub', 'msubsup',
+                    'mfrac', 'msqrt', 'mroot', 'mtd', 'mtr', 'mtable', 'munder', 'mover', 'munderover',
+                    'semantics', 'annotation', 'annotation-xml'
+                ],
+                ADD_ATTR: [
+                    'target', 'allow', 'allowfullscreen', 'frameborder', 'scrolling', 'class', 'id', 'href',
+                    'aria-describedby', 'aria-label', 'role', 'aria-hidden', 'viewBox', 'd', 'fill', 'stroke', 'stroke-width',
+                    'encoding', 'definitionURL', 'display', 'style'
+                ],
+                USE_PROFILES: { html: true, mathMl: true, svg: true }
+            });
+        }
+        return parsed;
+    } catch (e) {
+        console.error('Markdown rendering error:', e);
+        return `<div style="white-space: pre-wrap;">${escapeHtml(content)}</div>`;
+    }
+}

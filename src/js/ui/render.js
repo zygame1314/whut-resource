@@ -314,12 +314,13 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             e.stopPropagation();
             try {
                 let parsedContent = '';
-                if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+                if (typeof renderMarkdown === 'function') {
+                    parsedContent = renderMarkdown(item.description);
+                } else if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
                     parsedContent = DOMPurify.sanitize(marked.parse(item.description, { breaks: true, gfm: true }));
                 } else {
                     parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(item.description)}</div>`;
                 }
-
                 showConfirmation({
                     title: `<i class="fas fa-info-circle"></i> ${item.name} - 说明`,
                     message: `<div class="markdown-body" style="text-align: left; font-size: 0.95rem; max-height: 50vh; overflow-y: auto; padding: 15px; background: var(--background-alt); border-radius: 8px; border: 1px solid var(--border-color); user-select: text;">${parsedContent}</div>`,
@@ -521,6 +522,31 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
     } else {
         isShowingSearchResults = false;
         updateBreadcrumb(prefix);
+        if (currentFolder && currentFolder.description) {
+            const descLi = document.createElement('li');
+            descLi.className = 'folder-description-card';
+            let parsedContent = '';
+            if (typeof renderMarkdown === 'function') {
+                parsedContent = renderMarkdown(currentFolder.description);
+            } else if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+                try {
+                    parsedContent = DOMPurify.sanitize(marked.parse(currentFolder.description, { breaks: true, gfm: true }));
+                } catch (e) {
+                    parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(currentFolder.description)}</div>`;
+                }
+            } else {
+                parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(currentFolder.description)}</div>`;
+            }
+            descLi.innerHTML = `
+                <div class="folder-desc-header">
+                    <i class="fas fa-info-circle"></i> 说明
+                </div>
+                <div class="markdown-body folder-desc-body">
+                    ${parsedContent}
+                </div>
+            `;
+            fileListElement.appendChild(descLi);
+        }
         if (prefix !== '') {
             const parentPrefix = getParentPath(prefix);
             const backLi = document.createElement('li');
@@ -543,30 +569,6 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
                 fetchAndDisplayFiles(parentPrefix);
             };
             fileListElement.appendChild(backLi);
-        }
-
-        if (currentFolder && currentFolder.description) {
-            const descLi = document.createElement('li');
-            descLi.className = 'folder-description-card';
-            let parsedContent = '';
-            if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
-                try {
-                    parsedContent = DOMPurify.sanitize(marked.parse(currentFolder.description, { breaks: true, gfm: true }));
-                } catch (e) {
-                    parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(currentFolder.description)}</div>`;
-                }
-            } else {
-                parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(currentFolder.description)}</div>`;
-            }
-            descLi.innerHTML = `
-                <div class="folder-desc-header">
-                    <i class="fas fa-info-circle"></i> 说明 / 公告
-                </div>
-                <div class="markdown-body folder-desc-body">
-                    ${parsedContent}
-                </div>
-            `;
-            fileListElement.appendChild(descLi);
         }
     }
     let displayedDirectories = [];

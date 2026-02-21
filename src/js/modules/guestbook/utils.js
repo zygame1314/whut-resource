@@ -23,7 +23,7 @@ function getAvatarColor(name) {
     return colors[Math.abs(hash) % colors.length];
 }
 window.navigateToPath = function (path) {
-    const fileExplorer = document.getElementById('file-list');
+    const fileExplorer = document.getElementById('breadcrumb-nav');
     if (fileExplorer) {
         fileExplorer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }

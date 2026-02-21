@@ -60,6 +60,11 @@ document.addEventListener('authRestored', () => {
     }
 });
 document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialPrefix = urlParams.get('path') || '';
+    const initialSearch = urlParams.get('search') || '';
+    const initialPage = parseInt(urlParams.get('page') || '1');
+    window.history.replaceState({ prefix: initialPrefix, searchTerm: initialSearch, page: initialPage }, '', window.location.href);
     createParticleBackground();
     if (fileListElement) {
         fileListElement.innerHTML = `
@@ -313,6 +318,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    if (typeof hljs !== 'undefined') {
+        hljs.highlightAll();
+    }
 });
 if (searchButton && searchInput) {
     const clearSearchBtn = document.getElementById('clear-search-btn');
@@ -389,10 +397,17 @@ if (themeToggle) {
     });
 }
 window.addEventListener('popstate', (event) => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const path = urlParams.get('path') || '';
-    if (path !== currentPrefix) {
-        fetchAndDisplayFiles(path, '', 1, false);
+    const state = event.state;
+    if (state) {
+        console.log("从历史记录恢复状态:", state);
+        fetchAndDisplayFiles(state.prefix || '', state.searchTerm || '', state.page || 1, false, false);
+    } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        const path = urlParams.get('path') || '';
+        const search = urlParams.get('search') || '';
+        const page = parseInt(urlParams.get('page') || '1');
+        console.log("从 URL 恢复状态:", { path, search, page });
+        fetchAndDisplayFiles(path, search, page, false, false);
     }
 });
 const uploadBtnFloating = document.querySelector('.upload-btn-floating');
@@ -516,12 +531,26 @@ document.addEventListener('keydown', (e) => {
     }
 });
 document.addEventListener('click', (e) => {
-    if (e.target.closest('.file-actions')) return;
-    if (e.target.closest('.mobile-actions-toggle')) return;
-    const visibleItems = document.querySelectorAll('.file-list-item.actions-visible');
-    if (visibleItems.length > 0) {
-        visibleItems.forEach(item => {
-            item.classList.remove('actions-visible');
-        });
+    const anchor = e.target.closest('a[href^="#"]');
+    if (anchor) {
+        const href = anchor.getAttribute('href');
+        if (href.startsWith('#fn') || href.startsWith('#user-content-fn') || href.startsWith('#footnote-')) {
+            e.preventDefault();
+            const targetId = decodeURIComponent(href.slice(1));
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                targetEl.classList.add('highlight-flash');
+                setTimeout(() => targetEl.classList.remove('highlight-flash'), 2000);
+            }
+        }
+    }
+    if (!e.target.closest('.file-actions') && !e.target.closest('.mobile-actions-toggle')) {
+        const visibleItems = document.querySelectorAll('.file-list-item.actions-visible');
+        if (visibleItems.length > 0) {
+            visibleItems.forEach(item => {
+                item.classList.remove('actions-visible');
+            });
+        }
     }
 });

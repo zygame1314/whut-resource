@@ -68,7 +68,7 @@ function renderAnnouncements(announcements) {
         let html = announcements.map(a => `
             <div class="announcement-item">
                 <span class="announcement-title">${escapeHtml(a.title)}</span>
-                <div class="announcement-text">${DOMPurify.sanitize(marked.parse(a.content, { breaks: true }))}</div>
+                <div class="announcement-text markdown-body">${typeof renderMarkdown === 'function' ? renderMarkdown(a.content) : DOMPurify.sanitize(marked.parse(a.content, { breaks: true }))}</div>
                 <div class="announcement-meta">
                     <span><i class="far fa-clock"></i> ${formatDateLocal(a.created_at)}</span>
                 </div>
@@ -154,7 +154,8 @@ function switchTab(mode) {
         if (!content) {
             previewArea.innerHTML = '<p class="text-muted">无内容可预览</p>';
         } else {
-            previewArea.innerHTML = DOMPurify.sanitize(marked.parse(content, { breaks: true }));
+            previewArea.innerHTML = typeof renderMarkdown === 'function' ? renderMarkdown(content) : DOMPurify.sanitize(marked.parse(content, { breaks: true }));
+            previewArea.classList.add('markdown-body');
         }
     }
 }

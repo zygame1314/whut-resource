@@ -455,7 +455,7 @@ function updateUploadButtonLink() {
         uploadBtn.href = uploadUrl;
     }
 }
-async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shouldScroll = true) {
+async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shouldScroll = true, shouldPushState = true) {
     const token = localStorage.getItem('authToken');
     if (!token) {
         fileListElement.innerHTML = `
@@ -468,6 +468,34 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
         isShowingSearchResults = false;
         renderPaginationControls(null);
         return;
+    }
+    if (shouldPushState) {
+        const url = new URL(window.location);
+        if (prefix) {
+            url.searchParams.set('path', prefix);
+        } else {
+            url.searchParams.delete('path');
+        }
+        if (searchTerm.trim()) {
+            url.searchParams.set('search', searchTerm.trim());
+        } else {
+            url.searchParams.delete('search');
+        }
+        if (page > 1) {
+            url.searchParams.set('page', page);
+        } else {
+            url.searchParams.delete('page');
+        }
+        const stateData = { prefix, searchTerm: searchTerm.trim(), page };
+        const currentUrlParams = new URLSearchParams(window.location.search);
+        const currentPath = currentUrlParams.get('path') || '';
+        const currentSearch = currentUrlParams.get('search') || '';
+        const currentPageParam = parseInt(currentUrlParams.get('page') || '1');
+        if (currentPath === prefix && currentSearch === searchTerm.trim() && currentPageParam === page) {
+            window.history.replaceState(stateData, '', url.toString());
+        } else {
+            window.history.pushState(stateData, '', url.toString());
+        }
     }
     const isGlobal = searchTerm.trim() !== '';
     if (isGlobal) {
@@ -512,7 +540,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
     } else {
         currentPage = page;
     }
-    const fileExplorer = document.getElementById('file-list');
+    const fileExplorer = document.getElementById('breadcrumb-nav');
     if (fileExplorer && shouldScroll) {
         const headerOffset = 80;
         const elementPosition = fileExplorer.getBoundingClientRect().top;

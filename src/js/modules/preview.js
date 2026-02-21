@@ -79,12 +79,38 @@ async function previewFile(fileKey, fileName, fileSize) {
             };
             if (isTxtPreview) {
                 const textPreviewWrapper = document.createElement('div');
-                textPreviewWrapper.className = 'preview-text-wrapper';
+                textPreviewWrapper.className = 'preview-text-wrapper hljs';
                 textPreviewWrapper.style.opacity = '0';
                 textPreviewWrapper.style.transition = 'opacity 0.3s ease';
+                textPreviewWrapper.style.display = 'block';
                 const pre = document.createElement('pre');
                 pre.className = 'preview-text';
-                pre.textContent = data.content;
+                pre.style.margin = '0';
+                pre.style.padding = '20px';
+                pre.style.backgroundColor = 'transparent';
+                const code = document.createElement('code');
+                code.style.display = 'block';
+                code.style.backgroundColor = 'transparent';
+                if (typeof hljs !== 'undefined') {
+                    try {
+                        let highlighted;
+                        if (hljs.getLanguage(extension)) {
+                            code.className = `language-${extension}`;
+                            highlighted = hljs.highlight(data.content, { language: extension }).value;
+                        } else {
+                            const result = hljs.highlightAuto(data.content);
+                            code.className = `language-${result.language || 'plaintext'}`;
+                            highlighted = result.value;
+                        }
+                        code.innerHTML = highlighted;
+                    } catch (e) {
+                        console.warn('Highlight failed:', e);
+                        code.textContent = data.content;
+                    }
+                } else {
+                    code.textContent = data.content;
+                }
+                pre.appendChild(code);
                 textPreviewWrapper.appendChild(pre);
                 previewIframe.parentElement.appendChild(textPreviewWrapper);
                 hideLoader();

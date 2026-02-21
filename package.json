@@ -7,11 +7,25 @@
         "deploy": "npm run build && wrangler pages deploy",
         "preview": "npx -y http-server dist",
         "clean": "node scripts/clean.js",
-        "dev": "node scripts/dev.js"
+        "dev": "node scripts/dev.js",
+        "postinstall": "node scripts/sync-deps.js"
     },
     "devDependencies": {
         "clean-css": "^5.3.3",
         "html-minifier-terser": "^7.2.0",
         "terser": "^5.37.0"
+    },
+    "dependencies": {
+        "@fortawesome/fontawesome-free": "^6.4.0",
+        "dompurify": "^3.0.5",
+        "highlight.js": "^11.9.0",
+        "jszip": "^3.10.1",
+        "katex": "^0.16.9",
+        "marked": "^11.2.0",
+        "marked-footnote": "^1.2.2",
+        "marked-highlight": "^2.1.0",
+        "marked-katex-extension": "^5.1.7",
+        "pdf-lib": "^1.17.1",
+        "shepherd.js": "^10.0.1"
     }
 }
