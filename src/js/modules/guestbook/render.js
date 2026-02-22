@@ -9,7 +9,7 @@ function renderGuestbook(messages) {
     const currentUserId = window.currentUser ? window.currentUser.id : null;
     guestbookList.innerHTML = messages.map(msg => {
         const isAuthor = currentUserId === msg.user_id;
-        const likedClass = msg.has_liked ? 'liked' : '';
+        const likedClass = msg.has_liked ? 'active' : '';
         const likeAction = msg.has_liked ? `unlikeGuestbook(${msg.id}, this)` : `likeGuestbook(${msg.id}, this)`;
         const likeIcon = msg.has_liked ? 'fas fa-heart' : 'far fa-heart';
         let adminControls = '';

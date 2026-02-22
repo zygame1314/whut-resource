@@ -147,13 +147,13 @@ async function handleGuestbookAction(id, action, btnElement) {
             const countSpan = btnElement.querySelector('span');
             let count = parseInt(countSpan.textContent);
             if (action === 'like') {
-                btnElement.classList.add('liked');
+                btnElement.classList.add('active');
                 icon.classList.remove('far');
                 icon.classList.add('fas');
                 countSpan.textContent = count + 1;
                 btnElement.setAttribute('onclick', `unlikeGuestbook(${id}, this)`);
             } else {
-                btnElement.classList.remove('liked');
+                btnElement.classList.remove('active');
                 icon.classList.remove('fas');
                 icon.classList.add('far');
                 countSpan.textContent = Math.max(0, count - 1);

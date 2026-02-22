@@ -10,7 +10,7 @@ function escapeHtml(text) {
 function createParticleBackground() {
     const particlesContainer = document.getElementById('particles-background');
     if (!particlesContainer) return;
-    const existingParticles = particlesContainer.querySelectorAll('.particle');
+    const existingParticles = particlesContainer.querySelectorAll('.particle-base');
     existingParticles.forEach(p => p.remove());
     for (let i = 0; i < 20; i++) {
         const particle = document.createElement('div');
