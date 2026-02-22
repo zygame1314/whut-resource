@@ -107,7 +107,8 @@
     height: 100%;
     position: sticky;
     top: 90px;
-    width: 25%;
+    width: 28%;
+    min-width: 320px;
 }
 
 .folder-tree-container .section-title {

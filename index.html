@@ -109,25 +109,24 @@
         </div>
     </header>
 
-    <section id="announcement-section" class="announcement-section" style="display: none;">
-        <div class="container">
-            <div class="announcement-card">
-                <div class="announcement-header">
-                    <h3><i class="fas fa-bullhorn"></i> 公告</h3>
-                    <button id="manage-announcements-btn" class="icon-btn" style="display: none;" title="管理公告">
-                        <i class="fas fa-cog"></i>
-                    </button>
-                </div>
-                <div id="announcement-content" class="announcement-content">
-                </div>
-            </div>
-        </div>
-    </section>
-
     <main class="main-content">
         <div class="container">
             <div class="explorer-container">
                 <aside id="folder-tree-container" class="folder-tree-container">
+                    <section id="announcement-section" class="announcement-section" style="display: none;">
+                        <div class="announcement-card">
+                            <div class="announcement-header">
+                                <h3><i class="fas fa-bullhorn"></i> 公告</h3>
+                                <button id="manage-announcements-btn" class="icon-btn" style="display: none;"
+                                    title="管理公告">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                            </div>
+                            <div id="announcement-content" class="announcement-content">
+                            </div>
+                        </div>
+                    </section>
+
                     <h3 class="section-title">
                         <i class="fas fa-sitemap"></i> 文件夹导航
                     </h3>
@@ -641,6 +640,42 @@
                             <i class="fas fa-times"></i> 取消
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="announcement-view-modal" class="modal-overlay">
+        <div class="modal-content announcement-view-modal-content">
+            <div class="modal-header">
+                <h3 id="announcement-view-title" class="modal-title">网站公告</h3>
+                <button id="close-announcement-view-modal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="announcement-view-content" class="announcement-view-content markdown-body"></div>
+                <div class="announcement-view-footer">
+                    <label class="custom-checkbox" id="announcement-hide-wrap">
+                        <input type="checkbox" id="announcement-hide-7days">
+                        <span class="checkmark"></span>
+                        <span class="label-text">7日内不再显示</span>
+                    </label>
+                    <div class="announcement-view-nav" aria-label="公告详情切换">
+                        <button id="announcement-view-prev" class="pagination-button" aria-label="上一条公告">
+                            <i class="fas fa-chevron-left"></i>
+                            上一条
+                        </button>
+                        <span class="announcement-view-indicator-wrap">
+                            第
+                            <input id="announcement-view-jump-input" type="number" min="1" value="1"
+                                class="pagination-jump-input" aria-label="跳转到第几条公告">
+                            / <span id="announcement-view-total">1</span> 条
+                        </span>
+                        <button id="announcement-view-next" class="pagination-button" aria-label="下一条公告">
+                            下一条
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <button id="announcement-view-confirm" class="primary-btn">我知道了</button>
                 </div>
             </div>
         </div>
