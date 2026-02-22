@@ -1347,6 +1347,15 @@
     animation: heartbeat 0.3s ease-in-out;
 }
 
+.like-btn.liked {
+    color: var(--accent-color);
+}
+
+.like-btn.liked i {
+    color: var(--accent-color);
+    animation: heartbeat 0.3s ease-in-out;
+}
+
 .admin-actions {
     display: flex;
     gap: 0.5rem;
@@ -2993,11 +3002,14 @@
 }
 
 .announcement-view-footer {
-    margin-top: 1rem;
+    margin: 1rem auto 0;
+    width: 100%;
+    max-width: 860px;
     padding-top: 0.75rem;
     border-top: 1px solid var(--border-color);
     position: relative;
-    min-height: 3.25rem;
+    min-height: 4rem;
+    box-sizing: border-box;
 }
 
 .announcement-view-nav {
@@ -3007,21 +3019,23 @@
     gap: 0.75rem;
     position: absolute;
     left: 50%;
-    bottom: 0;
-    transform: translateX(-50%);
+    top: calc(50% + 0.35rem);
+    transform: translate(-50%, -50%);
     min-width: 0;
 }
 
 .announcement-view-footer #announcement-view-confirm {
     position: absolute;
     right: 0;
-    bottom: 0;
+    top: calc(50% + 0.35rem);
+    transform: translateY(-50%);
 }
 
 .announcement-view-footer #announcement-hide-wrap {
     position: absolute;
     left: 0;
-    bottom: 0;
+    top: calc(50% + 0.35rem);
+    transform: translateY(-50%);
 }
 
 .announcement-view-indicator-wrap {
@@ -3058,6 +3072,7 @@
 @media (max-width: 900px) {
     .announcement-view-footer {
         min-height: 0;
+        max-width: 100%;
         display: grid;
         grid-template-columns: 1fr;
         justify-items: stretch;
