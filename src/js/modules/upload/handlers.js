@@ -94,6 +94,16 @@ async function addWatermarkToPDF(file) {
         const arrayBuffer = await file.arrayBuffer();
         const { PDFDocument } = PDFLib;
         const pdfDoc = await PDFDocument.load(arrayBuffer);
+        try {
+            pdfDoc.setTitle(file.name.replace(/\.[^/.]+$/, ""));
+            pdfDoc.setAuthor("WHUT-Resource-Share");
+            pdfDoc.setSubject("本资料为武理无偿分享，如果你是花钱购买的，说明你已被骗，请立刻退款并反手举报！");
+            pdfDoc.setKeywords(["WUT", "资源共享", "无偿", "严禁倒卖", "FREE-SHARE"]);
+            pdfDoc.setCreator("WUT-Resource-Uploader");
+            pdfDoc.setProducer("wut-share-platform-hidden-trace");
+        } catch (e) {
+            console.warn("写入元数据警告信息异常", e);
+        }
         const pages = pdfDoc.getPages();
         let logoBitmap = null;
         try {
@@ -160,6 +170,12 @@ async function addWatermarkToPDF(file) {
         const imageBytes = await fetch(imageUrl).then(res => res.arrayBuffer());
         const watermarkImage = await pdfDoc.embedPng(imageBytes);
         const watermarkDims = watermarkImage.scale(1 / scale);
+        let ghostFont = null;
+        try {
+            ghostFont = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+        } catch (e) {
+            console.warn("幽灵字体加载异常", e);
+        }
         for (const page of pages) {
             const { width, height } = page.getSize();
             const xPos = (width - watermarkDims.width) / 2;
@@ -171,6 +187,18 @@ async function addWatermarkToPDF(file) {
                 height: watermarkDims.height,
                 opacity: 0.3,
             });
+            if (ghostFont) {
+                try {
+                    page.drawText("[WARNING: WUT-FREE-SHARE DO NOT SELL]", {
+                        x: width / 2 - 150,
+                        y: height / 2 + 60,
+                        size: 14,
+                        font: ghostFont,
+                        opacity: 0.01
+                    });
+                } catch (e) {
+                }
+            }
         }
         const pdfBytes = await pdfDoc.save();
         const newFile = new File([pdfBytes], file.name, {
@@ -185,6 +213,37 @@ async function addWatermarkToPDF(file) {
     } catch (error) {
         console.error('添加水印失败:', error);
         showNotification(`添加水印失败: ${error.message}，将上传原文件`, 'error');
+        return file;
+    }
+}
+async function injectTraceCode(file) {
+    const excludeExts = [
+        'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', '7zip',
+        'docx', 'xlsx', 'pptx', 'docm', 'xlsm', 'pptm',
+        'doc', 'xls', 'ppt',
+        'odt', 'ods', 'odp',
+        'pdf',
+        'iso', 'dmg', 'pkg', 'apk', 'ipa',
+        'exe', 'msi'
+    ];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (excludeExts.includes(ext)) {
+        return file;
+    }
+    try {
+        const traceBuffer = new TextEncoder().encode(`\n[WARNING: WUT-FREE-SHARE DO NOT SELL]\n`);
+        const injectedBlob = new Blob([file, traceBuffer], { type: file.type });
+        const newFile = new File([injectedBlob], file.name, {
+            type: file.type,
+            lastModified: file.lastModified
+        });
+        if (file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath) {
+            newFile._webkitRelativePath = file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath;
+            newFile.originalRelativePath = newFile._webkitRelativePath;
+        }
+        return newFile;
+    } catch (e) {
+        console.warn("注入追踪码失败", e);
         return file;
     }
 }
@@ -315,7 +374,8 @@ async function retrySingleFileUpload(file) {
         }
     }
     const enableWatermark = watermarkToggle ? watermarkToggle.checked : true;
-    const processedFile = enableWatermark ? await addWatermarkToPDF(file) : file;
+    let processedFile = enableWatermark ? await addWatermarkToPDF(file) : file;
+    processedFile = await injectTraceCode(processedFile);
     formData.append('file', processedFile, fullPath);
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -459,7 +519,8 @@ async function handleUpload(event) {
                         const enableWatermark = watermarkToggle ? watermarkToggle.checked : true;
                         const processedFiles = await Promise.all(batchFiles.map(async (file) => {
                             try {
-                                return enableWatermark ? await addWatermarkToPDF(file) : file;
+                                let f = enableWatermark ? await addWatermarkToPDF(file) : file;
+                                return await injectTraceCode(f);
                             } catch (e) {
                                 console.error(`预处理失败: ${file.name}`, e);
                                 return file;
