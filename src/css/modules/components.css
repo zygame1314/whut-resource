@@ -8,7 +8,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
     color: var(--text-secondary);
 }
 
@@ -52,7 +52,7 @@
     border-radius: 14px;
     cursor: pointer;
     font-weight: 600;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     text-decoration: none;
     position: relative;
     overflow: hidden;
@@ -90,7 +90,7 @@
     align-items: center;
     gap: 0.5rem;
     font-weight: 600;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     text-decoration: none;
     position: relative;
     overflow: hidden;
@@ -142,7 +142,7 @@
     border-radius: 12px;
     cursor: pointer;
     font-weight: 600;
-    transition: all var(--transition-fast);
+    transition: transform var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
     text-decoration: none;
 }
 
@@ -161,7 +161,7 @@
     border-radius: 12px;
     cursor: pointer;
     font-weight: 600;
-    transition: all var(--transition-fast);
+    transition: transform var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
     text-decoration: none;
 }
 
@@ -203,7 +203,7 @@
     border-radius: 7px;
     cursor: pointer;
     color: var(--text-secondary);
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -223,7 +223,7 @@
     border-radius: 20px;
     cursor: pointer;
     font-size: 0.9rem;
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .filter-btn.active,
@@ -256,7 +256,7 @@
     border: 1px solid var(--border-color);
     border-radius: 20px;
     padding: 0.45rem 1rem;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: border-color 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), background 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .folder-search-wrapper:hover {
@@ -320,7 +320,7 @@
     border-radius: 50%;
     cursor: pointer;
     color: var(--text-secondary);
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
     opacity: 0.6;
     margin-right: -4px;
 }
@@ -369,7 +369,7 @@
     background: var(--background-alt);
     border-radius: 20px;
     border: 1.5px solid var(--border-color);
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
     z-index: 2;
 }
 
@@ -389,7 +389,7 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease;
 }
 
 .toggle-label i {
@@ -473,7 +473,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), transform var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -495,7 +495,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), transform var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -517,7 +517,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), transform var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -539,7 +539,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), transform var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -560,7 +560,7 @@
     text-decoration: none;
     border-radius: 15px;
     font-weight: 600;
-    transition: all var(--transition-fast);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
     box-shadow: var(--shadow-light);
 }
 
@@ -719,7 +719,7 @@
     font-weight: 600;
     padding: 2px 6px;
     border-radius: 4px;
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
     background: rgba(52, 152, 219, 0.1);
 }
 
@@ -915,7 +915,7 @@
     background: var(--background-secondary);
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
     max-width: 100%;
     overflow: hidden;
     vertical-align: middle;
@@ -953,7 +953,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .recent-action-btn.downloading {
@@ -1024,7 +1024,7 @@
             rgba(118, 75, 162, 0.08) 100%);
     border: 1px solid rgba(102, 126, 234, 0.2);
     border-radius: 20px;
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
 }
 
 .ai-powered-notice:hover {
@@ -1104,7 +1104,7 @@
     opacity: 0;
     visibility: hidden;
     transform: translateX(-50%) translateY(5px);
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
     z-index: 100;
     pointer-events: none;
 }
@@ -1180,7 +1180,7 @@
     color: var(--text-primary);
     resize: vertical;
     font-family: inherit;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
 }
 
 #guestbook-content:focus {
@@ -1202,7 +1202,7 @@
     border: 1px solid var(--border-color);
     display: flex;
     gap: 1.2rem;
-    transition: all 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .guestbook-item:hover {
@@ -1331,7 +1331,7 @@
     gap: 0.4rem;
     padding: 6px 12px;
     border-radius: 20px;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: background 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .like-btn:hover {
@@ -1409,7 +1409,7 @@
     border-radius: 20px;
     font-size: 0.72rem;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .status-badge.resolved {
@@ -1494,7 +1494,7 @@
     padding: 0.2rem 0.5rem;
     background: rgba(40, 167, 69, 0.1);
     border-radius: 4px;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease;
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
@@ -1710,7 +1710,7 @@
     border: 1px solid var(--border-color);
     border-radius: 10px;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
     color: var(--text-primary);
     font-size: 0.95rem;
 }
@@ -1757,7 +1757,7 @@
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
     overflow: hidden;
 }
 
@@ -1779,7 +1779,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
     white-space: nowrap;
     box-shadow: 0 4px 12px rgba(168, 85, 247, 0.25);
     flex-shrink: 0;
@@ -1877,7 +1877,7 @@
     padding: 0.7rem 0.8rem;
     border-radius: 8px;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast);
     color: var(--text-primary);
     user-select: none;
 }
@@ -2013,7 +2013,7 @@
     border: 1.5px solid var(--border-color);
     border-radius: 10px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     color: var(--text-primary);
     font-size: 0.95rem;
 }
@@ -2059,7 +2059,7 @@
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
     overflow: hidden;
 }
 
@@ -2092,7 +2092,7 @@
     border-radius: 8px;
     color: #dc3545;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
     font-size: 0.75rem;
 }
 
@@ -2201,7 +2201,7 @@
     font-size: 0.8rem;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .reject-preset-btn:hover {
@@ -2258,7 +2258,7 @@
     font-weight: 600;
     box-shadow: 0 2px 6px rgba(118, 75, 162, 0.3);
     vertical-align: middle;
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
 }
 
 .admin-badge:hover {
@@ -2380,7 +2380,7 @@
     font-size: 1rem;
     background: var(--background);
     color: var(--text-primary);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
@@ -2413,7 +2413,7 @@
     border: 2px solid var(--border-color);
     border-radius: 14px;
     overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background: var(--background);
 }
 
@@ -2480,7 +2480,7 @@
     color: var(--text-secondary);
     cursor: pointer;
     border-radius: 10px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .password-toggle:hover {
@@ -2513,7 +2513,7 @@
     border-radius: 14px;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 600;
     font-size: 0.9rem;
     position: relative;
@@ -2569,7 +2569,7 @@
     font-size: 1rem;
     color: var(--accent-color);
     cursor: pointer;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     z-index: 10;
     padding: 0;
     overflow: hidden;
@@ -2611,7 +2611,7 @@
     text-decoration: none;
     font-weight: 600;
     position: relative;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease;
 }
 
 .auth-footer a::after {
@@ -2651,7 +2651,7 @@
         linear-gradient(135deg, rgba(0, 123, 255, 0.3), rgba(77, 163, 255, 0.3));
     background-origin: border-box;
     background-clip: padding-box, border-box;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-image 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
     position: relative;
     overflow: hidden;
@@ -2707,7 +2707,7 @@
     font-weight: 600;
     color: var(--primary-dark);
     border: 1px solid rgba(0, 123, 255, 0.2);
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, transform 0.3s ease;
 }
 
 .user-info .quota:hover {
@@ -2839,7 +2839,7 @@
     cursor: pointer;
     background: var(--border-color);
     opacity: 0.75;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease, width 0.2s ease, height 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .announcement-dot:hover {
@@ -2989,8 +2989,9 @@
 .announcement-view-modal-content {
     max-width: 900px;
     height: auto;
+    max-height: 80vh;
     position: relative;
-    overflow: hidden;
+    overflow-y: auto;
 }
 
 .announcement-view-modal-content::before {
@@ -3011,7 +3012,7 @@
 }
 
 .announcement-view-content {
-    max-height: 60vh;
+    max-height: 50vh;
     overflow-y: auto;
     padding-right: 0.25rem;
 }
@@ -3029,6 +3030,7 @@
 
 .announcement-view-nav {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
@@ -3098,7 +3100,6 @@
         top: auto;
         transform: none;
         justify-content: center;
-        width: 100%;
         margin-bottom: -0.25rem;
     }
 
@@ -3110,6 +3111,8 @@
         transform: none;
         width: 100%;
         margin: 0;
+        display: flex;
+        justify-content: center;
     }
 
     .announcement-view-nav .secondary-btn {
@@ -3290,7 +3293,7 @@
     background: var(--background-alt);
     color: var(--text-primary);
     font-size: 0.95rem;
-    transition: all 0.2s;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .form-input:focus {
@@ -3328,7 +3331,7 @@ textarea.form-input {
     border: 1px solid var(--border-color);
     border-radius: 4px;
     position: relative;
-    transition: all 0.2s;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .custom-checkbox:hover input~.checkmark {
@@ -3394,7 +3397,7 @@ textarea.form-input {
     cursor: pointer;
     font-size: 0.85rem;
     font-weight: 600;
-    transition: all 0.2s;
+    transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .tab-btn:hover {
@@ -3556,7 +3559,7 @@ textarea.form-input {
     color: var(--text-primary);
     font-size: 0.95rem;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
     appearance: textfield;
     -moz-appearance: textfield;
 }
@@ -3695,7 +3698,7 @@ textarea.form-input {
     border-radius: 8px;
     margin-bottom: 0.5rem;
     border: 1px solid var(--border-color);
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
 .ai-search-result-item:last-child {
@@ -3727,7 +3730,7 @@ textarea.form-input {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: all 0.2s ease;
+    transition: color 0.2s ease;
 }
 
 .ai-search-result-path {
@@ -3736,7 +3739,7 @@ textarea.form-input {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: all 0.2s ease;
+    transition: color 0.2s ease;
 }
 
 .ai-search-result-item:hover .ai-search-result-name,
@@ -3784,7 +3787,7 @@ textarea.form-input {
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: filter 0.2s ease, transform 0.2s ease;
 }
 
 .confirm-btn-warning:hover {
@@ -3813,7 +3816,7 @@ textarea.form-input {
     background: var(--background-alt);
     color: var(--text-secondary);
     border: 2px solid var(--border-color);
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .step-indicator .step.done {
@@ -4033,7 +4036,7 @@ textarea.form-input {
     background: var(--background-alt);
     border-radius: 20px;
     border: 1.5px solid var(--border-color);
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
     z-index: 2;
     font: inherit;
     line-height: inherit;
@@ -4051,7 +4054,7 @@ textarea.form-input {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease;
 }
 
 .search-tips-toggle .tips-toggle-label i {
@@ -4196,7 +4199,7 @@ textarea.form-input {
     border-radius: var(--border-radius-medium);
     color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .custom-select-trigger:hover {
@@ -4251,7 +4254,7 @@ textarea.form-input {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-medium);
     padding: 1rem;
-    transition: all var(--transition-fast);
+    transition: box-shadow var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .request-item:hover {
@@ -4356,7 +4359,7 @@ textarea.form-input {
     border-radius: 14px;
     cursor: pointer;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .request-actions .reject-btn:hover {
@@ -4674,7 +4677,7 @@ textarea.form-input {
     color: white;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     font-size: 0.9rem;
     display: inline-flex;
     align-items: center;
@@ -4696,7 +4699,7 @@ textarea.form-input {
     color: white;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     font-size: 0.9rem;
     display: inline-flex;
     align-items: center;
@@ -4728,7 +4731,7 @@ textarea.form-input {
     border-radius: 12px;
     background: rgba(46, 139, 87, 0.1);
     border: 1px solid rgba(46, 139, 87, 0.2);
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .folder-desc-badge.clickable-badge:hover {
@@ -4745,7 +4748,7 @@ textarea.form-input {
     padding: 1rem 1.25rem;
     margin-bottom: 1rem;
     cursor: default;
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, border-color 0.3s ease;
     animation: fadeIn 0.4s ease forwards;
     transform: none !important;
 }
@@ -4800,7 +4803,7 @@ textarea.form-input {
     color: white;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     font-size: 0.9rem;
     display: inline-flex;
     align-items: center;
@@ -4822,7 +4825,7 @@ textarea.form-input {
     color: white;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     font-size: 0.9rem;
     display: inline-flex;
     align-items: center;
@@ -4844,7 +4847,7 @@ textarea.form-input {
     color: white;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     font-size: 0.9rem;
     display: inline-flex;
     align-items: center;
@@ -4971,7 +4974,7 @@ textarea.form-input {
     border: none;
     cursor: pointer;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .confirm-btn-cancel {
@@ -5067,7 +5070,7 @@ input#prompt-input {
     cursor: pointer;
     font-size: 0.85rem;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .prompt-tab-btn:hover {
@@ -5326,7 +5329,7 @@ input#prompt-input {
     padding: 0.5rem 1rem;
     border-radius: 10px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-size: 0.9rem;
     display: inline-flex;
     align-items: center;
@@ -5430,7 +5433,7 @@ input#prompt-input {
     padding: 3rem 2rem;
     text-align: center;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, background 0.3s ease;
     background: var(--background-alt);
     margin-bottom: 2rem;
     display: flex;
@@ -5518,7 +5521,7 @@ input#prompt-input {
     color: var(--accent-color);
     border-radius: 50%;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: background 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5581,7 +5584,7 @@ input#prompt-input {
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5670,7 +5673,7 @@ input#prompt-input {
     color: var(--text-secondary);
     cursor: pointer;
     border-radius: 8px;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5810,7 +5813,7 @@ input#prompt-input {
     color: var(--secondary-color);
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5904,7 +5907,7 @@ input#prompt-input {
     background-origin: border-box;
     background-clip: padding-box, border-box;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .upload-path-info:hover {
@@ -5937,7 +5940,7 @@ input#prompt-input {
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
 }
 
 .upload-type-btn:hover {
@@ -5988,7 +5991,7 @@ input#prompt-input {
     background: var(--background);
     color: var(--text-primary);
     font-size: 1rem;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
     box-sizing: border-box;
 }
 
@@ -6467,7 +6470,7 @@ input#prompt-input {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, background 0.3s ease;
 }
 
 .admin-empty-state-padded:hover {
@@ -6619,7 +6622,7 @@ input#prompt-input {
     border: 2px solid var(--text-secondary);
     border-radius: 5px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
     background-color: var(--background);
     margin: 0;
     display: inline-flex;
@@ -6697,7 +6700,7 @@ input#prompt-input {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    transition: all 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     background: var(--background);
     color: var(--text-secondary);
     font-weight: 600;
@@ -6901,7 +6904,7 @@ input#prompt-input {
     justify-content: center;
     margin: 0 auto 20px;
     position: relative;
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .link-confirm-visual.dangerous {
@@ -6968,7 +6971,7 @@ input#prompt-input {
     gap: 15px;
     text-align: left;
     margin-bottom: 20px;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
 }
 
 .link-confirm-card:hover {
@@ -7068,7 +7071,7 @@ input#prompt-input {
     font-size: 0.85rem;
     font-weight: 600;
     margin-bottom: 16px;
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .link-safety-status.checking {
@@ -7139,7 +7142,7 @@ input#prompt-input {
     font-size: 0.8rem;
     cursor: pointer;
     opacity: 0.6;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease, background 0.2s ease, transform 0.2s ease;
     border-radius: 12px;
 }
 
@@ -7299,7 +7302,7 @@ input#prompt-input {
     transform: scale(0.8);
     opacity: 0;
     pointer-events: none;
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .download-manager-fab:hover {

@@ -176,7 +176,7 @@
     font-size: 1rem;
     background: var(--background);
     color: var(--text-primary);
-    transition: all var(--transition-fast);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 #search-input:focus {
@@ -305,7 +305,7 @@
     color: white;
     border-radius: 10px;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: transform var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -403,7 +403,7 @@
     background: var(--background);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    transition: all var(--transition-fast);
+    transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
     cursor: pointer;
     animation: fadeInUp 0.4s ease;
 }
@@ -595,7 +595,7 @@
     border: 1px solid var(--border-color);
     opacity: 0;
     pointer-events: none;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease;
     z-index: 10;
     display: flex;
     gap: 0.3rem;
@@ -749,7 +749,7 @@
     background: var(--background-alt);
     border-radius: 12px;
     border-left: 5px solid var(--primary-color);
-    transition: all var(--transition-fast);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .rule-item:hover {
@@ -850,7 +850,7 @@
     border-radius: 6px;
     cursor: pointer;
     position: relative;
-    transition: all var(--transition-fast);
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
     flex-shrink: 0;
     margin-right: 0;
     transform: scale(0);
@@ -930,7 +930,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 }
 
 .open-link-button:hover {
@@ -1123,7 +1123,7 @@
     font-weight: 600;
     border: 1px solid rgba(var(--primary-rgb), 0.2);
     cursor: default;
-    transition: all 0.2s;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ai-badge:hover {
@@ -1160,7 +1160,7 @@
     padding: 0.1rem 0.3rem;
     border-radius: 4px;
     background: rgba(var(--primary-rgb), 0.08);
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
 .guestbook-intro a:hover {
@@ -1217,7 +1217,7 @@
     color: var(--text-secondary);
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     font-weight: 600;
 }
 
@@ -1248,7 +1248,7 @@
     border-radius: 15px;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .guestbook-status-btn:hover {
@@ -1295,7 +1295,7 @@
     display: flex;
     align-items: center;
     gap: 0.3rem;
-    transition: all 0.2s;
+    transition: color 0.2s ease, background 0.2s ease;
 }
 
 .guestbook-sort-btn:hover {
