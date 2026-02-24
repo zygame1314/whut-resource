@@ -185,12 +185,11 @@ async function fetchPageInfo(url, externalSignal = null) {
             description = description.trim();
             if (description.length > 200) description = description.substring(0, 200) + '...';
         }
-        let favicon = `https://favicon.im/${urlObj.hostname}`;
+        let favicon = `https://favicon.im/${urlObj.hostname}?fallback=https://resource.haoli.site/favicon.png`;
         if (info.iconHref) {
             try {
                 favicon = new URL(info.iconHref, urlObj.href).href;
-            } catch (e) {
-            }
+            } catch (e) { }
         }
         return { title, description, favicon };
     } catch (e) {
