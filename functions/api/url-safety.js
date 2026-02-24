@@ -167,6 +167,12 @@ async function fetchPageInfo(url, externalSignal = null) {
                     const content = element.getAttribute('content');
                     if (content) info.ogDesc = content;
                 }
+            })
+            .on('link[rel="icon"], link[rel="shortcut icon"]', {
+                element(element) {
+                    const href = element.getAttribute('href');
+                    if (href && !info.iconHref) info.iconHref = href;
+                }
             });
         await rewriter.transform(response).text();
         let title = info.title || info.ogTitle;
@@ -179,7 +185,13 @@ async function fetchPageInfo(url, externalSignal = null) {
             description = description.trim();
             if (description.length > 200) description = description.substring(0, 200) + '...';
         }
-        const favicon = `https://favicon.im/${urlObj.hostname}`;
+        let favicon = `https://favicon.im/${urlObj.hostname}`;
+        if (info.iconHref) {
+            try {
+                favicon = new URL(info.iconHref, urlObj.href).href;
+            } catch (e) {
+            }
+        }
         return { title, description, favicon };
     } catch (e) {
         console.warn('抓取页面信息失败:', e.message);

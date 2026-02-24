@@ -1,24 +1,3 @@
-function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
-function getFileIcon(fileName) {
-    const ext = fileName.toLowerCase().split('.').pop();
-    const iconMap = {
-        'pdf': 'fas fa-file-pdf', 'doc': 'fas fa-file-word', 'docx': 'fas fa-file-word',
-        'xls': 'fas fa-file-excel', 'xlsx': 'fas fa-file-excel', 'ppt': 'fas fa-file-powerpoint',
-        'pptx': 'fas fa-file-powerpoint', 'txt': 'fas fa-file-alt', 'jpg': 'fas fa-file-image',
-        'jpeg': 'fas fa-file-image', 'png': 'fas fa-file-image', 'gif': 'fas fa-file-image',
-        'webp': 'fas fa-file-image', 'mp4': 'fas fa-file-video', 'avi': 'fas fa-file-video',
-        'mov': 'fas fa-file-video', 'mp3': 'fas fa-file-audio', 'wav': 'fas fa-file-audio',
-        'zip': 'fas fa-file-archive', 'rar': 'fas fa-file-archive'
-    };
-    return iconMap[ext] || 'fas fa-file';
-}
 function compressImage(file, quality = 0.8) {
     return new Promise((resolve) => {
         if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
@@ -36,7 +15,7 @@ function compressImage(file, quality = 0.8) {
             canvas.toBlob((blob) => {
                 URL.revokeObjectURL(img.src);
                 if (!blob) {
-                    console.warn(`Canvas to Blob conversion failed for ${file.name}.`);
+                    console.warn(`图片 ${file.name} 转换为 Blob 失败。`);
                     resolve(file);
                     return;
                 }

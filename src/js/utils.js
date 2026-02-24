@@ -266,11 +266,38 @@ function renderMarkdown(content) {
         }
         if (!marked.customConfigured) {
             marked.customConfigured = true;
+            const renderer = new marked.Renderer();
+            renderer.link = function (hrefOrToken, title, text) {
+                let href, linkTitle, linkText;
+                if (hrefOrToken && typeof hrefOrToken === 'object') {
+                    href = hrefOrToken.href || '';
+                    linkTitle = hrefOrToken.title || '';
+                    linkText = hrefOrToken.text || '';
+                } else {
+                    href = hrefOrToken || '';
+                    linkTitle = title || '';
+                    linkText = text || '';
+                }
+                if (!href) return linkText || '';
+                let isExternal = false;
+                try {
+                    const url = new URL(href);
+                    isExternal = url.hostname !== window.location.hostname;
+                } catch (e) {
+                    isExternal = false;
+                }
+                if (isExternal && typeof openLink === 'function') {
+                    return `<a href="${href}" title="${linkTitle}" class="external-link" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
+                }
+                const titleAttr = linkTitle ? ` title="${linkTitle}"` : '';
+                return `<a href="${href}"${titleAttr}>${linkText}</a>`;
+            };
             marked.use({
                 breaks: true,
                 gfm: true,
                 mangle: false,
-                headerIds: false
+                headerIds: false,
+                renderer: renderer
             });
             const katexExt = window.markedKatex || window.markedKatexExtension;
             if (typeof katexExt === 'function') {

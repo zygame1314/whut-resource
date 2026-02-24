@@ -789,3 +789,20 @@ async function toggleReaction(fileKey, reactionType, btnElement) {
         if (btnElement) btnElement.disabled = false;
     }
 }
+document.addEventListener('click', (e) => {
+    const link = e.target.closest('a.external-link');
+    if (link) {
+        const href = link.getAttribute('href');
+        if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+            e.preventDefault();
+            e.stopPropagation();
+            const itemElement = link.closest('.file-list-item');
+            const fileKey = itemElement ? itemElement.dataset.key : null;
+            if (typeof openLink === 'function') {
+                openLink(fileKey, href, link);
+            } else {
+                window.open(href, '_blank', 'noopener,noreferrer');
+            }
+        }
+    }
+}, true);

@@ -5923,7 +5923,7 @@ input#prompt-input {
     display: flex;
     gap: 1rem;
     margin: 1rem 0;
-    padding: 0 2rem;
+    padding: 0 1rem;
 }
 
 .upload-type-btn {
