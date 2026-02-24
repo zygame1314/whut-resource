@@ -265,8 +265,12 @@ async function openLink(fileKey, linkUrl, openBtn) {
                                 const img = document.createElement('img');
                                 img.src = info.favicon;
                                 img.alt = 'favicon';
-                                img.onerror = () => { img.style.display = 'none'; };
-                                img.onload = () => { faviconEl.innerHTML = ''; faviconEl.appendChild(img); };
+                                img.onerror = () => {
+                                };
+                                img.onload = () => {
+                                    faviconEl.innerHTML = '';
+                                    faviconEl.appendChild(img);
+                                };
                             }
                             if (info.title && titleEl) {
                                 titleEl.textContent = info.title;
