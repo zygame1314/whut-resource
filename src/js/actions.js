@@ -299,15 +299,17 @@ async function openLink(fileKey, linkUrl, openBtn) {
                 showNotification('跳转已取消', 'info');
                 return;
             }
-            try {
-                await fetch(`${FILES_API_URL}?action=recordLinkClick&key=${encodeURIComponent(fileKey)}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-            } catch (e) {
-                console.warn('记录链接点击失败:', e);
+            if (fileKey) {
+                try {
+                    await fetch(`${FILES_API_URL}?action=recordLinkClick&key=${encodeURIComponent(fileKey)}`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                        },
+                    });
+                } catch (e) {
+                    console.warn('记录链接点击失败:', e);
+                }
             }
             window.open(linkUrl, '_blank', 'noopener,noreferrer');
             showNotification('链接已在新标签页中打开', 'success');
