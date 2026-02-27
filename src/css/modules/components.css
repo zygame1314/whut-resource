@@ -1349,7 +1349,8 @@
     background: rgba(231, 76, 60, 0.05);
 }
 
-.like-btn.active i {
+.like-btn.active i,
+.dislike-btn.active i {
     animation: heartbeat 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -7160,6 +7161,10 @@ input#prompt-input {
     line-height: 1;
     color: var(--text-secondary);
     transition: color 0.2s ease;
+}
+
+.reaction-btn.active .reaction-icon {
+    animation: heartbeat 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .reaction-btn.like-btn:hover .reaction-icon,

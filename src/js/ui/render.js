@@ -261,11 +261,11 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         reactionButtonsHTML = `
             <div class="reaction-group">
                 <button class="reaction-btn like-btn${userReaction === 'like' ? ' active' : ''}" title="有用" data-count="${likeCount}">
-                    <i class="fas fa-thumbs-up reaction-icon"></i>
+                    <i class="fas fa-smile reaction-icon"></i>
                     <span class="reaction-count">${likeCount > 0 ? likeCount : ''}</span>
                 </button>
                 <button class="reaction-btn dislike-btn${userReaction === 'dislike' ? ' active' : ''}" title="无用" data-count="${dislikeCount}">
-                    <i class="fas fa-thumbs-down reaction-icon"></i>
+                    <i class="fas fa-frown reaction-icon"></i>
                     <span class="reaction-count">${dislikeCount > 0 ? dislikeCount : ''}</span>
                 </button>
             </div>
