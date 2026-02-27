@@ -292,6 +292,20 @@ function renderMarkdown(content) {
                 const titleAttr = linkTitle ? ` title="${linkTitle}"` : '';
                 return `<a href="${href}"${titleAttr}>${linkText}</a>`;
             };
+            renderer.image = function (hrefOrToken, title, text) {
+                let href, imgTitle, imgText;
+                if (hrefOrToken && typeof hrefOrToken === 'object') {
+                    href = hrefOrToken.href || '';
+                    imgTitle = hrefOrToken.title || '';
+                    imgText = hrefOrToken.text || '';
+                } else {
+                    href = hrefOrToken || '';
+                    imgTitle = title || '';
+                    imgText = text || '';
+                }
+                const titleAttr = imgTitle ? ` title="${imgTitle}"` : '';
+                return `<img src="${href}" alt="${imgText}"${titleAttr} referrerpolicy="no-referrer">`;
+            };
             marked.use({
                 breaks: true,
                 gfm: true,
@@ -341,7 +355,7 @@ function renderMarkdown(content) {
                 ADD_ATTR: [
                     'target', 'allow', 'allowfullscreen', 'frameborder', 'scrolling', 'class', 'id', 'href',
                     'aria-describedby', 'aria-label', 'role', 'aria-hidden', 'viewBox', 'd', 'fill', 'stroke', 'stroke-width',
-                    'encoding', 'definitionURL', 'display', 'style'
+                    'encoding', 'definitionURL', 'display', 'style', 'referrerpolicy'
                 ],
                 USE_PROFILES: { html: true, mathMl: true, svg: true }
             });
