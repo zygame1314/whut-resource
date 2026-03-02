@@ -145,9 +145,10 @@ export async function verifyWHUTCredentials(username, password) {
             let nickname = null;
             let cardId = null;
             try {
+                const authCookieJar = parseAndMergeCookies(cookieStr, loginResp.headers.getSetCookie());
                 const portalTask = (async () => {
                     try {
-                        let cookieJar = parseAndMergeCookies(cookieStr, loginResp.headers.getSetCookie());
+                        let cookieJar = authCookieJar;
                         let currentUrl = location;
                         let portalHtml = "";
                         for (let i = 0; i < 10; i++) {
@@ -207,7 +208,7 @@ export async function verifyWHUTCredentials(username, password) {
                         const tpassCasUrl = `https://zhlgd.whut.edu.cn/tpass/login?service=${encodeURIComponent(yktServiceUrl)}`;
                         const yktTicketResp = await fetch(tpassCasUrl, {
                             method: "GET",
-                            headers: { "User-Agent": UA, "Cookie": cookieStr },
+                            headers: { "User-Agent": UA, "Cookie": authCookieJar },
                             redirect: "manual"
                         });
                         const ticketLoc = yktTicketResp.headers.get("location");
