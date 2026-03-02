@@ -206,36 +206,47 @@ export async function verifyWHUTCredentials(username, password) {
                     try {
                         const yktServiceUrl = "https://yktapp.whut.edu.cn/berserker-auth/cas/login/neusoftCas?targetUrl=https%3A%2F%2Fyktapp.whut.edu.cn%2Fplat-pc";
                         const tpassCasUrl = `https://zhlgd.whut.edu.cn/tpass/login?service=${encodeURIComponent(yktServiceUrl)}`;
-                        const yktTicketResp = await fetch(tpassCasUrl, {
-                            method: "GET",
-                            headers: { "User-Agent": UA, "Cookie": authCookieJar },
-                            redirect: "manual"
-                        });
-                        const ticketLoc = yktTicketResp.headers.get("location");
-                        if (!ticketLoc) return { type: 'ykt', error: 'No ticket location' };
-                        const yktAuthResp = await fetch(ticketLoc, {
-                            method: "GET",
-                            headers: { "User-Agent": UA },
-                            redirect: "manual"
-                        });
+                        let currentUrl = tpassCasUrl;
+                        let yktCookieJar = authCookieJar;
                         let token = "";
-                        const setCookies = yktAuthResp.headers.getSetCookie();
-                        if (setCookies) {
-                            for (const c of setCookies) {
-                                if (c.toLowerCase().includes("synjones-auth=")) {
-                                    token = c.split(/synjones-auth=/i)[1].split(";")[0];
+                        for (let i = 0; i < 10 && !token; i++) {
+                            const resp = await fetch(currentUrl, {
+                                method: "GET",
+                                headers: { "User-Agent": UA, "Cookie": yktCookieJar },
+                                redirect: "manual"
+                            });
+                            const newCookies = resp.headers.getSetCookie();
+                            if (newCookies) {
+                                yktCookieJar = parseAndMergeCookies(yktCookieJar, newCookies);
+                                for (const c of newCookies) {
+                                    if (c.toLowerCase().includes("synjones-auth=")) {
+                                        token = c.split(/synjones-auth=/i)[1].split(";")[0];
+                                    }
                                 }
                             }
-                        }
-                        if (!token) {
-                            const loc = yktAuthResp.headers.get("location");
+                            if (token) break;
+                            const loc = resp.headers.get("location");
                             if (loc) {
-                                const url = new URL(loc.startsWith("/") ? "https://yktapp.whut.edu.cn" + loc : loc);
-                                token = url.searchParams.get("token") || url.searchParams.get("synjones-auth");
+                                try {
+                                    const locUrl = new URL(loc.startsWith("/") ? `https://${new URL(currentUrl).host}${loc}` : loc);
+                                    token = locUrl.searchParams.get("token") || locUrl.searchParams.get("synjones-auth") || "";
+                                } catch (e) { }
                             }
+                            if (token) break;
+                            if (resp.status === 302 || resp.status === 301 || resp.status === 307) {
+                                if (resp.body) await resp.body.cancel();
+                                if (!loc) break;
+                                currentUrl = loc.startsWith("/") ? `https://${new URL(currentUrl).host}${loc}` : loc;
+                                continue;
+                            }
+                            const bodyText = await resp.text();
+                            const tokenMatch = bodyText.match(/synjones-auth[=:]\s*["']?bearer\s+([^"'\s;]+)/i)
+                                || bodyText.match(/token[=:]\s*["']?([A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+)/i);
+                            if (tokenMatch) token = tokenMatch[1];
+                            break;
                         }
                         if (!token) {
-                            return { type: 'ykt', error: 'JWT token not found in response', debugParams: yktAuthResp.headers.get("location") };
+                            return { type: 'ykt', error: 'JWT token not found after redirect chain', debugParams: currentUrl };
                         }
                         const yktUserResp = await fetch("https://yktapp.whut.edu.cn/berserker-base/user?synAccessSource=pc", {
                             method: "GET",
