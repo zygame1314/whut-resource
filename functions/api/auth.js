@@ -284,9 +284,23 @@ export async function onRequestPost({ request, env }) {
             .bind(ssoEmail, finalNickname, defaultPasswordHash, 'user', studentId)
             .run();
           user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(studentId).first();
-        } else if (ssoResult.nickname && (user.nickname === `学生_${studentId}` || !user.nickname)) {
-          await env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?').bind(ssoResult.nickname, user.id).run();
-          user.nickname = ssoResult.nickname;
+        } else {
+          const updates = [];
+          const binds = [];
+          if (cardId && user.email === `${studentId}@whut.edu.cn`) {
+            updates.push('email = ?');
+            binds.push(ssoEmail);
+            user.email = ssoEmail;
+          }
+          if (ssoResult.nickname && (user.nickname === `学生_${studentId}` || !user.nickname)) {
+            updates.push('nickname = ?');
+            binds.push(ssoResult.nickname);
+            user.nickname = ssoResult.nickname;
+          }
+          if (updates.length > 0) {
+            binds.push(user.id);
+            await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...binds).run();
+          }
         }
         const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
         const today = new Date().toISOString().split('T')[0];
