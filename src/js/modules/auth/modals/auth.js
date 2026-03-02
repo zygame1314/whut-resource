@@ -141,7 +141,7 @@ function showAuthModal(mode = 'login') {
                     </form>
                     <div style="margin-top: 15px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
                         <button type="button" id="switch-sso" class="secondary-btn full-width sso-entry-btn">
-                            <i class="fas fa-university"></i> 或者直接使用智慧理工大登录
+                            <i class="fas fa-university"></i> 使用智慧理工大登录
                         </button>
                     </div>
                 </div>
