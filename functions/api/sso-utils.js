@@ -76,9 +76,7 @@ export async function verifyWHUTCredentials(username, password) {
         console.log(`[SSO] Location: ${location}`);
 
         if (loginResp.status === 302 || loginResp.status === 307) {
-            if (location && location.includes("ticket=")) {
-                return { success: true, ticket: location };
-            }
+            return { success: true, location: location };
         }
 
         const failureHtml = await loginResp.text();
