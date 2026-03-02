@@ -65,9 +65,12 @@ export async function onRequestPost({ request, env }) {
           return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请 60 秒后再试。' }), { status: 429, headers: addCorsHeaders() });
         }
       }
-      await env.DB.prepare('DELETE FROM pending_registrations WHERE expires_at < ?').bind(new Date().toISOString()).run();
+      const nowISO = new Date().toISOString();
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      await env.DB.prepare('DELETE FROM downloads WHERE downloaded_at < ?').bind(thirtyDaysAgo).run();
+      await Promise.all([
+        env.DB.prepare('DELETE FROM pending_registrations WHERE expires_at < ?').bind(nowISO).run(),
+        env.DB.prepare('DELETE FROM downloads WHERE downloaded_at < ?').bind(thirtyDaysAgo).run()
+      ]);
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let randomCode = '';
       for (let i = 0; i < 6; i++) {
@@ -367,8 +370,7 @@ export async function onRequestPost({ request, env }) {
         user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(finalEmail).first();
       }
       if (!user) {
-        await recordLoginAttempt(env.DB, ip, 'ip');
-        await recordLoginAttempt(env.DB, email, 'email');
+        await Promise.all([recordLoginAttempt(env.DB, ip, 'ip'), recordLoginAttempt(env.DB, email, 'email')]);
         const newMaxFail = Math.max(ipFailCount + 1, emailFailCount + 1);
         return new Response(JSON.stringify({
           success: false,
@@ -387,8 +389,10 @@ export async function onRequestPost({ request, env }) {
           requireCaptcha: newMaxFail >= 3
         }), { status: 401, headers: addCorsHeaders() });
       }
-      await env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(ip, 'ip').run();
-      await env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(email, 'email').run();
+      await Promise.all([
+        env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(ip, 'ip').run(),
+        env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(email, 'email').run()
+      ]);
       const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
       const today = new Date().toISOString().split('T')[0];
       if (user.last_download_date !== today) {
