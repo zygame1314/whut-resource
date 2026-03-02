@@ -258,7 +258,13 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({ success: false, error: '请输入正确的 10 位学号。' }), { status: 400, headers: addCorsHeaders() });
       }
       const email = `${studentId}@whut.edu.cn`;
-      let user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+      let user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(studentId).first();
+      if (!user) {
+        user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+        if (user && !user.student_id) {
+          await env.DB.prepare('UPDATE users SET student_id = ? WHERE id = ?').bind(studentId, user.id).run();
+        }
+      }
       let ssoResult;
       try {
         ssoResult = await verifyWHUTCredentials(studentId, password);
@@ -271,8 +277,8 @@ export async function onRequestPost({ request, env }) {
       try {
         if (!user) {
           const defaultPasswordHash = await hashPassword(Math.random().toString(36), env.SALT);
-          await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role) VALUES (?, ?, ?, ?)')
-            .bind(email, `学生_${studentId}`, defaultPasswordHash, 'user')
+          await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role, student_id) VALUES (?, ?, ?, ?, ?)')
+            .bind(email, `学生_${studentId}`, defaultPasswordHash, 'user', studentId)
             .run();
           user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
         }
@@ -288,6 +294,7 @@ export async function onRequestPost({ request, env }) {
             email: user.email,
             nickname: user.nickname,
             role: user.role,
+            student_id: user.student_id,
             quota_limit: user.quota_limit,
             quota_used: user.quota_used,
             quota_remaining: user.quota_limit - user.quota_used

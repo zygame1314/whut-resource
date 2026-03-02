@@ -9,8 +9,10 @@ CREATE TABLE users (
     quota_used INTEGER DEFAULT 0,
     last_download_date TEXT,
     is_banned BOOLEAN DEFAULT FALSE,
+    student_id TEXT UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_users_student_id ON users(student_id);
 CREATE INDEX IF NOT EXISTS idx_users_banned ON users(is_banned, created_at DESC);
 
 DROP TABLE IF EXISTS files;
