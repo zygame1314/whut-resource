@@ -65,30 +65,57 @@ export async function verifyWHUTCredentials(username, password) {
             let nickname = null;
             let cardId = null;
             try {
+                // 收集 SSO 登录后的 Cookie
                 const afterLoginCookies = loginResp.headers.getSetCookie();
-                let finalCookies = sessionHeaders["Cookie"];
+                let cookieJar = sessionHeaders["Cookie"] || "";
                 if (afterLoginCookies && afterLoginCookies.length > 0) {
                     const newC = afterLoginCookies.map(c => c.split(";")[0]).join("; ");
-                    finalCookies += "; " + newC;
+                    cookieJar += "; " + newC;
                 }
-                const [portalResp, cardResp] = await Promise.all([
-                    fetch("https://zhlgd.whut.edu.cn/tp_up/", {
-                        headers: { "User-Agent": headers["User-Agent"], "Cookie": finalCookies }
-                    }),
-                    fetch("https://zhlgd.whut.edu.cn/tp_up/up/sysintegration/checkLogin", {
-                        method: "POST",
-                        headers: {
-                            "User-Agent": headers["User-Agent"],
-                            "Cookie": finalCookies,
-                            "Content-Type": "application/json;charset=UTF-8",
-                            "X-Requested-With": "XMLHttpRequest"
-                        },
-                        body: "{}"
-                    })
-                ]);
-                const portalHtml = await portalResp.text();
+
+                // 手动跟随重定向链，逐步收集 Cookie 直到拿到最终页面
+                let currentUrl = location;
+                let portalHtml = "";
+                for (let i = 0; i < 10; i++) {
+                    const resp = await fetch(currentUrl, {
+                        headers: { "User-Agent": headers["User-Agent"], "Cookie": cookieJar },
+                        redirect: "manual"
+                    });
+                    // 收集本次响应中的新 Cookie
+                    const newSetCookies = resp.headers.getSetCookie();
+                    if (newSetCookies && newSetCookies.length > 0) {
+                        const newC = newSetCookies.map(c => c.split(";")[0]).join("; ");
+                        cookieJar += "; " + newC;
+                    }
+                    if (resp.status === 302 || resp.status === 301 || resp.status === 307) {
+                        currentUrl = resp.headers.get("location");
+                        if (!currentUrl) break;
+                        // 处理相对路径
+                        if (currentUrl.startsWith("/")) {
+                            currentUrl = "https://zhlgd.whut.edu.cn" + currentUrl;
+                        }
+                        continue;
+                    }
+                    // 拿到 200 响应，就是最终的门户页面
+                    portalHtml = await resp.text();
+                    break;
+                }
+
+                // 从门户 HTML 中提取真实姓名
                 const nameMatch = portalHtml.match(/id="user-btn-01"[\s\S]*?<span class="tit">\s*(.*?)\s*<\/span>/i);
                 if (nameMatch && nameMatch[1]) nickname = nameMatch[1].trim();
+
+                // 用已建立的 Cookie 请求 checkLogin 接口获取 6 位卡号
+                const cardResp = await fetch("https://zhlgd.whut.edu.cn/tp_up/up/sysintegration/checkLogin", {
+                    method: "POST",
+                    headers: {
+                        "User-Agent": headers["User-Agent"],
+                        "Cookie": cookieJar,
+                        "Content-Type": "application/json;charset=UTF-8",
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: "{}"
+                });
                 const cardData = await cardResp.json();
                 if (cardData && cardData.SSOUrl) {
                     const cardMatch = cardData.SSOUrl.match(/[?&]account_name=([0-9]{6})/i);
