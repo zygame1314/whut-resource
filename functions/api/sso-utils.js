@@ -65,15 +65,23 @@ export async function verifyWHUTCredentials(username, password) {
             let nickname = null;
             let cardId = null;
             try {
-                // 收集 SSO 登录后的 Cookie
-                const afterLoginCookies = loginResp.headers.getSetCookie();
-                let cookieJar = sessionHeaders["Cookie"] || "";
-                if (afterLoginCookies && afterLoginCookies.length > 0) {
-                    const newC = afterLoginCookies.map(c => c.split(";")[0]).join("; ");
-                    cookieJar += "; " + newC;
-                }
-
-                // 手动跟随重定向链，逐步收集 Cookie 直到拿到最终页面
+                const parseAndMergeCookies = (currentJar, newSetCookies) => {
+                    const cookieMap = {};
+                    if (currentJar) {
+                        currentJar.split(";").forEach(c => {
+                            const [k, ...v] = c.trim().split("=");
+                            if (k && v.length >= 0) cookieMap[k] = v.join("=");
+                        });
+                    }
+                    if (newSetCookies && newSetCookies.length > 0) {
+                        newSetCookies.forEach(c => {
+                            const [k, ...v] = c.split(";")[0].split("=");
+                            if (k && v.length >= 0) cookieMap[k] = v.join("=");
+                        });
+                    }
+                    return Object.keys(cookieMap).map(k => `${k}=${cookieMap[k]}`).join("; ");
+                };
+                let cookieJar = parseAndMergeCookies(sessionHeaders["Cookie"], loginResp.headers.getSetCookie());
                 let currentUrl = location;
                 let portalHtml = "";
                 for (let i = 0; i < 10; i++) {
@@ -81,45 +89,39 @@ export async function verifyWHUTCredentials(username, password) {
                         headers: { "User-Agent": headers["User-Agent"], "Cookie": cookieJar },
                         redirect: "manual"
                     });
-                    // 收集本次响应中的新 Cookie
-                    const newSetCookies = resp.headers.getSetCookie();
-                    if (newSetCookies && newSetCookies.length > 0) {
-                        const newC = newSetCookies.map(c => c.split(";")[0]).join("; ");
-                        cookieJar += "; " + newC;
-                    }
+                    cookieJar = parseAndMergeCookies(cookieJar, resp.headers.getSetCookie());
                     if (resp.status === 302 || resp.status === 301 || resp.status === 307) {
                         currentUrl = resp.headers.get("location");
                         if (!currentUrl) break;
-                        // 处理相对路径
-                        if (currentUrl.startsWith("/")) {
-                            currentUrl = "https://zhlgd.whut.edu.cn" + currentUrl;
-                        }
+                        if (currentUrl.startsWith("/")) currentUrl = "https://zhlgd.whut.edu.cn" + currentUrl;
                         continue;
                     }
-                    // 拿到 200 响应，就是最终的门户页面
                     portalHtml = await resp.text();
                     break;
                 }
-
-                // 从门户 HTML 中提取真实姓名
                 const nameMatch = portalHtml.match(/id="user-btn-01"[\s\S]*?<span class="tit">\s*(.*?)\s*<\/span>/i);
                 if (nameMatch && nameMatch[1]) nickname = nameMatch[1].trim();
-
-                // 用已建立的 Cookie 请求 checkLogin 接口获取 6 位卡号
                 const cardResp = await fetch("https://zhlgd.whut.edu.cn/tp_up/up/sysintegration/checkLogin", {
                     method: "POST",
                     headers: {
                         "User-Agent": headers["User-Agent"],
                         "Cookie": cookieJar,
                         "Content-Type": "application/json;charset=UTF-8",
-                        "X-Requested-With": "XMLHttpRequest"
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Accept": "application/json, text/javascript, */*; q=0.01"
                     },
-                    body: "{}"
+                    body: "{}",
+                    redirect: "manual"
                 });
-                const cardData = await cardResp.json();
-                if (cardData && cardData.SSOUrl) {
-                    const cardMatch = cardData.SSOUrl.match(/[?&]account_name=([0-9]{6})/i);
-                    if (cardMatch) cardId = cardMatch[1];
+                let cardDataStr = await cardResp.text();
+                if (cardResp.status === 200) {
+                    try {
+                        const cardData = JSON.parse(cardDataStr);
+                        if (cardData && cardData.SSOUrl) {
+                            const cardMatch = cardData.SSOUrl.match(/[?&]account_name=([0-9]{6})/i);
+                            if (cardMatch) cardId = cardMatch[1];
+                        }
+                    } catch (e) { }
                 }
                 console.log(`[SSO] 信息抓取结果: 姓名=${nickname}, 卡号=${cardId}`);
             } catch (err) {
