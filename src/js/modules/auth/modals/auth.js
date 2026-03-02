@@ -2,8 +2,11 @@ function showAuthModal(mode = 'login') {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';
     const isLogin = mode === 'login';
-    const title = isLogin ? '登录' : '注册';
-    if (isLogin) {
+    const isSso = mode === 'sso-login';
+    let title = '登录';
+    if (mode === 'register') title = '注册';
+    if (isSso) title = '智慧理工大登录';
+    if (isLogin || isSso) {
         modal.innerHTML = `
             <div class="auth-box">
             <button id="close-modal" class="close-modal-btn">
@@ -11,14 +14,22 @@ function showAuthModal(mode = 'login') {
             </button>
             <h2 class="auth-title">${title}</h2>
             <form id="auth-form">
+                ${isSso ? `
                 <div class="form-group">
-                    <label>邮箱</label>
-                    <input type="email" id="auth-email" required class="form-control" placeholder="请输入学校邮箱">
+                    <label>学号</label>
+                    <input type="text" id="auth-email" required class="form-control" placeholder="请输入 10 位学号">
+                    <small class="form-text text-muted">通过学校统一身份认证安全登录</small>
                 </div>
+                ` : `
+                <div class="form-group">
+                    <label>邮箱或卡号</label>
+                    <input type="text" id="auth-email" required class="form-control" placeholder="输入学校邮箱前缀或6位卡号">
+                </div>
+                `}
                 <div class="form-group">
                     <label>密码</label>
                     <div class="password-input-wrapper">
-                        <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码">
+                        <input type="password" id="auth-password" required class="form-control" placeholder="${isSso ? '智慧理工大平台密码' : '请输入密码'}">
                             <button type="button" class="password-toggle" data-target="auth-password" title="显示/隐藏密码">
                                 <i class="fas fa-eye"></i>
                             </button>
@@ -29,8 +40,19 @@ function showAuthModal(mode = 'login') {
                 </div>
                 <button type="submit" class="primary-btn full-width">${title}</button>
             </form>
+            ${!isSso ? `
+            <div style="margin-top:15px">
+                <button type="button" id="switch-sso" class="secondary-btn full-width" style="border-color:#0056b3; color:#0056b3;">
+                    <i class="fas fa-university"></i> 直接使用智慧理工大登录
+                </button>
+            </div>
+            ` : ''}
             <p class="auth-footer">
+                ${isSso ? `
+                <a href="#" id="switch-login">返回普通登录</a>
+                ` : `
                 没有账号? <a href="#" id="switch-mode">去注册</a> | <a href="#" id="forgot-password">忘记密码?</a>
+                `}
             </p>
         </div>
         `;
@@ -151,17 +173,35 @@ function showAuthModal(mode = 'login') {
         }
         modal.remove();
     };
-    switchLink.onclick = (e) => {
-        e.preventDefault();
-        if (window.registerPollingTimer) {
-            clearInterval(window.registerPollingTimer);
-        }
-        modal.remove();
-        showAuthModal(isLogin ? 'register' : 'login');
-    };
+    if (switchLink) {
+        switchLink.onclick = (e) => {
+            e.preventDefault();
+            if (window.registerPollingTimer) {
+                clearInterval(window.registerPollingTimer);
+            }
+            modal.remove();
+            showAuthModal(isLogin ? 'register' : 'login');
+        };
+    }
+    const switchSsoBtn = modal.querySelector('#switch-sso');
+    if (switchSsoBtn) {
+        switchSsoBtn.onclick = (e) => {
+            e.preventDefault();
+            modal.remove();
+            showAuthModal('sso-login');
+        };
+    }
+    const switchLoginLink = modal.querySelector('#switch-login');
+    if (switchLoginLink) {
+        switchLoginLink.onclick = (e) => {
+            e.preventDefault();
+            modal.remove();
+            showAuthModal('login');
+        };
+    }
     initPasswordToggles(modal);
     let loginCaptchaWidgetId = null;
-    if (isLogin) {
+    if (isLogin || isSso) {
         const form = modal.querySelector('#auth-form');
         const forgotPasswordLink = modal.querySelector('#forgot-password');
         if (forgotPasswordLink) {
@@ -173,22 +213,26 @@ function showAuthModal(mode = 'login') {
         }
         form.onsubmit = async (e) => {
             e.preventDefault();
-            const email = document.getElementById('auth-email').value.trim();
+            const identifier = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
-            const captchaContainer = modal.querySelector('#login-captcha-container');
-            let cfToken = '';
-            if (captchaContainer.style.display !== 'none' && window.hcaptcha && loginCaptchaWidgetId) {
-                cfToken = hcaptcha.getResponse(loginCaptchaWidgetId);
-                if (!cfToken) {
-                    showNotification('请先完成人机验证', 'error');
-                    return;
+            let action = 'login';
+            let payload = { password, cfToken: cfToken || undefined };
+            if (isSso) {
+                payload.action = 'whut-login';
+                payload.studentId = identifier;
+            } else {
+                payload.action = 'login';
+                if (!identifier.includes('@')) {
+                    payload.email = identifier + '@whut.edu.cn';
+                } else {
+                    payload.email = identifier;
                 }
             }
             try {
                 const res = await fetch(AUTH_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'login', email, password, cfToken: cfToken || undefined })
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 if (data.success) {

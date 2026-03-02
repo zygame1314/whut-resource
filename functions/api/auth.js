@@ -1,4 +1,5 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders } from '../utils.js';
+import { verifyWHUTCredentials } from './sso-utils.js';
 async function recordLoginAttempt(db, identifier, type) {
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   const now = new Date().toISOString();
@@ -240,6 +241,61 @@ export async function onRequestPost({ request, env }) {
         .bind(passwordHash, user.id)
         .run();
       return new Response(JSON.stringify({ success: true, message: '密码修改成功。' }), { status: 200, headers: addCorsHeaders() });
+    }
+    if (action === 'whut-login') {
+      const { studentId, password } = body;
+      if (!studentId || !password) {
+        return new Response(JSON.stringify({ success: false, error: '学号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
+      }
+      if (studentId.length === 6) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: '6 位卡号用户请点击“注册/忘记密码”，通过邮箱发送验证码注册账号。',
+          type: 'old-card'
+        }), { status: 400, headers: addCorsHeaders() });
+      }
+      if (studentId.length !== 10) {
+        return new Response(JSON.stringify({ success: false, error: '请输入正确的 10 位学号。' }), { status: 400, headers: addCorsHeaders() });
+      }
+      const email = `${studentId}@whut.edu.cn`;
+      let user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+      let ssoResult;
+      try {
+        ssoResult = await verifyWHUTCredentials(studentId, password);
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: 'SSO 服务连接出错: ' + e.message }), { status: 500, headers: addCorsHeaders() });
+      }
+      if (!ssoResult.success) {
+        return new Response(JSON.stringify({ success: false, error: ssoResult.error || '智慧理工大登录失败，学号或密码错误。' }), { status: 401, headers: addCorsHeaders() });
+      }
+      try {
+        if (!user) {
+          const defaultPasswordHash = await hashPassword(Math.random().toString(36), env.SALT);
+          await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role) VALUES (?, ?, ?, ?)')
+            .bind(email, `学生_${studentId}`, defaultPasswordHash, 'user')
+            .run();
+          user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+        }
+        const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
+        const today = new Date().toISOString().split('T')[0];
+        if (user.last_download_date !== today) {
+          user.quota_used = 0;
+        }
+        return new Response(JSON.stringify({
+          success: true,
+          token,
+          user: {
+            email: user.email,
+            nickname: user.nickname,
+            role: user.role,
+            quota_limit: user.quota_limit,
+            quota_used: user.quota_used,
+            quota_remaining: user.quota_limit - user.quota_used
+          }
+        }), { status: 200, headers: addCorsHeaders() });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: 'SSO 登录集成维护中: ' + e.message }), { status: 500, headers: addCorsHeaders() });
+      }
     }
     if (action === 'login') {
       const { cfToken } = body;
