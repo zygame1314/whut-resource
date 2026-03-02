@@ -83,9 +83,18 @@ export async function verifyWHUTCredentials(username, password) {
 
         const failureHtml = await loginResp.text();
         const errorMsgMatch = failureHtml.match(/<div id="msg".*?>(.*?)<\/div>/s);
-        const errorDetail = errorMsgMatch ? errorMsgMatch[1].trim() : "账号或密码错误 (SSO拒绝)";
+        const errorDetail = errorMsgMatch ? errorMsgMatch[1].trim() : null;
 
-        return { success: false, error: errorDetail };
+        return {
+            success: false,
+            error: errorDetail || "SSO 登录失败",
+            debug: {
+                status: loginResp.status,
+                location: location,
+                cookies: sessionHeaders["Cookie"],
+                bodySnippet: failureHtml.substring(0, 500)
+            }
+        };
 
 
     } catch (e) {

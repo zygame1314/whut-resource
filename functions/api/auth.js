@@ -266,7 +266,7 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({ success: false, error: 'SSO 服务连接出错: ' + e.message }), { status: 500, headers: addCorsHeaders() });
       }
       if (!ssoResult.success) {
-        return new Response(JSON.stringify({ success: false, error: ssoResult.error || '智慧理工大登录失败，学号或密码错误。' }), { status: 401, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: ssoResult.error || '智慧理工大登录失败', debug: ssoResult.debug }), { status: 401, headers: addCorsHeaders() });
       }
       try {
         if (!user) {
