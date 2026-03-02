@@ -23,7 +23,7 @@ function showAuthModal(mode = 'login') {
                 ` : `
                 <div class="form-group">
                     <label>邮箱或卡号</label>
-                    <input type="text" id="auth-email" required class="form-control" placeholder="输入学校邮箱前缀或6位卡号">
+                    <input type="text" id="auth-email" required class="form-control" placeholder="输入学校邮箱前缀或校园卡号">
                 </div>
                 `}
                 <div class="form-group">
@@ -215,6 +215,15 @@ function showAuthModal(mode = 'login') {
             e.preventDefault();
             const identifier = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
+            const captchaContainer = modal.querySelector('#login-captcha-container');
+            let cfToken = '';
+            if (captchaContainer && captchaContainer.style.display !== 'none' && window.hcaptcha && loginCaptchaWidgetId) {
+                cfToken = hcaptcha.getResponse(loginCaptchaWidgetId);
+                if (!cfToken) {
+                    showNotification('请先完成人机验证', 'error');
+                    return;
+                }
+            }
             let action = 'login';
             let payload = { password, cfToken: cfToken || undefined };
             if (isSso) {
