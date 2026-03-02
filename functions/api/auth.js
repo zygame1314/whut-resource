@@ -363,8 +363,9 @@ export async function onRequestPost({ request, env }) {
       }
       let user = null;
       let finalEmail = email;
-      if (/^\d+$/.test(identifier)) {
-        user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(identifier).first();
+      const identifierStr = email ? email.split('@')[0] : '';
+      if (/^\d+$/.test(identifierStr)) {
+        user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(identifierStr).first();
       }
       if (!user) {
         user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(finalEmail).first();
