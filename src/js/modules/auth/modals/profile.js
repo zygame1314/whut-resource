@@ -58,7 +58,7 @@ function showChangeNicknameModal() {
         }
     };
 }
-function showForgotPasswordModal() {
+function showForgotPasswordModal(prefillEmail = '') {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';
     modal.innerHTML = `
@@ -71,7 +71,7 @@ function showForgotPasswordModal() {
                 <form id="reset-form-step1">
                     <div class="form-group">
                         <label>邮箱 (@whut.edu.cn)</label>
-                        <input type="email" id="reset-email" required class="form-control" placeholder="请输入注册时使用的邮箱">
+                        <input type="email" id="reset-email" required class="form-control" placeholder="请输入注册时使用的邮箱" value="${escapeHtml(prefillEmail)}">
                     </div>
                     <div class="form-group">
                         <label>新密码</label>

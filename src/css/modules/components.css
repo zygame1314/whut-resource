@@ -1145,6 +1145,64 @@
     border: 1px solid var(--border-color);
 }
 
+.welcome-box {
+    max-width: 480px;
+    padding: 2.5rem;
+}
+
+.welcome-content {
+    margin: 1.5rem 0;
+    text-align: left;
+}
+
+.info-card {
+    background: var(--background-alt);
+    padding: 1rem;
+    border-radius: 12px;
+    margin: 1rem 0;
+    border: 1px solid var(--border-color);
+}
+
+.info-card p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.info-card code {
+    background: rgba(0, 123, 255, 0.1);
+    color: var(--primary-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.activation-notice {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed var(--border-color);
+}
+
+.activation-notice h4 {
+    color: #f39c12;
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.activation-notice .small-text {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+}
+
+.welcome-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 2rem;
+}
+
 .login-prompt {
     text-align: center;
     color: var(--text-secondary);
@@ -2330,6 +2388,195 @@
     overflow-x: hidden;
     max-height: 80vh;
     scrollbar-width: none;
+    transition: all 0.3s ease;
+}
+
+.sso-box {
+    padding-top: 0 !important;
+    border-top: none !important;
+    border-image: none;
+    background-image:
+        linear-gradient(var(--background), var(--background)),
+        linear-gradient(135deg, #004f98, #0077ee);
+    box-shadow: 0 30px 80px rgba(0, 79, 152, 0.25), 0 0 1px rgba(0, 79, 152, 0.4);
+    overflow: hidden;
+    min-width: 360px;
+}
+
+.sso-brand {
+    background: linear-gradient(135deg, #004f98 0%, #0066cc 100%);
+    padding: 2.2rem 2rem;
+    margin: 0 -2.5rem 2rem -2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1.25rem;
+    color: white;
+    border-radius: 24px 24px 0 0;
+    line-height: 1.2;
+}
+
+.sso-logo-circle {
+    width: 64px;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(5px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    line-height: 1;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.sso-brand-text h3 {
+    margin: 0;
+    padding: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    line-height: 1;
+}
+
+.sso-brand-text p {
+    margin: 6px 0 0 0;
+    padding: 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
+    font-weight: 400;
+    line-height: 1;
+}
+
+.sso-box .close-modal-btn {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sso-box .close-modal-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg) scale(1.1);
+}
+
+.sso-box .close-modal-btn:active {
+    transform: rotate(90deg) scale(0.95);
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 14px;
+    color: #004f98;
+    font-size: 1.1rem;
+    opacity: 0.7;
+    z-index: 10;
+}
+
+.input-with-icon input {
+    padding-left: 44px !important;
+}
+
+.sso-btn {
+    background: linear-gradient(135deg, #004f98 0%, #0066cc 100%) !important;
+    border: none !important;
+    box-shadow: 0 4px 14px rgba(0, 79, 152, 0.4);
+    height: 50px;
+    font-size: 1.1rem;
+    margin-top: 0.5rem !important;
+}
+
+.sso-btn:hover {
+    box-shadow: 0 6px 20px rgba(0, 79, 152, 0.5);
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, #005bb0 0%, #0077ee 100%) !important;
+}
+
+.sso-btn i {
+    margin-right: 10px;
+}
+
+.sso-security-hint {
+    margin-top: 1.5rem;
+    padding: 0.85rem;
+    background: rgba(46, 204, 113, 0.08);
+    border-radius: 10px;
+    font-size: 0.85rem;
+    color: #27ae60;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(46, 204, 113, 0.15);
+}
+
+.sso-entry-btn {
+    border: 1.5px solid #004f98 !important;
+    color: #004f98 !important;
+    background: transparent !important;
+    transition: all 0.3s ease !important;
+    font-size: 0.95rem;
+}
+
+.sso-entry-btn:hover {
+    background: #004f98 !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(0, 79, 152, 0.2);
+}
+
+[data-theme="dark"] .sso-entry-btn {
+    color: #4da3ff !important;
+    border-color: #4da3ff !important;
+}
+
+[data-theme="dark"] .sso-entry-btn:hover {
+    background: #4da3ff !important;
+    color: #001a33 !important;
+}
+
+[data-theme="dark"] .input-with-icon i {
+    color: #4da3ff;
+}
+
+[data-theme="dark"] .sso-security-hint {
+    background: rgba(46, 204, 113, 0.15);
+    color: #4cd137;
+    border-color: rgba(46, 204, 113, 0.3);
+}
+
+[data-theme="dark"] .input-with-icon i {
+    color: #4da3ff;
+}
+
+.primary-btn.loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+
+.primary-btn.loading::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    top: 50%;
+    left: 50%;
+    margin-top: -10px;
+    margin-left: -10px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
 }
 
 .auth-modal.closing {

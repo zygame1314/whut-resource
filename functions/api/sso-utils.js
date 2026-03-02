@@ -91,6 +91,7 @@ export async function verifyWHUTCredentials(username, password) {
                     });
                     cookieJar = parseAndMergeCookies(cookieJar, resp.headers.getSetCookie());
                     if (resp.status === 302 || resp.status === 301 || resp.status === 307) {
+                        if (resp.body) await resp.body.cancel();
                         currentUrl = resp.headers.get("location");
                         if (!currentUrl) break;
                         if (currentUrl.startsWith("/")) currentUrl = "https://zhlgd.whut.edu.cn" + currentUrl;

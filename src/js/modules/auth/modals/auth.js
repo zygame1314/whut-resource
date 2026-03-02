@@ -8,17 +8,31 @@ function showAuthModal(mode = 'login') {
     if (isSso) title = '智慧理工大登录';
     if (isLogin || isSso) {
         modal.innerHTML = `
-            <div class="auth-box">
+            <div class="auth-box ${isSso ? 'sso-box' : ''}">
             <button id="close-modal" class="close-modal-btn">
                 <i class="fas fa-times"></i>
             </button>
-            <h2 class="auth-title">${title}</h2>
+            ${isSso ? `
+                <div class="sso-brand">
+                    <div class="sso-logo-circle">
+                        <i class="fas fa-university"></i>
+                    </div>
+                    <div class="sso-brand-text">
+                        <h3>智慧理工大</h3>
+                        <p>统一身份认证 (SSO)</p>
+                    </div>
+                </div>
+            ` : `
+                <h2 class="auth-title">${title}</h2>
+            `}
             <form id="auth-form">
                 ${isSso ? `
                 <div class="form-group">
-                    <label>学号</label>
-                    <input type="text" id="auth-email" required class="form-control" placeholder="请输入 10 位学号">
-                    <small class="form-text text-muted">通过学校统一身份认证安全登录</small>
+                    <label>学号 (Student ID)</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-user-graduate"></i>
+                        <input type="text" id="auth-email" required class="form-control" placeholder="请输入学校学号">
+                    </div>
                 </div>
                 ` : `
                 <div class="form-group">
@@ -27,22 +41,29 @@ function showAuthModal(mode = 'login') {
                 </div>
                 `}
                 <div class="form-group">
-                    <label>密码</label>
+                    <label>密码 (Password)</label>
                     <div class="password-input-wrapper">
-                        <input type="password" id="auth-password" required class="form-control" placeholder="${isSso ? '智慧理工大平台密码' : '请输入密码'}">
-                            <button type="button" class="password-toggle" data-target="auth-password" title="显示/隐藏密码">
-                                <i class="fas fa-eye"></i>
-                            </button>
+                        <input type="password" id="auth-password" required class="form-control" placeholder="${isSso ? '平台查询密码 / 初始密码' : '请输入密码'}">
+                        <button type="button" class="password-toggle" data-target="auth-password" title="显示/隐藏密码">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
                 </div>
                 <div id="login-captcha-container" class="form-group" style="display: none;">
                     <div id="hcaptcha-login-widget" class="h-captcha"></div>
                 </div>
-                <button type="submit" class="primary-btn full-width">${title}</button>
+                <button type="submit" class="primary-btn full-width ${isSso ? 'sso-btn' : ''}">
+                    ${isSso ? '<i class="fas fa-shield-alt"></i> 安全登录' : title}
+                </button>
             </form>
+            ${isSso ? `
+                <div class="sso-security-hint">
+                    <i class="fas fa-lock"></i> 你的凭据直接发送至学校认证系统，本站不存储密码
+                </div>
+            ` : ''}
             ${!isSso ? `
             <div style="margin-top:15px">
-                <button type="button" id="switch-sso" class="secondary-btn full-width" style="border-color:#0056b3; color:#0056b3;">
+                <button type="button" id="switch-sso" class="secondary-btn full-width sso-entry-btn">
                     <i class="fas fa-university"></i> 直接使用智慧理工大登录
                 </button>
             </div>
@@ -108,6 +129,11 @@ function showAuthModal(mode = 'login') {
                         </div>
                         <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
                     </form>
+                    <div style="margin-top: 15px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
+                        <button type="button" id="switch-sso" class="secondary-btn full-width sso-entry-btn">
+                            <i class="fas fa-university"></i> 或者直接使用智慧理工大登录
+                        </button>
+                    </div>
                 </div>
                 <div id="register-step-2" style="display: none;">
                     <div class="verify-instructions">
@@ -213,6 +239,8 @@ function showAuthModal(mode = 'login') {
         }
         form.onsubmit = async (e) => {
             e.preventDefault();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn.classList.contains('loading')) return;
             const identifier = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
             const captchaContainer = modal.querySelector('#login-captcha-container');
@@ -237,6 +265,7 @@ function showAuthModal(mode = 'login') {
                     payload.email = identifier;
                 }
             }
+            submitBtn.classList.add('loading');
             try {
                 const res = await fetch(AUTH_API_URL, {
                     method: 'POST',
@@ -249,8 +278,44 @@ function showAuthModal(mode = 'login') {
                     localStorage.setItem('authToken', token);
                     currentUser = data.user;
                     updateAuthUI();
-                    modal.remove();
-                    window.location.reload();
+                    if (isSso) {
+                        modal.remove();
+                        const welcomeModal = document.createElement('div');
+                        welcomeModal.className = 'auth-modal';
+                        welcomeModal.innerHTML = `
+                            <div class="auth-box welcome-box">
+                                <h2 class="auth-title"><i class="fas fa-check-circle"></i> 登录成功</h2>
+                                <div class="welcome-content">
+                                    <p>欢迎回来，<strong>${escapeHtml(currentUser.nickname)}</strong>！</p>
+                                    <div class="info-card">
+                                        <p><i class="fas fa-id-card"></i> 你的学号: <code>${currentUser.student_id}</code></p>
+                                        <p><i class="fas fa-envelope"></i> 系统邮箱: <code>${currentUser.email}</code></p>
+                                    </div>
+                                    <div class="activation-notice">
+                                        <h4><i class="fas fa-unlock-alt"></i> 激活本站独立登录</h4>
+                                        <p>你已通过 SSO 成功登录。为了方便以后直接使用邮箱登录（无需跳转 SSO），建议你现在去<strong>激活邮箱并设置一个本站密码</strong>。</p>
+                                        <p class="small-text">我们已经为你准备好了重置链接，只需点击下方按钮并发送验证邮件即可。</p>
+                                    </div>
+                                </div>
+                                <div class="welcome-actions">
+                                    <button id="go-activate-btn" class="primary-btn full-width">立即去激活/设密</button>
+                                    <button id="skip-welcome-btn" class="secondary-btn full-width">暂不激活，直接进入</button>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(welcomeModal);
+                        welcomeModal.querySelector('#skip-welcome-btn').onclick = () => {
+                            welcomeModal.remove();
+                            window.location.reload();
+                        };
+                        welcomeModal.querySelector('#go-activate-btn').onclick = () => {
+                            welcomeModal.remove();
+                            showForgotPasswordModal(currentUser.email);
+                        };
+                    } else {
+                        modal.remove();
+                        window.location.reload();
+                    }
                 } else {
                     const needCaptcha = data.requireCaptcha;
                     if (needCaptcha && captchaContainer.style.display === 'none') {
@@ -270,6 +335,8 @@ function showAuthModal(mode = 'login') {
                 }
             } catch (err) {
                 showNotification('Error: ' + err.message, 'error');
+            } finally {
+                submitBtn.classList.remove('loading');
             }
         };
     } else {

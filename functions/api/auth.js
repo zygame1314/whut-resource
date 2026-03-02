@@ -247,16 +247,6 @@ export async function onRequestPost({ request, env }) {
       if (!studentId || !password) {
         return new Response(JSON.stringify({ success: false, error: '学号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
       }
-      if (studentId.length === 6) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: '6 位卡号用户请点击“注册/忘记密码”，通过邮箱发送验证码注册账号。',
-          type: 'old-card'
-        }), { status: 400, headers: addCorsHeaders() });
-      }
-      if (studentId.length !== 10) {
-        return new Response(JSON.stringify({ success: false, error: '请输入正确的 10 位学号。' }), { status: 400, headers: addCorsHeaders() });
-      }
       let ssoResult;
       try {
         ssoResult = await verifyWHUTCredentials(studentId, password);
@@ -370,8 +360,7 @@ export async function onRequestPost({ request, env }) {
       }
       let user = null;
       let finalEmail = email;
-      const identifier = email.split('@')[0];
-      if (identifier.length === 10 && /^\d+$/.test(identifier)) {
+      if (/^\d+$/.test(identifier)) {
         user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(identifier).first();
       }
       if (!user) {
