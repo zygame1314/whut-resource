@@ -179,15 +179,27 @@ export async function verifyWHUTCredentials(username, password) {
                     redirect: "manual"
                 });
                 if (cardResp.status === 200) {
+                    let cardDataStr = "";
                     try {
-                        const cardData = await cardResp.json();
+                        cardDataStr = await cardResp.text();
+                        const cardData = JSON.parse(cardDataStr);
                         if (cardData && cardData.SSOUrl) {
                             const cardMatch = cardData.SSOUrl.match(CARD_REGEX);
-                            if (cardMatch) cardId = cardMatch[1];
+                            if (cardMatch) {
+                                cardId = cardMatch[1];
+                            } else {
+                                console.log(`[SSO] 无法匹配卡号正则: ${cardData.SSOUrl}`);
+                            }
+                        } else {
+                            console.log(`[SSO] checkLogin 返回数据缺少 SSOUrl 字段:`, cardDataStr);
                         }
-                    } catch (e) { }
+                    } catch (e) {
+                        console.log(`[SSO] checkLogin 数据解析失败: ${e.message}`);
+                        console.log(`[SSO] 原始抓取内容: ${cardDataStr.substring(0, 300)}`);
+                    }
                 } else {
                     if (cardResp.body) await cardResp.body.cancel();
+                    console.log(`[SSO] checkLogin 请求失败，HTTP 状态码: ${cardResp.status}`);
                 }
                 console.log(`[SSO] 信息抓取结果: 姓名=${nickname}, 卡号=${cardId}`);
             } catch (err) {
