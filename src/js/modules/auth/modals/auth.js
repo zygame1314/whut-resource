@@ -37,12 +37,16 @@ function showAuthModal(mode = 'login') {
                 ` : `
                 <div class="form-group">
                     <label>邮箱或卡号</label>
-                    <input type="text" id="auth-email" required class="form-control" placeholder="输入学校邮箱前缀或校园卡号">
+                    <div class="input-with-icon">
+                        <i class="fas fa-envelope"></i>
+                        <input type="text" id="auth-email" required class="form-control" placeholder="输入学校邮箱前缀或校园卡号">
+                    </div>
                 </div>
                 `}
                 <div class="form-group">
                     <label>密码 (Password)</label>
-                    <div class="password-input-wrapper">
+                    <div class="input-with-icon password-input-wrapper">
+                        <i class="fas fa-lock"></i>
                         <input type="password" id="auth-password" required class="form-control" placeholder="${isSso ? '平台查询密码 / 初始密码' : '请输入密码'}">
                         <button type="button" class="password-toggle" data-target="auth-password" title="显示/隐藏密码">
                             <i class="fas fa-eye"></i>
@@ -88,18 +92,23 @@ function showAuthModal(mode = 'login') {
                     <form id="register-form-step1">
                         <div class="form-group">
                             <label>邮箱前缀</label>
-                            <div class="email-input-group">
+                            <div class="email-input-group input-with-icon">
+                                <i class="fas fa-envelope"></i>
                                 <input type="text" id="auth-email" required class="form-control" placeholder="请输入学校邮箱前缀">
                                 <span class="email-suffix">@whut.edu.cn</span>
                             </div>
                         </div>
                         <div class="form-group">
                             <label>昵称（可选）</label>
-                            <input type="text" id="auth-nickname" class="form-control" placeholder="请输入昵称" maxlength="20">
+                            <div class="input-with-icon">
+                                <i class="fas fa-signature"></i>
+                                <input type="text" id="auth-nickname" class="form-control" placeholder="请输入昵称" maxlength="20">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>密码</label>
-                            <div class="password-input-wrapper">
+                            <div class="input-with-icon password-input-wrapper">
+                                <i class="fas fa-lock"></i>
                                 <input type="password" id="auth-password" required class="form-control" placeholder="请输入密码（至少6位）" minlength="6">
                                 <button type="button" class="password-toggle" data-target="auth-password" title="显示/隐藏密码">
                                     <i class="fas fa-eye"></i>
@@ -108,7 +117,8 @@ function showAuthModal(mode = 'login') {
                         </div>
                         <div class="form-group">
                             <label>确认密码</label>
-                            <div class="password-input-wrapper">
+                            <div class="input-with-icon password-input-wrapper">
+                                <i class="fas fa-shield-alt"></i>
                                 <input type="password" id="auth-password-confirm" required class="form-control" placeholder="请再次输入密码" minlength="6">
                                 <button type="button" class="password-toggle" data-target="auth-password-confirm" title="显示/隐藏密码">
                                     <i class="fas fa-eye"></i>

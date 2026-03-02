@@ -2399,8 +2399,30 @@
         linear-gradient(var(--background), var(--background)),
         linear-gradient(135deg, #004f98, #0077ee);
     box-shadow: 0 30px 80px rgba(0, 79, 152, 0.25), 0 0 1px rgba(0, 79, 152, 0.4);
-    overflow: hidden;
     min-width: 360px;
+}
+
+@media (max-width: 480px) {
+    .auth-box {
+        padding: 2.5rem 1.5rem 2rem 1.5rem;
+        max-height: 92vh;
+        width: 94%;
+    }
+
+    .sso-box {
+        min-width: unset;
+        width: 100%;
+    }
+
+    .sso-brand {
+        margin: 0 -1.5rem 1.5rem -1.5rem;
+        padding: 1.8rem 1.5rem;
+    }
+
+    .auth-title {
+        font-size: 1.6rem;
+        margin-bottom: 1.8rem;
+    }
 }
 
 .sso-brand {
@@ -2473,9 +2495,11 @@
     align-items: center;
 }
 
-.input-with-icon i {
+.input-with-icon>i {
     position: absolute;
     left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
     color: #004f98;
     font-size: 1.1rem;
     opacity: 0.7;
@@ -2544,7 +2568,7 @@
     color: #001a33 !important;
 }
 
-[data-theme="dark"] .input-with-icon i {
+[data-theme="dark"] .input-with-icon>i {
     color: #4da3ff;
 }
 
@@ -2552,10 +2576,6 @@
     background: rgba(46, 204, 113, 0.15);
     color: #4cd137;
     border-color: rgba(46, 204, 113, 0.3);
-}
-
-[data-theme="dark"] .input-with-icon i {
-    color: #4da3ff;
 }
 
 .primary-btn.loading {
@@ -2571,7 +2591,7 @@
     height: 20px;
     top: 50%;
     left: 50%;
-    margin-top: -10px;
+    margin-top: -13px;
     margin-left: -10px;
     border: 3px solid rgba(255, 255, 255, 0.3);
     border-top-color: white;
@@ -2688,7 +2708,7 @@
 .email-suffix {
     display: flex;
     align-items: center;
-    padding: 0 1rem;
+    padding: 0 0.5rem;
     color: var(--text-secondary);
     font-size: 0.95rem;
     font-weight: 600;
