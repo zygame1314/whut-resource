@@ -145,65 +145,131 @@ export async function verifyWHUTCredentials(username, password) {
             let nickname = null;
             let cardId = null;
             try {
-                let cookieJar = parseAndMergeCookies(cookieStr, loginResp.headers.getSetCookie());
-                let currentUrl = location;
-                let portalHtml = "";
-                for (let i = 0; i < 10; i++) {
-                    const resp = await fetch(currentUrl, {
-                        headers: { "User-Agent": UA, "Cookie": cookieJar },
-                        redirect: "manual"
-                    });
-                    cookieJar = parseAndMergeCookies(cookieJar, resp.headers.getSetCookie());
-                    if (resp.status === 302 || resp.status === 301 || resp.status === 307) {
-                        if (resp.body) await resp.body.cancel();
-                        currentUrl = resp.headers.get("location");
-                        if (!currentUrl) break;
-                        if (currentUrl.startsWith("/")) currentUrl = "https://zhlgd.whut.edu.cn" + currentUrl;
-                        continue;
-                    }
-                    portalHtml = await resp.text();
-                    break;
-                }
-                const nameMatch = portalHtml.match(NAME_REGEX);
-                if (nameMatch && nameMatch[1]) nickname = nameMatch[1].trim();
-                const cardResp = await fetch("https://zhlgd.whut.edu.cn/tp_up/up/sysintegration/checkLogin", {
-                    method: "POST",
-                    headers: {
-                        "User-Agent": UA,
-                        "Cookie": cookieJar,
-                        "Content-Type": "application/json;charset=UTF-8",
-                        "X-Requested-With": "XMLHttpRequest",
-                        "Accept": "application/json, text/javascript, */*; q=0.01"
-                    },
-                    body: "{}",
-                    redirect: "manual"
-                });
-                if (cardResp.status === 200) {
-                    let cardDataStr = "";
+                const portalTask = (async () => {
                     try {
-                        cardDataStr = await cardResp.text();
-                        const cardData = JSON.parse(cardDataStr);
-                        if (cardData && cardData.SSOUrl) {
-                            const cardMatch = cardData.SSOUrl.match(CARD_REGEX);
-                            if (cardMatch) {
-                                cardId = cardMatch[1];
-                            } else {
-                                console.log(`[SSO] 无法匹配卡号正则: ${cardData.SSOUrl}`);
+                        let cookieJar = parseAndMergeCookies(cookieStr, loginResp.headers.getSetCookie());
+                        let currentUrl = location;
+                        let portalHtml = "";
+                        for (let i = 0; i < 10; i++) {
+                            const resp = await fetch(currentUrl, {
+                                headers: { "User-Agent": UA, "Cookie": cookieJar },
+                                redirect: "manual"
+                            });
+                            cookieJar = parseAndMergeCookies(cookieJar, resp.headers.getSetCookie());
+                            if (resp.status === 302 || resp.status === 301 || resp.status === 307) {
+                                if (resp.body) await resp.body.cancel();
+                                currentUrl = resp.headers.get("location");
+                                if (!currentUrl) break;
+                                if (currentUrl.startsWith("/")) currentUrl = "https://zhlgd.whut.edu.cn" + currentUrl;
+                                continue;
                             }
-                        } else {
-                            console.log(`[SSO] checkLogin 返回数据缺少 SSOUrl 字段:`, cardDataStr);
+                            portalHtml = await resp.text();
+                            break;
                         }
+                        let localName = null;
+                        const nameMatch = portalHtml.match(NAME_REGEX);
+                        if (nameMatch && nameMatch[1]) localName = nameMatch[1].trim();
+                        let localCardId = null;
+                        const cardResp = await fetch("https://zhlgd.whut.edu.cn/tp_up/up/sysintegration/checkLogin", {
+                            method: "POST",
+                            headers: {
+                                "User-Agent": UA,
+                                "Cookie": cookieJar,
+                                "Content-Type": "application/json;charset=UTF-8",
+                                "X-Requested-With": "XMLHttpRequest",
+                                "Accept": "application/json, text/javascript, */*; q=0.01"
+                            },
+                            body: "{}",
+                            redirect: "manual"
+                        });
+                        if (cardResp.status === 200) {
+                            try {
+                                const cardDataStr = await cardResp.text();
+                                const cardData = JSON.parse(cardDataStr);
+                                if (cardData && cardData.SSOUrl) {
+                                    const cardMatch = cardData.SSOUrl.match(CARD_REGEX);
+                                    if (cardMatch) {
+                                        localCardId = cardMatch[1];
+                                    }
+                                }
+                            } catch (e) { }
+                        } else {
+                            if (cardResp.body) await cardResp.body.cancel();
+                        }
+                        return { type: 'portal', name: localName, cardId: localCardId };
                     } catch (e) {
-                        console.log(`[SSO] checkLogin 数据解析失败: ${e.message}`);
-                        console.log(`[SSO] 原始抓取内容: ${cardDataStr.substring(0, 300)}`);
+                        return { type: 'portal', error: e.message };
                     }
-                } else {
-                    if (cardResp.body) await cardResp.body.cancel();
-                    console.log(`[SSO] checkLogin 请求失败，HTTP 状态码: ${cardResp.status}`);
+                })();
+                const yktTask = (async () => {
+                    try {
+                        const yktServiceUrl = "https://yktapp.whut.edu.cn/berserker-auth/cas/login/neusoftCas?targetUrl=https%3A%2F%2Fyktapp.whut.edu.cn%2Fplat-pc";
+                        const tpassCasUrl = `https://zhlgd.whut.edu.cn/tpass/login?service=${encodeURIComponent(yktServiceUrl)}`;
+                        const yktTicketResp = await fetch(tpassCasUrl, {
+                            method: "GET",
+                            headers: { "User-Agent": UA, "Cookie": cookieStr },
+                            redirect: "manual"
+                        });
+                        const ticketLoc = yktTicketResp.headers.get("location");
+                        if (!ticketLoc) return { type: 'ykt', error: 'No ticket location' };
+                        const yktAuthResp = await fetch(ticketLoc, {
+                            method: "GET",
+                            headers: { "User-Agent": UA },
+                            redirect: "manual"
+                        });
+                        let token = "";
+                        const setCookies = yktAuthResp.headers.getSetCookie();
+                        if (setCookies) {
+                            for (const c of setCookies) {
+                                if (c.toLowerCase().includes("synjones-auth=")) {
+                                    token = c.split(/synjones-auth=/i)[1].split(";")[0];
+                                }
+                            }
+                        }
+                        if (!token) {
+                            const loc = yktAuthResp.headers.get("location");
+                            if (loc) {
+                                const url = new URL(loc.startsWith("/") ? "https://yktapp.whut.edu.cn" + loc : loc);
+                                token = url.searchParams.get("token") || url.searchParams.get("synjones-auth");
+                            }
+                        }
+                        if (!token) {
+                            return { type: 'ykt', error: 'JWT token not found in response', debugParams: yktAuthResp.headers.get("location") };
+                        }
+                        const yktUserResp = await fetch("https://yktapp.whut.edu.cn/berserker-base/user?synAccessSource=pc", {
+                            method: "GET",
+                            headers: {
+                                "User-Agent": UA,
+                                "synaccesssource": "pc",
+                                "synjones-auth": `bearer ${token}`
+                            }
+                        });
+                        if (yktUserResp.status === 200) {
+                            const yktData = await yktUserResp.json();
+                            if (yktData && yktData.data) {
+                                return {
+                                    type: 'ykt',
+                                    name: yktData.data.name,
+                                    cardId: yktData.data.cardAccount
+                                };
+                            }
+                        }
+                        return { type: 'ykt', error: 'Failed to fetch user profile' };
+                    } catch (e) {
+                        return { type: 'ykt', error: e.message };
+                    }
+                })();
+                const results = await Promise.all([portalTask, yktTask]);
+                const portalResult = results[0];
+                const yktResult = results[1];
+                nickname = yktResult.name || portalResult.name || nickname;
+                cardId = yktResult.cardId || portalResult.cardId || cardId;
+                console.log(`[SSO] 抓取完成 - Portal(名:${portalResult.name}, 卡:${portalResult.cardId}) YKT(名:${yktResult.name}, 卡:${yktResult.cardId})`);
+                if (yktResult.error) {
+                    console.log(`[SSO] YKT 调试 - 错误:${yktResult.error} 附加:${yktResult.debugParams || ''}`);
                 }
-                console.log(`[SSO] 信息抓取结果: 姓名=${nickname}, 卡号=${cardId}`);
             } catch (err) {
-                console.log("[SSO] 个人信息补充获取失败", err.message);
+                console.log("[SSO] 个人信息组装机制获取失败", err.message);
             }
             return { success: true, location: location, nickname: nickname, cardId: cardId };
         }
