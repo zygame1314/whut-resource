@@ -257,14 +257,6 @@ export async function onRequestPost({ request, env }) {
       if (studentId.length !== 10) {
         return new Response(JSON.stringify({ success: false, error: '请输入正确的 10 位学号。' }), { status: 400, headers: addCorsHeaders() });
       }
-      const email = `${studentId}@whut.edu.cn`;
-      let user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(studentId).first();
-      if (!user) {
-        user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
-        if (user && !user.student_id) {
-          await env.DB.prepare('UPDATE users SET student_id = ? WHERE id = ?').bind(studentId, user.id).run();
-        }
-      }
       let ssoResult;
       try {
         ssoResult = await verifyWHUTCredentials(studentId, password);
@@ -275,12 +267,26 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({ success: false, error: ssoResult.error || '智慧理工大登录失败', debug: ssoResult.debug }), { status: 401, headers: addCorsHeaders() });
       }
       try {
+        const cardId = ssoResult.cardId;
+        const ssoEmail = cardId ? `${cardId}@whut.edu.cn` : `${studentId}@whut.edu.cn`;
+        let user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(studentId).first();
+        if (!user) {
+          user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(ssoEmail).first();
+          if (user && !user.student_id) {
+            await env.DB.prepare('UPDATE users SET student_id = ? WHERE id = ?').bind(studentId, user.id).run();
+            user.student_id = studentId;
+          }
+        }
         if (!user) {
           const defaultPasswordHash = await hashPassword(Math.random().toString(36), env.SALT);
+          const finalNickname = ssoResult.nickname || `学生_${studentId}`;
           await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role, student_id) VALUES (?, ?, ?, ?, ?)')
-            .bind(email, `学生_${studentId}`, defaultPasswordHash, 'user', studentId)
+            .bind(ssoEmail, finalNickname, defaultPasswordHash, 'user', studentId)
             .run();
-          user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+          user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(studentId).first();
+        } else if (ssoResult.nickname && (user.nickname === `学生_${studentId}` || !user.nickname)) {
+          await env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?').bind(ssoResult.nickname, user.id).run();
+          user.nickname = ssoResult.nickname;
         }
         const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
         const today = new Date().toISOString().split('T')[0];
@@ -348,7 +354,15 @@ export async function onRequestPost({ request, env }) {
           }
         }
       }
-      const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+      let user = null;
+      let finalEmail = email;
+      const identifier = email.split('@')[0];
+      if (identifier.length === 10 && /^\d+$/.test(identifier)) {
+        user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(identifier).first();
+      }
+      if (!user) {
+        user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(finalEmail).first();
+      }
       if (!user) {
         await recordLoginAttempt(env.DB, ip, 'ip');
         await recordLoginAttempt(env.DB, email, 'email');
