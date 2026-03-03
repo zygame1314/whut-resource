@@ -14,7 +14,7 @@ function showAuthModal(mode = 'login') {
             </button>
             ${isSso ? `
                 <div class="sso-brand">
-                    <div class="sso-logo-circle">
+                    <div class="sso-logo-float">
                         <i class="fas fa-university"></i>
                     </div>
                     <div class="sso-brand-text">
@@ -35,7 +35,7 @@ function showAuthModal(mode = 'login') {
                     <label>学号 (Student ID)</label>
                     <div class="input-with-icon">
                         <i class="fas fa-user-graduate"></i>
-                        <input type="text" id="auth-email" required class="form-control" placeholder="请输入学校学号">
+                        <input type="text" id="auth-email" required class="form-control" placeholder="请输入学号或卡号">
                     </div>
                 </div>
                 ` : `

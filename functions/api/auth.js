@@ -336,9 +336,9 @@ export async function onRequestPost({ request, env }) {
         let user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ? OR email = ?')
           .bind(studentId, ssoEmail).first();
         if (user) {
-          if (!user.student_id) {
-            await env.DB.prepare('UPDATE users SET student_id = ? WHERE id = ?').bind(studentId, user.id).run();
-            user.student_id = studentId;
+          if (ssoResult.sno && user.student_id !== ssoResult.sno) {
+            await env.DB.prepare('UPDATE users SET student_id = ? WHERE id = ?').bind(ssoResult.sno, user.id).run();
+            user.student_id = ssoResult.sno;
           }
         }
         if (!user) {

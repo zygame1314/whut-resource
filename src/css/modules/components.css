@@ -2392,14 +2392,23 @@
 }
 
 .sso-box {
-    padding-top: 0 !important;
-    border-top: none !important;
-    border-image: none;
-    background-image:
-        linear-gradient(var(--background), var(--background)),
-        linear-gradient(135deg, #004f98, #0077ee);
-    box-shadow: 0 30px 80px rgba(0, 79, 152, 0.25), 0 0 1px rgba(0, 79, 152, 0.4);
-    min-width: 360px;
+    padding: 2.5rem !important;
+    border: 1px solid var(--border-color) !important;
+    background: var(--background) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    min-width: 400px;
+    overflow: visible !important;
+}
+
+.sso-box::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    width: 150px;
+    height: 150px;
+    background: radial-gradient(circle, rgba(0, 79, 152, 0.05) 0%, transparent 70%);
+    z-index: -1;
 }
 
 @media (max-width: 480px) {
@@ -2415,8 +2424,11 @@
     }
 
     .sso-brand {
-        margin: 0 -1.5rem 1.5rem -1.5rem;
         padding: 1.8rem 1.5rem;
+    }
+
+    .sso-box .sso-form-content {
+        padding: 0 1.5rem 2rem 1.5rem;
     }
 
     .auth-title {
@@ -2426,16 +2438,39 @@
 }
 
 .sso-brand {
-    background: linear-gradient(135deg, #004f98 0%, #0066cc 100%);
-    padding: 2.2rem 2rem;
-    margin: 0 -2.5rem 2rem -2.5rem;
+    background: transparent !important;
+    padding: 0;
+    margin: 0 0 2rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+    color: var(--text-primary);
+}
+
+.sso-box .sso-form-content {
+    padding: 0;
+}
+
+.sso-logo-float {
+    width: 72px;
+    height: 72px;
+    background: linear-gradient(135deg, #004f98 0%, #0077ee 100%);
+    border-radius: 20px;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 1.25rem;
+    justify-content: center;
+    font-size: 2.2rem;
     color: white;
-    border-radius: 24px 24px 0 0;
-    line-height: 1.2;
+    box-shadow: 0 10px 20px rgba(0, 79, 152, 0.2);
+    margin-top: -1rem;
+    transform: rotate(-5deg);
+    transition: transform 0.3s ease;
+}
+
+.sso-box:hover .sso-logo-float {
+    transform: rotate(0deg) scale(1.05);
 }
 
 .sso-logo-circle {
@@ -2456,26 +2491,25 @@
 
 .sso-brand-text h3 {
     margin: 0;
-    padding: 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    line-height: 1;
+    font-size: 1.6rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #004f98 0%, #0077ee 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .sso-brand-text p {
-    margin: 6px 0 0 0;
-    padding: 0;
+    margin: 5px 0 0 0;
     font-size: 0.9rem;
-    opacity: 0.9;
-    font-weight: 400;
-    line-height: 1;
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 
 .sso-box .close-modal-btn {
-    background: rgba(255, 255, 255, 0.15);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--background-alt);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
 }
 
 .sso-box .close-modal-btn:hover {
