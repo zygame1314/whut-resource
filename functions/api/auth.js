@@ -188,7 +188,7 @@ export async function onRequestPost({ request, env }) {
       if (pending) {
         return new Response(JSON.stringify({ success: true, completed: false, pending: true }), { status: 200, headers: addCorsHeaders() });
       }
-      return new Response(JSON.stringify({ success: true, message: '密码重置完成或请求已过期。' }), { status: 200, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: true, completed: true, pending: false, message: '请求已处理或已过期。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'prepare-change-email') {
       const { newEmail, cfToken } = body;
