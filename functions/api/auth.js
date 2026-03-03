@@ -363,7 +363,14 @@ export async function onRequestPost({ request, env }) {
               user.email = ssoEmail;
             }
           }
-          if (ssoResult.nickname && (user.nickname === `学生_${studentId}` || !user.nickname)) {
+          const isNumericNickname = user.nickname && /^\d+$/.test(user.nickname);
+          if (ssoResult.nickname && (
+            !user.nickname ||
+            user.nickname === `学生_${studentId}` ||
+            user.nickname === studentId ||
+            user.nickname === cardId ||
+            (isNumericNickname && user.nickname.length >= 6)
+          )) {
             updates.push('nickname = ?');
             binds.push(ssoResult.nickname);
             user.nickname = ssoResult.nickname;
