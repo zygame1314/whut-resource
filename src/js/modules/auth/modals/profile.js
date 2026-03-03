@@ -10,7 +10,10 @@ function showChangeNicknameModal() {
             <form id="change-nickname-form">
                 <div class="form-group">
                     <label>新昵称</label>
-                    <input type="text" id="new-nickname" required class="form-control" placeholder="请输入新昵称" value="${escapeHtml(currentUser.nickname || '')}" maxlength="20">
+                    <div class="input-with-icon">
+                        <i class="fas fa-signature"></i>
+                        <input type="text" id="new-nickname" required class="form-control" placeholder="请输入新昵称" value="${escapeHtml(currentUser.nickname || '')}" maxlength="20">
+                    </div>
                 </div>
                 <button type="submit" class="primary-btn full-width">确认修改</button>
             </form>
@@ -71,11 +74,15 @@ function showForgotPasswordModal(prefillEmail = '') {
                 <form id="reset-form-step1">
                     <div class="form-group">
                         <label>邮箱 (@whut.edu.cn)</label>
-                        <input type="email" id="reset-email" required class="form-control" placeholder="请输入注册时使用的邮箱" value="${escapeHtml(prefillEmail)}">
+                        <div class="input-with-icon">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="reset-email" required class="form-control" placeholder="请输入注册时使用的邮箱" value="${escapeHtml(prefillEmail)}">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>新密码</label>
-                        <div class="password-input-wrapper">
+                        <div class="input-with-icon password-input-wrapper">
+                            <i class="fas fa-lock"></i>
                             <input type="password" id="reset-new-password" required class="form-control" placeholder="请输入新密码（至少6位）" minlength="6">
                             <button type="button" class="password-toggle" data-target="reset-new-password" title="显示/隐藏密码">
                                 <i class="fas fa-eye"></i>
@@ -84,7 +91,8 @@ function showForgotPasswordModal(prefillEmail = '') {
                     </div>
                     <div class="form-group">
                         <label>确认新密码</label>
-                        <div class="password-input-wrapper">
+                        <div class="input-with-icon password-input-wrapper">
+                            <i class="fas fa-shield-alt"></i>
                             <input type="password" id="reset-new-password-confirm" required class="form-control" placeholder="请再次输入新密码" minlength="6">
                             <button type="button" class="password-toggle" data-target="reset-new-password-confirm" title="显示/隐藏密码">
                                 <i class="fas fa-eye"></i>
@@ -315,7 +323,8 @@ function showChangePasswordModal() {
             <form id="change-pwd-form">
                 <div class="form-group">
                     <label>旧密码</label>
-                    <div class="password-input-wrapper">
+                    <div class="input-with-icon password-input-wrapper">
+                        <i class="fas fa-key"></i>
                         <input type="password" id="old-password" required class="form-control" placeholder="请输入旧密码">
                         <button type="button" class="password-toggle" data-target="old-password" title="显示/隐藏密码">
                             <i class="fas fa-eye"></i>
@@ -324,7 +333,8 @@ function showChangePasswordModal() {
                 </div>
                 <div class="form-group">
                     <label>新密码</label>
-                    <div class="password-input-wrapper">
+                    <div class="input-with-icon password-input-wrapper">
+                        <i class="fas fa-lock"></i>
                         <input type="password" id="new-password" required class="form-control" placeholder="请输入新密码">
                         <button type="button" class="password-toggle" data-target="new-password" title="显示/隐藏密码">
                             <i class="fas fa-eye"></i>
@@ -388,7 +398,10 @@ function showChangeEmailModal() {
                 <form id="change-email-form-step1">
                     <div class="form-group">
                         <label>新邮箱 (@whut.edu.cn)</label>
-                        <input type="email" id="new-email-input" required class="form-control" placeholder="请输入你的新学校邮箱">
+                        <div class="input-with-icon">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="new-email-input" required class="form-control" placeholder="请输入你的新学校邮箱">
+                        </div>
                     </div>
                     <div class="form-group">
                         <div id="hcaptcha-change-email-widget" class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}"></div>
