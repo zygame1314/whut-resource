@@ -64,13 +64,13 @@ export default {
             console.error('[Email Worker] 处理失败:', e);
         }
     },
-    async handleRegistration(env, senderEmail, studentId, codeValue) {
+    async handleRegistration(env, senderEmail, emailPrefix, codeValue) {
         const fullCode = `Verify-${codeValue}`;
         const pending = await env.DB.prepare(
-            'SELECT * FROM pending_registrations WHERE verify_code = ? AND student_id = ? AND expires_at > ?'
-        ).bind(fullCode, studentId, new Date().toISOString()).first();
+            'SELECT * FROM pending_registrations WHERE verify_code = ? AND email_prefix = ? AND expires_at > ?'
+        ).bind(fullCode, emailPrefix, new Date().toISOString()).first();
         if (!pending) {
-            console.log(`[Email Worker] 未找到匹配的待激活注册，验证码: ${fullCode}, 前缀: ${studentId}`);
+            console.log(`[Email Worker] 未找到匹配的待激活注册，验证码: ${fullCode}, 前缀: ${emailPrefix}`);
             return;
         }
         console.log(`[Email Worker] 找到待激活注册，ID: ${pending.id}`);
@@ -82,7 +82,7 @@ export default {
         }
         await env.DB.prepare(
             'INSERT INTO users (email, nickname, password_hash, role) VALUES (?, ?, ?, ?)'
-        ).bind(senderEmail, pending.nickname || studentId, pending.password_hash, 'user').run();
+        ).bind(senderEmail, pending.nickname || emailPrefix, pending.password_hash, 'user').run();
         console.log(`[Email Worker] 用户创建成功: ${senderEmail}`);
         await env.DB.prepare('DELETE FROM pending_registrations WHERE id = ?').bind(pending.id).run();
         await env.DB.prepare('DELETE FROM pending_registrations WHERE expires_at < ?')
@@ -133,7 +133,7 @@ export default {
         const binds = [senderEmail];
         const newPrefix = senderEmail.split('@')[0];
         if (/^\d{10,}$/.test(newPrefix)) {
-            updates.push('student_id = ?');
+            updates.push('school_id = ?');
             binds.push(newPrefix);
         }
         binds.push(pending.user_id);

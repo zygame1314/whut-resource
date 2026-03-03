@@ -2506,23 +2506,6 @@
     font-weight: 500;
 }
 
-.sso-box .close-modal-btn {
-    background: var(--background-alt);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-}
-
-.sso-box .close-modal-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    color: white;
-    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
-    transform: rotate(90deg) scale(1.1);
-}
-
-.sso-box .close-modal-btn:active {
-    transform: rotate(90deg) scale(0.95);
-}
-
 .input-with-icon {
     position: relative;
     display: flex;

@@ -45,11 +45,11 @@ export async function onRequestPost({ request, env }) {
           return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新页面重试' }), { status: 403, headers: addCorsHeaders() });
         }
       }
-      const studentId = body.studentId;
-      if (!studentId) {
+      const emailPrefix = body.emailPrefix || body.studentId;
+      if (!emailPrefix) {
         return new Response(JSON.stringify({ success: false, error: '请输入邮箱前缀。' }), { status: 400, headers: addCorsHeaders() });
       }
-      const email = `${studentId}@whut.edu.cn`;
+      const email = `${emailPrefix}@whut.edu.cn`;
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
       if (existing) {
         return new Response(JSON.stringify({ success: false, error: '用户已存在。' }), { status: 400, headers: addCorsHeaders() });
@@ -57,7 +57,7 @@ export async function onRequestPost({ request, env }) {
       if (!password || password.length < 6) {
         return new Response(JSON.stringify({ success: false, error: '密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });
       }
-      const lastPending = await env.DB.prepare('SELECT created_at FROM pending_registrations WHERE student_id = ? ORDER BY created_at DESC LIMIT 1').bind(studentId).first();
+      const lastPending = await env.DB.prepare('SELECT created_at FROM pending_registrations WHERE email_prefix = ? ORDER BY created_at DESC LIMIT 1').bind(emailPrefix).first();
       if (lastPending) {
         const lastTime = new Date(lastPending.created_at).getTime();
         const now = Date.now();
@@ -79,16 +79,16 @@ export async function onRequestPost({ request, env }) {
       const verifyCode = `Verify-${randomCode}`;
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
       const passwordHash = await hashPassword(password, env.SALT);
-      let sanitizedNickname = nickname ? nickname.trim() : studentId;
+      let sanitizedNickname = nickname ? nickname.trim() : emailPrefix;
       if (sanitizedNickname.length > 20) {
         sanitizedNickname = sanitizedNickname.substring(0, 20);
       }
       if (sanitizedNickname.length === 0) {
-        sanitizedNickname = studentId;
+        sanitizedNickname = emailPrefix;
       }
-      await env.DB.prepare('DELETE FROM pending_registrations WHERE student_id = ?').bind(studentId).run();
-      await env.DB.prepare('INSERT INTO pending_registrations (student_id, password_hash, nickname, verify_code, expires_at) VALUES (?, ?, ?, ?, ?)')
-        .bind(studentId, passwordHash, sanitizedNickname, verifyCode, expiresAt)
+      await env.DB.prepare('DELETE FROM pending_registrations WHERE email_prefix = ?').bind(emailPrefix).run();
+      await env.DB.prepare('INSERT INTO pending_registrations (email_prefix, password_hash, nickname, verify_code, expires_at) VALUES (?, ?, ?, ?, ?)')
+        .bind(emailPrefix, passwordHash, sanitizedNickname, verifyCode, expiresAt)
         .run();
       const botEmail = env.BOT_EMAIL || 'email-bot@haoli.site';
       return new Response(JSON.stringify({
@@ -100,17 +100,17 @@ export async function onRequestPost({ request, env }) {
       }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'check-register-status') {
-      const studentId = body.studentId;
-      if (!studentId) {
+      const emailPrefix = body.emailPrefix || body.studentId;
+      if (!emailPrefix) {
         return new Response(JSON.stringify({ success: false, error: '无效的邮箱前缀' }), { status: 400, headers: addCorsHeaders() });
       }
-      const email = `${studentId}@whut.edu.cn`;
+      const email = `${emailPrefix}@whut.edu.cn`;
       const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
       if (user) {
         return new Response(JSON.stringify({ success: true, activated: true, message: '账户已激活，请登录。' }), { status: 200, headers: addCorsHeaders() });
       }
-      const pending = await env.DB.prepare('SELECT expires_at FROM pending_registrations WHERE student_id = ? AND expires_at > ?')
-        .bind(studentId, new Date().toISOString()).first();
+      const pending = await env.DB.prepare('SELECT expires_at FROM pending_registrations WHERE email_prefix = ? AND expires_at > ?')
+        .bind(emailPrefix, new Date().toISOString()).first();
       if (pending) {
         return new Response(JSON.stringify({ success: true, activated: false, pending: true }), { status: 200, headers: addCorsHeaders() });
       }
@@ -333,12 +333,12 @@ export async function onRequestPost({ request, env }) {
         const studentId = ssoResult.sno || inputId;
         const cardId = ssoResult.cardId;
         const ssoEmail = cardId ? `${cardId}@whut.edu.cn` : `${studentId}@whut.edu.cn`;
-        let user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ? OR email = ?')
+        let user = await env.DB.prepare('SELECT * FROM users WHERE school_id = ? OR email = ?')
           .bind(studentId, ssoEmail).first();
         if (user) {
-          if (ssoResult.sno && user.student_id !== ssoResult.sno) {
-            await env.DB.prepare('UPDATE users SET student_id = ? WHERE id = ?').bind(ssoResult.sno, user.id).run();
-            user.student_id = ssoResult.sno;
+          if (ssoResult.sno && user.school_id !== ssoResult.sno) {
+            await env.DB.prepare('UPDATE users SET school_id = ? WHERE id = ?').bind(ssoResult.sno, user.id).run();
+            user.school_id = ssoResult.sno;
           }
         }
         if (!user) {
@@ -348,10 +348,10 @@ export async function onRequestPost({ request, env }) {
           if (collision) {
             return new Response(JSON.stringify({ success: false, error: '该邮箱已被注册，请尝试使用账号密码登录。' }), { status: 409, headers: addCorsHeaders() });
           }
-          await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role, student_id) VALUES (?, ?, ?, ?, ?)')
+          await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role, school_id) VALUES (?, ?, ?, ?, ?)')
             .bind(ssoEmail, finalNickname, defaultPasswordHash, 'user', studentId)
             .run();
-          user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(studentId).first();
+          user = await env.DB.prepare('SELECT * FROM users WHERE school_id = ?').bind(studentId).first();
         } else {
           const updates = [];
           const binds = [];
@@ -392,7 +392,7 @@ export async function onRequestPost({ request, env }) {
             email: user.email,
             nickname: user.nickname,
             role: user.role,
-            student_id: user.student_id,
+            school_id: user.school_id,
             quota_limit: user.quota_limit,
             quota_used: user.quota_used,
             quota_remaining: user.quota_limit - user.quota_used
@@ -450,7 +450,7 @@ export async function onRequestPost({ request, env }) {
       let finalEmail = email;
       const identifierStr = email ? email.split('@')[0] : '';
       if (/^\d+$/.test(identifierStr)) {
-        user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(identifierStr).first();
+        user = await env.DB.prepare('SELECT * FROM users WHERE school_id = ?').bind(identifierStr).first();
       }
       if (!user) {
         user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(finalEmail).first();

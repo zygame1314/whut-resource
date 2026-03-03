@@ -306,7 +306,7 @@ function showAuthModal(mode = 'login') {
                                 <div class="welcome-content">
                                     <p>欢迎回来，<strong>${escapeHtml(currentUser.nickname)}</strong>！</p>
                                     <div class="info-card">
-                                        <p><i class="fas fa-id-card"></i> 你的学号: <code>${currentUser.student_id}</code></p>
+                                        <p><i class="fas fa-id-card"></i> 你的学号/工号: <code>${currentUser.school_id}</code></p>
                                         <p><i class="fas fa-envelope"></i> 系统邮箱: <code>${currentUser.email}</code></p>
                                     </div>
                                     <div class="activation-notice">
@@ -370,14 +370,15 @@ function showAuthModal(mode = 'login') {
         const step3Div = modal.querySelector('#register-step-3');
         const backBtn = modal.querySelector('#back-to-step1');
         const goLoginBtn = modal.querySelector('#go-login-btn');
-        let currentStudentId = '';
+        let currentEmailPrefix = '';
         step1Form.onsubmit = async (e) => {
             e.preventDefault();
-            const studentId = document.getElementById('auth-email').value.trim();
+            const rawInput = document.getElementById('auth-email').value.trim();
+            const emailPrefix = rawInput.toLowerCase().endsWith('@whut.edu.cn') ? rawInput.slice(0, -12) : rawInput;
             const password = document.getElementById('auth-password').value;
             const nickname = document.getElementById('auth-nickname').value.trim();
             const confirmCheckbox = document.getElementById('confirm-activation');
-            if (!studentId) {
+            if (!emailPrefix) {
                 showNotification('请输入邮箱前缀', 'error');
                 return;
             }
@@ -411,7 +412,7 @@ function showAuthModal(mode = 'login') {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'prepare-register',
-                        studentId,
+                        emailPrefix,
                         password,
                         nickname,
                         cfToken
@@ -419,11 +420,11 @@ function showAuthModal(mode = 'login') {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    currentStudentId = studentId;
+                    currentEmailPrefix = emailPrefix;
                     step1Div.style.display = 'none';
                     step2Div.style.display = 'block';
                     modal.querySelector('#display-verify-code').textContent = data.verifyCode;
-                    modal.querySelector('#display-user-email').textContent = `${studentId} @whut.edu.cn`;
+                    modal.querySelector('#display-user-email').textContent = `${emailPrefix}@whut.edu.cn`;
                     modal.querySelector('#display-bot-email').textContent = data.botEmail;
                     modal.querySelector('.verify-steps ol li:nth-child(4) code').textContent = data.verifyCode;
                     modal.querySelector('#copy-code-btn').onclick = () => {
@@ -450,7 +451,7 @@ function showAuthModal(mode = 'login') {
                     checkVerifyBtn.onclick = () => {
                         startEmailStatusPolling(checkVerifyBtn, {
                             action: 'check-register-status',
-                            payload: { studentId: currentStudentId },
+                            payload: { emailPrefix: currentEmailPrefix },
                             mainCountdownTimer: countdownTimer,
                             onSuccess: () => {
                                 step2Div.style.display = 'none';

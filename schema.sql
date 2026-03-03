@@ -9,10 +9,10 @@ CREATE TABLE users (
     quota_used INTEGER DEFAULT 0,
     last_download_date TEXT,
     is_banned BOOLEAN DEFAULT FALSE,
-    student_id TEXT UNIQUE,
+    school_id TEXT UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_users_student_id ON users(student_id);
+CREATE INDEX IF NOT EXISTS idx_users_school_id ON users(school_id);
 CREATE INDEX IF NOT EXISTS idx_users_banned ON users(is_banned, created_at DESC);
 
 DROP TABLE IF EXISTS files;
@@ -167,7 +167,7 @@ END;
 DROP TABLE IF EXISTS pending_registrations;
 CREATE TABLE pending_registrations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id TEXT NOT NULL,
+    email_prefix TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     nickname TEXT,
     verify_code TEXT NOT NULL UNIQUE,
@@ -175,7 +175,7 @@ CREATE TABLE pending_registrations (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_pending_reg_code ON pending_registrations(verify_code);
-CREATE INDEX IF NOT EXISTS idx_pending_reg_student ON pending_registrations(student_id);
+CREATE INDEX IF NOT EXISTS idx_pending_reg_prefix ON pending_registrations(email_prefix);
 CREATE INDEX IF NOT EXISTS idx_pending_reg_expires ON pending_registrations(expires_at);
 
 
