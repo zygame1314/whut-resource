@@ -74,30 +74,15 @@ export async function verifyWHUTCredentials(username, password) {
     const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)";
     const headers = {
         "User-Agent": UA,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
-        "Cache-Control": "max-age=0",
-        "Upgrade-Insecure-Requests": "1"
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     };
     try {
-        const loginWithCacheBuster = `${loginUrl}?_t=${Date.now()}`;
-        let initResp;
-        let html = "";
-        let ltMatch = null;
-        for (let attempt = 1; attempt <= 2; attempt++) {
-            initResp = await fetch(loginWithCacheBuster, { headers, credentials: "omit" });
-            html = await initResp.text();
-            ltMatch = html.match(LT_REGEX);
-            if (ltMatch) break;
-            if (attempt === 1) await new Promise(r => setTimeout(r, 500));
-        }
-        if (!ltMatch) {
-            const preview = (html || "").substring(0, 100).replace(/\s+/g, " ");
-            console.error(`[SSO] LT 匹配失败! Status: ${initResp.status}, URL: ${initResp.url}, HTML: ${preview}`);
-            throw new Error(`无法从 SSO 页面解析登录票据 (LT)。状态: ${initResp.status}。内容预览: ${preview}... 请检查是否触发了学校的安全拦截或人机验证。`);
-        }
-        const lt = ltMatch[1] || ltMatch[2];
+        const initResp = await fetch(loginUrl, { headers });
         const setCookie = initResp.headers.get("set-cookie");
+        const html = await initResp.text();
+        const ltMatch = html.match(LT_REGEX);
+        if (!ltMatch) throw new Error("无法获取登录票据 (LT)");
+        const lt = ltMatch[1];
         const executionMatch = html.match(EXECUTION_REGEX);
         const execution = executionMatch ? executionMatch[1] : "e1s1";
         const eventIdMatch = html.match(EVENT_ID_REGEX);
@@ -159,7 +144,6 @@ export async function verifyWHUTCredentials(username, password) {
         if (loginResp.status === 302 || loginResp.status === 307) {
             let nickname = null;
             let cardId = null;
-            let realStudentId = null;
             try {
                 const authCookieJar = parseAndMergeCookies(cookieStr, loginResp.headers.getSetCookie());
                 const portalTask = (async () => {
@@ -186,11 +170,6 @@ export async function verifyWHUTCredentials(username, password) {
                         let localName = null;
                         const nameMatch = portalHtml.match(NAME_REGEX);
                         if (nameMatch && nameMatch[1]) localName = nameMatch[1].trim();
-                        let localStudentId = null;
-                        const snoMatch = portalHtml.match(/var\s+id_number\s*=\s*["']?([^"';]+)["']?/i);
-                        if (snoMatch && snoMatch[1]) {
-                            localStudentId = snoMatch[1].trim();
-                        }
                         let localCardId = null;
                         const cardResp = await fetch("https://zhlgd.whut.edu.cn/tp_up/up/sysintegration/checkLogin", {
                             method: "POST",
@@ -218,7 +197,7 @@ export async function verifyWHUTCredentials(username, password) {
                         } else {
                             if (cardResp.body) await cardResp.body.cancel();
                         }
-                        return { type: 'portal', name: localName, cardId: localCardId, studentId: localStudentId };
+                        return { type: 'portal', name: localName, cardId: localCardId };
                     } catch (e) {
                         return { type: 'portal', error: e.message };
                     }
@@ -283,8 +262,7 @@ export async function verifyWHUTCredentials(username, password) {
                                 return {
                                     type: 'ykt',
                                     name: yktData.data.name,
-                                    cardId: yktData.data.cardAccount,
-                                    studentId: yktData.data.sno || yktData.data.account
+                                    cardId: yktData.data.cardAccount
                                 };
                             }
                         }
@@ -298,15 +276,14 @@ export async function verifyWHUTCredentials(username, password) {
                 const yktResult = results[1];
                 nickname = yktResult.name || portalResult.name || nickname;
                 cardId = yktResult.cardId || portalResult.cardId || cardId;
-                realStudentId = yktResult.studentId || portalResult.studentId || null;
-                console.log(`[SSO] 抓取完成 - Portal(名:${portalResult.name}, 卡:${portalResult.cardId}, 学号:${portalResult.studentId}) YKT(名:${yktResult.name}, 卡:${yktResult.cardId}, 学号:${yktResult.studentId})`);
+                console.log(`[SSO] 抓取完成 - Portal(名:${portalResult.name}, 卡:${portalResult.cardId}) YKT(名:${yktResult.name}, 卡:${yktResult.cardId})`);
                 if (yktResult.error) {
                     console.log(`[SSO] YKT 调试 - 错误:${yktResult.error} 附加:${yktResult.debugParams || ''}`);
                 }
             } catch (err) {
                 console.log("[SSO] 个人信息组装机制获取失败", err.message);
             }
-            return { success: true, location: location, nickname: nickname, cardId: cardId, studentId: realStudentId };
+            return { success: true, location: location, nickname: nickname, cardId: cardId };
         }
         const failureHtml = await loginResp.text();
         const errorMsgMatch = failureHtml.match(ERROR_REGEX);
