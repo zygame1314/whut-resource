@@ -419,3 +419,210 @@ function showChangePasswordModal() {
         }
     };
 }
+function showChangeEmailModal() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.innerHTML = `
+        <div class="auth-box">
+            <button id="close-modal" class="close-modal-btn">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="auth-title">修改邮箱</h2>
+            <div id="change-email-step-1">
+                <form id="change-email-form-step1">
+                    <div class="form-group">
+                        <label>新邮箱 (@whut.edu.cn)</label>
+                        <input type="email" id="new-email-input" required class="form-control" placeholder="请输入你的新学校邮箱">
+                    </div>
+                    <div class="form-group">
+                        <div id="hcaptcha-change-email-widget" class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}"></div>
+                    </div>
+                    <button type="submit" id="get-change-code-btn" class="primary-btn full-width">获取验证码</button>
+                </form>
+            </div>
+            <div id="change-email-step-2" style="display: none;">
+                <div class="verify-instructions">
+                    <div class="step-indicator">
+                        <span class="step done">1</span>
+                        <span class="step-line"></span>
+                        <span class="step active">2</span>
+                        <span class="step-line"></span>
+                        <span class="step">3</span>
+                    </div>
+                    <div class="verify-code-display">
+                        <div class="verify-code-label">你的验证码</div>
+                        <div class="verify-code" id="display-change-code">Change-XXXXXX</div>
+                        <button type="button" id="copy-change-code-btn" class="secondary-btn verify-action-btn">
+                            <i class="fas fa-copy"></i> 复制验证码
+                        </button>
+                    </div>
+                    <div class="verify-steps" style="font-size: 0.9rem;">
+                        <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
+                        <ol>
+                            <li>登录你的【新邮箱】 <strong id="display-change-new-email">xxx@whut.edu.cn</strong></li>
+                            <li>新建一封邮件</li>
+                            <li>收件人填写：<span class="copy-target"><strong id="display-change-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-change-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span></li>
+                            <li>邮件主题填写上方的验证码 <code>Change-XXXXXX</code></li>
+                            <li>发送邮件，系统将自动核对并解绑旧邮箱</li>
+                        </ol>
+                    </div>
+                    <div class="verify-status" id="change-verify-status">
+                        <i class="fas fa-envelope"></i> 发送邮件后，请点击下方按钮验证
+                        <div class="verify-timer">剩余时间：<span id="change-countdown">30:00</span></div>
+                    </div>
+                    <button type="button" id="check-change-verify-btn" class="primary-btn full-width verify-action-btn">
+                        <i class="fas fa-check-circle"></i> 我已发送邮件
+                    </button>
+                    <button type="button" id="back-to-change-step1" class="secondary-btn full-width verify-action-btn">
+                        <i class="fas fa-arrow-left"></i> 返回修改地址
+                    </button>
+                </div>
+            </div>
+            <div id="change-email-step-3" style="display: none;">
+                <div class="success-display">
+                    <i class="fas fa-check-circle"></i>
+                    <h3>邮箱换绑成功！</h3>
+                    <p>你的账号邮箱已成功更新。为保证账户安全，请使用新邮箱重新登录。</p>
+                    <button type="button" id="relogin-after-change-btn" class="primary-btn full-width">
+                        <i class="fas fa-sign-in-alt"></i> 重新登录
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    const closeBtn = modal.querySelector('#close-modal');
+    closeBtn.onclick = () => {
+        if (window.changePollingTimer) clearInterval(window.changePollingTimer);
+        modal.remove();
+    };
+    let hcaptchaWidgetId;
+    if (window.hcaptcha) {
+        hcaptchaWidgetId = hcaptcha.render('hcaptcha-change-email-widget', {
+            sitekey: HCAPTCHA_SITEKEY
+        });
+    }
+    const step1Form = modal.querySelector('#change-email-form-step1');
+    const step1Div = modal.querySelector('#change-email-step-1');
+    const step2Div = modal.querySelector('#change-email-step-2');
+    const step3Div = modal.querySelector('#change-email-step-3');
+    const backBtn = modal.querySelector('#back-to-change-step1');
+    const reloginBtn = modal.querySelector('#relogin-after-change-btn');
+    let targetNewEmail = '';
+    step1Form.onsubmit = async (e) => {
+        e.preventDefault();
+        const newEmail = document.getElementById('new-email-input').value.trim();
+        const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
+        if (!newEmail || !emailRegex.test(newEmail)) {
+            showNotification('请输入有效的学校邮箱地址', 'error');
+            return;
+        }
+        if (newEmail === currentUser.email) {
+            showNotification('新邮箱不能与旧邮箱相同', 'error');
+            return;
+        }
+        let cfToken = '';
+        if (window.hcaptcha) {
+            cfToken = hcaptcha.getResponse(hcaptchaWidgetId);
+            if (!cfToken) {
+                showNotification('请先完成人机验证', 'error');
+                return;
+            }
+        }
+        const getCodeBtn = modal.querySelector('#get-change-code-btn');
+        getCodeBtn.disabled = true;
+        getCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+        try {
+            const res = await fetch(AUTH_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    action: 'prepare-change-email',
+                    newEmail,
+                    cfToken
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                targetNewEmail = newEmail;
+                step1Div.style.display = 'none';
+                step2Div.style.display = 'block';
+                modal.querySelector('#display-change-code').textContent = data.verifyCode;
+                modal.querySelector('#display-change-new-email').textContent = newEmail;
+                modal.querySelector('#display-change-bot-email').textContent = data.botEmail;
+                modal.querySelector('.verify-steps ol li:nth-child(4) code').textContent = data.verifyCode;
+                modal.querySelector('#copy-change-code-btn').onclick = () => {
+                    navigator.clipboard.writeText(data.verifyCode);
+                    showNotification('验证码已复制', 'success');
+                };
+                modal.querySelector('#copy-change-bot-btn').onclick = () => {
+                    navigator.clipboard.writeText(data.botEmail);
+                    showNotification('收信地址已复制', 'success');
+                };
+                let remainingSeconds = data.expiresIn * 60;
+                const countdownEl = modal.querySelector('#change-countdown');
+                const countdownTimer = setInterval(() => {
+                    remainingSeconds--;
+                    const mins = Math.floor(remainingSeconds / 60);
+                    const secs = remainingSeconds % 60;
+                    countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                    if (remainingSeconds <= 0) {
+                        clearInterval(countdownTimer);
+                        modal.querySelector('#change-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请重新获取';
+                    }
+                }, 1000);
+                const checkBtn = modal.querySelector('#check-change-verify-btn');
+                checkBtn.onclick = async () => {
+                    checkBtn.disabled = true;
+                    checkBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 正在确认收件...`;
+                    try {
+                        const statusRes = await fetch(AUTH_API_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ action: 'check-email-change-status' })
+                        });
+                        const statusData = await statusRes.json();
+                        if (statusData.success && statusData.completed) {
+                            clearInterval(countdownTimer);
+                            step2Div.style.display = 'none';
+                            step3Div.style.display = 'block';
+                            showNotification('邮箱更新成功！', 'success');
+                        } else {
+                            showNotification('暂未收到邮件，请稍后重试', 'warning');
+                            checkBtn.disabled = false;
+                            checkBtn.innerHTML = '<i class="fas fa-check-circle"></i> 我已发送邮件';
+                        }
+                    } catch (err) {
+                        showNotification('状态检查失败', 'error');
+                        checkBtn.disabled = false;
+                        checkBtn.innerHTML = '<i class="fas fa-check-circle"></i> 我已发送邮件';
+                    }
+                };
+            } else {
+                showNotification(data.error, 'error');
+                getCodeBtn.disabled = false;
+                getCodeBtn.innerHTML = '获取验证码';
+                if (window.hcaptcha) hcaptcha.reset(hcaptchaWidgetId);
+            }
+        } catch (err) {
+            showNotification('请求失败: ' + err.message, 'error');
+            getCodeBtn.disabled = false;
+        }
+    };
+    backBtn.onclick = () => {
+        step2Div.style.display = 'none';
+        step1Div.style.display = 'block';
+        if (window.hcaptcha) hcaptcha.reset(hcaptchaWidgetId);
+    };
+    reloginBtn.onclick = () => {
+        logout();
+        modal.remove();
+        showAuthModal('login');
+    };
+}

@@ -61,6 +61,7 @@ function updateAuthUI() {
             dropdownItems += `
                 <button id="change-nickname-btn" class="dropdown-item"><i class="fas fa-id-card"></i> 修改昵称</button>
                 <button id="change-pwd-btn" class="dropdown-item"><i class="fas fa-key"></i> 修改密码</button>
+                <button id="change-email-btn" class="dropdown-item"><i class="fas fa-envelope"></i> 修改邮箱</button>
             `;
             let dropdownHtml = '';
             if (isMainPage) {
@@ -104,6 +105,8 @@ function updateAuthUI() {
                 if (changeNicknameBtn) changeNicknameBtn.addEventListener('click', showChangeNicknameModal);
                 const changePwdBtn = document.getElementById('change-pwd-btn');
                 if (changePwdBtn) changePwdBtn.addEventListener('click', showChangePasswordModal);
+                const changeEmailBtn = document.getElementById('change-email-btn');
+                if (changeEmailBtn) changeEmailBtn.addEventListener('click', showChangeEmailModal);
                 if (isAdmin(currentUser)) {
                     const adminLogsBtn = document.getElementById('admin-logs-btn');
                     if (adminLogsBtn) adminLogsBtn.addEventListener('click', showAdminLogsModal);

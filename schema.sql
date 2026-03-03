@@ -193,6 +193,21 @@ CREATE INDEX IF NOT EXISTS idx_pending_reset_email ON pending_resets(email);
 CREATE INDEX IF NOT EXISTS idx_pending_reset_expires ON pending_resets(expires_at);
 
 
+DROP TABLE IF EXISTS pending_email_changes;
+CREATE TABLE pending_email_changes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    new_email TEXT NOT NULL,
+    verify_code TEXT NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_pending_email_code ON pending_email_changes(verify_code);
+CREATE INDEX IF NOT EXISTS idx_pending_email_user ON pending_email_changes(user_id);
+CREATE INDEX IF NOT EXISTS idx_pending_email_expires ON pending_email_changes(expires_at);
+
+
 DROP TABLE IF EXISTS system_stats;
 CREATE TABLE IF NOT EXISTS system_stats (
     id INTEGER PRIMARY KEY CHECK (id = 1),

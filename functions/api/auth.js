@@ -188,7 +188,77 @@ export async function onRequestPost({ request, env }) {
       if (pending) {
         return new Response(JSON.stringify({ success: true, completed: false, pending: true }), { status: 200, headers: addCorsHeaders() });
       }
-      return new Response(JSON.stringify({ success: true, completed: true, message: '密码重置完成或请求已过期。' }), { status: 200, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: true, message: '密码重置完成或请求已过期。' }), { status: 200, headers: addCorsHeaders() });
+    }
+    if (action === 'prepare-change-email') {
+      const { newEmail, cfToken } = body;
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
+      }
+      const token = authHeader.split(' ')[1];
+      const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+      if (!payload) {
+        return new Response(JSON.stringify({ success: false, error: '无效令牌' }), { status: 401, headers: addCorsHeaders() });
+      }
+      if (env.HCAPTCHA_SECRET_KEY) {
+        if (!cfToken) {
+          return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
+        }
+        const ip = request.headers.get('CF-Connecting-IP');
+        const formData = new FormData();
+        formData.append('secret', env.HCAPTCHA_SECRET_KEY);
+        formData.append('response', cfToken);
+        formData.append('remoteip', ip);
+        const url = 'https://hcaptcha.com/siteverify';
+        const result = await fetch(url, { body: formData, method: 'POST' });
+        const outcome = await result.json();
+        if (!outcome.success) {
+          return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新页面重试' }), { status: 403, headers: addCorsHeaders() });
+        }
+      }
+      const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
+      if (!newEmail || !emailRegex.test(newEmail)) {
+        return new Response(JSON.stringify({ success: false, error: '请输入有效的学校邮箱地址。' }), { status: 400, headers: addCorsHeaders() });
+      }
+      const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(newEmail).first();
+      if (existing) {
+        return new Response(JSON.stringify({ success: false, error: '该邮箱已被占用。' }), { status: 400, headers: addCorsHeaders() });
+      }
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let randomCode = '';
+      for (let i = 0; i < 6; i++) {
+        randomCode += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const verifyCode = `Change-${randomCode}`;
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      await env.DB.prepare('DELETE FROM pending_email_changes WHERE user_id = ?').bind(payload.id).run();
+      await env.DB.prepare('INSERT INTO pending_email_changes (user_id, new_email, verify_code, expires_at) VALUES (?, ?, ?, ?)')
+        .bind(payload.id, newEmail, verifyCode, expiresAt)
+        .run();
+      const botEmail = env.BOT_EMAIL || 'email-bot@haoli.site';
+      return new Response(JSON.stringify({
+        success: true,
+        verifyCode,
+        botEmail,
+        expiresIn: 30,
+        message: '请使用你的【新邮箱】发送验证码到指定地址。'
+      }), { status: 200, headers: addCorsHeaders() });
+    }
+    if (action === 'check-email-change-status') {
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
+      }
+      const token = authHeader.split(' ')[1];
+      const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+      if (!payload) return new Response(JSON.stringify({ success: false, error: '无效令牌' }), { status: 401, headers: addCorsHeaders() });
+      const pending = await env.DB.prepare('SELECT id FROM pending_email_changes WHERE user_id = ? AND expires_at > ?')
+        .bind(payload.id, new Date().toISOString()).first();
+      if (pending) {
+        return new Response(JSON.stringify({ success: true, completed: false, pending: true }), { status: 200, headers: addCorsHeaders() });
+      }
+      return new Response(JSON.stringify({ success: true, completed: true, message: '邮箱换绑完成或请求已过期。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'change-nickname') {
       const { newNickname } = body;

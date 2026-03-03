@@ -21,34 +21,31 @@ export default {
         }
         const verifyCodeRegex = /Verify-([A-Za-z0-9]{6})/i;
         const resetCodeRegex = /Reset-([A-Za-z0-9]{6})/i;
+        const changeCodeRegex = /Change-([A-Za-z0-9]{6})/i;
         let codeType = null;
         let codeValue = null;
         let codeMatch = subject.match(verifyCodeRegex);
         if (codeMatch) {
             codeType = 'verify';
             codeValue = codeMatch[1].toUpperCase();
-            console.log(`[Email Worker] 从主题中找到注册验证码: ${codeValue}`);
-        } else {
-            codeMatch = subject.match(resetCodeRegex);
-            if (codeMatch) {
-                codeType = 'reset';
-                codeValue = codeMatch[1].toUpperCase();
-                console.log(`[Email Worker] 从主题中找到重置验证码: ${codeValue}`);
-            }
+        } else if ((codeMatch = subject.match(resetCodeRegex))) {
+            codeType = 'reset';
+            codeValue = codeMatch[1].toUpperCase();
+        } else if ((codeMatch = subject.match(changeCodeRegex))) {
+            codeType = 'change';
+            codeValue = codeMatch[1].toUpperCase();
         }
         if (!codeType) {
             codeMatch = body.match(verifyCodeRegex);
             if (codeMatch) {
                 codeType = 'verify';
                 codeValue = codeMatch[1].toUpperCase();
-                console.log(`[Email Worker] 从正文中找到注册验证码: ${codeValue}`);
-            } else {
-                codeMatch = body.match(resetCodeRegex);
-                if (codeMatch) {
-                    codeType = 'reset';
-                    codeValue = codeMatch[1].toUpperCase();
-                    console.log(`[Email Worker] 从正文中找到重置验证码: ${codeValue}`);
-                }
+            } else if ((codeMatch = body.match(resetCodeRegex))) {
+                codeType = 'reset';
+                codeValue = codeMatch[1].toUpperCase();
+            } else if ((codeMatch = body.match(changeCodeRegex))) {
+                codeType = 'change';
+                codeValue = codeMatch[1].toUpperCase();
             }
         }
         if (!codeType || !codeValue) {
@@ -60,6 +57,8 @@ export default {
                 await this.handleRegistration(env, senderEmail, emailPrefix, codeValue);
             } else if (codeType === 'reset') {
                 await this.handlePasswordReset(env, senderEmail, codeValue);
+            } else if (codeType === 'change') {
+                await this.handleEmailChange(env, senderEmail, codeValue);
             }
         } catch (e) {
             console.error('[Email Worker] 处理失败:', e);
@@ -114,5 +113,34 @@ export default {
         await env.DB.prepare('DELETE FROM pending_resets WHERE expires_at < ?')
             .bind(new Date().toISOString()).run();
         console.log('[Email Worker] 密码重置完成');
+    },
+    async handleEmailChange(env, senderEmail, codeValue) {
+        const fullCode = `Change-${codeValue}`;
+        const pending = await env.DB.prepare(
+            'SELECT * FROM pending_email_changes WHERE verify_code = ? AND new_email = ? AND expires_at > ?'
+        ).bind(fullCode, senderEmail, new Date().toISOString()).first();
+        if (!pending) {
+            console.log(`[Email Worker] 未找到匹配的换绑请求，验证码: ${fullCode}, 新邮箱: ${senderEmail}`);
+            return;
+        }
+        const existingUser = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(senderEmail).first();
+        if (existingUser) {
+            console.log(`[Email Worker] 该新邮箱已被占用: ${senderEmail}`);
+            await env.DB.prepare('DELETE FROM pending_email_changes WHERE id = ?').bind(pending.id).run();
+            return;
+        }
+        const updates = ['email = ?'];
+        const binds = [senderEmail];
+        const newPrefix = senderEmail.split('@')[0];
+        if (/^\d{10,}$/.test(newPrefix)) {
+            updates.push('student_id = ?');
+            binds.push(newPrefix);
+        }
+        binds.push(pending.user_id);
+        await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...binds).run();
+        console.log(`[Email Worker] 邮箱换绑成功: 用户ID ${pending.user_id} -> ${senderEmail}`);
+        await env.DB.prepare('DELETE FROM pending_email_changes WHERE id = ?').bind(pending.id).run();
+        await env.DB.prepare('DELETE FROM pending_email_changes WHERE expires_at < ?')
+            .bind(new Date().toISOString()).run();
     }
 };
