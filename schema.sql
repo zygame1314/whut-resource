@@ -352,5 +352,5 @@ CREATE TABLE login_attempts (
     last_attempt_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     expires_at DATETIME NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_login_attempts_identifier ON login_attempts(identifier, attempt_type);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_login_attempts_lookup ON login_attempts(identifier, attempt_type, expires_at, fail_count);
 CREATE INDEX IF NOT EXISTS idx_login_attempts_expires ON login_attempts(expires_at);

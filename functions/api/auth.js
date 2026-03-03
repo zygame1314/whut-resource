@@ -316,9 +316,47 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({ success: true, message: '密码修改成功。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'whut-login') {
-      const { studentId, password } = body;
+      const { studentId, password, cfToken } = body;
       if (!studentId || !password) {
         return new Response(JSON.stringify({ success: false, error: '学号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
+      }
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const now = new Date().toISOString();
+      await env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run();
+      const ipAttempt = await env.DB.prepare(
+        'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
+      ).bind(ip, 'ip', now).first();
+      const studentAttempt = await env.DB.prepare(
+        'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
+      ).bind(studentId, 'email', now).first();
+      const ipFailCount = ipAttempt?.fail_count || 0;
+      const studentFailCount = studentAttempt?.fail_count || 0;
+      const maxFailCount = Math.max(ipFailCount, studentFailCount);
+      const requireCaptcha = maxFailCount >= 3;
+      if (requireCaptcha) {
+        if (!cfToken) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: '登录失败次数过多，请完成人机验证',
+            requireCaptcha: true
+          }), { status: 403, headers: addCorsHeaders() });
+        }
+        if (env.HCAPTCHA_SECRET_KEY) {
+          const formData = new FormData();
+          formData.append('secret', env.HCAPTCHA_SECRET_KEY);
+          formData.append('response', cfToken);
+          formData.append('remoteip', ip);
+          const url = 'https://hcaptcha.com/siteverify';
+          const result = await fetch(url, { body: formData, method: 'POST' });
+          const outcome = await result.json();
+          if (!outcome.success) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: '人机验证失败，请刷新页面重试',
+              requireCaptcha: true
+            }), { status: 403, headers: addCorsHeaders() });
+          }
+        }
       }
       let ssoResult;
       try {
@@ -327,7 +365,16 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({ success: false, error: 'SSO 服务连接出错: ' + e.message }), { status: 500, headers: addCorsHeaders() });
       }
       if (!ssoResult.success) {
-        return new Response(JSON.stringify({ success: false, error: ssoResult.error || '智慧理工大登录失败' }), { status: 401, headers: addCorsHeaders() });
+        await Promise.all([
+          recordLoginAttempt(env.DB, ip, 'ip'),
+          recordLoginAttempt(env.DB, studentId, 'email')
+        ]);
+        const newMaxFail = Math.max(ipFailCount + 1, studentFailCount + 1);
+        return new Response(JSON.stringify({
+          success: false,
+          error: ssoResult.error || '智慧理工大登录失败',
+          requireCaptcha: newMaxFail >= 3
+        }), { status: 401, headers: addCorsHeaders() });
       }
       try {
         const cardId = ssoResult.cardId;
@@ -370,6 +417,10 @@ export async function onRequestPost({ request, env }) {
         if (user.last_download_date !== today) {
           user.quota_used = 0;
         }
+        await Promise.all([
+          env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(ip, 'ip').run(),
+          env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(studentId, 'email').run()
+        ]);
         return new Response(JSON.stringify({
           success: true,
           token,
