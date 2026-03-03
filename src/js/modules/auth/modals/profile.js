@@ -252,65 +252,21 @@ function showForgotPasswordModal(prefillEmail = '') {
                     }
                 }, 1000);
                 const checkResetVerifyBtn = modal.querySelector('#check-reset-verify-btn');
-                checkResetVerifyBtn.onclick = async () => {
-                    checkResetVerifyBtn.disabled = true;
-                    let totalWaitMs = 60000;
-                    let remainingWaitMs = totalWaitMs;
-                    let checkCount = 0;
-                    const maxChecks = 12;
-                    const checkIntervalMs = 5000;
-                    const updateBtnText = () => {
-                        const seconds = Math.ceil(remainingWaitMs / 1000);
-                        const textSpan = checkResetVerifyBtn.querySelector('.wait-text');
-                        if (textSpan) {
-                            textSpan.textContent = `正在确认收件(${seconds}s)...`;
+                checkResetVerifyBtn.onclick = () => {
+                    startEmailStatusPolling(checkResetVerifyBtn, {
+                        action: 'check-reset-status',
+                        payload: { email: currentEmail },
+                        mainCountdownTimer: countdownTimer,
+                        onSuccess: () => {
+                            step2Div.style.display = 'none';
+                            step3Div.style.display = 'block';
+                            showNotification('密码重置成功！', 'success');
+                        },
+                        onExpired: () => {
+                            modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请重新获取';
+                            checkResetVerifyBtn.style.display = 'none';
                         }
-                    };
-                    checkResetVerifyBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span class="wait-text">正在确认收件(60s)...</span>`;
-                    updateBtnText();
-                    let cdTimer = setInterval(() => {
-                        remainingWaitMs -= 1000;
-                        if (remainingWaitMs <= 0) {
-                            clearInterval(cdTimer);
-                        } else {
-                            updateBtnText();
-                        }
-                    }, 1000);
-                    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-                    while (checkCount < maxChecks) {
-                        try {
-                            const statusRes = await fetch(AUTH_API_URL, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ action: 'check-reset-status', email: currentEmail })
-                            });
-                            const statusData = await statusRes.json();
-                            if (statusData.success && statusData.completed && !statusData.pending) {
-                                clearInterval(countdownTimer);
-                                clearInterval(cdTimer);
-                                step2Div.style.display = 'none';
-                                step3Div.style.display = 'block';
-                                showNotification('密码重置成功！', 'success');
-                                return;
-                            } else if (statusData.expired) {
-                                clearInterval(countdownTimer);
-                                clearInterval(cdTimer);
-                                modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';
-                                checkResetVerifyBtn.style.display = 'none';
-                                return;
-                            }
-                        } catch (err) {
-                            console.error('检查状态失败:', err);
-                        }
-                        checkCount++;
-                        if (checkCount < maxChecks) {
-                            await delay(checkIntervalMs);
-                        }
-                    }
-                    clearInterval(cdTimer);
-                    showNotification('暂未收到邮件，请检查信息无误后再次点击检查。', 'warning');
-                    checkResetVerifyBtn.disabled = false;
-                    checkResetVerifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> 我已发送邮件';
+                    });
                 };
             } else {
                 showNotification(data.error, 'error');
@@ -575,34 +531,20 @@ function showChangeEmailModal() {
                     }
                 }, 1000);
                 const checkBtn = modal.querySelector('#check-change-verify-btn');
-                checkBtn.onclick = async () => {
-                    checkBtn.disabled = true;
-                    checkBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 正在确认收件...`;
-                    try {
-                        const statusRes = await fetch(AUTH_API_URL, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify({ action: 'check-email-change-status' })
-                        });
-                        const statusData = await statusRes.json();
-                        if (statusData.success && statusData.completed) {
-                            clearInterval(countdownTimer);
+                checkBtn.onclick = () => {
+                    startEmailStatusPolling(checkBtn, {
+                        action: 'check-email-change-status',
+                        mainCountdownTimer: countdownTimer,
+                        onSuccess: () => {
                             step2Div.style.display = 'none';
                             step3Div.style.display = 'block';
                             showNotification('邮箱更新成功！', 'success');
-                        } else {
-                            showNotification('暂未收到邮件，请稍后重试', 'warning');
-                            checkBtn.disabled = false;
-                            checkBtn.innerHTML = '<i class="fas fa-check-circle"></i> 我已发送邮件';
+                        },
+                        onExpired: () => {
+                            modal.querySelector('#change-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请重新获取';
+                            checkBtn.style.display = 'none';
                         }
-                    } catch (err) {
-                        showNotification('状态检查失败', 'error');
-                        checkBtn.disabled = false;
-                        checkBtn.innerHTML = '<i class="fas fa-check-circle"></i> 我已发送邮件';
-                    }
+                    });
                 };
             } else {
                 showNotification(data.error, 'error');
