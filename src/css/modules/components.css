@@ -2544,6 +2544,27 @@
     border: 1px solid rgba(46, 204, 113, 0.15);
 }
 
+.teacher-hint {
+    margin-top: -0.5rem;
+    margin-bottom: 1.5rem;
+    padding: 0.85rem;
+    background: rgba(243, 156, 18, 0.08);
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: #e67e22;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(243, 156, 18, 0.15);
+    line-height: 1.4;
+}
+
+.teacher-hint i {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
 .sso-entry-btn {
     border: 1.5px solid #004f98 !important;
     color: #004f98 !important;
@@ -2576,6 +2597,12 @@
     background: rgba(46, 204, 113, 0.15);
     color: #4cd137;
     border-color: rgba(46, 204, 113, 0.3);
+}
+
+[data-theme="dark"] .teacher-hint {
+    background: rgba(243, 156, 18, 0.12);
+    color: #f39c12;
+    border-color: rgba(243, 156, 18, 0.25);
 }
 
 .primary-btn.loading {

@@ -22,6 +22,10 @@ function showAuthModal(mode = 'login') {
                         <p>统一身份认证 (SSO)</p>
                     </div>
                 </div>
+                <div class="teacher-hint">
+                    <i class="fas fa-info-circle"></i>
+                    <span>提示：教职工建议直接使用学校邮箱注册登录</span>
+                </div>
             ` : `
                 <h2 class="auth-title">${title}</h2>
             `}
@@ -90,6 +94,10 @@ function showAuthModal(mode = 'login') {
                 <h2 class="auth-title">${title}</h2>
                 <div id="register-step-1">
                     <form id="register-form-step1">
+                        <div class="teacher-hint" style="margin-top: 0; margin-bottom: 1.2rem;">
+                            <i class="fas fa-info-circle"></i>
+                            <span>提示：教职工推荐直接通过学校邮箱注册登录</span>
+                        </div>
                         <div class="form-group">
                             <label>邮箱前缀</label>
                             <div class="email-input-group input-with-icon">
