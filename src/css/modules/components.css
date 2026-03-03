@@ -3318,7 +3318,7 @@
 .announcement-view-modal-content {
     max-width: 900px;
     height: auto;
-    max-height: 80vh;
+    max-height: 90vh;
     position: relative;
     overflow-y: auto;
 }
