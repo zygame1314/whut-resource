@@ -74,15 +74,30 @@ export async function verifyWHUTCredentials(username, password) {
     const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)";
     const headers = {
         "User-Agent": UA,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+        "Cache-Control": "max-age=0",
+        "Upgrade-Insecure-Requests": "1"
     };
     try {
-        const initResp = await fetch(loginUrl, { headers });
+        const loginWithCacheBuster = `${loginUrl}?_t=${Date.now()}`;
+        let initResp;
+        let html = "";
+        let ltMatch = null;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            initResp = await fetch(loginWithCacheBuster, { headers, credentials: "omit" });
+            html = await initResp.text();
+            ltMatch = html.match(LT_REGEX);
+            if (ltMatch) break;
+            if (attempt === 1) await new Promise(r => setTimeout(r, 500));
+        }
+        if (!ltMatch) {
+            const preview = (html || "").substring(0, 100).replace(/\s+/g, " ");
+            console.error(`[SSO] LT 匹配失败! Status: ${initResp.status}, URL: ${initResp.url}, HTML: ${preview}`);
+            throw new Error(`无法从 SSO 页面解析登录票据 (LT)。状态: ${initResp.status}。内容预览: ${preview}... 请检查是否触发了学校的安全拦截或人机验证。`);
+        }
+        const lt = ltMatch[1] || ltMatch[2];
         const setCookie = initResp.headers.get("set-cookie");
-        const html = await initResp.text();
-        const ltMatch = html.match(LT_REGEX);
-        if (!ltMatch) throw new Error("无法获取登录票据 (LT)");
-        const lt = ltMatch[1];
         const executionMatch = html.match(EXECUTION_REGEX);
         const execution = executionMatch ? executionMatch[1] : "e1s1";
         const eventIdMatch = html.match(EVENT_ID_REGEX);
