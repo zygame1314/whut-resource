@@ -332,7 +332,7 @@ export async function onRequestPost({ request, env }) {
       try {
         const studentId = ssoResult.sno || inputId;
         const cardId = ssoResult.cardId;
-        const ssoEmail = `${studentId}@whut.edu.cn`;
+        const ssoEmail = cardId ? `${cardId}@whut.edu.cn` : `${studentId}@whut.edu.cn`;
         let user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(studentId).first();
         if (!user) {
           user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(ssoEmail).first();
@@ -351,6 +351,11 @@ export async function onRequestPost({ request, env }) {
         } else {
           const updates = [];
           const binds = [];
+          if (cardId && user.email === `${studentId}@whut.edu.cn`) {
+            updates.push('email = ?');
+            binds.push(ssoEmail);
+            user.email = ssoEmail;
+          }
           if (ssoResult.nickname && (user.nickname === `学生_${studentId}` || !user.nickname)) {
             updates.push('nickname = ?');
             binds.push(ssoResult.nickname);
