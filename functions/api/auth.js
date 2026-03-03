@@ -316,13 +316,13 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({ success: true, message: '密码修改成功。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'whut-login') {
-      const { studentId, password } = body;
-      if (!studentId || !password) {
-        return new Response(JSON.stringify({ success: false, error: '学号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
+      const { studentId: inputId, password } = body;
+      if (!inputId || !password) {
+        return new Response(JSON.stringify({ success: false, error: '学号/卡号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
       }
       let ssoResult;
       try {
-        ssoResult = await verifyWHUTCredentials(studentId, password);
+        ssoResult = await verifyWHUTCredentials(inputId, password);
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: 'SSO 服务连接出错: ' + e.message }), { status: 500, headers: addCorsHeaders() });
       }
@@ -330,8 +330,9 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({ success: false, error: ssoResult.error || '智慧理工大登录失败' }), { status: 401, headers: addCorsHeaders() });
       }
       try {
+        const studentId = ssoResult.sno || inputId;
         const cardId = ssoResult.cardId;
-        const ssoEmail = cardId ? `${cardId}@whut.edu.cn` : `${studentId}@whut.edu.cn`;
+        const ssoEmail = `${studentId}@whut.edu.cn`;
         let user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(studentId).first();
         if (!user) {
           user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(ssoEmail).first();
@@ -350,11 +351,6 @@ export async function onRequestPost({ request, env }) {
         } else {
           const updates = [];
           const binds = [];
-          if (cardId && user.email === `${studentId}@whut.edu.cn`) {
-            updates.push('email = ?');
-            binds.push(ssoEmail);
-            user.email = ssoEmail;
-          }
           if (ssoResult.nickname && (user.nickname === `学生_${studentId}` || !user.nickname)) {
             updates.push('nickname = ?');
             binds.push(ssoResult.nickname);
