@@ -62,6 +62,7 @@ async function startEmailStatusPolling(btn, options) {
         }
     }, 1000);
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    let isHandled = false;
     try {
         while (checkCount < maxChecks) {
             const fetchOptions = {
@@ -78,11 +79,13 @@ async function startEmailStatusPolling(btn, options) {
             const statusData = await statusRes.json();
             const isCompleted = statusData.activated || (statusData.success && statusData.completed && !statusData.pending);
             if (isCompleted) {
+                isHandled = true;
                 if (mainCountdownTimer) clearInterval(mainCountdownTimer);
                 clearInterval(cdTimer);
                 if (onSuccess) onSuccess();
                 return;
             } else if (statusData.expired) {
+                isHandled = true;
                 if (mainCountdownTimer) clearInterval(mainCountdownTimer);
                 clearInterval(cdTimer);
                 if (onExpired) onExpired();
@@ -98,7 +101,9 @@ async function startEmailStatusPolling(btn, options) {
     } finally {
         clearInterval(cdTimer);
         if (btn.disabled) {
-            showNotification(warningMsg, 'warning');
+            if (!isHandled) {
+                showNotification(warningMsg, 'warning');
+            }
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-check-circle"></i> 我已发送邮件';
         }

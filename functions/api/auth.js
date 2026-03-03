@@ -380,8 +380,54 @@ export async function onRequestPost({ request, env }) {
         const studentId = ssoResult.sno || inputId;
         const cardId = ssoResult.cardId;
         const ssoEmail = cardId ? `${cardId}@whut.edu.cn` : `${studentId}@whut.edu.cn`;
-        let user = await env.DB.prepare('SELECT * FROM users WHERE school_id = ? OR email = ?')
-          .bind(studentId, ssoEmail).first();
+        const possibleEmails = new Set();
+        possibleEmails.add(ssoEmail);
+        if (cardId) possibleEmails.add(`${cardId}@whut.edu.cn`);
+        if (studentId !== cardId) possibleEmails.add(`${studentId}@whut.edu.cn`);
+        if (inputId !== cardId && inputId !== studentId) possibleEmails.add(`${inputId}@whut.edu.cn`);
+        const emailList = [...possibleEmails];
+        const placeholders = emailList.map(() => '?').join(',');
+        const candidates = await env.DB.prepare(
+          `SELECT * FROM users WHERE school_id = ? OR email IN (${placeholders})`
+        ).bind(studentId, ...emailList).all();
+        const allUsers = candidates.results || [];
+        let user = null;
+        if (allUsers.length === 1) {
+          user = allUsers[0];
+        } else if (allUsers.length > 1) {
+          allUsers.sort((a, b) => {
+            if (a.school_id && !b.school_id) return -1;
+            if (!a.school_id && b.school_id) return 1;
+            if (a.role === 'admin' && b.role !== 'admin') return -1;
+            if (a.role !== 'admin' && b.role === 'admin') return 1;
+            return a.id - b.id;
+          });
+          user = allUsers[0];
+          const secondaryUsers = allUsers.slice(1);
+          for (const secondary of secondaryUsers) {
+            const pid = user.id;
+            const sid = secondary.id;
+            await env.DB.prepare('UPDATE downloads SET user_id = ? WHERE user_id = ?').bind(pid, sid).run();
+            await env.DB.prepare('UPDATE guestbook SET user_id = ? WHERE user_id = ?').bind(pid, sid).run();
+            await env.DB.prepare(
+              'UPDATE OR IGNORE guestbook_likes SET user_id = ? WHERE user_id = ?'
+            ).bind(pid, sid).run();
+            await env.DB.prepare('DELETE FROM guestbook_likes WHERE user_id = ?').bind(sid).run();
+            await env.DB.prepare(
+              'UPDATE OR IGNORE file_reactions SET user_id = ? WHERE user_id = ?'
+            ).bind(pid, sid).run();
+            await env.DB.prepare('DELETE FROM file_reactions WHERE user_id = ?').bind(sid).run();
+            await env.DB.prepare('UPDATE files SET uploader_id = ? WHERE uploader_id = ?').bind(pid, sid).run();
+            await env.DB.prepare('UPDATE admin_requests SET requested_by = ? WHERE requested_by = ?').bind(pid, sid).run();
+            await env.DB.prepare('DELETE FROM pending_email_changes WHERE user_id = ?').bind(sid).run();
+            if (secondary.quota_limit > user.quota_limit) {
+              await env.DB.prepare('UPDATE users SET quota_limit = ? WHERE id = ?').bind(secondary.quota_limit, pid).run();
+              user.quota_limit = secondary.quota_limit;
+            }
+            await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(sid).run();
+            console.log(`[SSO] 合并账户: 副账户 #${sid}(${secondary.email}) -> 主账户 #${pid}(${user.email})`);
+          }
+        }
         if (user) {
           if (ssoResult.sno && user.school_id !== ssoResult.sno) {
             await env.DB.prepare('UPDATE users SET school_id = ? WHERE id = ?').bind(ssoResult.sno, user.id).run();
@@ -391,10 +437,6 @@ export async function onRequestPost({ request, env }) {
         if (!user) {
           const defaultPasswordHash = await hashPassword(Math.random().toString(36), env.SALT);
           const finalNickname = ssoResult.nickname || `学生_${studentId}`;
-          const collision = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(ssoEmail).first();
-          if (collision) {
-            return new Response(JSON.stringify({ success: false, error: '该邮箱已被注册，请尝试使用账号密码登录。' }), { status: 409, headers: addCorsHeaders() });
-          }
           await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role, school_id) VALUES (?, ?, ?, ?, ?)')
             .bind(ssoEmail, finalNickname, defaultPasswordHash, 'user', studentId)
             .run();
@@ -402,7 +444,7 @@ export async function onRequestPost({ request, env }) {
         } else {
           const updates = [];
           const binds = [];
-          if (cardId && user.email === `${studentId}@whut.edu.cn`) {
+          if (cardId && user.email !== ssoEmail) {
             const emailOccupied = await env.DB.prepare('SELECT id FROM users WHERE email = ? AND id != ?').bind(ssoEmail, user.id).first();
             if (!emailOccupied) {
               updates.push('email = ?');
@@ -434,7 +476,7 @@ export async function onRequestPost({ request, env }) {
         }
         await Promise.all([
           env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(ip, 'ip').run(),
-          env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(studentId, 'email').run()
+          env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(inputId, 'email').run()
         ]);
         return new Response(JSON.stringify({
           success: true,
