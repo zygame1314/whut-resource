@@ -144,6 +144,7 @@ export async function verifyWHUTCredentials(username, password) {
         if (loginResp.status === 302 || loginResp.status === 307) {
             let nickname = null;
             let cardId = null;
+            let realStudentId = null;
             try {
                 const authCookieJar = parseAndMergeCookies(cookieStr, loginResp.headers.getSetCookie());
                 const portalTask = (async () => {
@@ -170,6 +171,11 @@ export async function verifyWHUTCredentials(username, password) {
                         let localName = null;
                         const nameMatch = portalHtml.match(NAME_REGEX);
                         if (nameMatch && nameMatch[1]) localName = nameMatch[1].trim();
+                        let localStudentId = null;
+                        const snoMatch = portalHtml.match(/var\s+id_number\s*=\s*["']?([^"';]+)["']?/i);
+                        if (snoMatch && snoMatch[1]) {
+                            localStudentId = snoMatch[1].trim();
+                        }
                         let localCardId = null;
                         const cardResp = await fetch("https://zhlgd.whut.edu.cn/tp_up/up/sysintegration/checkLogin", {
                             method: "POST",
@@ -197,7 +203,7 @@ export async function verifyWHUTCredentials(username, password) {
                         } else {
                             if (cardResp.body) await cardResp.body.cancel();
                         }
-                        return { type: 'portal', name: localName, cardId: localCardId };
+                        return { type: 'portal', name: localName, cardId: localCardId, studentId: localStudentId };
                     } catch (e) {
                         return { type: 'portal', error: e.message };
                     }
@@ -262,7 +268,8 @@ export async function verifyWHUTCredentials(username, password) {
                                 return {
                                     type: 'ykt',
                                     name: yktData.data.name,
-                                    cardId: yktData.data.cardAccount
+                                    cardId: yktData.data.cardAccount,
+                                    studentId: yktData.data.sno || yktData.data.account
                                 };
                             }
                         }
@@ -276,14 +283,15 @@ export async function verifyWHUTCredentials(username, password) {
                 const yktResult = results[1];
                 nickname = yktResult.name || portalResult.name || nickname;
                 cardId = yktResult.cardId || portalResult.cardId || cardId;
-                console.log(`[SSO] 抓取完成 - Portal(名:${portalResult.name}, 卡:${portalResult.cardId}) YKT(名:${yktResult.name}, 卡:${yktResult.cardId})`);
+                realStudentId = yktResult.studentId || portalResult.studentId || null;
+                console.log(`[SSO] 抓取完成 - Portal(名:${portalResult.name}, 卡:${portalResult.cardId}, 学号:${portalResult.studentId}) YKT(名:${yktResult.name}, 卡:${yktResult.cardId}, 学号:${yktResult.studentId})`);
                 if (yktResult.error) {
                     console.log(`[SSO] YKT 调试 - 错误:${yktResult.error} 附加:${yktResult.debugParams || ''}`);
                 }
             } catch (err) {
                 console.log("[SSO] 个人信息组装机制获取失败", err.message);
             }
-            return { success: true, location: location, nickname: nickname, cardId: cardId };
+            return { success: true, location: location, nickname: nickname, cardId: cardId, studentId: realStudentId };
         }
         const failureHtml = await loginResp.text();
         const errorMsgMatch = failureHtml.match(ERROR_REGEX);

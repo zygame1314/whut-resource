@@ -331,34 +331,40 @@ export async function onRequestPost({ request, env }) {
       }
       try {
         const cardId = ssoResult.cardId;
-        const ssoEmail = cardId ? `${cardId}@whut.edu.cn` : `${studentId}@whut.edu.cn`;
-        let user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(studentId).first();
+        const actualStudentId = ssoResult.studentId || studentId;
+        const ssoEmail = `${actualStudentId}@whut.edu.cn`;
+        let user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(actualStudentId).first();
         if (!user) {
           user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(ssoEmail).first();
           if (user && !user.student_id) {
-            await env.DB.prepare('UPDATE users SET student_id = ? WHERE id = ?').bind(studentId, user.id).run();
-            user.student_id = studentId;
+            await env.DB.prepare('UPDATE users SET student_id = ? WHERE id = ?').bind(actualStudentId, user.id).run();
+            user.student_id = actualStudentId;
           }
         }
         if (!user) {
           const defaultPasswordHash = await hashPassword(Math.random().toString(36), env.SALT);
-          const finalNickname = ssoResult.nickname || `学生_${studentId}`;
+          const finalNickname = ssoResult.nickname || `学生_${actualStudentId}`;
           await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role, student_id) VALUES (?, ?, ?, ?, ?)')
-            .bind(ssoEmail, finalNickname, defaultPasswordHash, 'user', studentId)
+            .bind(ssoEmail, finalNickname, defaultPasswordHash, 'user', actualStudentId)
             .run();
-          user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(studentId).first();
+          user = await env.DB.prepare('SELECT * FROM users WHERE student_id = ?').bind(actualStudentId).first();
         } else {
           const updates = [];
           const binds = [];
-          if (cardId && user.email === `${studentId}@whut.edu.cn`) {
+          if (user.email !== ssoEmail) {
             updates.push('email = ?');
             binds.push(ssoEmail);
             user.email = ssoEmail;
           }
-          if (ssoResult.nickname && (user.nickname === `学生_${studentId}` || !user.nickname)) {
+          if (ssoResult.nickname && (user.nickname === `学生_${studentId}` || user.nickname === `学生_${actualStudentId}` || !user.nickname)) {
             updates.push('nickname = ?');
             binds.push(ssoResult.nickname);
             user.nickname = ssoResult.nickname;
+          }
+          if (user.student_id !== actualStudentId) {
+            updates.push('student_id = ?');
+            binds.push(actualStudentId);
+            user.student_id = actualStudentId;
           }
           if (updates.length > 0) {
             binds.push(user.id);
