@@ -364,7 +364,7 @@ export async function onRequestPost({ request, env }) {
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: 'SSO 服务连接出错: ' + e.message }), { status: 500, headers: addCorsHeaders() });
       }
-      if (!ssoResult.success) {
+      if (!ssoResult.success || !ssoResult.sno) {
         await Promise.all([
           recordLoginAttempt(env.DB, ip, 'ip'),
           recordLoginAttempt(env.DB, inputId, 'email')
@@ -372,12 +372,13 @@ export async function onRequestPost({ request, env }) {
         const newMaxFail = Math.max(ipFailCount + 1, idFailCount + 1);
         return new Response(JSON.stringify({
           success: false,
-          error: ssoResult.error || '智慧理工大登录失败',
+          error: ssoResult.error || '无法同步学校资料，请确认为学号登录并稍后重试。',
           requireCaptcha: newMaxFail >= 3
-        }), { status: 401, headers: addCorsHeaders() });
+        }), { status: 403, headers: addCorsHeaders() });
       }
+
       try {
-        const studentId = ssoResult.sno || inputId;
+        const studentId = ssoResult.sno;
         const cardId = ssoResult.cardId;
         const ssoEmail = cardId ? `${cardId}@whut.edu.cn` : `${studentId}@whut.edu.cn`;
         let user = await env.DB.prepare('SELECT * FROM users WHERE school_id = ? OR email = ?')

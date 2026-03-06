@@ -188,32 +188,49 @@ export async function verifyWHUTCredentials(username, password) {
                     break;
                 }
                 if (token) {
-                    const yktUserResp = await fetch("https://yktapp.whut.edu.cn/berserker-base/user?synAccessSource=pc", {
-                        method: "GET",
-                        headers: {
-                            "User-Agent": UA,
-                            "synaccesssource": "pc",
-                            "synjones-auth": `bearer ${token}`
+                    let yktData = null;
+                    for (let retry = 0; retry < 3; retry++) {
+                        try {
+                            const yktUserResp = await fetch("https://yktapp.whut.edu.cn/berserker-base/user?synAccessSource=pc", {
+                                method: "GET",
+                                headers: {
+                                    "User-Agent": UA,
+                                    "synaccesssource": "pc",
+                                    "synjones-auth": `bearer ${token}`
+                                },
+                                signal: AbortSignal.timeout(6000)
+                            });
+                            if (yktUserResp.status === 200) {
+                                yktData = await yktUserResp.json();
+                                if (yktData && yktData.data) break;
+                            }
+                        } catch (e) {
+                            console.log(`[SSO] 个人信息抓取第 ${retry + 1} 次尝试失败: ${e.message}`);
                         }
-                    });
-                    if (yktUserResp.status === 200) {
-                        const yktData = await yktUserResp.json();
-                        if (yktData && yktData.data) {
-                            const data = yktData.data;
+                    }
+                    if (yktData && yktData.data) {
+                        const data = yktData.data;
+                        const finalSno = data.sno || data.account;
+                        if (finalSno) {
                             return {
                                 success: true,
                                 location: location,
                                 nickname: data.name,
                                 cardId: data.cardAccount,
-                                sno: data.sno || data.account
+                                sno: finalSno
                             };
                         }
                     }
                 }
+                throw new Error("未能从学校一卡通系统同步到信息（sno 缺失或服务超时）");
             } catch (err) {
-                console.log("[SSO] 个人信息获取失败", err.message);
+                console.log("[SSO] 个人信息获取关键失败", err.message);
+                return {
+                    success: false,
+                    error: "学校信息系统(一卡通)响应异常，请尝试刷新重试或联系管理员。",
+                    debug: { msg: err.message }
+                };
             }
-            return { success: true, location: location, nickname: null, cardId: null, sno: null };
         }
         const failureHtml = await loginResp.text();
         const errorMsgMatch = failureHtml.match(ERROR_REGEX);
