@@ -60,6 +60,20 @@ function showAuthModal(mode = 'login') {
                 <div id="login-captcha-container" class="form-group" style="display: none;">
                     <div id="hcaptcha-login-widget" class="h-captcha"></div>
                 </div>
+                ${isSso ? `
+                <div id="sso-captcha-container" class="form-group" style="display: none;">
+                    <label>验证码 (Verification Code)</label>
+                    <div class="sso-captcha-wrapper">
+                        <div class="input-with-icon">
+                            <i class="fas fa-barcode"></i>
+                            <input type="text" id="sso-captcha-code" class="form-control" placeholder="请输入验证码">
+                        </div>
+                        <div class="sso-captcha-img-box">
+                            <img id="sso-captcha-img" src="" alt="验证码" title="点击重新获取密码以刷新">
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
                 <button type="submit" class="primary-btn full-width ${isSso ? 'sso-btn' : ''}">
                     ${isSso ? '<i class="fas fa-shield-alt"></i> 安全登录' : title}
                 </button>
@@ -245,6 +259,7 @@ function showAuthModal(mode = 'login') {
     }
     initPasswordToggles(modal);
     let loginCaptchaWidgetId = null;
+    let currentSsoCookies = '';
     if (isLogin || isSso) {
         const form = modal.querySelector('#auth-form');
         const forgotPasswordLink = modal.querySelector('#forgot-password');
@@ -270,11 +285,12 @@ function showAuthModal(mode = 'login') {
                     return;
                 }
             }
-            let action = 'login';
             let payload = { password, cfToken: cfToken || undefined };
             if (isSso) {
                 payload.action = 'whut-login';
                 payload.studentId = identifier;
+                payload.ssoCode = modal.querySelector('#sso-captcha-code')?.value || '';
+                payload.ssoCookies = currentSsoCookies;
             } else {
                 payload.action = 'login';
                 if (!identifier.includes('@')) {
@@ -296,7 +312,7 @@ function showAuthModal(mode = 'login') {
                     localStorage.setItem('authToken', token);
                     currentUser = data.user;
                     updateAuthUI();
-                    if (isSso) {
+                    if (isSso && data.needsActivation) {
                         modal.remove();
                         const welcomeModal = document.createElement('div');
                         welcomeModal.className = 'auth-modal';
@@ -335,6 +351,19 @@ function showAuthModal(mode = 'login') {
                         window.location.reload();
                     }
                 } else {
+                    if (isSso && data.ssoCaptchaRequired) {
+                        const ssoCaptchaContainer = modal.querySelector('#sso-captcha-container');
+                        const ssoCaptchaImg = modal.querySelector('#sso-captcha-img');
+                        if (ssoCaptchaContainer && ssoCaptchaImg) {
+                            ssoCaptchaContainer.style.display = 'block';
+                            ssoCaptchaImg.src = data.ssoCaptchaImage;
+                            currentSsoCookies = data.ssoCookies;
+                            modal.querySelector('#sso-captcha-code').value = '';
+                            modal.querySelector('#sso-captcha-code').focus();
+                            showNotification('请输入智慧理工大系统的验证码以继续', 'info');
+                            return;
+                        }
+                    }
                     const needCaptcha = data.requireCaptcha;
                     if (needCaptcha && captchaContainer.style.display === 'none') {
                         captchaContainer.style.display = 'block';

@@ -359,6 +359,7 @@ export async function onRequestPost({ request, env }) {
         }
       }
       let ssoResult;
+      let isNewSsoUser = false;
       try {
         ssoResult = await verifyWHUTCredentials(inputId, password, ssoCode, ssoCookies);
       } catch (e) {
@@ -379,7 +380,6 @@ export async function onRequestPost({ request, env }) {
           ssoCookies: ssoResult.cookies
         }), { status: 403, headers: addCorsHeaders() });
       }
-
       try {
         const studentId = ssoResult.sno;
         const cardId = ssoResult.cardId;
@@ -402,6 +402,7 @@ export async function onRequestPost({ request, env }) {
           await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role, school_id) VALUES (?, ?, ?, ?, ?)')
             .bind(ssoEmail, finalNickname, defaultPasswordHash, 'user', studentId)
             .run();
+          isNewSsoUser = true;
           user = await env.DB.prepare('SELECT * FROM users WHERE school_id = ?').bind(studentId).first();
         } else {
           const updates = [];
@@ -443,6 +444,7 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({
           success: true,
           token,
+          needsActivation: isNewSsoUser,
           user: {
             email: user.email,
             nickname: user.nickname,

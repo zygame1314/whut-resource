@@ -2397,7 +2397,6 @@
     background: var(--background) !important;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     min-width: 400px;
-    overflow: visible !important;
 }
 
 .sso-box::before {
@@ -2409,6 +2408,46 @@
     height: 150px;
     background: radial-gradient(circle, rgba(0, 79, 152, 0.05) 0%, transparent 70%);
     z-index: -1;
+}
+
+.sso-captcha-wrapper {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.sso-captcha-wrapper .input-with-icon {
+    flex: 1;
+}
+
+.sso-captcha-img-box {
+    height: 42px;
+    width: 110px;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.sso-captcha-img-box:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.sso-captcha-img-box img {
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+    display: block;
 }
 
 @media (max-width: 480px) {
