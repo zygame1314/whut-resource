@@ -109,7 +109,8 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         console.log(`[SSO] LT: ${lt}, EXECUTION: ${execution}`);
         console.log(`[SSO] Cookies: ${cookieStr}`);
 
-        const needsCaptcha = html.includes('id="codeImage"') || html.includes('/tpass/code');
+        const cleanHtmlForCaptcha = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmi, "");
+        const needsCaptcha = cleanHtmlForCaptcha.includes('id="codeImage"') || cleanHtmlForCaptcha.includes('/tpass/code');
         if (needsCaptcha && !captchaCode) {
             console.log("[SSO] Detected captcha required, but no code provided.");
             try {
