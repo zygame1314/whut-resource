@@ -67,7 +67,7 @@ function parseAndMergeCookies(currentJar, newSetCookies) {
     }
     return parts.join("; ");
 }
-export async function verifyWHUTCredentials(username, password) {
+export async function verifyWHUTCredentials(username, password, captchaCode = "", initialCookies = "") {
     const baseUrl = "https://zhlgd.whut.edu.cn/tpass";
     const loginUrl = `${baseUrl}/login`;
     const rsaUrl = `${baseUrl}/rsa?skipWechat=true`;
@@ -77,25 +77,59 @@ export async function verifyWHUTCredentials(username, password) {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     };
     try {
-        const initResp = await fetch(loginUrl, { headers });
-        const setCookie = initResp.headers.get("set-cookie");
-        const html = await initResp.text();
+        let cookieStr = initialCookies;
+        let html = "";
+        let lt = "";
+        let execution = "e1s1";
+        let eventId = "submit";
+
+        if (!initialCookies) {
+            const initResp = await fetch(loginUrl, { headers });
+            const setCookie = initResp.headers.get("set-cookie");
+            html = await initResp.text();
+            if (setCookie) {
+                const allCookies = initResp.headers.getSetCookie();
+                cookieStr = (allCookies && allCookies.length > 0)
+                    ? allCookies.map(c => c.split(";")[0]).join("; ")
+                    : setCookie.split(";")[0];
+            }
+        } else {
+            const initResp = await fetch(loginUrl, { headers: { ...headers, "Cookie": cookieStr } });
+            html = await initResp.text();
+        }
+
         const ltMatch = html.match(LT_REGEX);
         if (!ltMatch) throw new Error("无法获取登录票据 (LT)");
-        const lt = ltMatch[1];
+        lt = ltMatch[1];
         const executionMatch = html.match(EXECUTION_REGEX);
-        const execution = executionMatch ? executionMatch[1] : "e1s1";
+        execution = executionMatch ? executionMatch[1] : "e1s1";
         const eventIdMatch = html.match(EVENT_ID_REGEX);
-        const eventId = eventIdMatch ? eventIdMatch[1] : "submit";
-        let cookieStr = "";
-        if (setCookie) {
-            const allCookies = initResp.headers.getSetCookie();
-            cookieStr = (allCookies && allCookies.length > 0)
-                ? allCookies.map(c => c.split(";")[0]).join("; ")
-                : setCookie.split(";")[0];
-        }
+        eventId = eventIdMatch ? eventIdMatch[1] : "submit";
+
         console.log(`[SSO] LT: ${lt}, EXECUTION: ${execution}`);
         console.log(`[SSO] Cookies: ${cookieStr}`);
+
+        const needsCaptcha = html.includes('id="codeImage"') || html.includes('/tpass/code');
+        if (needsCaptcha && !captchaCode) {
+            console.log("[SSO] Detected captcha required, but no code provided.");
+            try {
+                const captchaResp = await fetch(`${baseUrl}/code`, {
+                    headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl }
+                });
+                const arrayBuffer = await captchaResp.arrayBuffer();
+                const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                return {
+                    success: false,
+                    captchaRequired: true,
+                    captchaImage: `data:image/jpeg;base64,${base64Image}`,
+                    cookies: cookieStr,
+                    error: "请输入验证码以继续"
+                };
+            } catch (e) {
+                console.log("[SSO] Failed to fetch captcha image:", e.message);
+            }
+        }
+
         const rsaResp = await fetch(rsaUrl, {
             method: "POST",
             headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl }
@@ -126,7 +160,7 @@ export async function verifyWHUTCredentials(username, password) {
         const modulusLen = atob(modulusB64).length;
         const ul = rsaEncryptRaw(username, n, e, modulusLen);
         const pl = rsaEncryptRaw(password, n, e, modulusLen);
-        const formBody = `un=&pd=&ul=${encodeURIComponent(ul)}&pl=${encodeURIComponent(pl)}&lt=${encodeURIComponent(lt)}&execution=${encodeURIComponent(execution)}&_eventId=${encodeURIComponent(eventId)}`;
+        const formBody = `un=&pd=&ul=${encodeURIComponent(ul)}&pl=${encodeURIComponent(pl)}&lt=${encodeURIComponent(lt)}&execution=${encodeURIComponent(execution)}&_eventId=${encodeURIComponent(eventId)}&code=${encodeURIComponent(captchaCode || "")}`;
         const loginResp = await fetch(loginUrl, {
             method: "POST",
             headers: {
@@ -234,8 +268,13 @@ export async function verifyWHUTCredentials(username, password) {
         }
         const failureHtml = await loginResp.text();
         const errorMsgMatch = failureHtml.match(ERROR_REGEX);
-        const errorDetail = errorMsgMatch ? errorMsgMatch[1].trim() : null;
-        return {
+        let errorDetail = errorMsgMatch ? errorMsgMatch[1].trim() : null;
+
+        if (!errorDetail && failureHtml.includes("验证码有误")) {
+            errorDetail = "验证码有误，请重新输入";
+        }
+
+        const res = {
             success: false,
             error: errorDetail || "SSO 登录失败",
             debug: {
@@ -245,6 +284,23 @@ export async function verifyWHUTCredentials(username, password) {
                 bodySnippet: failureHtml.substring(0, 500)
             }
         };
+
+        if (failureHtml.includes('id="codeImage"') || failureHtml.includes('/tpass/code')) {
+            res.captchaRequired = true;
+            res.cookies = cookieStr;
+            try {
+                const captchaResp = await fetch(`${baseUrl}/code`, {
+                    headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl }
+                });
+                const arrayBuffer = await captchaResp.arrayBuffer();
+                const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                res.captchaImage = `data:image/jpeg;base64,${base64Image}`;
+            } catch (e) {
+                console.log("[SSO] Failed to re-fetch captcha image:", e.message);
+            }
+        }
+
+        return res;
     } catch (e) {
         return { success: false, error: e.message };
     }

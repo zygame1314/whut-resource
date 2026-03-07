@@ -316,7 +316,7 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({ success: true, message: '密码修改成功。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'whut-login') {
-      const { studentId: inputId, password, cfToken } = body;
+      const { studentId: inputId, password, cfToken, ssoCode, ssoCookies } = body;
       if (!inputId || !password) {
         return new Response(JSON.stringify({ success: false, error: '学号/卡号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
       }
@@ -360,7 +360,7 @@ export async function onRequestPost({ request, env }) {
       }
       let ssoResult;
       try {
-        ssoResult = await verifyWHUTCredentials(inputId, password);
+        ssoResult = await verifyWHUTCredentials(inputId, password, ssoCode, ssoCookies);
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: 'SSO 服务连接出错: ' + e.message }), { status: 500, headers: addCorsHeaders() });
       }
@@ -373,7 +373,10 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({
           success: false,
           error: ssoResult.error || '无法同步学校资料，请确认为学号登录并稍后重试。',
-          requireCaptcha: newMaxFail >= 3
+          requireCaptcha: newMaxFail >= 3,
+          ssoCaptchaRequired: ssoResult.captchaRequired,
+          ssoCaptchaImage: ssoResult.captchaImage,
+          ssoCookies: ssoResult.cookies
         }), { status: 403, headers: addCorsHeaders() });
       }
 
