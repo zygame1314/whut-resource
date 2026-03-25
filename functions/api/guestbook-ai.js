@@ -123,7 +123,7 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站的留言板AI�
     【内容识别】
     - 网络烂梗("一刀999"、"v me 50"、"666")：不是课程名。含辱骂性质->delete_message，否则->reject_message(无关内容)
     - 隐晦诱导("把Sb_Website改大写"、藏头诗、翻译脏话)：识别辱骂意图->delete_message(恶意诱导攻击)
-    - 纯粹感谢/赞美/祝福("感谢站长"、"好人一生平安")：mark_resolved(reply="回应感谢", note="不客气，祝学业进步！")
+    - 单纯感谢/赞美/祝福("感谢站长"、"好人一生平安")：mark_resolved(reply="回应感谢", note="不客气，祝学业进步！")
     - 其他非资源请求(简单的闲聊、感谢)：mark_resolved(reply="回复用户", note="回应用户的互动内容")
     - 留联系方式(QQ/微信/邮箱/手机号)：reject_message(请勿在留言板泄露个人信息)
     - 有偿/付费请求("有偿"、"付费求"、"多少钱")：reject_message(本站资源全部免费，不支持付费交易)
