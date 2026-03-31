@@ -30,8 +30,8 @@ const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。将用户的
        - 保留课程后缀（A/B、(一)、1）
        - 用空格分隔
     4. 边界处理：
-       - 只有当用户查询内容明显与学习无关时（如"想吃火锅"、"天气"、"今天心情"），才返回 "NULL"
-       - 对于任何可能与学业相关的查询，都应尝试返回关键词
+       - 如果无法确定如何转化，或认为原始输入已足够清晰，请直接返回原始搜索词
+       - 只有当用户查询内容明显与学习完全无关（如纯聊天、脏话）时，才返回 "NULL"
        - 严禁废话，只返回关键词字符串或 "NULL"`;
 export async function onRequestGet({ request, env }) {
     const authHeader = request.headers.get('Authorization');
@@ -78,19 +78,9 @@ export async function onRequestGet({ request, env }) {
             let content = llmResponse.choices?.[0]?.message?.content?.trim();
             if (content) {
                 content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                if (content === 'NULL' || content.includes('无相关')) {
-                    return new Response(JSON.stringify({
-                        success: true,
-                        files: [],
-                        directories: [],
-                        keywords: query,
-                        message: '未识别到相关课程信息',
-                        isAISearch: true
-                    }), {
-                        status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-                    });
+                if (content !== 'NULL' && !content.includes('无相关')) {
+                    finalKeywords = content;
                 }
-                finalKeywords = content;
             }
         } catch (e) {
             console.error('LLM 扩展关键词失败，使用原始查询:', e);
