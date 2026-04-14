@@ -4482,15 +4482,6 @@ textarea.form-input {
     background-color: var(--background-secondary);
 }
 
-.tip-item.tip-warning {
-    grid-column: 1 / -1;
-    background-color: rgba(231, 76, 60, 0.1);
-}
-
-.tip-item.tip-warning i {
-    color: var(--accent-color);
-}
-
 .tip-item i {
     color: var(--primary-color);
     margin-top: 0.2rem;
@@ -4507,11 +4498,13 @@ textarea.form-input {
 .tip-item code {
     background: rgba(var(--primary-rgb), 0.1);
     color: var(--primary-color);
-    padding: 0.15rem 0.5rem;
+    padding: 0.15rem 0.4rem;
     border-radius: 6px;
     font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
     font-size: 0.9em;
     border: 1px solid rgba(var(--primary-rgb), 0.2);
+    display: inline;
+    white-space: nowrap;
 }
 
 .badge {
