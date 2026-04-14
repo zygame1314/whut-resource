@@ -323,8 +323,9 @@ export async function onRequestGet({ request, env, waitUntil }) {
             });
 
             const ftsTokenizedQuery = processedTerms.join(' ');
+            const SEARCH_MAX_LIMIT = 50;
             try {
-                itemsResult = await DB.prepare(ftsQuery).bind(ftsTokenizedQuery, MAX_LIMIT).all();
+                itemsResult = await DB.prepare(ftsQuery).bind(ftsTokenizedQuery, SEARCH_MAX_LIMIT).all();
             } catch (e) {
                 itemsResult = { results: [] };
             }
