@@ -37,22 +37,38 @@ CREATE TABLE files (
 );
 
 DROP TABLE IF EXISTS files_fts;
-CREATE VIRTUAL TABLE files_fts USING fts5(name, content='files', content_rowid='id', tokenize='trigram');
+CREATE VIRTUAL TABLE files_fts USING fts5(name, tokenize='unicode61');
 
 DROP TRIGGER IF EXISTS files_ai;
 CREATE TRIGGER files_ai AFTER INSERT ON files BEGIN
-    INSERT INTO files_fts(rowid, name) VALUES (new.id, new.name);
+    INSERT INTO files_fts(rowid, name) 
+    SELECT new.id, (
+        WITH RECURSIVE split(c, rest) AS (
+            SELECT substr(new.name, 1, 1), substr(new.name, 2)
+            UNION ALL
+            SELECT substr(rest, 1, 1), substr(rest, 2)
+            FROM split WHERE rest != ''
+        )
+        SELECT group_concat(c, ' ') FROM split
+    );
 END;
 
 DROP TRIGGER IF EXISTS files_ad;
 CREATE TRIGGER files_ad AFTER DELETE ON files BEGIN
-    INSERT INTO files_fts(files_fts, rowid, name) VALUES('delete', old.id, old.name);
+    DELETE FROM files_fts WHERE rowid = old.id;
 END;
 
 DROP TRIGGER IF EXISTS files_au;
 CREATE TRIGGER files_au AFTER UPDATE OF name ON files BEGIN
-    INSERT INTO files_fts(files_fts, rowid, name) VALUES('delete', old.id, old.name);
-    INSERT INTO files_fts(rowid, name) VALUES (new.id, new.name);
+    UPDATE files_fts SET name = (
+        WITH RECURSIVE split(c, rest) AS (
+            SELECT substr(new.name, 1, 1), substr(new.name, 2)
+            UNION ALL
+            SELECT substr(rest, 1, 1), substr(rest, 2)
+            FROM split WHERE rest != ''
+        )
+        SELECT group_concat(c, ' ') FROM split
+    ) WHERE rowid = new.id;
 END;
 
 DROP TABLE IF EXISTS downloads;

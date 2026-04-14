@@ -299,15 +299,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
             }
         }
-        if (search && search.length < 3) {
-            return new Response(JSON.stringify({
-                success: true,
-                files: [],
-                directories: [],
-                totalItems: 0,
-                message: "搜索词太短（至少3个字符）。建议开启 AI 搜索以获得更好结果。"
-            }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-        }
+
         const prefix = url.searchParams.get('prefix') || '';
         let itemsResult;
         if (search) {
@@ -320,9 +312,11 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 ORDER BY rank
                 LIMIT ?
             `;
-            const searchQuery = search.replace(/"/g, '');
+            const cleanSearch = search.replace(/"/g, '');
+            const spacedSearch = Array.from(cleanSearch).join(' ');
+            const ftsTokenizedQuery = `"${spacedSearch}"`;
             try {
-                itemsResult = await DB.prepare(ftsQuery).bind(searchQuery, MAX_LIMIT).all();
+                itemsResult = await DB.prepare(ftsQuery).bind(ftsTokenizedQuery, MAX_LIMIT).all();
             } catch (e) {
                 itemsResult = { results: [] };
             }
