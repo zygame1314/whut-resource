@@ -328,13 +328,7 @@ if (searchButton && searchInput) {
         const searchTerm = searchInput.value.trim();
         const aiSearchToggle = document.getElementById('ai-search-toggle');
         const isAISearch = aiSearchToggle && aiSearchToggle.checked;
-        if (searchTerm && searchTerm.length < 3 && !isAISearch) {
-            showNotification('搜索词太短（至少3个字符）。建议开启 "AI 搜索" 进行模糊查找。', 'info');
-            const aiToggleLabel = document.querySelector('.ai-search-toggle-label');
-            if (aiToggleLabel) {
-                aiToggleLabel.classList.add('highlight-pulse');
-                setTimeout(() => aiToggleLabel.classList.remove('highlight-pulse'), 1000);
-            }
+        if (searchTerm && searchTerm.length < 1 && !isAISearch) {
             return;
         }
         fetchAndDisplayFiles(searchTerm ? '' : currentPrefix, searchTerm, 1);

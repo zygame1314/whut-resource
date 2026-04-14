@@ -313,8 +313,16 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 LIMIT ?
             `;
             const cleanSearch = search.replace(/"/g, '');
-            const spacedSearch = Array.from(cleanSearch).join(' ');
-            const ftsTokenizedQuery = `"${spacedSearch}"`;
+            const terms = cleanSearch.split(/\s+/).filter(t => t.length > 0);
+            const processedTerms = terms.map(term => {
+                const upperTerm = term.toUpperCase();
+                if (['AND', 'OR', 'NOT'].includes(upperTerm)) {
+                    return upperTerm;
+                }
+                return `"${Array.from(term).join(' ')}"`;
+            });
+
+            const ftsTokenizedQuery = processedTerms.join(' ');
             try {
                 itemsResult = await DB.prepare(ftsQuery).bind(ftsTokenizedQuery, MAX_LIMIT).all();
             } catch (e) {
