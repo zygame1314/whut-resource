@@ -717,20 +717,31 @@ function renderPaginationControls(paginationData) {
     controlsContainer.appendChild(nextButton);
 }
 function toggleBoostPanel(li, item, boostBtn) {
-    const existingPanel = li.querySelector('.boost-panel');
-    if (existingPanel) {
-        existingPanel.remove();
+    const isGridView = li.closest('.file-list-container')?.classList.contains('grid-view');
+    const closeExisting = () => {
+        document.querySelectorAll('.boost-panel').forEach(p => {
+            const parentLi = p.closest('.file-list-item');
+            if (parentLi) {
+                const btn = parentLi.querySelector('.boost-btn');
+                if (btn) btn.classList.remove('active');
+            }
+            p.remove();
+        });
+        document.querySelectorAll('.boost-modal-overlay').forEach(o => o.remove());
         boostBtn.classList.remove('active');
-        return;
-    }
-    document.querySelectorAll('.boost-panel').forEach(p => {
-        const parentLi = p.closest('.file-list-item');
-        if (parentLi) {
-            const btn = parentLi.querySelector('.boost-btn');
-            if (btn) btn.classList.remove('active');
+    };
+    if (!isGridView) {
+        const existingPanel = li.querySelector('.boost-panel');
+        if (existingPanel) {
+            existingPanel.remove();
+            boostBtn.classList.remove('active');
+            return;
         }
-        p.remove();
-    });
+    }
+    closeExisting();
+    if (!isGridView && li.classList.contains('actions-visible')) {
+        li.classList.remove('actions-visible');
+    }
     boostBtn.classList.add('active');
     const panel = document.createElement('div');
     panel.className = 'boost-panel';
@@ -746,7 +757,41 @@ function toggleBoostPanel(li, item, boostBtn) {
             <button class="boost-send-btn" title="发送"><i class="fas fa-paper-plane"></i></button>
         </div>
     `;
-    li.appendChild(panel);
+    panel._boostBtn = boostBtn;
+    if (isGridView) {
+        const overlay = document.createElement('div');
+        overlay.className = 'boost-modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'boost-modal';
+        const modalHeader = document.createElement('div');
+        modalHeader.className = 'boost-modal-header';
+        const fileName = item.name || item.key?.split('/').pop() || '文件';
+        modalHeader.innerHTML = `
+            <span class="boost-modal-filename" title="${escapeHtml(fileName)}"><i class="fas fa-file"></i> ${escapeHtml(fileName)}</span>
+            <button class="boost-modal-close" title="关闭"><i class="fas fa-times"></i></button>
+        `;
+        modal.appendChild(modalHeader);
+        modal.appendChild(panel);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add('active'));
+        const closeModal = () => {
+            overlay.classList.remove('active');
+            overlay.classList.add('closing');
+            const onEnd = () => {
+                overlay.remove();
+                boostBtn.classList.remove('active');
+            };
+            overlay.addEventListener('transitionend', onEnd, { once: true });
+            setTimeout(onEnd, 350);
+        };
+        modalHeader.querySelector('.boost-modal-close').onclick = closeModal;
+        overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+        panel.onclick = (e) => e.stopPropagation();
+    } else {
+        li.appendChild(panel);
+        panel.onclick = (e) => e.stopPropagation();
+    }
     const boostList = panel.querySelector('.boost-list');
     const boostInput = panel.querySelector('.boost-input');
     const boostSendBtn = panel.querySelector('.boost-send-btn');
@@ -822,7 +867,6 @@ function toggleBoostPanel(li, item, boostBtn) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBoost(); }
     };
     boostInput.onclick = (e) => e.stopPropagation();
-    panel.onclick = (e) => e.stopPropagation();
     loadBoosts();
 }
 function renderBoostList(container, boosts, item) {
@@ -864,15 +908,16 @@ async function handleDeleteBoost(e, bubbleEl, item, boostBtn) {
         const result = await deleteBoostAction(boostId);
         if (result && result.success) {
             const li = bubbleEl.closest('.file-list-item');
+            const panel = bubbleEl.closest('.boost-panel');
             bubbleEl.remove();
             if (item) item.boost_count = result.boost_count;
-            const btn = boostBtn || (li ? li.querySelector('.boost-btn') : null);
+            const btn = boostBtn || (panel?._boostBtn) || (li ? li.querySelector('.boost-btn') : null);
             if (btn) {
                 updateReactionCount(btn, result.boost_count);
             }
-            const panelCount = li ? li.querySelector('.boost-panel-count') : null;
+            const panelCount = panel?.querySelector('.boost-panel-count') || (li ? li.querySelector('.boost-panel-count') : null);
             if (panelCount) panelCount.textContent = result.boost_count > 0 ? `${result.boost_count}条` : '';
-            const list = li ? li.querySelector('.boost-list') : null;
+            const list = panel?.querySelector('.boost-list') || (li ? li.querySelector('.boost-list') : null);
             if (list && list.children.length === 0) {
                 list.innerHTML = '<div class="boost-empty">暂无评论，来说点什么吧</div>';
             }

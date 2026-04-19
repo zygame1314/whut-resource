@@ -7611,7 +7611,7 @@ input#prompt-input {
     border-top: 2px solid rgba(52, 152, 219, 0.3);
     border-radius: 0 0 8px 8px;
     padding: 0;
-    margin: 6px -12px -8px;
+    margin: 6px 0 -8px;
     animation: boostPanelSlide 0.25s ease-out;
     box-shadow: inset 0 2px 8px rgba(52, 152, 219, 0.06);
 }
@@ -7866,7 +7866,6 @@ input#prompt-input {
 
 @media (max-width: 768px) {
     .boost-panel {
-        margin: 4px -8px -4px;
         border-radius: 0 0 6px 6px;
     }
 
@@ -7924,16 +7923,162 @@ input#prompt-input {
     }
 }
 
-.file-list-container.grid-view .boost-panel {
-    margin: 4px 0 -4px;
-    border-radius: 0 0 8px 8px;
+.boost-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0);
+    transition: background 0.25s ease;
+    padding: 16px;
 }
 
-.file-list-container.grid-view .boost-bubble.boost-other::before,
-.file-list-container.grid-view .boost-bubble.boost-other::after,
-.file-list-container.grid-view .boost-bubble.boost-self::before,
-.file-list-container.grid-view .boost-bubble.boost-self::after {
+.boost-modal-overlay.active {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.boost-modal-overlay.closing {
+    background: rgba(0, 0, 0, 0);
+}
+
+.boost-modal {
+    background: var(--background-primary);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 440px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    transform: translateY(20px) scale(0.95);
+    opacity: 0;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    overflow: hidden;
+}
+
+.boost-modal-overlay.active .boost-modal {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+
+.boost-modal-overlay.closing .boost-modal {
+    transform: translateY(20px) scale(0.95);
+    opacity: 0;
+}
+
+.boost-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-alt);
+}
+
+.boost-modal-filename {
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.boost-modal-filename i {
+    color: #3498db;
+    font-size: 0.8rem;
+}
+
+.boost-modal-close {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.boost-modal-close:hover {
+    background: var(--background-secondary);
+    color: var(--text-primary);
+}
+
+.boost-modal .boost-panel {
+    margin: 0;
+    border: none;
+    border-top: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    animation: none;
+}
+
+.boost-modal .boost-panel-header {
     display: none;
+}
+
+.boost-modal .boost-list {
+    max-height: 45vh;
+}
+
+.boost-modal .boost-input-area {
+    border-top: 1px solid var(--border-color);
+    background: var(--background-alt);
+}
+
+[data-theme="dark"] .boost-modal {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .boost-modal-overlay.active {
+    background: rgba(0, 0, 0, 0.75);
+}
+
+@media (max-width: 768px) {
+    .boost-modal {
+        max-width: 100%;
+        max-height: 85vh;
+        border-radius: 12px;
+    }
+
+    .boost-modal-overlay {
+        padding: 12px;
+        align-items: flex-end;
+    }
+
+    .boost-modal {
+        transform: translateY(100%);
+        opacity: 1;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .boost-modal-overlay.active .boost-modal {
+        transform: translateY(0);
+    }
+
+    .boost-modal-overlay.closing .boost-modal {
+        transform: translateY(100%);
+    }
+
+    .boost-modal .boost-list {
+        max-height: 35vh;
+    }
 }
 
 .download-manager-container {
