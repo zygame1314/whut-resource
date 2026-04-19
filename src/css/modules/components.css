@@ -7713,64 +7713,14 @@ input#prompt-input {
     align-self: flex-start;
     background: var(--background-primary);
     border: 1px solid var(--border-color);
-    border-bottom-left-radius: 4px;
-}
-
-.boost-bubble.boost-other::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: -6px;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 0 8px 8px 0;
-    border-color: transparent var(--background-primary) transparent transparent;
-}
-
-.boost-bubble.boost-other::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: -8px;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 0 9px 9px 0;
-    border-color: transparent var(--border-color) transparent transparent;
-    z-index: -1;
+    border-bottom-left-radius: 14px;
 }
 
 .boost-bubble.boost-self {
     align-self: flex-end;
     background: linear-gradient(135deg, #e8f4fd, #d5f0e8);
     border: 1px solid rgba(52, 152, 219, 0.18);
-    border-bottom-right-radius: 4px;
-}
-
-.boost-bubble.boost-self::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    right: -6px;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 8px 8px 0 0;
-    border-color: #d5f0e8 transparent transparent transparent;
-}
-
-.boost-bubble.boost-self::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    right: -8px;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 9px 9px 0 0;
-    border-color: rgba(52, 152, 219, 0.18) transparent transparent transparent;
-    z-index: -1;
+    border-bottom-right-radius: 14px;
 }
 
 [data-theme="dark"] .boost-panel {
@@ -7782,30 +7732,14 @@ input#prompt-input {
 }
 
 [data-theme="dark"] .boost-bubble.boost-other {
-    background: rgba(255, 255, 255, 0.06);
+    background: #2a2a2a;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="dark"] .boost-bubble.boost-other::before {
-    border-color: transparent rgba(255, 255, 255, 0.06) transparent transparent;
-}
-
-[data-theme="dark"] .boost-bubble.boost-other::after {
-    border-color: transparent var(--border-color) transparent transparent;
 }
 
 [data-theme="dark"] .boost-bubble.boost-self {
     background: linear-gradient(135deg, rgba(52, 152, 219, 0.18), rgba(46, 204, 113, 0.12));
     border-color: rgba(52, 152, 219, 0.3);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="dark"] .boost-bubble.boost-self::before {
-    border-color: rgba(46, 204, 113, 0.12) transparent transparent transparent;
-}
-
-[data-theme="dark"] .boost-bubble.boost-self::after {
-    border-color: rgba(52, 152, 219, 0.3) transparent transparent transparent;
 }
 
 .boost-bubble-header {
