@@ -268,7 +268,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
             const limit = parseInt(url.searchParams.get('limit') || '6');
             const stmt = DB.prepare(`
                 SELECT *,
-                ${user ? `(SELECT reaction FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as user_reaction` : 'NULL as user_reaction'}
+                ${user ? `(SELECT COUNT(*) FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as is_liked` : '0 as is_liked'}
                 FROM files
                 WHERE is_directory = FALSE
                 ORDER BY uploaded DESC
@@ -299,13 +299,12 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
             }
         }
-
         const prefix = url.searchParams.get('prefix') || '';
         let itemsResult;
         if (search) {
             const ftsQuery = `
                 SELECT files.*,
-                ${user ? `(SELECT reaction FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as user_reaction` : 'NULL as user_reaction'}
+                ${user ? `(SELECT COUNT(*) FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as is_liked` : '0 as is_liked'}
                 FROM files
                 JOIN files_fts ON files.id = files_fts.rowid
                 WHERE files_fts MATCH ?
@@ -321,7 +320,6 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 }
                 return `"${Array.from(term).join(' ')}"`;
             });
-
             const ftsTokenizedQuery = processedTerms.join(' ');
             const SEARCH_MAX_LIMIT = 50;
             try {
@@ -336,7 +334,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
             }
             const combinedQuery = `
                 SELECT *,
-                ${user ? `(SELECT reaction FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as user_reaction` : 'NULL as user_reaction'}
+                ${user ? `(SELECT COUNT(*) FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as is_liked` : '0 as is_liked'}
                 FROM files
                 WHERE parent_path = ?
                 ORDER BY is_directory DESC,
@@ -346,7 +344,6 @@ export async function onRequestGet({ request, env, waitUntil }) {
             `;
             itemsResult = await DB.prepare(combinedQuery).bind(searchPath, MAX_LIMIT).all();
         }
-
         let currentFolder = null;
         if (!search && prefix) {
             currentFolder = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(prefix).first();
@@ -395,7 +392,6 @@ export async function onRequestPut({ request, env }) {
         const url = new URL(request.url);
         const action = url.searchParams.get('action');
         const body = await request.json();
-
         if (action === 'updateDescription') {
             const { key, description } = body;
             if (!key) {
@@ -408,7 +404,6 @@ export async function onRequestPut({ request, env }) {
             await DB.prepare('UPDATE files SET description = ? WHERE key = ?').bind(description || null, key).run();
             return new Response(JSON.stringify({ success: true, message: '描述已更新' }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-
         const { key, newName } = body;
         if (!key || !newName) {
             return new Response(JSON.stringify({ success: false, error: '缺少key或newName。' }), {
@@ -596,33 +591,27 @@ export async function onRequestPost({ request, env }) {
     try {
         const body = await request.json();
         if (action === 'toggleReaction') {
-            const { key, reaction } = body;
-            if (!key || !['like', 'dislike'].includes(reaction)) {
+            const { key } = body;
+            if (!key) {
                 return new Response(JSON.stringify({ success: false, error: '无效的参数' }), {
                     status: 400,
                     headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
                 });
             }
-            const existing = await DB.prepare('SELECT reaction FROM file_reactions WHERE user_id = ? AND file_key = ?').bind(user.id, key).first();
-            let currentUserReaction = null;
+            const existing = await DB.prepare('SELECT id FROM file_reactions WHERE user_id = ? AND file_key = ?').bind(user.id, key).first();
+            let isLiked = false;
             if (existing) {
-                if (existing.reaction === reaction) {
-                    await DB.prepare('DELETE FROM file_reactions WHERE user_id = ? AND file_key = ?').bind(user.id, key).run();
-                    currentUserReaction = null;
-                } else {
-                    await DB.prepare('UPDATE file_reactions SET reaction = ? WHERE user_id = ? AND file_key = ?').bind(reaction, user.id, key).run();
-                    currentUserReaction = reaction;
-                }
+                await DB.prepare('DELETE FROM file_reactions WHERE user_id = ? AND file_key = ?').bind(user.id, key).run();
+                isLiked = false;
             } else {
-                await DB.prepare('INSERT INTO file_reactions (user_id, file_key, reaction) VALUES (?, ?, ?)').bind(user.id, key, reaction).run();
-                currentUserReaction = reaction;
+                await DB.prepare('INSERT INTO file_reactions (user_id, file_key) VALUES (?, ?)').bind(user.id, key).run();
+                isLiked = true;
             }
-            const stats = await DB.prepare('SELECT likes, dislikes FROM files WHERE key = ?').bind(key).first();
+            const stats = await DB.prepare('SELECT likes FROM files WHERE key = ?').bind(key).first();
             return new Response(JSON.stringify({
                 success: true,
                 likes: stats ? stats.likes : 0,
-                dislikes: stats ? stats.dislikes : 0,
-                userReaction: currentUserReaction
+                isLiked: isLiked
             }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const { sourceKey, destinationPath } = body;

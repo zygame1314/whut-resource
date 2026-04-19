@@ -762,7 +762,7 @@ window.executeBatchDelete = async (keys) => {
     }
     return results;
 };
-async function toggleReaction(fileKey, reactionType, btnElement) {
+async function toggleReaction(fileKey, btnElement) {
     const token = localStorage.getItem('authToken');
     if (!token) {
         showNotification("请先登录。", 'error');
@@ -777,8 +777,7 @@ async function toggleReaction(fileKey, reactionType, btnElement) {
                 'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
-                key: fileKey,
-                reaction: reactionType
+                key: fileKey
             }),
         });
         const result = await response.json();

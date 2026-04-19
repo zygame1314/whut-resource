@@ -256,17 +256,12 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     let reactionButtonsHTML = '';
     if (!isDirectory) {
         const likeCount = item.likes || 0;
-        const dislikeCount = item.dislikes || 0;
-        const userReaction = item.user_reaction || null;
+        const isLiked = !!(item.is_liked);
         reactionButtonsHTML = `
             <div class="reaction-group">
-                <button class="reaction-btn like-btn${userReaction === 'like' ? ' active' : ''}" title="有用" data-count="${likeCount}">
-                    <i class="fas fa-smile reaction-icon"></i>
+                <button class="reaction-btn like-btn${isLiked ? ' active' : ''}" title="点赞" data-count="${likeCount}">
+                    <i class="fas fa-thumbs-up reaction-icon"></i>
                     <span class="reaction-count">${likeCount > 0 ? likeCount : ''}</span>
-                </button>
-                <button class="reaction-btn dislike-btn${userReaction === 'dislike' ? ' active' : ''}" title="无用" data-count="${dislikeCount}">
-                    <i class="fas fa-frown reaction-icon"></i>
-                    <span class="reaction-count">${dislikeCount > 0 ? dislikeCount : ''}</span>
                 </button>
             </div>
         `;
@@ -379,43 +374,22 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     }
     if (!isDirectory) {
         const likeBtn = fileActionsDiv.querySelector('.like-btn');
-        const dislikeBtn = fileActionsDiv.querySelector('.dislike-btn');
-        if (likeBtn && dislikeBtn) {
-            const updateCounts = (likes, dislikes) => {
+        if (likeBtn) {
+            const updateCount = (likes) => {
                 const likeCountEl = likeBtn.querySelector('.reaction-count');
-                const dislikeCountEl = dislikeBtn.querySelector('.reaction-count');
                 if (likeCountEl) likeCountEl.textContent = likes > 0 ? likes : '';
-                if (dislikeCountEl) dislikeCountEl.textContent = dislikes > 0 ? dislikes : '';
             };
             likeBtn.onclick = async (e) => {
                 e.stopPropagation();
-                const result = await toggleReaction(item.key, 'like', likeBtn);
+                const result = await toggleReaction(item.key, likeBtn);
                 if (result) {
                     item.likes = result.likes;
-                    item.dislikes = result.dislikes;
-                    item.user_reaction = result.userReaction;
-                    updateCounts(result.likes, result.dislikes);
-                    if (result.userReaction === 'like') {
+                    item.is_liked = result.isLiked;
+                    updateCount(result.likes);
+                    if (result.isLiked) {
                         likeBtn.classList.add('active');
-                        dislikeBtn.classList.remove('active');
                     } else {
                         likeBtn.classList.remove('active');
-                    }
-                }
-            };
-            dislikeBtn.onclick = async (e) => {
-                e.stopPropagation();
-                const result = await toggleReaction(item.key, 'dislike', dislikeBtn);
-                if (result) {
-                    item.likes = result.likes;
-                    item.dislikes = result.dislikes;
-                    item.user_reaction = result.userReaction;
-                    updateCounts(result.likes, result.dislikes);
-                    if (result.userReaction === 'dislike') {
-                        dislikeBtn.classList.add('active');
-                        likeBtn.classList.remove('active');
-                    } else {
-                        dislikeBtn.classList.remove('active');
                     }
                 }
             };

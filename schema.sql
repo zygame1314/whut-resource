@@ -30,7 +30,6 @@ CREATE TABLE files (
     description TEXT,
     downloads INTEGER DEFAULT 0,
     likes INTEGER DEFAULT 0,
-    dislikes INTEGER DEFAULT 0,
     uploader_id INTEGER,
     last_verified INTEGER DEFAULT 0,
     FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE SET NULL
@@ -141,7 +140,6 @@ CREATE TABLE file_reactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     file_key TEXT NOT NULL,
-    reaction TEXT NOT NULL CHECK (reaction IN ('like', 'dislike')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (file_key) REFERENCES files(key) ON DELETE CASCADE
@@ -151,32 +149,12 @@ CREATE INDEX IF NOT EXISTS idx_file_reactions_key ON file_reactions(file_key);
 
 DROP TRIGGER IF EXISTS update_file_reaction_insert;
 CREATE TRIGGER update_file_reaction_insert AFTER INSERT ON file_reactions BEGIN
-    UPDATE files SET 
-        likes = CASE WHEN new.reaction = 'like' THEN likes + 1 ELSE likes END,
-        dislikes = CASE WHEN new.reaction = 'dislike' THEN dislikes + 1 ELSE dislikes END
-    WHERE key = new.file_key;
+    UPDATE files SET likes = likes + 1 WHERE key = new.file_key;
 END;
 
 DROP TRIGGER IF EXISTS update_file_reaction_delete;
 CREATE TRIGGER update_file_reaction_delete AFTER DELETE ON file_reactions BEGIN
-    UPDATE files SET 
-        likes = CASE WHEN old.reaction = 'like' THEN likes - 1 ELSE likes END,
-        dislikes = CASE WHEN old.reaction = 'dislike' THEN dislikes - 1 ELSE dislikes END
-    WHERE key = old.file_key;
-END;
-
-DROP TRIGGER IF EXISTS update_file_reaction_update;
-CREATE TRIGGER update_file_reaction_update AFTER UPDATE ON file_reactions BEGIN
-    UPDATE files SET 
-        likes = CASE 
-            WHEN new.reaction = 'like' AND old.reaction = 'dislike' THEN likes + 1
-            WHEN new.reaction = 'dislike' AND old.reaction = 'like' THEN likes - 1
-            ELSE likes END,
-        dislikes = CASE 
-            WHEN new.reaction = 'dislike' AND old.reaction = 'like' THEN dislikes + 1
-            WHEN new.reaction = 'like' AND old.reaction = 'dislike' THEN dislikes - 1
-            ELSE dislikes END
-    WHERE key = new.file_key;
+    UPDATE files SET likes = likes - 1 WHERE key = old.file_key;
 END;
 
 
