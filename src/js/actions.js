@@ -795,6 +795,88 @@ async function toggleReaction(fileKey, btnElement) {
         if (btnElement) btnElement.disabled = false;
     }
 }
+async function fetchBoosts(fileKey, limit = 20, offset = 0) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("请先登录。", 'error');
+        return null;
+    }
+    try {
+        const BOOSTS_API_URL = API_ENDPOINTS.boosts;
+        const response = await fetch(`${BOOSTS_API_URL}?key=${encodeURIComponent(fileKey)}&limit=${limit}&offset=${offset}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            return result;
+        } else {
+            showNotification(result.error || '获取评论失败', 'error');
+            return null;
+        }
+    } catch (error) {
+        console.error('Fetch boosts error:', error);
+        showNotification('获取评论失败', 'error');
+        return null;
+    }
+}
+async function sendBoostAction(fileKey, content) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("请先登录。", 'error');
+        return null;
+    }
+    try {
+        const BOOSTS_API_URL = API_ENDPOINTS.boosts;
+        const response = await fetch(BOOSTS_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ key: fileKey, content }),
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            return result;
+        } else {
+            showNotification(result.error || '发送失败', 'error');
+            return null;
+        }
+    } catch (error) {
+        console.error('Send boost error:', error);
+        showNotification('发送失败', 'error');
+        return null;
+    }
+}
+async function deleteBoostAction(boostId) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("请先登录。", 'error');
+        return null;
+    }
+    try {
+        const BOOSTS_API_URL = API_ENDPOINTS.boosts;
+        const response = await fetch(BOOSTS_API_URL, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ id: boostId }),
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            return result;
+        } else {
+            showNotification(result.error || '删除失败', 'error');
+            return null;
+        }
+    } catch (error) {
+        console.error('Delete boost error:', error);
+        showNotification('删除失败', 'error');
+        return null;
+    }
+}
 document.addEventListener('click', (e) => {
     const link = e.target.closest('a.external-link');
     if (link) {

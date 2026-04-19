@@ -7534,6 +7534,24 @@ input#prompt-input {
     background: rgba(46, 204, 113, 0.15);
 }
 
+.reaction-btn.boost-btn:hover .reaction-icon,
+.reaction-btn.boost-btn.active .reaction-icon {
+    color: #3498db;
+}
+
+.reaction-btn.boost-btn.active {
+    opacity: 1;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.15), rgba(155, 89, 182, 0.15));
+}
+
+.reaction-btn.boost-btn.active .reaction-count {
+    color: #3498db;
+}
+
+.reaction-btn.boost-btn:hover {
+    background: rgba(52, 152, 219, 0.15);
+}
+
 [data-theme="dark"] .reaction-group {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.1);
@@ -7545,6 +7563,10 @@ input#prompt-input {
 
 [data-theme="dark"] .reaction-btn.like-btn.active {
     background: rgba(46, 204, 113, 0.2);
+}
+
+[data-theme="dark"] .reaction-btn.boost-btn.active {
+    background: rgba(52, 152, 219, 0.2);
 }
 
 @media (max-width: 768px) {
@@ -7578,6 +7600,225 @@ input#prompt-input {
     .reaction-group:has(.active) {
         background: var(--background-alt);
         border-color: var(--border-color);
+    }
+}
+
+/* Boost Panel Styles */
+.file-list-item:has(.boost-panel) {
+    flex-wrap: wrap;
+}
+
+.boost-panel {
+    width: 100%;
+    align-self: stretch;
+    order: 10;
+    background: var(--background-alt);
+    border-top: 1px solid var(--border-color);
+    padding: 12px;
+    margin: 4px -12px -8px;
+    animation: boostPanelSlide 0.2s ease-out;
+}
+
+@keyframes boostPanelSlide {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+
+    to {
+        opacity: 1;
+        max-height: 400px;
+    }
+}
+
+.boost-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.boost-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.boost-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+.boost-loading,
+.boost-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 16px 0;
+}
+
+.boost-bubble {
+    padding: 8px 12px;
+    border-radius: 12px;
+    max-width: 85%;
+    position: relative;
+    word-break: break-word;
+}
+
+.boost-bubble.boost-other {
+    align-self: flex-start;
+    background: var(--background-primary);
+    border: 1px solid var(--border-color);
+    border-bottom-left-radius: 4px;
+}
+
+.boost-bubble.boost-self {
+    align-self: flex-end;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.12), rgba(46, 204, 113, 0.12));
+    border: 1px solid rgba(52, 152, 219, 0.2);
+    border-bottom-right-radius: 4px;
+}
+
+[data-theme="dark"] .boost-bubble.boost-other {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .boost-bubble.boost-self {
+    background: rgba(52, 152, 219, 0.15);
+    border-color: rgba(52, 152, 219, 0.3);
+}
+
+.boost-bubble-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.boost-nickname {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.boost-self .boost-nickname {
+    color: #27ae60;
+}
+
+.boost-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.boost-delete-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.boost-bubble:hover .boost-delete-btn {
+    opacity: 1;
+}
+
+.boost-delete-btn:hover {
+    color: #e74c3c;
+}
+
+.boost-bubble-content {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--text-primary);
+}
+
+.boost-input-area {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.boost-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    background: var(--background-primary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.boost-input:focus {
+    border-color: var(--primary-color);
+}
+
+.boost-input::placeholder {
+    color: var(--text-muted);
+}
+
+.boost-send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    transition: background 0.2s, transform 0.2s;
+    flex-shrink: 0;
+}
+
+.boost-send-btn:hover {
+    background: var(--accent-color);
+    transform: scale(1.05);
+}
+
+.boost-send-btn:active {
+    transform: scale(0.95);
+}
+
+.boost-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+@media (max-width: 768px) {
+    .boost-panel {
+        margin: 0 -8px -4px;
+        padding: 8px;
+    }
+
+    .boost-list {
+        max-height: 160px;
+    }
+
+    .boost-bubble {
+        max-width: 90%;
+        padding: 6px 10px;
+    }
+
+    .boost-input {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+
+    .boost-send-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
     }
 }
 

@@ -30,6 +30,7 @@ CREATE TABLE files (
     description TEXT,
     downloads INTEGER DEFAULT 0,
     likes INTEGER DEFAULT 0,
+    boost_count INTEGER DEFAULT 0,
     uploader_id INTEGER,
     last_verified INTEGER DEFAULT 0,
     FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE SET NULL
@@ -348,3 +349,26 @@ CREATE TABLE login_attempts (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_login_attempts_lookup ON login_attempts(identifier, attempt_type, expires_at, fail_count);
 CREATE INDEX IF NOT EXISTS idx_login_attempts_expires ON login_attempts(expires_at);
+
+DROP TABLE IF EXISTS file_boosts;
+CREATE TABLE file_boosts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_key TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    content TEXT NOT NULL CHECK(length(content) <= 200 AND length(trim(content)) > 0),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (file_key) REFERENCES files(key) ON DELETE CASCADE
+);
+CREATE INDEX idx_file_boosts_key ON file_boosts(file_key, created_at DESC);
+CREATE INDEX idx_file_boosts_user ON file_boosts(user_id, created_at DESC);
+
+DROP TRIGGER IF EXISTS update_boost_count_insert;
+CREATE TRIGGER update_boost_count_insert AFTER INSERT ON file_boosts BEGIN
+    UPDATE files SET boost_count = boost_count + 1 WHERE key = new.file_key;
+END;
+
+DROP TRIGGER IF EXISTS update_boost_count_delete;
+CREATE TRIGGER update_boost_count_delete AFTER DELETE ON file_boosts BEGIN
+    UPDATE files SET boost_count = boost_count - 1 WHERE key = old.file_key;
+END;
