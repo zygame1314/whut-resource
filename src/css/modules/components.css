@@ -7590,10 +7590,6 @@ input#prompt-input {
 
     .reaction-btn .reaction-count {
         font-size: 0.7rem;
-        display: none;
-    }
-
-    .reaction-btn.active .reaction-count {
         display: inline;
     }
 
