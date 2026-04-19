@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const MODEL = 'Qwen/Qwen3-8B';
+const MODEL = 'Qwen/Qwen3.5-4B';
 const KEYWORD_PROMPT = `你是一个大学课程目录推荐助手。用户上传了一些文件名，你需要提取出文件所属的课程全称。
     规则：
     1. 识别并扩展缩写（严格映射）：
