@@ -136,6 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
             currentView = btn.dataset.view;
             if (fileListContainer) {
                 fileListContainer.classList.toggle('grid-view', currentView === 'grid');
+                document.querySelectorAll('.boost-panel').forEach(p => p.remove());
+                document.querySelectorAll('.boost-modal-overlay').forEach(o => o.remove());
+                document.querySelectorAll('.boost-btn.active').forEach(b => b.classList.remove('active'));
             }
         });
     });
