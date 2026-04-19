@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const MODEL = 'Qwen/Qwen3.5-4B';
+const MODEL = 'Qwen/Qwen3-8B';
 const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。将用户的【搜索词】转化为【搜索关键词】。
     规则：
     1. 缩写对应示例：

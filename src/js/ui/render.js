@@ -7,6 +7,21 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+function updateReactionCount(btn, count) {
+    const countEl = btn.querySelector('.reaction-count');
+    if (count > 0) {
+        if (countEl) {
+            countEl.textContent = count;
+        } else {
+            const span = document.createElement('span');
+            span.className = 'reaction-count';
+            span.textContent = count;
+            btn.appendChild(span);
+        }
+    } else if (countEl) {
+        countEl.remove();
+    }
+}
 function createParticleBackground() {
     const particlesContainer = document.getElementById('particles-background');
     if (!particlesContainer) return;
@@ -262,11 +277,11 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             <div class="reaction-group">
                 <button class="reaction-btn like-btn${isLiked ? ' active' : ''}" title="点赞" data-count="${likeCount}">
                     <i class="fas fa-thumbs-up reaction-icon"></i>
-                    <span class="reaction-count">${likeCount > 0 ? likeCount : ''}</span>
+                    ${likeCount > 0 ? `<span class="reaction-count">${likeCount}</span>` : ''}
                 </button>
                 <button class="reaction-btn boost-btn" title="评论" data-count="${boostCount}">
                     <i class="fas fa-comment-dots reaction-icon"></i>
-                    <span class="reaction-count">${boostCount > 0 ? boostCount : ''}</span>
+                    ${boostCount > 0 ? `<span class="reaction-count">${boostCount}</span>` : ''}
                 </button>
             </div>
         `;
@@ -381,8 +396,7 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         const likeBtn = fileActionsDiv.querySelector('.like-btn');
         if (likeBtn) {
             const updateCount = (likes) => {
-                const likeCountEl = likeBtn.querySelector('.reaction-count');
-                if (likeCountEl) likeCountEl.textContent = likes > 0 ? likes : '';
+                updateReactionCount(likeBtn, likes);
             };
             likeBtn.onclick = async (e) => {
                 e.stopPropagation();
@@ -721,9 +735,14 @@ function toggleBoostPanel(li, item, boostBtn) {
     const panel = document.createElement('div');
     panel.className = 'boost-panel';
     panel.innerHTML = `
+        <div class="boost-panel-header">
+            <span class="boost-panel-title"><i class="fas fa-comment-dots"></i> 评论</span>
+            <span class="boost-panel-count"></span>
+        </div>
         <div class="boost-list"><div class="boost-loading">加载中...</div></div>
         <div class="boost-input-area">
             <input type="text" class="boost-input" placeholder="说点什么..." maxlength="200" />
+            <span class="boost-char-count">0/200</span>
             <button class="boost-send-btn" title="发送"><i class="fas fa-paper-plane"></i></button>
         </div>
     `;
@@ -731,13 +750,27 @@ function toggleBoostPanel(li, item, boostBtn) {
     const boostList = panel.querySelector('.boost-list');
     const boostInput = panel.querySelector('.boost-input');
     const boostSendBtn = panel.querySelector('.boost-send-btn');
+    const charCount = panel.querySelector('.boost-char-count');
+    const panelCount = panel.querySelector('.boost-panel-count');
+    const updatePanelCount = (total) => {
+        if (panelCount) panelCount.textContent = total > 0 ? `${total}条` : '';
+    };
+    const updateCharCount = () => {
+        if (charCount) {
+            const len = boostInput.value.length;
+            charCount.textContent = `${len}/200`;
+            charCount.classList.toggle('near-limit', len > 180);
+        }
+    };
+    boostInput.oninput = updateCharCount;
     const loadBoosts = async () => {
         try {
             const result = await fetchBoosts(item.key, 20, 0);
             if (result && result.success) {
                 renderBoostList(boostList, result.boosts, item);
+                updatePanelCount(result.total);
             } else {
-                boostList.innerHTML = '<div class="boost-empty">暂无评论</div>';
+                boostList.innerHTML = '<div class="boost-empty">暂无评论，来说点什么吧</div>';
             }
         } catch (e) {
             boostList.innerHTML = '<div class="boost-empty">加载失败</div>';
@@ -751,9 +784,9 @@ function toggleBoostPanel(li, item, boostBtn) {
             const result = await sendBoostAction(item.key, content);
             if (result && result.success) {
                 boostInput.value = '';
+                updateCharCount();
                 item.boost_count = result.boost_count;
-                const countEl = boostBtn.querySelector('.reaction-count');
-                if (countEl) countEl.textContent = result.boost_count > 0 ? result.boost_count : '';
+                updateReactionCount(boostBtn, result.boost_count);
                 const newBoost = document.createElement('div');
                 newBoost.className = 'boost-bubble boost-self';
                 const nickname = result.boost.nickname || '我';
@@ -773,6 +806,7 @@ function toggleBoostPanel(li, item, boostBtn) {
                     await handleDeleteBoost(e, newBoost, item, boostBtn);
                 };
                 boostList.scrollTop = 0;
+                updatePanelCount(item.boost_count);
             } else {
                 showNotification(result?.error || '发送失败', 'error');
             }
@@ -829,13 +863,16 @@ async function handleDeleteBoost(e, bubbleEl, item, boostBtn) {
     try {
         const result = await deleteBoostAction(boostId);
         if (result && result.success) {
+            const li = bubbleEl.closest('.file-list-item');
             bubbleEl.remove();
             if (item) item.boost_count = result.boost_count;
-            if (boostBtn) {
-                const countEl = boostBtn.querySelector('.reaction-count');
-                if (countEl) countEl.textContent = result.boost_count > 0 ? result.boost_count : '';
+            const btn = boostBtn || (li ? li.querySelector('.boost-btn') : null);
+            if (btn) {
+                updateReactionCount(btn, result.boost_count);
             }
-            const list = bubbleEl.closest('.boost-list');
+            const panelCount = li ? li.querySelector('.boost-panel-count') : null;
+            if (panelCount) panelCount.textContent = result.boost_count > 0 ? `${result.boost_count}条` : '';
+            const list = li ? li.querySelector('.boost-list') : null;
             if (list && list.children.length === 0) {
                 list.innerHTML = '<div class="boost-empty">暂无评论，来说点什么吧</div>';
             }

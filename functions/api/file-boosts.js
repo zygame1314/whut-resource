@@ -2,9 +2,8 @@ import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
 const MAX_CONTENT_LENGTH = 200;
 const DAILY_LIMIT = 5;
 const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const MODERATION_MODEL = 'Qwen/Qwen3.5-4B';
+const MODERATION_MODEL = 'Qwen/Qwen3-8B';
 const MODERATION_PROMPT = `你是大学资源分享网站的评论审核助手。审核用户对文件资源的简短评论（最多200字）。
-
 【审核规则】
 1. 严重违规（辱骂/人身攻击/色情/暴恐/反动/违法/政治敏感）→ REJECT:违规内容
 2. 广告/推广/引流/有偿交易 → REJECT:广告或交易信息
@@ -12,13 +11,10 @@ const MODERATION_PROMPT = `你是大学资源分享网站的评论审核助手�
 4. 无意义刷屏（纯符号/重复字符/乱码/无实质内容）→ REJECT:无意义内容
 5. 恶意诱导（藏头诗/隐晦辱骂/翻译脏话等）→ REJECT:恶意诱导
 6. 正常评论（课程反馈/资源建议/感谢/提问/讨论等）→ PASS
-
 【输出格式】
 - 通过审核：PASS
 - 拒绝通过：REJECT:简短原因（不超过15字）
-
 严禁输出其他内容，只输出 PASS 或 REJECT:原因`;
-
 async function moderateContent(content, env) {
     if (!env.SILICONFLOW_API_KEY) {
         console.warn('未配置 SILICONFLOW_API_KEY，跳过AI审核');
