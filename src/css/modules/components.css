@@ -1231,6 +1231,7 @@
 #guestbook-content {
     width: 100%;
     min-height: 80px;
+    max-height: 150px;
     padding: 1rem;
     border: 1px solid var(--border-color);
     border-radius: 12px;
@@ -2288,7 +2289,7 @@
     color: var(--text-primary);
     font-size: 0.9rem;
     resize: vertical;
-    max-height: 100px;
+    max-height: 150px;
     min-height: 80px;
     font-family: inherit;
     transition: border-color 0.2s ease;
@@ -5353,7 +5354,7 @@ textarea.form-input {
 
 .confirmation-modal .markdown-body {
     text-align: left;
-    max-height: 60vh;
+    max-height: 50vh;
     overflow-y: auto;
     padding: 1.25rem;
     background: var(--background-alt);
@@ -5382,7 +5383,7 @@ textarea#prompt-input {
     resize: vertical;
     min-height: 80px;
     line-height: 1.5;
-    max-height: 100px;
+    max-height: 150px;
 }
 
 input#prompt-input {
@@ -5435,10 +5436,10 @@ input#prompt-input {
 .prompt-input-wrapper {
     position: relative;
     margin-bottom: 1.5rem;
-    min-height: 300px;
 }
 
 .prompt-input-wrapper #prompt-input {
+    max-height: 50vh;
     width: 100%;
     padding: 1rem;
     border-radius: 8px;
