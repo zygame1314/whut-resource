@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, generateEmbeddings } from '../utils.js';
+import { verifyToken, addCorsHeaders, generateEmbeddings, rerankResults } from '../utils.js';
 const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
 const MODEL = 'Qwen/Qwen3-8B';
 const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。将用户的【搜索词】转化为【搜索关键词】。
@@ -105,7 +105,7 @@ export async function onRequestGet({ request, env }) {
                 status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
         }
-        const MIN_SCORE = 0.45;
+        const MIN_SCORE = 0.3;
         const validMatches = vectorResults.matches.filter(m => m.score >= MIN_SCORE);
         if (validMatches.length === 0) {
             return new Response(JSON.stringify({
@@ -119,16 +119,30 @@ export async function onRequestGet({ request, env }) {
             });
         }
         const fileIds = validMatches.map(m => parseInt(m.id));
-        const scoreMap = {};
-        validMatches.forEach(m => { scoreMap[m.id] = m.score; });
+        const vectorScoreMap = {};
+        validMatches.forEach(m => { vectorScoreMap[m.id] = m.score; });
         const placeholders = fileIds.map(() => '?').join(',');
         const filesResult = await DB.prepare(
             `SELECT * FROM files WHERE id IN (${placeholders})`
         ).bind(...fileIds).all();
-        const filesWithScores = (filesResult.results || []).map(file => ({
+        let filesWithScores = (filesResult.results || []).map(file => ({
             ...file,
-            similarity_score: scoreMap[file.id] || 0
+            similarity_score: vectorScoreMap[file.id] || 0
         }));
+        const rerankDocs = filesWithScores.map(f => f.key || f.name);
+        const rerankResult = await rerankResults(env, finalKeywords, rerankDocs, topK);
+        if (rerankResult) {
+            const rerankScoreMap = {};
+            rerankResult.forEach(r => {
+                const fileId = fileIds[r.index];
+                if (fileId) rerankScoreMap[fileId] = r.relevance_score;
+            });
+            filesWithScores = filesWithScores.map(f => ({
+                ...f,
+                similarity_score: rerankScoreMap[f.id] ?? f.similarity_score,
+                vector_score: vectorScoreMap[f.id] || 0
+            }));
+        }
         filesWithScores.sort((a, b) => b.similarity_score - a.similarity_score);
         const directories = filesWithScores.filter(f => f.is_directory);
         const files = filesWithScores.filter(f => !f.is_directory);

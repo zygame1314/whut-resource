@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults } from '../utils.js';
 const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
 const MODEL = 'Qwen/Qwen3-8B';
 const KEYWORD_PROMPT = `你是一个大学课程目录推荐助手。用户上传了一些文件名，你需要提取出文件所属的课程全称。
@@ -75,19 +75,30 @@ export async function onRequestPost({ request, env }) {
             const queryVector = embeddings?.[0];
             if (queryVector) {
                 const vectorResults = await VECTORIZE.query(queryVector, {
-                    topK: 20,
+                    topK: 30,
                     returnMetadata: 'all'
                 });
                 if (vectorResults && vectorResults.matches) {
                     const validMatches = vectorResults.matches
-                        .filter(m => m.score >= 0.45);
+                        .filter(m => m.score >= 0.3);
                     const fileIds = validMatches.map(m => parseInt(m.id));
                     if (fileIds.length > 0) {
                         const placeholders = fileIds.map(() => '?').join(',');
                         const results = await env.DB.prepare(
-                            `SELECT key FROM files WHERE id IN (${placeholders}) AND is_directory = TRUE LIMIT 20`
+                            `SELECT id, key FROM files WHERE id IN (${placeholders}) AND is_directory = TRUE LIMIT 30`
                         ).bind(...fileIds).all();
-                        directories = (results.results || []).map(r => r.key);
+                        const dirResults = results.results || [];
+                        if (dirResults.length > 0) {
+                            const rerankDocs = dirResults.map(r => r.key);
+                            const rerankResult = await rerankResults(env, keywords, rerankDocs, 20);
+                            if (rerankResult) {
+                                const rerankedIds = new Set(rerankResult.map(r => dirResults[r.index]?.key).filter(Boolean));
+                                const remainingDirs = dirResults.map(r => r.key).filter(k => !rerankedIds.has(k));
+                                directories = [...rerankedIds, ...remainingDirs].slice(0, 20);
+                            } else {
+                                directories = dirResults.map(r => r.key);
+                            }
+                        }
                     }
                 }
             }

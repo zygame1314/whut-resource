@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
 const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -446,7 +446,7 @@ async function handleSearch(query, env) {
                 query: query
             };
         }
-        const MIN_SCORE = 0.45;
+        const MIN_SCORE = 0.3;
         const validMatches = vectorResults.matches.filter(m => m.score >= MIN_SCORE);
         if (validMatches.length === 0) {
             return {
@@ -458,16 +458,30 @@ async function handleSearch(query, env) {
             };
         }
         const fileIds = validMatches.map(m => parseInt(m.id));
-        const scoreMap = {};
-        validMatches.forEach(m => { scoreMap[m.id] = m.score; });
+        const vectorScoreMap = {};
+        validMatches.forEach(m => { vectorScoreMap[m.id] = m.score; });
         const placeholders = fileIds.map(() => '?').join(',');
         const filesResult = await DB.prepare(
             `SELECT id, name, key, parent_path, is_directory FROM files WHERE id IN (${placeholders})`
         ).bind(...fileIds).all();
-        const filesWithScores = (filesResult.results || []).map(file => ({
+        let filesWithScores = (filesResult.results || []).map(file => ({
             ...file,
-            similarity_score: scoreMap[file.id] || 0
+            similarity_score: vectorScoreMap[file.id] || 0
         }));
+        const rerankDocs = filesWithScores.map(f => f.key || f.name);
+        const rerankResult = await rerankResults(env, query, rerankDocs, 15);
+        if (rerankResult) {
+            const rerankScoreMap = {};
+            rerankResult.forEach(r => {
+                const fileId = fileIds[r.index];
+                if (fileId) rerankScoreMap[fileId] = r.relevance_score;
+            });
+            filesWithScores = filesWithScores.map(f => ({
+                ...f,
+                similarity_score: rerankScoreMap[f.id] ?? f.similarity_score,
+                vector_score: vectorScoreMap[f.id] || 0
+            }));
+        }
         filesWithScores.sort((a, b) => b.similarity_score - a.similarity_score);
         return {
             success: true,

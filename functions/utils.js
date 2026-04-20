@@ -70,19 +70,48 @@ export function isAdmin(user) {
 export function isSuperAdmin(user) {
   return user && user.role === 'super_admin';
 }
-
-const EMBEDDING_MODEL = '@cf/qwen3-embedding-0.6b';
-const EMBEDDING_DIMENSIONS = 512;
-
+const EMBEDDING_MODEL = '@cf/baai/bge-small-en-v1.5';
+const RERANKER_MODEL = 'BAAI/bge-reranker-v2-m3';
+const SILICONFLOW_RERANK_URL = 'https://api.siliconflow.cn/v1/rerank';
 export async function generateEmbeddings(AI, texts) {
   if (!AI) throw new Error('AI 绑定未配置');
   if (!texts || texts.length === 0) return [];
-  const embeddingResponse = await AI.run(EMBEDDING_MODEL, {
-    text: texts,
-    dimensions: EMBEDDING_DIMENSIONS
-  });
+  const embeddingResponse = await AI.run(EMBEDDING_MODEL, { text: texts });
   if (!embeddingResponse?.data) {
     throw new Error('AI 嵌入生成失败');
   }
   return embeddingResponse.data;
+}
+export async function rerankResults(env, query, documents, topN = 20) {
+  if (!env.SILICONFLOW_API_KEY) {
+    console.warn('未配置 SILICONFLOW_API_KEY，跳过重排');
+    return null;
+  }
+  if (!documents || documents.length === 0) return [];
+  try {
+    const response = await fetch(SILICONFLOW_RERANK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: RERANKER_MODEL,
+        query: query,
+        documents: documents,
+        top_n: topN,
+        return_documents: false
+      })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Reranker API Error: ${response.status} - ${errorText}`);
+      return null;
+    }
+    const result = await response.json();
+    return result.results || null;
+  } catch (error) {
+    console.error('重排请求失败:', error);
+    return null;
+  }
 }
