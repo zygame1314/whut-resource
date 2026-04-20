@@ -1,8 +1,6 @@
-import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat } from '../utils.js';
 const MAX_CONTENT_LENGTH = 200;
 const DAILY_LIMIT = 5;
-const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const MODERATION_MODEL = 'Qwen/Qwen3-8B';
 const MODERATION_PROMPT = `你是大学资源分享网站的评论审核助手。审核用户对文件资源的简短评论（最多200字）。
 【审核规则】
 1. 严重违规（辱骂/人身攻击/色情/暴恐/反动/违法/政治敏感）→ REJECT:违规内容
@@ -21,29 +19,14 @@ async function moderateContent(content, env) {
         return { pass: true };
     }
     try {
-        const response = await fetch(SILICONFLOW_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: MODERATION_MODEL,
-                messages: [
-                    { role: 'system', content: MODERATION_PROMPT },
-                    { role: 'user', content: content }
-                ],
-                temperature: 0.1,
-                stream: false,
-                enable_thinking: false,
-                max_tokens: 50
-            })
+        const data = await fetchSiliconFlowChat(env, {
+            messages: [
+                { role: 'system', content: MODERATION_PROMPT },
+                { role: 'user', content: content }
+            ],
+            temperature: 0.1,
+            maxTokens: 50
         });
-        if (!response.ok) {
-            console.error('AI审核API错误:', response.status);
-            return { pass: true };
-        }
-        const data = await response.json();
         let result = data.choices?.[0]?.message?.content?.trim() || '';
         result = result.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
         if (result.startsWith('REJECT:')) {

@@ -115,3 +115,37 @@ export async function rerankResults(env, query, documents, topN = 20) {
     return null;
   }
 }
+const SILICONFLOW_CHAT_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+const DEFAULT_CHAT_MODEL = 'Qwen/Qwen3-8B';
+export async function fetchSiliconFlowChat(env, { messages, tools = null, toolChoice = 'auto', temperature = 0.1, model = DEFAULT_CHAT_MODEL, maxTokens = null, enableThinking = false }) {
+  if (!env.SILICONFLOW_API_KEY) {
+    throw new Error('未配置 SILICONFLOW_API_KEY');
+  }
+  const body = {
+    model: model,
+    messages: messages,
+    temperature: temperature,
+    stream: false,
+    enable_thinking: enableThinking
+  };
+  if (maxTokens) {
+    body.max_tokens = maxTokens;
+  }
+  if (tools) {
+    body.tools = tools;
+    body.tool_choice = toolChoice;
+  }
+  const response = await fetch(SILICONFLOW_CHAT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
+    },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`SiliconFlow API Error: ${response.status} - ${errorText}`);
+  }
+  return await response.json();
+}

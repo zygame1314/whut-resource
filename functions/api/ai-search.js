@@ -1,6 +1,4 @@
-import { verifyToken, addCorsHeaders, generateEmbeddings, rerankResults } from '../utils.js';
-const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const MODEL = 'Qwen/Qwen3-8B';
+import { verifyToken, addCorsHeaders, generateEmbeddings, rerankResults, fetchSiliconFlowChat } from '../utils.js';
 const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。将用户的【搜索词】转化为【搜索关键词】。
     规则：
     1. 缩写对应示例：
@@ -70,11 +68,9 @@ export async function onRequestGet({ request, env }) {
         let finalKeywords = query;
         try {
             const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-            const llmResponse = await fetchAIChatCompletion(
-                [{ role: 'system', content: SEARCH_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: query }],
-                null,
-                env
-            );
+            const llmResponse = await fetchSiliconFlowChat(env, {
+                messages: [{ role: 'system', content: SEARCH_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: query }]
+            });
             let content = llmResponse.choices?.[0]?.message?.content?.trim();
             if (content) {
                 content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -165,33 +161,4 @@ export async function onRequestGet({ request, env }) {
 }
 export async function onRequestOptions() {
     return new Response(null, { status: 204, headers: addCorsHeaders() });
-}
-async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.1) {
-    if (!env.SILICONFLOW_API_KEY) {
-        throw new Error('未配置 SILICONFLOW_API_KEY');
-    }
-    const body = {
-        model: MODEL,
-        messages: messages,
-        temperature: temperature,
-        stream: false,
-        enable_thinking: false
-    };
-    if (tools) {
-        body.tools = tools;
-        body.tool_choice = toolChoice;
-    }
-    const response = await fetch(SILICONFLOW_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
-        },
-        body: JSON.stringify(body)
-    });
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`SiliconFlow API Error: ${response.status} - ${errorText}`);
-    }
-    return await response.json();
 }

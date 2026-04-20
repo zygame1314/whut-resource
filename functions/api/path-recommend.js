@@ -1,6 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults } from '../utils.js';
-const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const MODEL = 'Qwen/Qwen3-8B';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults, fetchSiliconFlowChat } from '../utils.js';
 const KEYWORD_PROMPT = `你是一个大学课程目录推荐助手。用户上传了一些文件名，你需要提取出文件所属的课程全称。
     规则：
     1. 识别并扩展缩写（严格映射）：
@@ -53,11 +51,9 @@ export async function onRequestPost({ request, env }) {
         try {
             try {
                 const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-                const keywordResponse = await fetchAIChatCompletion(
-                    [{ role: 'system', content: KEYWORD_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: `文件名：${validFileNames.join(', ')}` }],
-                    null,
-                    env
-                );
+                const keywordResponse = await fetchSiliconFlowChat(env, {
+                    messages: [{ role: 'system', content: KEYWORD_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: `文件名：${validFileNames.join(', ')}` }]
+                });
                 let content = keywordResponse.choices?.[0]?.message?.content?.trim();
                 if (content) {
                     content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -112,11 +108,9 @@ export async function onRequestPost({ request, env }) {
         }
         const numberedList = directories.map((dir, i) => `${i + 1}. ${dir}`).join('\n');
         const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-        const pickData = await fetchAIChatCompletion(
-            [{ role: 'system', content: PICK_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: `文件：${validFileNames.join(', ')}\n\n搜索到的目录：\n${numberedList}\n\n请返回最佳目录的编号：` }],
-            null,
-            env
-        );
+        const pickData = await fetchSiliconFlowChat(env, {
+            messages: [{ role: 'system', content: PICK_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: `文件：${validFileNames.join(', ')}\n\n搜索到的目录：\n${numberedList}\n\n请返回最佳目录的编号：` }]
+        });
         let pickContent = pickData.choices?.[0]?.message?.content?.trim() || '';
         if (pickContent) {
             pickContent = pickContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -146,33 +140,4 @@ export async function onRequestPost({ request, env }) {
 }
 export async function onRequestOptions() {
     return new Response(null, { headers: addCorsHeaders() });
-}
-async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.1) {
-    if (!env.SILICONFLOW_API_KEY) {
-        throw new Error('未配置 SILICONFLOW_API_KEY');
-    }
-    const body = {
-        model: MODEL,
-        messages: messages,
-        temperature: temperature,
-        stream: false,
-        enable_thinking: false
-    };
-    if (tools) {
-        body.tools = tools;
-        body.tool_choice = toolChoice;
-    }
-    const response = await fetch(SILICONFLOW_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
-        },
-        body: JSON.stringify(body)
-    });
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`SiliconFlow API Error: ${response.status} - ${errorText}`);
-    }
-    return await response.json();
 }
