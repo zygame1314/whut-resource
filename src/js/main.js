@@ -10,9 +10,40 @@ console.log(`%c${[
     ' 愿代码与你同在！',
     ''
 ].join('\n')}`, "font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace; color: #007BFF;");
-document.addEventListener('authSuccess', () => {
+document.addEventListener('authSuccess', async () => {
     console.log("验证成功，开始加载根目录文件列表...");
     const urlParams = new URLSearchParams(window.location.search);
+    const idParam = urlParams.get('id');
+    if (idParam) {
+        try {
+            const token = localStorage.getItem('authToken');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const response = await fetch(`${FILES_API_URL}?action=getById&id=${encodeURIComponent(idParam)}`, { headers });
+            const result = await response.json();
+            if (result.success && result.file) {
+                const file = result.file;
+                const isDirectory = file.is_directory === 1 || file.is_directory === true;
+                if (isDirectory) {
+                    urlParams.set('path', file.key);
+                    urlParams.delete('id');
+                } else {
+                    urlParams.set('path', file.parent_path || '');
+                    urlParams.set('highlight', file.key);
+                    urlParams.delete('id');
+                }
+                window.history.replaceState({}, '', `${window.location.pathname}?${urlParams.toString()}`);
+            } else {
+                if (typeof showNotification === 'function') {
+                    showNotification('分享链中的资源不存在或已被删除', 'error');
+                }
+                urlParams.delete('id');
+                window.history.replaceState({}, '', `${window.location.pathname}?${urlParams.toString()}`);
+            }
+        } catch (e) {
+            console.error('通过ID解析分享链失败:', e);
+        }
+    }
     const pathParam = urlParams.get('path');
     const highlightParam = urlParams.get('highlight');
     if (highlightParam) {

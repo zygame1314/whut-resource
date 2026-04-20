@@ -390,6 +390,8 @@ async function shareFile(item) {
     let size = isDirectory ? '文件夹' : (isLink ? '外部链接' : formatBytes(item.size));
     if (isLink) {
         shareLink = item.link_url;
+    } else if (item.id) {
+        shareLink = `${window.location.origin}${window.location.pathname}?id=${item.id}`;
     } else {
         const parentPath = item.parent_path || '';
         const urlParams = new URLSearchParams();

@@ -275,6 +275,26 @@ export async function onRequestGet({ request, env, waitUntil }) {
             const { results } = await stmt.bind(limit).all();
             return new Response(JSON.stringify({ success: true, files: results }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
+        if (action === 'getById') {
+            const id = url.searchParams.get('id');
+            if (!id || !/^\d+$/.test(id)) {
+                return new Response(JSON.stringify({ success: false, error: '缺少id参数或格式无效' }), {
+                    status: 400,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            const fileRecord = await DB.prepare('SELECT id, key, name, parent_path, is_directory, is_link, link_url, size FROM files WHERE id = ?').bind(id).first();
+            if (!fileRecord) {
+                return new Response(JSON.stringify({ success: false, error: '资源未找到' }), {
+                    status: 404,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            return new Response(JSON.stringify({ success: true, file: fileRecord }), {
+                status: 200,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
         const MAX_LIMIT = 1000;
         const search = url.searchParams.get('search') || '';
         if (search) {
