@@ -3658,6 +3658,7 @@ textarea.form-input {
     resize: vertical;
     min-height: 120px;
     line-height: 1.6;
+    max-height: 200px;
 }
 
 .custom-checkbox {
@@ -5381,6 +5382,7 @@ textarea#prompt-input {
     resize: vertical;
     min-height: 80px;
     line-height: 1.5;
+    max-height: 100px;
 }
 
 input#prompt-input {
