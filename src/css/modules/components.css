@@ -5276,7 +5276,6 @@ textarea.form-input {
     max-width: 550px;
     width: 90%;
     max-height: 85vh;
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
     text-align: center;
