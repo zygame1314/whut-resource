@@ -45,7 +45,6 @@ export async function onRequestPost({ request, env }) {
             return new Response(JSON.stringify({ error: '文件名为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const validFileNames = fileNames.slice(0, 5).filter(n => typeof n === 'string' && n.trim().length > 0);
-        const AI = env.AI;
         const VECTORIZE = env.VECTORIZE;
         let keywords = validFileNames.join(' ');
         try {
@@ -67,7 +66,7 @@ export async function onRequestPost({ request, env }) {
         }
         let directories = [];
         try {
-            const embeddings = await generateEmbeddings(AI, [keywords.trim()]);
+            const embeddings = await generateEmbeddings(env, [keywords.trim()]);
             const queryVector = embeddings?.[0];
             if (queryVector) {
                 const vectorResults = await VECTORIZE.query(queryVector, {

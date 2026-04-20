@@ -416,10 +416,9 @@ async function logAdminAction(env, action, targetType, targetId, reason, details
     }
 }
 async function handleSearch(query, env) {
-    const AI = env.AI;
     const VECTORIZE = env.VECTORIZE;
     const DB = env.DB;
-    if (!AI || !VECTORIZE || !DB) {
+    if (!VECTORIZE || !DB || !env.SILICONFLOW_API_KEY) {
         return {
             success: false,
             action: 'search',
@@ -428,7 +427,7 @@ async function handleSearch(query, env) {
         };
     }
     try {
-        const embeddings = await generateEmbeddings(AI, [query.trim()]);
+        const embeddings = await generateEmbeddings(env, [query.trim()]);
         if (!embeddings?.[0]) {
             throw new Error('AI 嵌入生成失败');
         }

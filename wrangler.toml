@@ -15,9 +15,6 @@ database_id = "ca8c5d47-9f09-454e-82d3-411a2aa8e9ea"
 binding = "R2_bucket"
 bucket_name = "resource"
 
-[ai]
-binding = "AI"
-
 [[vectorize]]
 binding = "VECTORIZE"
 index_name = "whut-resource-index"

@@ -24,9 +24,9 @@ async function ensureDirectoryExists(db, fullPath, env) {
           0
         ).run();
         console.log(`在D1中创建目录条目: ${currentPath}`);
-        if (env.AI && env.VECTORIZE && insertResult.meta?.last_row_id) {
+        if (env.VECTORIZE && env.SILICONFLOW_API_KEY && insertResult.meta?.last_row_id) {
           try {
-            const embeddings = await generateEmbeddings(env.AI, [currentPath]);
+            const embeddings = await generateEmbeddings(env, [currentPath]);
             if (embeddings?.[0]) {
               await env.VECTORIZE.upsert([{
                 id: insertResult.meta.last_row_id.toString(),
@@ -152,9 +152,9 @@ export async function onRequestPost({ request, env, waitUntil }) {
         0,
         user.id
       ).run();
-      if (env.AI && env.VECTORIZE && linkInsertResult.meta?.last_row_id) {
+      if (env.VECTORIZE && env.SILICONFLOW_API_KEY && linkInsertResult.meta?.last_row_id) {
         try {
-          const embeddings = await generateEmbeddings(env.AI, [key]);
+          const embeddings = await generateEmbeddings(env, [key]);
           if (embeddings?.[0]) {
             await env.VECTORIZE.upsert([{
               id: linkInsertResult.meta.last_row_id.toString(),
@@ -230,10 +230,10 @@ export async function onRequestPost({ request, env, waitUntil }) {
           0,
           user.id
         ).run();
-        if (env.AI && env.VECTORIZE && fileInsertResult.meta?.last_row_id) {
+        if (env.VECTORIZE && env.SILICONFLOW_API_KEY && fileInsertResult.meta?.last_row_id) {
           waitUntil((async () => {
             try {
-              const embeddings = await generateEmbeddings(env.AI, [key]);
+              const embeddings = await generateEmbeddings(env, [key]);
               if (embeddings?.[0]) {
                 await env.VECTORIZE.upsert([{
                   id: fileInsertResult.meta.last_row_id.toString(),

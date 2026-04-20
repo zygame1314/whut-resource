@@ -14,10 +14,9 @@ export async function onRequestPost({ request, env }) {
         });
     }
     const DB = env.DB;
-    const AI = env.AI;
     const VECTORIZE = env.VECTORIZE;
-    if (!DB || !AI || !VECTORIZE) {
-        return new Response(JSON.stringify({ success: false, error: '服务器配置错误（缺少 DB/AI/VECTORIZE 绑定）' }), {
+    if (!DB || !VECTORIZE || !env.SILICONFLOW_API_KEY) {
+        return new Response(JSON.stringify({ success: false, error: '服务器配置错误（缺少 DB/VECTORIZE/SILICONFLOW_API_KEY）' }), {
             status: 500,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
@@ -57,7 +56,7 @@ export async function onRequestPost({ request, env }) {
             });
         }
         const textsToEmbed = files.map(f => f.key);
-        const embeddings = await generateEmbeddings(AI, textsToEmbed);
+        const embeddings = await generateEmbeddings(env, textsToEmbed);
         if (!embeddings || embeddings.length !== files.length) {
             throw new Error('AI 嵌入生成失败或数量不匹配');
         }

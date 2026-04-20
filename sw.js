@@ -73,7 +73,7 @@ self.addEventListener('fetch', (event) => {
                     if (response) {
                         return response;
                     }
-                    return new Response('离线且未缓存', { status: 404, statusText: '离线' });
+                    return new Response('离线且未缓存', { status: 404, statusText: 'Offline' });
                 });
             })
     );

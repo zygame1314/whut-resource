@@ -57,9 +57,8 @@ export async function onRequestGet({ request, env }) {
         });
     }
     const DB = env.DB;
-    const AI = env.AI;
     const VECTORIZE = env.VECTORIZE;
-    if (!DB || !AI || !VECTORIZE) {
+    if (!DB || !VECTORIZE || !env.SILICONFLOW_API_KEY) {
         return new Response(JSON.stringify({ success: false, error: '服务器配置错误' }), {
             status: 500, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
@@ -81,7 +80,7 @@ export async function onRequestGet({ request, env }) {
         } catch (e) {
             console.error('LLM 扩展关键词失败，使用原始查询:', e);
         }
-        const embeddings = await generateEmbeddings(AI, [finalKeywords.trim()]);
+        const embeddings = await generateEmbeddings(env, [finalKeywords.trim()]);
         if (!embeddings?.[0]) {
             throw new Error('AI 嵌入生成失败');
         }

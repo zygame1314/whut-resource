@@ -70,17 +70,39 @@ export function isAdmin(user) {
 export function isSuperAdmin(user) {
   return user && user.role === 'super_admin';
 }
-const EMBEDDING_MODEL = '@cf/baai/bge-small-en-v1.5';
+const EMBEDDING_MODEL = 'Qwen/Qwen3-Embedding-0.6B';
+const EMBEDDING_DIMENSIONS = 256;
+const SILICONFLOW_EMBEDDING_URL = 'https://api.siliconflow.cn/v1/embeddings';
 const RERANKER_MODEL = 'BAAI/bge-reranker-v2-m3';
 const SILICONFLOW_RERANK_URL = 'https://api.siliconflow.cn/v1/rerank';
-export async function generateEmbeddings(AI, texts) {
-  if (!AI) throw new Error('AI 绑定未配置');
+export async function generateEmbeddings(env, texts) {
   if (!texts || texts.length === 0) return [];
-  const embeddingResponse = await AI.run(EMBEDDING_MODEL, { text: texts });
-  if (!embeddingResponse?.data) {
-    throw new Error('AI 嵌入生成失败');
+  const apiKey = env.SILICONFLOW_API_KEY;
+  if (!apiKey) throw new Error('未配置 SILICONFLOW_API_KEY');
+  const response = await fetch(SILICONFLOW_EMBEDDING_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: EMBEDDING_MODEL,
+      input: texts,
+      encoding_format: 'float',
+      dimensions: EMBEDDING_DIMENSIONS
+    })
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`SiliconFlow Embedding API Error: ${response.status} - ${errorText}`);
   }
-  return embeddingResponse.data;
+  const result = await response.json();
+  if (!result?.data || result.data.length !== texts.length) {
+    throw new Error('嵌入生成失败或数量不匹配');
+  }
+  return result.data
+    .sort((a, b) => a.index - b.index)
+    .map(item => item.embedding);
 }
 export async function rerankResults(env, query, documents, topN = 20) {
   if (!env.SILICONFLOW_API_KEY) {
