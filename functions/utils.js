@@ -71,12 +71,16 @@ export function isSuperAdmin(user) {
   return user && user.role === 'super_admin';
 }
 
-const EMBEDDING_MODEL = '@cf/baai/bge-small-zh-v1.5';
+const EMBEDDING_MODEL = '@cf/qwen3-embedding-0.6b';
+const EMBEDDING_DIMENSIONS = 512;
 
 export async function generateEmbeddings(AI, texts) {
   if (!AI) throw new Error('AI 绑定未配置');
   if (!texts || texts.length === 0) return [];
-  const embeddingResponse = await AI.run(EMBEDDING_MODEL, { text: texts });
+  const embeddingResponse = await AI.run(EMBEDDING_MODEL, {
+    text: texts,
+    dimensions: EMBEDDING_DIMENSIONS
+  });
   if (!embeddingResponse?.data) {
     throw new Error('AI 嵌入生成失败');
   }
