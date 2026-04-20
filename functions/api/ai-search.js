@@ -73,9 +73,19 @@ export async function onRequestGet({ request, env }) {
             let content = llmResponse.choices?.[0]?.message?.content?.trim();
             if (content) {
                 content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                if (content !== 'NULL' && !content.includes('无相关')) {
-                    finalKeywords = content;
+                const upperContent = content.toUpperCase();
+                if (upperContent === 'NULL' || content.includes('无相关') || upperContent.includes('NULL')) {
+                    return new Response(JSON.stringify({
+                        success: true,
+                        files: [],
+                        directories: [],
+                        keywords: '',
+                        message: '未识别到与学习相关的搜索内容'
+                    }), {
+                        status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+                    });
                 }
+                finalKeywords = content;
             }
         } catch (e) {
             console.error('LLM 扩展关键词失败，使用原始查询:', e);
