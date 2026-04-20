@@ -2288,6 +2288,7 @@
     color: var(--text-primary);
     font-size: 0.9rem;
     resize: vertical;
+    max-height: 100px;
     min-height: 80px;
     font-family: inherit;
     transition: border-color 0.2s ease;
