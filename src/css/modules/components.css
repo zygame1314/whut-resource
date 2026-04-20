@@ -58,10 +58,6 @@
     overflow: hidden;
 }
 
-.primary-btn.full-width {
-    margin-top: 20px;
-}
-
 .primary-btn::before {
     content: '';
     position: absolute;
@@ -2452,32 +2448,6 @@
     display: block;
 }
 
-@media (max-width: 480px) {
-    .auth-box {
-        padding: 2.5rem 1.5rem 2rem 1.5rem;
-        max-height: 92vh;
-        width: 94%;
-    }
-
-    .sso-box {
-        min-width: unset;
-        width: 100%;
-    }
-
-    .sso-brand {
-        padding: 1.8rem 1.5rem;
-    }
-
-    .sso-box .sso-form-content {
-        padding: 0 1.5rem 2rem 1.5rem;
-    }
-
-    .auth-title {
-        font-size: 1.6rem;
-        margin-bottom: 1.8rem;
-    }
-}
-
 .sso-brand {
     background: transparent !important;
     padding: 0;
@@ -2697,7 +2667,7 @@
 }
 
 .auth-title {
-    margin-bottom: 2.5rem;
+    margin-bottom: 1.5rem;
     text-align: center;
     font-size: 2rem;
     font-weight: 800;
@@ -2712,10 +2682,6 @@
     z-index: 1;
 }
 
-.auth-form .form-group {
-    margin-bottom: 1.8rem;
-}
-
 .auth-form label {
     display: block;
     margin-bottom: 0.6rem;
@@ -2723,6 +2689,32 @@
     font-size: 0.95rem;
     font-weight: 600;
     letter-spacing: 0.3px;
+}
+
+@media (max-width: 480px) {
+    .auth-box {
+        padding: 2.5rem 1.5rem 2rem 1.5rem;
+        max-height: 92vh;
+        width: 94%;
+    }
+
+    .sso-box {
+        min-width: unset;
+        width: 100%;
+    }
+
+    .sso-brand {
+        padding: 1.8rem 1.5rem;
+    }
+
+    .sso-box .sso-form-content {
+        padding: 0 1.5rem 2rem 1.5rem;
+    }
+
+    .auth-title {
+        font-size: 1.6rem;
+        margin-bottom: 0.8rem;
+    }
 }
 
 .form-control {
@@ -3153,6 +3145,30 @@
 
 .announcement-item:last-child {
     border-bottom: none;
+}
+
+.announcement-item.slide-out-left {
+    animation: announcementSlideOutLeft 0.25s ease-in forwards;
+}
+
+.announcement-item.slide-in-right {
+    animation: announcementSlideInRight 0.25s ease-out forwards;
+}
+
+.announcement-item.slide-out-right {
+    animation: announcementSlideOutRight 0.25s ease-in forwards;
+}
+
+.announcement-item.slide-in-left {
+    animation: announcementSlideInLeft 0.25s ease-out forwards;
+}
+
+.announcement-content.page-fade-out {
+    animation: announcementPageFadeOut 0.2s ease-in forwards;
+}
+
+.announcement-content.page-fade-in {
+    animation: announcementPageFadeIn 0.25s ease-out forwards;
 }
 
 .announcement-mini-nav,
@@ -3627,7 +3643,10 @@
 }
 
 .form-group {
-    margin-bottom: 1.2rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .form-label {
@@ -4456,19 +4475,28 @@ textarea.form-input {
 
 .search-tips-content {
     margin-top: 1rem;
-    padding: 1.2rem;
+    padding: 0 1.2rem;
     background: var(--background);
-    border: 1px solid var(--border-color);
+    border: 1px solid transparent;
     border-radius: 12px;
     box-shadow: var(--shadow-soft);
-    animation: slideDown 0.3s ease-out;
-    display: none;
+    display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1rem;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.3s ease,
+        padding 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 0.3s ease;
 }
 
 .search-container:has(#search-tips-checkbox:checked) .search-tips-content {
-    display: grid;
+    max-height: 300px;
+    opacity: 1;
+    padding: 1.2rem;
+    border-color: var(--border-color);
 }
 
 .tip-item {
@@ -4547,7 +4575,6 @@ textarea.form-input {
     border-radius: var(--border-radius-medium);
     color: var(--text-primary);
     cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .custom-select-trigger:hover {
@@ -4783,7 +4810,6 @@ textarea.form-input {
 .maintenance-status-display {
     padding: 1rem;
     border-radius: 8px;
-    margin-bottom: 1rem;
 }
 
 .maintenance-status-display.status-on {
@@ -5434,7 +5460,6 @@ input#prompt-input {
 }
 
 .prompt-input-wrapper {
-    position: relative;
     margin-bottom: 1.5rem;
 }
 
@@ -5963,6 +5988,18 @@ input#prompt-input {
     padding: 1rem;
     border-radius: 10px;
     font-weight: 600;
+    animation: fadeInUp 0.3s ease;
+    transition: opacity 0.3s ease, transform 0.3s ease, max-height 0.3s ease, margin 0.3s ease, padding 0.3s ease;
+}
+
+.status-message.fade-out {
+    opacity: 0;
+    transform: translateY(-8px);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin: 0;
+    overflow: hidden;
 }
 
 .status-success {
@@ -6271,7 +6308,7 @@ input#prompt-input {
 .upload-type-toggle {
     display: flex;
     gap: 1rem;
-    margin: 1rem 0;
+    margin-top: 1rem;
     padding: 0 1rem;
 }
 
@@ -7618,8 +7655,13 @@ input#prompt-input {
     border-radius: 0 0 8px 8px;
     padding: 0;
     margin: 6px 0 -8px;
-    animation: boostPanelSlide 0.25s ease-out;
+    animation: boostPanelSlide 0.25s ease-out forwards;
     box-shadow: inset 0 2px 8px rgba(52, 152, 219, 0.06);
+    overflow: hidden;
+}
+
+.boost-panel.closing {
+    animation: boostPanelSlideReverse 0.2s ease-out forwards;
 }
 
 .boost-panel-header {
@@ -7647,20 +7689,6 @@ input#prompt-input {
 .boost-panel-count {
     font-size: 0.7rem;
     color: var(--text-muted);
-}
-
-@keyframes boostPanelSlide {
-    from {
-        opacity: 0;
-        max-height: 0;
-        padding-top: 0;
-        padding-bottom: 0;
-    }
-
-    to {
-        opacity: 1;
-        max-height: 500px;
-    }
 }
 
 .boost-list {

@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure } from '../utils.js';
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
@@ -26,20 +26,25 @@ async function ensureDirectoryExists(db, fullPath, env) {
         console.log(`在D1中创建目录条目: ${currentPath}`);
         if (env.VECTORIZE && env.SILICONFLOW_API_KEY && insertResult.meta?.last_row_id) {
           try {
-            const embeddings = await generateEmbeddings(env, [currentPath]);
+            const embeddings = await retryWithBackoff(
+              () => generateEmbeddings(env, [currentPath]), 3, 1000
+            );
             if (embeddings?.[0]) {
-              await env.VECTORIZE.upsert([{
-                id: insertResult.meta.last_row_id.toString(),
-                values: embeddings[0],
-                metadata: {
-                  name: segment,
-                  path: currentPath
-                }
-              }]);
+              await retryWithBackoff(async () => {
+                await env.VECTORIZE.upsert([{
+                  id: insertResult.meta.last_row_id.toString(),
+                  values: embeddings[0],
+                  metadata: {
+                    name: segment,
+                    path: currentPath
+                  }
+                }]);
+              }, 3, 500);
               console.log(`已为目录创建向量索引: ${currentPath}`);
             }
           } catch (indexError) {
-            console.error('向量索引写入失败（目录）:', indexError);
+            console.error('向量索引写入失败（目录，已重试3次）:', indexError);
+            await recordVectorSyncFailure(env, 'create', insertResult.meta.last_row_id, { name: segment, key: currentPath }, indexError.message);
           }
         }
       }
@@ -154,19 +159,24 @@ export async function onRequestPost({ request, env, waitUntil }) {
       ).run();
       if (env.VECTORIZE && env.SILICONFLOW_API_KEY && linkInsertResult.meta?.last_row_id) {
         try {
-          const embeddings = await generateEmbeddings(env, [key]);
+          const embeddings = await retryWithBackoff(
+            () => generateEmbeddings(env, [key]), 3, 1000
+          );
           if (embeddings?.[0]) {
-            await env.VECTORIZE.upsert([{
-              id: linkInsertResult.meta.last_row_id.toString(),
-              values: embeddings[0],
-              metadata: {
-                name: sanitizedLinkName,
-                path: key
-              }
-            }]);
+            await retryWithBackoff(async () => {
+              await env.VECTORIZE.upsert([{
+                id: linkInsertResult.meta.last_row_id.toString(),
+                values: embeddings[0],
+                metadata: {
+                  name: sanitizedLinkName,
+                  path: key
+                }
+              }]);
+            }, 3, 500);
           }
         } catch (indexError) {
-          console.error('向量索引写入失败（链接）:', indexError);
+          console.error('向量索引写入失败（链接，已重试3次）:', indexError);
+          await recordVectorSyncFailure(env, 'create', linkInsertResult.meta.last_row_id, { name: sanitizedLinkName, key }, indexError.message);
         }
       }
       return new Response(JSON.stringify({ success: true, message: '链接创建成功。' }), {
@@ -231,21 +241,29 @@ export async function onRequestPost({ request, env, waitUntil }) {
           user.id
         ).run();
         if (env.VECTORIZE && env.SILICONFLOW_API_KEY && fileInsertResult.meta?.last_row_id) {
+          const fileId = fileInsertResult.meta.last_row_id;
+          const fileNameCopy = fileName;
+          const keyCopy = key;
           waitUntil((async () => {
             try {
-              const embeddings = await generateEmbeddings(env, [key]);
+              const embeddings = await retryWithBackoff(
+                () => generateEmbeddings(env, [keyCopy]), 3, 1000
+              );
               if (embeddings?.[0]) {
-                await env.VECTORIZE.upsert([{
-                  id: fileInsertResult.meta.last_row_id.toString(),
-                  values: embeddings[0],
-                  metadata: {
-                    name: fileName,
-                    path: key
-                  }
-                }]);
+                await retryWithBackoff(async () => {
+                  await env.VECTORIZE.upsert([{
+                    id: fileId.toString(),
+                    values: embeddings[0],
+                    metadata: {
+                      name: fileNameCopy,
+                      path: keyCopy
+                    }
+                  }]);
+                }, 3, 500);
               }
             } catch (indexError) {
-              console.error('向量索引写入失败（文件）:', indexError);
+              console.error('向量索引写入失败（文件，已重试3次）:', indexError);
+              await recordVectorSyncFailure(env, 'create', fileId, { name: fileNameCopy, key: keyCopy }, indexError.message);
             }
           })());
         }

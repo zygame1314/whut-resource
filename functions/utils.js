@@ -171,3 +171,30 @@ export async function fetchSiliconFlowChat(env, { messages, tools = null, toolCh
   }
   return await response.json();
 }
+export async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt === maxRetries) throw error;
+      const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 500;
+      console.warn(`操作失败，${Math.round(delay)}ms 后重试 (${attempt + 1}/${maxRetries}):`, error.message);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+export async function recordVectorSyncFailure(env, operation, fileId, fileData, errorMessage) {
+  if (!env.DB) return;
+  try {
+    await env.DB.prepare(
+      'INSERT INTO vector_sync_failures (operation, file_id, file_data, error_message) VALUES (?, ?, ?, ?)'
+    ).bind(
+      operation,
+      fileId || null,
+      fileData ? JSON.stringify(fileData) : null,
+      errorMessage || ''
+    ).run();
+  } catch (dbError) {
+    console.error('记录向量同步失败信息出错:', dbError);
+  }
+}

@@ -403,7 +403,7 @@
     background: var(--background);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+    transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast), padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     animation: fadeInUp 0.4s ease;
 }

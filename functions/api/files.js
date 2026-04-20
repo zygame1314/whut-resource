@@ -1,19 +1,26 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure } from '../utils.js';
 async function deleteVectorIndexes(env, fileIds) {
     if (!env.VECTORIZE || !fileIds || fileIds.length === 0) return;
+    const idsToDelete = fileIds.map(id => id.toString());
     try {
-        const idsToDelete = fileIds.map(id => id.toString());
-        await env.VECTORIZE.deleteByIds(idsToDelete);
+        await retryWithBackoff(async () => {
+            await env.VECTORIZE.deleteByIds(idsToDelete);
+        }, 3, 500);
         console.log(`已删除 ${idsToDelete.length} 个向量索引`);
     } catch (error) {
-        console.error('删除向量索引失败:', error);
+        console.error(`删除向量索引失败（已重试3次）:`, error);
+        for (const id of fileIds) {
+            await recordVectorSyncFailure(env, 'delete', id, null, error.message);
+        }
     }
 }
 async function createVectorIndexes(env, files) {
     if (!env.VECTORIZE || !env.SILICONFLOW_API_KEY || !files || files.length === 0) return;
     try {
         const textsToEmbed = files.map(f => f.key);
-        const embeddings = await generateEmbeddings(env, textsToEmbed);
+        const embeddings = await retryWithBackoff(async () => {
+            return await generateEmbeddings(env, textsToEmbed);
+        }, 3, 1000);
         if (!embeddings || embeddings.length !== files.length) {
             throw new Error('嵌入生成失败或数量不匹配');
         }
@@ -25,10 +32,15 @@ async function createVectorIndexes(env, files) {
                 path: file.key
             }
         }));
-        await env.VECTORIZE.upsert(vectors);
+        await retryWithBackoff(async () => {
+            await env.VECTORIZE.upsert(vectors);
+        }, 3, 500);
         console.log(`已创建 ${vectors.length} 个向量索引`);
     } catch (error) {
-        console.error('创建向量索引失败:', error);
+        console.error(`创建向量索引失败（已重试3次）:`, error);
+        for (const file of files) {
+            await recordVectorSyncFailure(env, 'create', file.id, { name: file.name, key: file.key }, error.message);
+        }
     }
 }
 export async function onRequestGet({ request, env, waitUntil }) {

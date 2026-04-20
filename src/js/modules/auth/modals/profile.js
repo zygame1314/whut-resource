@@ -21,7 +21,7 @@ function showChangeNicknameModal() {
     `;
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
-    closeBtn.onclick = () => modal.remove();
+    closeBtn.onclick = () => closeAuthModal(modal);
     const form = modal.querySelector('#change-nickname-form');
     form.onsubmit = async (e) => {
         e.preventDefault();
@@ -51,7 +51,7 @@ function showChangeNicknameModal() {
                 showNotification('昵称修改成功', 'success');
                 currentUser.nickname = newNickname;
                 updateAuthUI();
-                modal.remove();
+                closeAuthModal(modal);
             } else {
                 showNotification(data.error || '修改失败', 'error');
             }
@@ -167,15 +167,14 @@ function showForgotPasswordModal(prefillEmail = '') {
         if (window.resetPollingTimer) {
             clearInterval(window.resetPollingTimer);
         }
-        modal.remove();
+        closeAuthModal(modal);
     };
     backToLoginLink.onclick = (e) => {
         e.preventDefault();
         if (window.resetPollingTimer) {
             clearInterval(window.resetPollingTimer);
         }
-        modal.remove();
-        showAuthModal('login');
+        closeAuthModal(modal, () => showAuthModal('login'));
     };
     let hcaptchaWidgetId;
     if (window.hcaptcha) {
@@ -307,8 +306,7 @@ function showForgotPasswordModal(prefillEmail = '') {
         }
     };
     goLoginBtn.onclick = () => {
-        modal.remove();
-        showAuthModal('login');
+        closeAuthModal(modal, () => showAuthModal('login'));
     };
 }
 function showChangePasswordModal() {
@@ -347,7 +345,7 @@ function showChangePasswordModal() {
     `;
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
-    closeBtn.onclick = () => modal.remove();
+    closeBtn.onclick = () => closeAuthModal(modal);
     initPasswordToggles(modal);
     const form = modal.querySelector('#change-pwd-form');
     form.onsubmit = async (e) => {
@@ -375,7 +373,7 @@ function showChangePasswordModal() {
             const data = await res.json();
             if (data.success) {
                 showNotification('密码修改成功', 'success');
-                modal.remove();
+                closeAuthModal(modal);
             } else {
                 showNotification(data.error || '修改失败', 'error');
             }
@@ -463,7 +461,7 @@ function showChangeEmailModal() {
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => {
         if (window.changePollingTimer) clearInterval(window.changePollingTimer);
-        modal.remove();
+        closeAuthModal(modal);
     };
     let hcaptchaWidgetId;
     if (window.hcaptcha) {
@@ -577,7 +575,6 @@ function showChangeEmailModal() {
     };
     reloginBtn.onclick = () => {
         logout();
-        modal.remove();
-        showAuthModal('login');
+        closeAuthModal(modal, () => showAuthModal('login'));
     };
 }

@@ -229,7 +229,7 @@ function showAuthModal(mode = 'login') {
         if (window.registerPollingTimer) {
             clearInterval(window.registerPollingTimer);
         }
-        modal.remove();
+        closeAuthModal(modal);
     };
     if (switchLink) {
         switchLink.onclick = (e) => {
@@ -237,24 +237,21 @@ function showAuthModal(mode = 'login') {
             if (window.registerPollingTimer) {
                 clearInterval(window.registerPollingTimer);
             }
-            modal.remove();
-            showAuthModal(isLogin ? 'register' : 'login');
+            closeAuthModal(modal, () => showAuthModal(isLogin ? 'register' : 'login'));
         };
     }
     const switchSsoBtn = modal.querySelector('#switch-sso');
     if (switchSsoBtn) {
         switchSsoBtn.onclick = (e) => {
             e.preventDefault();
-            modal.remove();
-            showAuthModal('sso-login');
+            closeAuthModal(modal, () => showAuthModal('sso-login'));
         };
     }
     const switchLoginLink = modal.querySelector('#switch-login');
     if (switchLoginLink) {
         switchLoginLink.onclick = (e) => {
             e.preventDefault();
-            modal.remove();
-            showAuthModal('login');
+            closeAuthModal(modal, () => showAuthModal('login'));
         };
     }
     initPasswordToggles(modal);
@@ -266,8 +263,7 @@ function showAuthModal(mode = 'login') {
         if (forgotPasswordLink) {
             forgotPasswordLink.onclick = (e) => {
                 e.preventDefault();
-                modal.remove();
-                showForgotPasswordModal();
+                closeAuthModal(modal, () => showForgotPasswordModal());
             };
         }
         form.onsubmit = async (e) => {
@@ -313,7 +309,7 @@ function showAuthModal(mode = 'login') {
                     currentUser = data.user;
                     updateAuthUI();
                     if (isSso && data.needsActivation) {
-                        modal.remove();
+                        closeAuthModal(modal);
                         const welcomeModal = document.createElement('div');
                         welcomeModal.className = 'auth-modal';
                         welcomeModal.innerHTML = `
@@ -339,16 +335,13 @@ function showAuthModal(mode = 'login') {
                         `;
                         document.body.appendChild(welcomeModal);
                         welcomeModal.querySelector('#skip-welcome-btn').onclick = () => {
-                            welcomeModal.remove();
-                            window.location.reload();
+                            closeAuthModal(welcomeModal, () => window.location.reload());
                         };
                         welcomeModal.querySelector('#go-activate-btn').onclick = () => {
-                            welcomeModal.remove();
-                            showForgotPasswordModal(currentUser.email);
+                            closeAuthModal(welcomeModal, () => showForgotPasswordModal(currentUser.email));
                         };
                     } else {
-                        modal.remove();
-                        window.location.reload();
+                        closeAuthModal(modal, () => window.location.reload());
                     }
                 } else {
                     if (isSso && data.ssoCaptchaRequired) {
@@ -524,8 +517,7 @@ function showAuthModal(mode = 'login') {
             }
         };
         goLoginBtn.onclick = () => {
-            modal.remove();
-            showAuthModal('login');
+            closeAuthModal(modal, () => showAuthModal('login'));
         };
     }
 }

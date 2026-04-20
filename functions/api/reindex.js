@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isSuperAdmin, generateEmbeddings } from '../utils.js';
+import { verifyToken, addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure } from '../utils.js';
 const BATCH_SIZE = 50;
 export async function onRequestPost({ request, env }) {
     const authHeader = request.headers.get('Authorization');
@@ -23,6 +23,24 @@ export async function onRequestPost({ request, env }) {
     }
     try {
         const body = await request.json().catch(() => ({}));
+        const action = body.action || 'reindex';
+        if (action === 'retryFailed') {
+            return await handleRetryFailed(env, DB, VECTORIZE);
+        }
+        if (action === 'clearFailures') {
+            const cutoff = body.olderThanDays ? `AND created_at < datetime('now', '-${parseInt(body.olderThanDays)} days')` : '';
+            const result = await DB.prepare(
+                `DELETE FROM vector_sync_failures WHERE resolved = TRUE ${cutoff}`
+            ).run();
+            return new Response(JSON.stringify({
+                success: true,
+                message: `已清理已解决的失败记录`,
+                deleted: result.meta?.changes || 0
+            }), {
+                status: 200,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
         const offset = parseInt(body.offset || '0');
         const forceRebuild = body.forceRebuild || false;
         const countResult = await DB.prepare('SELECT COUNT(*) as total FROM files').first();
@@ -93,6 +111,81 @@ export async function onRequestPost({ request, env }) {
         });
     }
 }
+async function handleRetryFailed(env, DB, VECTORIZE) {
+    const { results: failures } = await DB.prepare(
+        'SELECT * FROM vector_sync_failures WHERE resolved = FALSE ORDER BY created_at ASC LIMIT 100'
+    ).all();
+    if (!failures || failures.length === 0) {
+        return new Response(JSON.stringify({
+            success: true,
+            message: '没有待重试的失败记录',
+            retried: 0,
+            stillFailed: 0
+        }), {
+            status: 200,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    let retried = 0;
+    let stillFailed = 0;
+    for (const failure of failures) {
+        try {
+            if (failure.operation === 'delete') {
+                await retryWithBackoff(async () => {
+                    await VECTORIZE.deleteByIds([failure.file_id.toString()]);
+                }, 2, 500);
+                await DB.prepare(
+                    'UPDATE vector_sync_failures SET resolved = TRUE, resolved_at = CURRENT_TIMESTAMP WHERE id = ?'
+                ).bind(failure.id).run();
+                retried++;
+            } else if (failure.operation === 'create') {
+                const fileRecord = await DB.prepare(
+                    'SELECT id, name, key FROM files WHERE id = ?'
+                ).bind(failure.file_id).first();
+                if (!fileRecord) {
+                    await DB.prepare(
+                        'UPDATE vector_sync_failures SET resolved = TRUE, resolved_at = CURRENT_TIMESTAMP WHERE id = ?'
+                    ).bind(failure.id).run();
+                    retried++;
+                    continue;
+                }
+                const embeddings = await retryWithBackoff(
+                    () => generateEmbeddings(env, [fileRecord.key]), 2, 1000
+                );
+                if (embeddings?.[0]) {
+                    await retryWithBackoff(async () => {
+                        await VECTORIZE.upsert([{
+                            id: fileRecord.id.toString(),
+                            values: embeddings[0],
+                            metadata: { name: fileRecord.name, path: fileRecord.key }
+                        }]);
+                    }, 2, 500);
+                    await DB.prepare(
+                        'UPDATE vector_sync_failures SET resolved = TRUE, resolved_at = CURRENT_TIMESTAMP WHERE id = ?'
+                    ).bind(failure.id).run();
+                    retried++;
+                } else {
+                    throw new Error('嵌入生成返回空结果');
+                }
+            }
+        } catch (retryError) {
+            console.error(`重试向量同步失败 (id=${failure.id}):`, retryError);
+            await DB.prepare(
+                'UPDATE vector_sync_failures SET retry_count = retry_count + 1, error_message = ? WHERE id = ?'
+            ).bind(retryError.message, failure.id).run();
+            stillFailed++;
+        }
+    }
+    return new Response(JSON.stringify({
+        success: true,
+        message: `重试完成: ${retried} 个成功, ${stillFailed} 个仍然失败`,
+        retried,
+        stillFailed
+    }), {
+        status: 200,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
+}
 export async function onRequestGet({ request, env }) {
     const authHeader = request.headers.get('Authorization');
     let user = null;
@@ -115,13 +208,35 @@ export async function onRequestGet({ request, env }) {
         });
     }
     try {
+        const url = new URL(request.url);
+        const action = url.searchParams.get('action');
+        if (action === 'failures') {
+            const { results: unresolvedFailures } = await DB.prepare(
+                'SELECT * FROM vector_sync_failures WHERE resolved = FALSE ORDER BY created_at DESC LIMIT 200'
+            ).all();
+            const unresolvedCount = await DB.prepare(
+                'SELECT COUNT(*) as count FROM vector_sync_failures WHERE resolved = FALSE'
+            ).first();
+            return new Response(JSON.stringify({
+                success: true,
+                unresolvedCount: unresolvedCount?.count || 0,
+                failures: unresolvedFailures || []
+            }), {
+                status: 200,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
         const countResult = await DB.prepare('SELECT COUNT(*) as total FROM files').first();
         const totalFiles = countResult?.total || 0;
         const indexInfo = await VECTORIZE.describe();
+        const unresolvedCount = await DB.prepare(
+            'SELECT COUNT(*) as count FROM vector_sync_failures WHERE resolved = FALSE'
+        ).first();
         return new Response(JSON.stringify({
             success: true,
             totalFiles: totalFiles,
-            indexInfo: indexInfo
+            indexInfo: indexInfo,
+            unresolvedSyncFailures: unresolvedCount?.count || 0
         }), {
             status: 200,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

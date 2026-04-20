@@ -107,7 +107,15 @@ function showUploadStatus(message, type = 'info') {
     `;
     if (type === 'success') {
         setTimeout(() => {
-            uploadStatus.innerHTML = '';
+            const msgEl = uploadStatus.querySelector('.status-message');
+            if (msgEl) {
+                msgEl.classList.add('fade-out');
+                msgEl.addEventListener('transitionend', () => {
+                    uploadStatus.innerHTML = '';
+                }, { once: true });
+            } else {
+                uploadStatus.innerHTML = '';
+            }
         }, 5000);
     }
 }

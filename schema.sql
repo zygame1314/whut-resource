@@ -372,3 +372,18 @@ DROP TRIGGER IF EXISTS update_boost_count_delete;
 CREATE TRIGGER update_boost_count_delete AFTER DELETE ON file_boosts BEGIN
     UPDATE files SET boost_count = boost_count - 1 WHERE key = old.file_key;
 END;
+
+CREATE TABLE IF NOT EXISTS vector_sync_failures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    operation TEXT NOT NULL CHECK(operation IN ('create', 'delete')),
+    file_id INTEGER,
+    file_data TEXT,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    resolved BOOLEAN DEFAULT FALSE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME
+);
+
+CREATE INDEX IF NOT EXISTS idx_vector_sync_unresolved ON vector_sync_failures(resolved, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vector_sync_file_id ON vector_sync_failures(file_id, resolved);

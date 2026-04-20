@@ -115,12 +115,12 @@ export async function onRequestPost({ request, env }) {
             VALUES (?, 'system', 1, ?, ?)
         `).bind(
             maintenance ? 'enable_maintenance' : 'disable_maintenance',
-            maintenance ? '开启维护模式' : '关闭维护模式',
+            maintenance ? '开启维护' : '关闭维护',
             JSON.stringify({ message: message || null })
         ).run();
         return new Response(JSON.stringify({
             success: true,
-            message: maintenance ? '维护模式已开启' : '维护模式已关闭'
+            message: maintenance ? '维护已开启' : '维护已关闭'
         }), {
             status: 200,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })

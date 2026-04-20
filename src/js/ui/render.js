@@ -720,21 +720,29 @@ function toggleBoostPanel(li, item, boostBtn) {
     const isGridView = li.closest('.file-list-container')?.classList.contains('grid-view');
     const closeExisting = () => {
         document.querySelectorAll('.boost-panel').forEach(p => {
+            if (p.classList.contains('closing')) return;
+            p.classList.add('closing');
             const parentLi = p.closest('.file-list-item');
             if (parentLi) {
                 const btn = parentLi.querySelector('.boost-btn');
                 if (btn) btn.classList.remove('active');
             }
-            p.remove();
+            setTimeout(() => p.remove(), 250);
         });
-        document.querySelectorAll('.boost-modal-overlay').forEach(o => o.remove());
-        boostBtn.classList.remove('active');
+        document.querySelectorAll('.boost-modal-overlay').forEach(o => {
+            if (o.classList.contains('active') && !o.classList.contains('closing')) {
+                const closeBtn = o.querySelector('.boost-modal-close');
+                if (closeBtn) closeBtn.click();
+                else o.remove();
+            }
+        });
     };
     if (!isGridView) {
         const existingPanel = li.querySelector('.boost-panel');
-        if (existingPanel) {
-            existingPanel.remove();
+        if (existingPanel && !existingPanel.classList.contains('closing')) {
+            existingPanel.classList.add('closing');
             boostBtn.classList.remove('active');
+            setTimeout(() => existingPanel.remove(), 250);
             return;
         }
     }

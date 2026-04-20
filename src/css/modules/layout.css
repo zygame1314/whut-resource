@@ -239,7 +239,6 @@
 
 @media (max-width: 1200px) {
     .nav-actions {
-        display: none;
         position: absolute;
         top: 100%;
         right: 0;
@@ -255,14 +254,23 @@
         gap: 0.5rem;
         max-height: 80vh;
         overflow-y: auto;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px) scale(0.95);
+        transform-origin: top right;
+        transition: opacity var(--transition-normal), transform var(--transition-normal), visibility var(--transition-normal);
+        pointer-events: none;
+        display: flex;
     }
 
     .nav-actions.active {
-        display: flex;
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
     }
 
     .nav-actions:not(:has(#auth-section)).active {
-        display: flex;
         flex-direction: row;
         justify-content: space-between;
         align-items: center;

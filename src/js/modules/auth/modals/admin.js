@@ -16,8 +16,8 @@ async function showMaintenanceModal() {
                     <div id="current-status" class="maintenance-status-display"></div>
                 </div>
                 <div class="form-group">
-                    <label for="maintenance-msg-input">维护提示信息</label>
-                    <textarea id="maintenance-msg-input" class="form-control" rows="3" placeholder="输入维护期间显示给用户的提示信息"></textarea>
+                    <label for="prompt-input">维护提示信息</label>
+                    <textarea id="prompt-input" class="form-control" rows="3" placeholder="输入维护期间显示给用户的提示信息"></textarea>
                 </div>
                 <div class="maintenance-actions">
                     <button id="toggle-maintenance-btn" class="primary-btn"></button>
@@ -30,11 +30,11 @@ async function showMaintenanceModal() {
     `;
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
-    closeBtn.onclick = () => modal.remove();
+    closeBtn.onclick = () => closeAuthModal(modal);
     const loadingDiv = modal.querySelector('#maintenance-loading');
     const contentDiv = modal.querySelector('#maintenance-content');
     const statusDiv = modal.querySelector('#current-status');
-    const msgInput = modal.querySelector('#maintenance-msg-input');
+    const msgInput = modal.querySelector('#prompt-input');
     const toggleBtn = modal.querySelector('#toggle-maintenance-btn');
     const updateMsgBtn = modal.querySelector('#update-msg-btn');
     let currentStatus = false;
@@ -62,12 +62,12 @@ async function showMaintenanceModal() {
         if (currentStatus) {
             statusDiv.className = 'maintenance-status-display status-on';
             statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle status-icon-warning"></i> <strong class="status-text-warning">维护模式已开启</strong><br><small>普通用户将无法访问网站</small>';
-            toggleBtn.innerHTML = '<i class="fas fa-play"></i> 关闭维护模式';
+            toggleBtn.innerHTML = '<i class="fas fa-play"></i> 关闭维护';
             toggleBtn.className = 'success-btn';
         } else {
             statusDiv.className = 'maintenance-status-display status-off';
             statusDiv.innerHTML = '<i class="fas fa-check-circle status-icon-success"></i> <strong class="status-text-success">网站正常运行中</strong><br><small>用户可以正常访问</small>';
-            toggleBtn.innerHTML = '<i class="fas fa-pause"></i> 开启维护模式';
+            toggleBtn.innerHTML = '<i class="fas fa-pause"></i> 开启维护';
             toggleBtn.className = 'primary-btn';
         }
     }
@@ -110,7 +110,7 @@ async function showMaintenanceModal() {
         const confirmed = await showConfirmation({
             title: `${action}维护模式`,
             message: newStatus
-                ? '开启后，普通用户将无法访问网站，只能看到维护提示页面。<br><br>确定要开启维护模式吗？'
+                ? '开启后，普通用户将无法访问网站，只能看到维护提示页面。<br><br>确定要开启维护吗？'
                 : '关闭后，网站将恢复正常访问。<br><br>确定要关闭维护模式吗？',
             confirmText: `确认${action}`
         });
@@ -144,7 +144,7 @@ async function showAdminLogsModal() {
     `;
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
-    closeBtn.onclick = () => modal.remove();
+    closeBtn.onclick = () => closeAuthModal(modal);
     let currentPage = 1;
     let allLogsCache = [];
     const LOGS_PER_PAGE = 20;
@@ -239,7 +239,7 @@ async function showBannedUsersModal() {
     `;
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
-    closeBtn.onclick = () => modal.remove();
+    closeBtn.onclick = () => closeAuthModal(modal);
     const loadBannedUsers = async () => {
         const container = modal.querySelector('#banned-users-container');
         container.innerHTML = '<div class="loading-spinner"></div>';
@@ -419,14 +419,7 @@ async function showAdminRequestsModal(mode = 'all') {
             }
         });
     }
-    const closeModal = () => {
-        modal.classList.add('closing');
-        const removeModal = () => {
-            if (modal.parentNode) modal.remove();
-        };
-        modal.addEventListener('animationend', removeModal, { once: true });
-        setTimeout(removeModal, 350);
-    };
+    const closeModal = () => closeAuthModal(modal);
     modal.querySelector('#close-requests-modal').addEventListener('click', closeModal);
     const batchToolbar = modal.querySelector('#requests-batch-toolbar');
     const selectAllCheckbox = modal.querySelector('#select-all-requests');

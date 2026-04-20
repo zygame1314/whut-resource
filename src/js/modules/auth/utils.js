@@ -109,3 +109,13 @@ async function startEmailStatusPolling(btn, options) {
         }
     }
 }
+function closeAuthModal(modal, onAfterRemove) {
+    if (!modal || modal.classList.contains('closing')) return;
+    modal.classList.add('closing');
+    const removeModal = () => {
+        if (modal.parentNode) modal.remove();
+        if (typeof onAfterRemove === 'function') onAfterRemove();
+    };
+    modal.addEventListener('animationend', removeModal, { once: true });
+    setTimeout(removeModal, 350);
+}

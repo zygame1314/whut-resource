@@ -35,6 +35,7 @@ let currentAnnouncementPage = 1;
 let totalAnnouncementPages = 1;
 let currentAnnouncementItemIndex = 0;
 let isAnnouncementPageSwitching = false;
+let isAnnouncementItemSwitching = false;
 const ANNOUNCEMENTS_PER_PAGE = 5;
 const ANNOUNCEMENT_IDLE_RESUME_DELAY = 9000;
 const ANNOUNCEMENT_AUTO_SCROLL_INTERVAL = 45;
@@ -144,21 +145,56 @@ function renderAnnouncements(announcements) {
         updateAnnouncementItemView();
     }
 }
-function updateAnnouncementItemView() {
+function updateAnnouncementItemView(direction = 0) {
     const items = announcementContent ? announcementContent.querySelectorAll('.announcement-item[data-announcement-index]') : [];
     if (!items.length) return;
     if (currentAnnouncementItemIndex < 0 || currentAnnouncementItemIndex >= items.length) {
         currentAnnouncementItemIndex = 0;
     }
-    items.forEach((item, index) => {
-        item.style.display = index === currentAnnouncementItemIndex ? 'block' : 'none';
-    });
     const dots = announcementContent ? announcementContent.querySelectorAll('.announcement-dot') : [];
     dots.forEach((dot, index) => {
         dot.classList.toggle('active', index === currentAnnouncementItemIndex);
     });
+    if (isAnnouncementItemSwitching) {
+        items.forEach(item => {
+            item.classList.remove('slide-out-left', 'slide-in-right', 'slide-out-right', 'slide-in-left');
+        });
+        items.forEach((item, index) => {
+            item.style.display = index === currentAnnouncementItemIndex ? 'block' : 'none';
+        });
+        return;
+    }
+    if (direction === 0) {
+        items.forEach((item, index) => {
+            item.style.display = index === currentAnnouncementItemIndex ? 'block' : 'none';
+        });
+        return;
+    }
+    isAnnouncementItemSwitching = true;
+    const visibleItems = [...items].filter(item => item.style.display !== 'none');
+    const currentItem = visibleItems[0];
+    const nextItem = items[currentAnnouncementItemIndex];
+    if (!currentItem || !nextItem || currentItem === nextItem) {
+        items.forEach((item, index) => {
+            item.style.display = index === currentAnnouncementItemIndex ? 'block' : 'none';
+        });
+        isAnnouncementItemSwitching = false;
+        return;
+    }
+    const outClass = direction > 0 ? 'slide-out-left' : 'slide-out-right';
+    const inClass = direction > 0 ? 'slide-in-right' : 'slide-in-left';
+    currentItem.classList.add(outClass);
+    setTimeout(() => {
+        currentItem.style.display = 'none';
+        currentItem.classList.remove(outClass);
+        nextItem.style.display = 'block';
+        nextItem.classList.add(inClass);
+        setTimeout(() => {
+            nextItem.classList.remove(inClass);
+            isAnnouncementItemSwitching = false;
+        }, 250);
+    }, 250);
 }
-
 function changeAnnouncementItemInternal(direction, options = {}) {
     const { fromAuto = false } = options;
     const itemCount = allAnnouncements.length;
@@ -167,31 +203,28 @@ function changeAnnouncementItemInternal(direction, options = {}) {
         markAnnouncementInteracted();
     }
     currentAnnouncementItemIndex = (currentAnnouncementItemIndex + direction + itemCount) % itemCount;
-    updateAnnouncementItemView();
+    updateAnnouncementItemView(direction);
     resetAnnouncementScrollProgress(true);
     return direction > 0 && currentAnnouncementItemIndex === 0;
 }
-
 window.changeAnnouncementItem = function (direction) {
     changeAnnouncementItemInternal(direction, { fromAuto: false });
 };
-
 window.jumpAnnouncementItem = function (targetIndex) {
     const itemCount = allAnnouncements.length;
     if (itemCount <= 1) return;
     if (targetIndex < 0 || targetIndex >= itemCount) return;
     markAnnouncementInteracted();
+    const direction = targetIndex > currentAnnouncementItemIndex ? 1 : -1;
     currentAnnouncementItemIndex = targetIndex;
-    updateAnnouncementItemView();
+    updateAnnouncementItemView(direction);
     resetAnnouncementScrollProgress(true);
 };
-
 window.openAnnouncementDetail = function (id) {
     const announcement = allAnnouncementsCache.find(a => a.id == id) || allAnnouncements.find(a => a.id == id);
     if (!announcement) return;
     openAnnouncementViewModal(announcement, { fromEntry: false });
 };
-
 async function changeAnnouncementPageInternal(page, options = {}) {
     const { fromAuto = false } = options;
     if (page < 1 || page > totalAnnouncementPages) return;
@@ -201,7 +234,16 @@ async function changeAnnouncementPageInternal(page, options = {}) {
         markAnnouncementInteracted();
     }
     try {
+        announcementContent.classList.add('page-fade-out');
+        await new Promise(resolve => setTimeout(resolve, 200));
+        announcementContent.classList.remove('page-fade-out');
+        announcementContent.style.opacity = '0';
         await fetchAndDisplayAnnouncements(page);
+        announcementContent.style.opacity = '';
+        announcementContent.classList.add('page-fade-in');
+        setTimeout(() => {
+            announcementContent.classList.remove('page-fade-in');
+        }, 250);
     } finally {
         isAnnouncementPageSwitching = false;
     }
@@ -279,7 +321,6 @@ function initAnnouncementManager() {
     document.addEventListener('keydown', handleAnnouncementViewKeydown);
     bindAnnouncementInteractionEvents();
 }
-
 function maybeShowEntryAnnouncementPopup() {
     if (hasTriedEntryPopup) return;
     hasTriedEntryPopup = true;
@@ -295,7 +336,6 @@ function maybeShowEntryAnnouncementPopup() {
         openAnnouncementViewModal(latestAnnouncement, { fromEntry: true });
     }
 }
-
 function getLatestAnnouncement() {
     if (!allAnnouncementsCache.length) return null;
     return [...allAnnouncementsCache].sort((left, right) => {
@@ -304,12 +344,10 @@ function getLatestAnnouncement() {
         return rightTime - leftTime;
     })[0] || allAnnouncementsCache[0];
 }
-
 function getAnnouncementSignature(announcement) {
     if (!announcement) return '';
     return `${announcement.id || ''}-${announcement.created_at || ''}-${announcement.updated_at || ''}`;
 }
-
 function openAnnouncementViewModal(announcement, options = {}) {
     const { fromEntry = false, preserveHideChoice = false } = options;
     if (!announcementViewModal || !announcementViewContent || !announcementViewTitle) return;
@@ -339,7 +377,6 @@ function openAnnouncementViewModal(announcement, options = {}) {
     announcementViewModal.classList.add('visible');
     markAnnouncementInteracted();
 }
-
 function switchAnnouncementInView(direction) {
     if (!currentViewedAnnouncement || !Array.isArray(allAnnouncementsCache) || allAnnouncementsCache.length <= 1) return;
     const currentIndex = allAnnouncementsCache.findIndex(item => item.id == currentViewedAnnouncement.id);
@@ -349,7 +386,6 @@ function switchAnnouncementInView(direction) {
     const hideChecked = !!(announcementHide7daysInput && announcementHide7daysInput.checked);
     openAnnouncementViewModal(allAnnouncementsCache[nextIndex], { fromEntry, preserveHideChoice: hideChecked });
 }
-
 function updateAnnouncementViewNavState() {
     const canSwitch = Array.isArray(allAnnouncementsCache) && allAnnouncementsCache.length > 1;
     const total = Array.isArray(allAnnouncementsCache) ? allAnnouncementsCache.length : 0;
@@ -372,7 +408,6 @@ function updateAnnouncementViewNavState() {
         announcementViewTotal.textContent = String(displayTotal);
     }
 }
-
 function handleAnnouncementViewJumpChange() {
     if (!announcementViewJumpInput || !Array.isArray(allAnnouncementsCache) || allAnnouncementsCache.length === 0) return;
     const total = allAnnouncementsCache.length;
@@ -384,7 +419,6 @@ function handleAnnouncementViewJumpChange() {
     const hideChecked = !!(announcementHide7daysInput && announcementHide7daysInput.checked);
     openAnnouncementViewModal(targetAnnouncement, { fromEntry, preserveHideChoice: hideChecked });
 }
-
 function handleAnnouncementViewKeydown(event) {
     if (!announcementViewModal || !announcementViewModal.classList.contains('visible')) return;
     if (event.key === 'Escape') {
@@ -405,7 +439,6 @@ function handleAnnouncementViewKeydown(event) {
         switchAnnouncementInView(1);
     }
 }
-
 function handleAnnouncementViewConfirm() {
     if (announcementViewModal && announcementViewModal.dataset.fromEntry === '1' && currentViewedAnnouncement) {
         const signature = getAnnouncementSignature(currentViewedAnnouncement);
@@ -419,12 +452,10 @@ function handleAnnouncementViewConfirm() {
     }
     closeAnnouncementViewModal();
 }
-
 function closeAnnouncementViewModal() {
     if (!announcementViewModal) return;
     announcementViewModal.classList.remove('visible');
 }
-
 function bindAnnouncementInteractionEvents() {
     if (announcementInteractionBound || !announcementSection) return;
     announcementInteractionBound = true;
@@ -442,7 +473,6 @@ function bindAnnouncementInteractionEvents() {
         }
     });
 }
-
 function markAnnouncementInteracted() {
     isAnnouncementInteractionActive = true;
     stopAnnouncementAutomation();
@@ -454,13 +484,11 @@ function markAnnouncementInteracted() {
         setupAnnouncementAutomation();
     }, ANNOUNCEMENT_IDLE_RESUME_DELAY);
 }
-
 function setupAnnouncementAutomation() {
     stopAnnouncementAutomation();
     if (!canRunAnnouncementAutomation()) return;
     startAnnouncementAutoScroll();
 }
-
 function stopAnnouncementAutomation() {
     if (announcementAutoSwitchTimer) {
         clearInterval(announcementAutoSwitchTimer);
@@ -468,7 +496,6 @@ function stopAnnouncementAutomation() {
     }
     stopAnnouncementAutoScroll();
 }
-
 function canRunAnnouncementAutomation() {
     if (!announcementSection || announcementSection.style.display === 'none') return false;
     if (!announcementContent || !announcementContent.children.length) return false;
@@ -477,7 +504,6 @@ function canRunAnnouncementAutomation() {
     if (announcementViewModal && announcementViewModal.classList.contains('visible')) return false;
     return !isAnnouncementInteractionActive;
 }
-
 function startAnnouncementAutoScroll() {
     if (announcementAutoScrollTimer) return;
     announcementAutoScrollTimer = setInterval(() => {
@@ -505,7 +531,6 @@ function startAnnouncementAutoScroll() {
         }
     }, ANNOUNCEMENT_AUTO_SCROLL_INTERVAL);
 }
-
 function stopAnnouncementAutoScroll() {
     if (announcementAutoScrollTimer) {
         clearInterval(announcementAutoScrollTimer);
@@ -513,7 +538,6 @@ function stopAnnouncementAutoScroll() {
     }
     announcementReachedBottomAt = 0;
 }
-
 function resetAnnouncementScrollProgress(resetScrollTop = false) {
     announcementReachedBottomAt = 0;
     if (!resetScrollTop || !announcementContent) return;
@@ -524,7 +548,6 @@ function resetAnnouncementScrollProgress(resetScrollTop = false) {
         textBlock.scrollTop = 0;
     }
 }
-
 function advanceAnnouncementAfterScrollPause() {
     if (isAnnouncementPageSwitching) return;
     if (allAnnouncements.length > 1) {
@@ -717,7 +740,6 @@ function formatAnnouncementDateLocal(dateString) {
     }, {});
     return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
-
 function parseAnnouncementDate(dateString) {
     if (!dateString) return new Date();
     if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+')) {
