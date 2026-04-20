@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings } from '../utils.js';
 const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
 const MODEL = 'Qwen/Qwen3-8B';
 const KEYWORD_PROMPT = `你是一个大学课程目录推荐助手。用户上传了一些文件名，你需要提取出文件所属的课程全称。
@@ -71,10 +71,8 @@ export async function onRequestPost({ request, env }) {
         }
         let directories = [];
         try {
-            const embeddingResponse = await AI.run('@cf/baai/bge-m3', {
-                text: [keywords.trim()]
-            });
-            const queryVector = embeddingResponse?.data?.[0];
+            const embeddings = await generateEmbeddings(AI, [keywords.trim()]);
+            const queryVector = embeddings?.[0];
             if (queryVector) {
                 const vectorResults = await VECTORIZE.query(queryVector, {
                     topK: 20,

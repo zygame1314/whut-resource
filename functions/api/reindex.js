@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isSuperAdmin } from '../utils.js';
+import { verifyToken, addCorsHeaders, isSuperAdmin, generateEmbeddings } from '../utils.js';
 const BATCH_SIZE = 50;
 export async function onRequestPost({ request, env }) {
     const authHeader = request.headers.get('Authorization');
@@ -57,15 +57,13 @@ export async function onRequestPost({ request, env }) {
             });
         }
         const textsToEmbed = files.map(f => f.key);
-        const embeddingResponse = await AI.run('@cf/baai/bge-m3', {
-            text: textsToEmbed
-        });
-        if (!embeddingResponse || !embeddingResponse.data || embeddingResponse.data.length !== files.length) {
+        const embeddings = await generateEmbeddings(AI, textsToEmbed);
+        if (!embeddings || embeddings.length !== files.length) {
             throw new Error('AI 嵌入生成失败或数量不匹配');
         }
         const vectors = files.map((file, index) => ({
             id: file.id.toString(),
-            values: embeddingResponse.data[index],
+            values: embeddings[index],
             metadata: {
                 name: file.name,
                 path: file.key

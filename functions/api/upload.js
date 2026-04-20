@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings } from '../utils.js';
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
@@ -26,11 +26,11 @@ async function ensureDirectoryExists(db, fullPath, env) {
         console.log(`在D1中创建目录条目: ${currentPath}`);
         if (env.AI && env.VECTORIZE && insertResult.meta?.last_row_id) {
           try {
-            const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [currentPath] });
-            if (embedding?.data?.[0]) {
+            const embeddings = await generateEmbeddings(env.AI, [currentPath]);
+            if (embeddings?.[0]) {
               await env.VECTORIZE.upsert([{
                 id: insertResult.meta.last_row_id.toString(),
-                values: embedding.data[0],
+                values: embeddings[0],
                 metadata: {
                   name: segment,
                   path: currentPath
@@ -154,11 +154,11 @@ export async function onRequestPost({ request, env, waitUntil }) {
       ).run();
       if (env.AI && env.VECTORIZE && linkInsertResult.meta?.last_row_id) {
         try {
-          const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [key] });
-          if (embedding?.data?.[0]) {
+          const embeddings = await generateEmbeddings(env.AI, [key]);
+          if (embeddings?.[0]) {
             await env.VECTORIZE.upsert([{
               id: linkInsertResult.meta.last_row_id.toString(),
-              values: embedding.data[0],
+              values: embeddings[0],
               metadata: {
                 name: sanitizedLinkName,
                 path: key
@@ -233,11 +233,11 @@ export async function onRequestPost({ request, env, waitUntil }) {
         if (env.AI && env.VECTORIZE && fileInsertResult.meta?.last_row_id) {
           waitUntil((async () => {
             try {
-              const embedding = await env.AI.run('@cf/baai/bge-m3', { text: [key] });
-              if (embedding?.data?.[0]) {
+              const embeddings = await generateEmbeddings(env.AI, [key]);
+              if (embeddings?.[0]) {
                 await env.VECTORIZE.upsert([{
                   id: fileInsertResult.meta.last_row_id.toString(),
-                  values: embedding.data[0],
+                  values: embeddings[0],
                   metadata: {
                     name: fileName,
                     path: key

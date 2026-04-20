@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings } from '../utils.js';
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
 const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -428,13 +428,11 @@ async function handleSearch(query, env) {
         };
     }
     try {
-        const embeddingResponse = await AI.run('@cf/baai/bge-m3', {
-            text: [query.trim()]
-        });
-        if (!embeddingResponse?.data?.[0]) {
+        const embeddings = await generateEmbeddings(AI, [query.trim()]);
+        if (!embeddings?.[0]) {
             throw new Error('AI 嵌入生成失败');
         }
-        const queryVector = embeddingResponse.data[0];
+        const queryVector = embeddings[0];
         const vectorResults = await VECTORIZE.query(queryVector, {
             topK: 15,
             returnMetadata: 'all'

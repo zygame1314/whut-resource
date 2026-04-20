@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings } from '../utils.js';
 async function deleteVectorIndexes(env, fileIds) {
     if (!env.VECTORIZE || !fileIds || fileIds.length === 0) return;
     try {
@@ -13,15 +13,13 @@ async function createVectorIndexes(env, files) {
     if (!env.AI || !env.VECTORIZE || !files || files.length === 0) return;
     try {
         const textsToEmbed = files.map(f => f.key);
-        const embeddingResponse = await env.AI.run('@cf/baai/bge-m3', {
-            text: textsToEmbed
-        });
-        if (!embeddingResponse?.data || embeddingResponse.data.length !== files.length) {
+        const embeddings = await generateEmbeddings(env.AI, textsToEmbed);
+        if (!embeddings || embeddings.length !== files.length) {
             throw new Error('嵌入生成失败或数量不匹配');
         }
         const vectors = files.map((file, index) => ({
             id: file.id.toString(),
-            values: embeddingResponse.data[index],
+            values: embeddings[index],
             metadata: {
                 name: file.name,
                 path: file.key
