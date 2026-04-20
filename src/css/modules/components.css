@@ -2221,6 +2221,7 @@
     font-family: inherit;
     resize: vertical;
     min-height: 60px;
+    max-height: 100px;
     transition: border-color 0.2s ease;
 }
 
@@ -3948,6 +3949,7 @@ textarea.form-input {
     max-width: 520px;
     width: 90%;
     max-height: 80vh;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
 }
@@ -5393,6 +5395,7 @@ input#prompt-input {
 .modal-large {
     max-width: 800px !important;
     width: 95% !important;
+    overflow-y: auto;
 }
 
 .prompt-tabs {
