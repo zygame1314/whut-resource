@@ -100,7 +100,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                         </div>
                     </div>
                     <div class="form-group">
-                        <div id="hcaptcha-reset-widget"></div>
+                        <div id="hcaptcha-reset-widget" class="captcha-widget"></div>
                     </div>
                     <button type="submit" id="get-reset-code-btn" class="primary-btn full-width">获取验证码</button>
                 </form>
@@ -402,7 +402,7 @@ function showChangeEmailModal() {
                         </div>
                     </div>
                     <div class="form-group">
-                        <div id="hcaptcha-change-email-widget"></div>
+                        <div id="hcaptcha-change-email-widget" class="captcha-widget"></div>
                     </div>
                     <button type="submit" id="get-change-code-btn" class="primary-btn full-width">获取验证码</button>
                 </form>

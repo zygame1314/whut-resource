@@ -58,7 +58,7 @@ function showAuthModal(mode = 'login') {
                     </div>
                 </div>
                 <div id="login-captcha-container" class="form-group" style="display: none;">
-                    <div id="hcaptcha-login-widget"></div>
+                    <div id="hcaptcha-login-widget" class="captcha-widget"></div>
                 </div>
                 ${isSso ? `
                 <div id="sso-captcha-container" class="form-group" style="display: none;">
@@ -157,7 +157,7 @@ function showAuthModal(mode = 'login') {
                                     </div>
                                 </label>
                             </div>
-                            <div id="hcaptcha-widget"></div>
+                            <div id="hcaptcha-widget" class="captcha-widget"></div>
                         </div>
                         <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
                     </form>

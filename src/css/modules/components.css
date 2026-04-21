@@ -6655,7 +6655,7 @@ input#prompt-input {
     border-radius: 50%;
 }
 
-.h-captcha,
+.captcha-widget,
 .turnstile-widget-container {
     margin-top: 10px;
     display: flex;
@@ -6665,8 +6665,8 @@ input#prompt-input {
     overflow: visible;
 }
 
-.h-captcha>iframe,
-.h-captcha>div {
+.captcha-widget>iframe,
+.captcha-widget>div {
     transform-origin: center center;
 }
 
@@ -6702,7 +6702,7 @@ input#prompt-input {
 }
 
 @media (max-width: 400px) {
-    .h-captcha {
+    .captcha-widget {
         transform: scale(0.85);
         transform-origin: center center;
         margin: -10px 0;
@@ -6710,7 +6710,7 @@ input#prompt-input {
 }
 
 @media (max-width: 340px) {
-    .h-captcha {
+    .captcha-widget {
         transform: scale(0.75);
         margin: -15px 0;
     }
