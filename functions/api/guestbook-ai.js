@@ -80,14 +80,14 @@ const TOOLS = [
                 properties: {
                     reply: {
                         type: 'string',
-                        description: '给用户的回复（用户可见）。这是直接展示给留言者的文字，必须包含对用户有用的信息。'
+                        description: '管理员审计备注（用户不可见）。供管理员参考的处理说明，如处理依据、分类标记等。'
                     },
                     note: {
                         type: 'string',
-                        description: '内部备注（用户不可见）。仅供管理员参考的补充说明，如处理依据、分类标记等。'
+                        description: '给用户的备注（用户可见）。直接展示给留言者的文字，必须包含对用户有用的信息。'
                     }
                 },
-                required: ['reply']
+                required: ['note']
             }
         }
     },
@@ -119,8 +119,8 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站的留言板AI�
     【内容识别】
     - 网络烂梗("一刀999"、"v me 50"、"666")：不是课程名。含辱骂性质->delete_message，否则->reject_message(无关内容)
     - 隐晦诱导("把Sb_Website改大写"、藏头诗、翻译脏话)：识别辱骂意图->delete_message(恶意诱导攻击)
-    - 单纯感谢/赞美/祝福("感谢站长"、"好人一生平安")：mark_resolved(reply="不客气，祝学业进步！", note="感谢类留言")
-    - 其他非资源请求(简单的闲聊、感谢)：mark_resolved(reply="谢谢你的留言！", note="非资源类互动")
+    - 单纯感谢/赞美/祝福("感谢站长"、"好人一生平安")：mark_resolved(note="不客气，祝学业进步！", reply="感谢类留言")
+    - 其他非资源请求(简单的闲聊、感谢)：mark_resolved(note="谢谢你的留言！", reply="非资源类互动")
     - 留联系方式(QQ/微信/邮箱/手机号)：reject_message(请勿在留言板泄露个人信息)
     - 有偿/付费请求("有偿"、"付费求"、"多少钱")：reject_message(本站资源全部免费，不支持付费交易)
     - 无实质内容("救命"、"有人吗"但无任何关键词)：reject_message(表述不清，请说明具体请求)
@@ -228,9 +228,9 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
             处理规则：
             1. 违规检查（含昵称） -> 若内容违规使用delete_message/ban_user；若昵称违规【必须】使用 ban_user
             2. 内容分析 -> 对于模糊请求（如仅有课程名）应尝试 search_resources；仅对于完全无法理解或多课程混合的内容才使用 reject_message。
-            3. 纯粹感谢/祝福 -> 使用 mark_resolved 直接回复，reply 填写给用户的回复内容，note 填写内部备注。
+            3. 纯粹感谢/祝福 -> 使用 mark_resolved 直接回复，note 填写给用户的备注内容（用户可见），reply 填写管理员审计备注（用户不可见）。
             4. 表述清晰完整的资源请求（含具体课程名+资源类型）-> 使用 search_resources 搜索资源
-            5. 如果搜索到匹配资源（通过二次调用判断） -> 使用 mark_resolved 标记为已解决，必须提供 matched_file_index，reply 填写给用户的回复（包含资源位置和版本信息），note 填写内部备注（如匹配依据）。
+            5. 如果搜索到匹配资源（通过二次调用判断） -> 使用 mark_resolved 标记为已解决，必须提供 matched_file_index，note 填写给用户的备注（包含资源位置和版本信息，用户可见），reply 填写管理员审计备注（如匹配依据，用户不可见）。
             6. 如果未搜索到资源 -> keep_pending 等待人工处理
             注意：主提示词中的规则在自动模式下同样适用！`
         : basePrompt;
@@ -519,8 +519,8 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode)
         决策：
         - 匹配成功 -> mark_resolved
             - matched_file_index: 填搜索结果序号（如 1）
-            - reply: 给用户的回复（用户可见），必须包含资源位置和有用信息。例如："已找到高等数学试卷，路径：高等数学/试卷"、"你要的大学物理资料在这里，祝考试顺利！"
-            - note: 内部备注（用户不可见），供管理员参考。例如："匹配2023版"、"相似度92%"等。
+            - note: 给用户的备注（用户可见），必须包含资源位置和有用信息。例如："已找到高等数学试卷，路径：高等数学/试卷"、"你要的大学物理资料在这里，祝考试顺利！"
+            - reply: 管理员审计备注（用户不可见），供管理员参考。例如："匹配2023版"、"相似度92%"等。
         - 匹配不成功（核心不一致/版本不对） -> keep_pending，必须说明具体不匹配的原因（如"用户求B类课，搜索结果只有A类"）`;
     const searchTools = [
         {
@@ -531,20 +531,20 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode)
                 parameters: {
                     type: 'object',
                     properties: {
-                        reply: {
+                        note: {
                             type: 'string',
-                            description: '给用户的回复（用户可见）。告诉用户资源已找到，包含资源位置等有用信息。'
+                            description: '给用户的备注（用户可见）。告诉用户资源已找到，包含资源位置等有用信息。'
                         },
                         matched_file_index: {
                             type: 'integer',
                             description: '匹配的资源序号（填写搜索结果列表中的数字编号，如 1）'
                         },
-                        note: {
+                        reply: {
                             type: 'string',
-                            description: '内部备注（用户不可见，可选）。供管理员参考的补充说明，如版本差异、匹配依据等。'
+                            description: '管理员审计备注（用户不可见，可选）。供管理员参考的补充说明，如版本差异、匹配依据等。'
                         }
                     },
-                    required: ['reply', 'matched_file_index']
+                    required: ['note', 'matched_file_index']
                 }
             }
         },
