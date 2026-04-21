@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults, retryWithBackoff } from '../utils.js';
-const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const NVIDIA_MODEL = 'stepfun-ai/step-3.5-flash';
+const POE_API_URL = 'https://api.poe.com/v1/chat/completions';
+const POE_MODEL = 'gemma-4-31b';
 const TOOLS = [
     {
         type: 'function',
@@ -212,8 +212,8 @@ async function getUser(request, env) {
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }
 export async function processWithAIAgent(guestbookEntry, env, autoMode) {
-    if (!env.NVIDIA_API_KEY) {
-        throw new Error('未配置 NVIDIA_API_KEY');
+    if (!env.POE_API_KEY) {
+        throw new Error('未配置 POE_API_KEY');
     }
     const roleTag = (guestbookEntry.role === 'admin' || guestbookEntry.role === 'super_admin') ? '【管理员】' : '【普通用户】';
     const userMessage = `用户身份：${roleTag}
@@ -685,18 +685,18 @@ export async function onRequestGet(context) {
     });
 }
 async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.7) {
-    if (!env.NVIDIA_API_KEY) {
-        throw new Error('未配置 NVIDIA_API_KEY');
+    if (!env.POE_API_KEY) {
+        throw new Error('未配置 POE_API_KEY');
     }
     return await retryWithBackoff(async () => {
-        const response = await fetch(NVIDIA_API_URL, {
+        const response = await fetch(POE_API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${env.NVIDIA_API_KEY}`
+                'Authorization': `Bearer ${env.POE_API_KEY}`
             },
             body: JSON.stringify({
-                model: NVIDIA_MODEL,
+                model: POE_MODEL,
                 messages: messages,
                 tools: tools,
                 tool_choice: toolChoice,
@@ -705,7 +705,7 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
         });
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`NVIDIA API Error: ${response.status} - ${errorText}`);
+            throw new Error(`Poe API Error: ${response.status} - ${errorText}`);
         }
         return await response.json();
     }, 3, 1000);
