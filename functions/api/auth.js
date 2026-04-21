@@ -1,5 +1,5 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders } from '../utils.js';
-import { verifyWHUTCredentials } from './sso-utils.js';
+import { verifyWHUTCredentials, refreshSsoCaptcha } from './sso-utils.js';
 async function recordLoginAttempt(db, identifier, type) {
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   const now = new Date().toISOString();
@@ -314,6 +314,14 @@ export async function onRequestPost({ request, env }) {
         .bind(passwordHash, user.id)
         .run();
       return new Response(JSON.stringify({ success: true, message: '密码修改成功。' }), { status: 200, headers: addCorsHeaders() });
+    }
+    if (action === 'sso-refresh-captcha') {
+      const { ssoCookies } = body;
+      if (!ssoCookies) {
+        return new Response(JSON.stringify({ success: false, error: '缺少会话信息' }), { status: 400, headers: addCorsHeaders() });
+      }
+      const result = await refreshSsoCaptcha(ssoCookies);
+      return new Response(JSON.stringify(result), { status: result.success ? 200 : 500, headers: addCorsHeaders() });
     }
     if (action === 'whut-login') {
       const { studentId: inputId, password, cfToken, ssoCode, ssoCookies } = body;

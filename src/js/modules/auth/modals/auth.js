@@ -58,7 +58,7 @@ function showAuthModal(mode = 'login') {
                     </div>
                 </div>
                 <div id="login-captcha-container" class="form-group" style="display: none;">
-                    <div id="hcaptcha-login-widget" class="h-captcha"></div>
+                    <div id="hcaptcha-login-widget"></div>
                 </div>
                 ${isSso ? `
                 <div id="sso-captcha-container" class="form-group" style="display: none;">
@@ -157,7 +157,7 @@ function showAuthModal(mode = 'login') {
                                     </div>
                                 </label>
                             </div>
-                            <div id="hcaptcha-widget" class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}"></div>
+                            <div id="hcaptcha-widget"></div>
                         </div>
                         <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
                     </form>
@@ -274,7 +274,7 @@ function showAuthModal(mode = 'login') {
             const password = document.getElementById('auth-password').value;
             const captchaContainer = modal.querySelector('#login-captcha-container');
             let cfToken = '';
-            if (captchaContainer && captchaContainer.style.display !== 'none' && window.hcaptcha && loginCaptchaWidgetId) {
+            if (captchaContainer && captchaContainer.style.display !== 'none' && window.hcaptcha && loginCaptchaWidgetId !== null) {
                 cfToken = hcaptcha.getResponse(loginCaptchaWidgetId);
                 if (!cfToken) {
                     showNotification('请先完成人机验证', 'error');
@@ -360,13 +360,13 @@ function showAuthModal(mode = 'login') {
                     const needCaptcha = data.requireCaptcha;
                     if (needCaptcha && captchaContainer.style.display === 'none') {
                         captchaContainer.style.display = 'block';
-                        if (window.hcaptcha && !loginCaptchaWidgetId) {
+                        if (window.hcaptcha && loginCaptchaWidgetId === null) {
                             loginCaptchaWidgetId = hcaptcha.render('hcaptcha-login-widget', {
                                 sitekey: HCAPTCHA_SITEKEY
                             });
                         }
                         showNotification(data.error + ' 请完成人机验证后重试', 'error');
-                    } else if (needCaptcha && window.hcaptcha && loginCaptchaWidgetId) {
+                    } else if (needCaptcha && window.hcaptcha && loginCaptchaWidgetId !== null) {
                         hcaptcha.reset(loginCaptchaWidgetId);
                         showNotification(data.error, 'error');
                     } else {
@@ -379,6 +379,36 @@ function showAuthModal(mode = 'login') {
                 submitBtn.classList.remove('loading');
             }
         };
+        if (isSso) {
+            const ssoCaptchaImg = modal.querySelector('#sso-captcha-img');
+            if (ssoCaptchaImg) {
+                ssoCaptchaImg.style.cursor = 'pointer';
+                ssoCaptchaImg.onclick = async () => {
+                    if (!currentSsoCookies) return;
+                    ssoCaptchaImg.style.opacity = '0.5';
+                    try {
+                        const res = await fetch(AUTH_API_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'sso-refresh-captcha', ssoCookies: currentSsoCookies })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            ssoCaptchaImg.src = data.captchaImage;
+                            currentSsoCookies = data.cookies;
+                            modal.querySelector('#sso-captcha-code').value = '';
+                            modal.querySelector('#sso-captcha-code').focus();
+                        } else {
+                            showNotification(data.error || '刷新验证码失败', 'error');
+                        }
+                    } catch (err) {
+                        showNotification('刷新验证码失败: ' + err.message, 'error');
+                    } finally {
+                        ssoCaptchaImg.style.opacity = '1';
+                    }
+                };
+            }
+        }
     } else {
         let hcaptchaWidgetId;
         if (window.hcaptcha) {

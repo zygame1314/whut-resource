@@ -100,7 +100,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                         </div>
                     </div>
                     <div class="form-group">
-                        <div id="hcaptcha-reset-widget" class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}"></div>
+                        <div id="hcaptcha-reset-widget"></div>
                     </div>
                     <button type="submit" id="get-reset-code-btn" class="primary-btn full-width">获取验证码</button>
                 </form>
@@ -279,7 +279,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                 showNotification(data.error, 'error');
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
-                if (window.hcaptcha && hcaptchaWidgetId) {
+                if (window.hcaptcha && hcaptchaWidgetId !== undefined) {
                     hcaptcha.reset(hcaptchaWidgetId);
                 }
             }
@@ -287,7 +287,7 @@ function showForgotPasswordModal(prefillEmail = '') {
             showNotification('请求失败: ' + err.message, 'error');
             getCodeBtn.disabled = false;
             getCodeBtn.innerHTML = '获取验证码';
-            if (window.hcaptcha && hcaptchaWidgetId) {
+            if (window.hcaptcha && hcaptchaWidgetId !== undefined) {
                 hcaptcha.reset(hcaptchaWidgetId);
             }
         }
@@ -301,7 +301,7 @@ function showForgotPasswordModal(prefillEmail = '') {
         const getCodeBtn = modal.querySelector('#get-reset-code-btn');
         getCodeBtn.disabled = false;
         getCodeBtn.innerHTML = '获取验证码';
-        if (window.hcaptcha && hcaptchaWidgetId) {
+        if (window.hcaptcha && hcaptchaWidgetId !== undefined) {
             hcaptcha.reset(hcaptchaWidgetId);
         }
     };
@@ -402,7 +402,7 @@ function showChangeEmailModal() {
                         </div>
                     </div>
                     <div class="form-group">
-                        <div id="hcaptcha-change-email-widget" class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}"></div>
+                        <div id="hcaptcha-change-email-widget"></div>
                     </div>
                     <button type="submit" id="get-change-code-btn" class="primary-btn full-width">获取验证码</button>
                 </form>

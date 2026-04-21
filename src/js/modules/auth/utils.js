@@ -112,7 +112,10 @@ async function startEmailStatusPolling(btn, options) {
 function closeAuthModal(modal, onAfterRemove) {
     if (!modal || modal.classList.contains('closing')) return;
     modal.classList.add('closing');
+    let removed = false;
     const removeModal = () => {
+        if (removed) return;
+        removed = true;
         if (modal.parentNode) modal.remove();
         if (typeof onAfterRemove === 'function') onAfterRemove();
     };

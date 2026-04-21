@@ -67,6 +67,40 @@ function parseAndMergeCookies(currentJar, newSetCookies) {
     }
     return parts.join("; ");
 }
+export async function refreshSsoCaptcha(initialCookies) {
+    const baseUrl = "https://zhlgd.whut.edu.cn/tpass";
+    const loginUrl = `${baseUrl}/login`;
+    const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)";
+    const headers = {
+        "User-Agent": UA,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    };
+    try {
+        let cookieStr = initialCookies;
+        if (!initialCookies) {
+            const initResp = await fetch(loginUrl, { headers });
+            const setCookie = initResp.headers.get("set-cookie");
+            if (setCookie) {
+                const allCookies = initResp.headers.getSetCookie();
+                cookieStr = (allCookies && allCookies.length > 0)
+                    ? allCookies.map(c => c.split(";")[0]).join("; ")
+                    : setCookie.split(";")[0];
+            }
+        }
+        const captchaResp = await fetch(`${baseUrl}/code`, {
+            headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl }
+        });
+        const arrayBuffer = await captchaResp.arrayBuffer();
+        const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        return {
+            success: true,
+            captchaImage: `data:image/jpeg;base64,${base64Image}`,
+            cookies: cookieStr
+        };
+    } catch (e) {
+        return { success: false, error: "获取验证码失败: " + e.message };
+    }
+}
 export async function verifyWHUTCredentials(username, password, captchaCode = "", initialCookies = "") {
     const baseUrl = "https://zhlgd.whut.edu.cn/tpass";
     const loginUrl = `${baseUrl}/login`;
@@ -82,7 +116,6 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         let lt = "";
         let execution = "e1s1";
         let eventId = "submit";
-
         if (!initialCookies) {
             const initResp = await fetch(loginUrl, { headers });
             const setCookie = initResp.headers.get("set-cookie");
@@ -97,7 +130,6 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
             const initResp = await fetch(loginUrl, { headers: { ...headers, "Cookie": cookieStr } });
             html = await initResp.text();
         }
-
         const ltMatch = html.match(LT_REGEX);
         if (!ltMatch) throw new Error("无法获取登录票据 (LT)");
         lt = ltMatch[1];
@@ -105,10 +137,8 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         execution = executionMatch ? executionMatch[1] : "e1s1";
         const eventIdMatch = html.match(EVENT_ID_REGEX);
         eventId = eventIdMatch ? eventIdMatch[1] : "submit";
-
         console.log(`[SSO] LT: ${lt}, EXECUTION: ${execution}`);
         console.log(`[SSO] Cookies: ${cookieStr}`);
-
         const cleanHtmlForCaptcha = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmi, "");
         const needsCaptcha = cleanHtmlForCaptcha.includes('id="codeImage"') || cleanHtmlForCaptcha.includes('/tpass/code');
         if (needsCaptcha && !captchaCode) {
@@ -130,7 +160,6 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
                 console.log("[SSO] Failed to fetch captcha image:", e.message);
             }
         }
-
         const rsaResp = await fetch(rsaUrl, {
             method: "POST",
             headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl }
@@ -270,11 +299,9 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         const failureHtml = await loginResp.text();
         const errorMsgMatch = failureHtml.match(ERROR_REGEX);
         let errorDetail = errorMsgMatch ? errorMsgMatch[1].trim() : null;
-
         if (!errorDetail && failureHtml.includes("验证码有误")) {
             errorDetail = "验证码有误，请重新输入";
         }
-
         const res = {
             success: false,
             error: errorDetail || "SSO 登录失败",
@@ -285,7 +312,6 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
                 bodySnippet: failureHtml.substring(0, 500)
             }
         };
-
         if (failureHtml.includes('id="codeImage"') || failureHtml.includes('/tpass/code')) {
             res.captchaRequired = true;
             res.cookies = cookieStr;
@@ -300,7 +326,6 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
                 console.log("[SSO] Failed to re-fetch captcha image:", e.message);
             }
         }
-
         return res;
     } catch (e) {
         return { success: false, error: e.message };
