@@ -52,6 +52,7 @@ let isAnnouncementInteractionActive = false;
 let hasTriedEntryPopup = false;
 let currentViewedAnnouncement = null;
 let announcementReachedBottomAt = 0;
+let isAnnouncementScrollingBackUp = false;
 document.addEventListener('DOMContentLoaded', () => {
     fetchAndDisplayAnnouncements(currentAnnouncementPage);
     initAnnouncementManager();
@@ -513,6 +514,15 @@ function startAnnouncementAutoScroll() {
         const textBlock = currentItem.querySelector('.announcement-text');
         if (!textBlock) return;
         const hasOverflow = textBlock.scrollHeight > textBlock.clientHeight + 2;
+        if (isAnnouncementScrollingBackUp) {
+            if (hasOverflow && textBlock.scrollTop > 0) {
+                textBlock.scrollTop = Math.max(textBlock.scrollTop - ANNOUNCEMENT_AUTO_SCROLL_STEP, 0);
+                return;
+            }
+            isAnnouncementScrollingBackUp = false;
+            advanceAnnouncementAfterScrollPause();
+            return;
+        }
         if (hasOverflow) {
             const atBottom = textBlock.scrollTop + textBlock.clientHeight >= textBlock.scrollHeight - 2;
             if (!atBottom) {
@@ -527,7 +537,11 @@ function startAnnouncementAutoScroll() {
         }
         if (Date.now() - announcementReachedBottomAt >= ANNOUNCEMENT_AFTER_SCROLL_PAUSE) {
             announcementReachedBottomAt = 0;
-            advanceAnnouncementAfterScrollPause();
+            if (hasOverflow) {
+                isAnnouncementScrollingBackUp = true;
+            } else {
+                advanceAnnouncementAfterScrollPause();
+            }
         }
     }, ANNOUNCEMENT_AUTO_SCROLL_INTERVAL);
 }
@@ -537,9 +551,11 @@ function stopAnnouncementAutoScroll() {
         announcementAutoScrollTimer = null;
     }
     announcementReachedBottomAt = 0;
+    isAnnouncementScrollingBackUp = false;
 }
 function resetAnnouncementScrollProgress(resetScrollTop = false) {
     announcementReachedBottomAt = 0;
+    isAnnouncementScrollingBackUp = false;
     if (!resetScrollTop || !announcementContent) return;
     const currentItem = announcementContent.querySelector(`.announcement-item[data-announcement-index="${currentAnnouncementItemIndex}"]`);
     if (!currentItem) return;
