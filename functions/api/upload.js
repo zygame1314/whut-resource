@@ -26,9 +26,7 @@ async function ensureDirectoryExists(db, fullPath, env) {
         console.log(`在D1中创建目录条目: ${currentPath}`);
         if (env.VECTORIZE && env.SILICONFLOW_API_KEY && insertResult.meta?.last_row_id) {
           try {
-            const embeddings = await retryWithBackoff(
-              () => generateEmbeddings(env, [currentPath]), 3, 1000
-            );
+            const embeddings = await generateEmbeddings(env, [currentPath]);
             if (embeddings?.[0]) {
               await retryWithBackoff(async () => {
                 await env.VECTORIZE.upsert([{
@@ -159,9 +157,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       ).run();
       if (env.VECTORIZE && env.SILICONFLOW_API_KEY && linkInsertResult.meta?.last_row_id) {
         try {
-          const embeddings = await retryWithBackoff(
-            () => generateEmbeddings(env, [key]), 3, 1000
-          );
+          const embeddings = await generateEmbeddings(env, [key]);
           if (embeddings?.[0]) {
             await retryWithBackoff(async () => {
               await env.VECTORIZE.upsert([{
@@ -246,9 +242,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
           const keyCopy = key;
           waitUntil((async () => {
             try {
-              const embeddings = await retryWithBackoff(
-                () => generateEmbeddings(env, [keyCopy]), 3, 1000
-              );
+              const embeddings = await generateEmbeddings(env, [keyCopy]);
               if (embeddings?.[0]) {
                 await retryWithBackoff(async () => {
                   await env.VECTORIZE.upsert([{

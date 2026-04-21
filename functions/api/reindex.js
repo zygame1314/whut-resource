@@ -149,9 +149,7 @@ async function handleRetryFailed(env, DB, VECTORIZE) {
                     retried++;
                     continue;
                 }
-                const embeddings = await retryWithBackoff(
-                    () => generateEmbeddings(env, [fileRecord.key]), 2, 1000
-                );
+                const embeddings = await generateEmbeddings(env, [fileRecord.key]);
                 if (embeddings?.[0]) {
                     await retryWithBackoff(async () => {
                         await VECTORIZE.upsert([{

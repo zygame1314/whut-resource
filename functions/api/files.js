@@ -18,9 +18,7 @@ async function createVectorIndexes(env, files) {
     if (!env.VECTORIZE || !env.SILICONFLOW_API_KEY || !files || files.length === 0) return;
     try {
         const textsToEmbed = files.map(f => f.key);
-        const embeddings = await retryWithBackoff(async () => {
-            return await generateEmbeddings(env, textsToEmbed);
-        }, 3, 1000);
+        const embeddings = await generateEmbeddings(env, textsToEmbed);
         if (!embeddings || embeddings.length !== files.length) {
             throw new Error('嵌入生成失败或数量不匹配');
         }

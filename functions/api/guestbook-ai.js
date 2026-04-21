@@ -1,10 +1,6 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults } from '../utils.js';
-const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults, retryWithBackoff } from '../utils.js';
 const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'gpt-oss-120b';
-const NVIDIA_MODEL = 'openai/gpt-oss-120b';
-const GROQ_MODEL = 'openai/gpt-oss-120b';
+const NVIDIA_MODEL = 'stepfun-ai/step-3.5-flash';
 const TOOLS = [
     {
         type: 'function',
@@ -216,9 +212,8 @@ async function getUser(request, env) {
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }
 export async function processWithAIAgent(guestbookEntry, env, autoMode) {
-    const CEREBRAS_API_KEY = env.CEREBRAS_API_KEY;
-    if (!CEREBRAS_API_KEY) {
-        throw new Error('未配置 CEREBRAS_API_KEY');
+    if (!env.NVIDIA_API_KEY) {
+        throw new Error('未配置 NVIDIA_API_KEY');
     }
     const roleTag = (guestbookEntry.role === 'admin' || guestbookEntry.role === 'super_admin') ? '【管理员】' : '【普通用户】';
     const userMessage = `用户身份：${roleTag}
@@ -269,7 +264,6 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
                 guestbookEntry,
                 toolResult.searchResults,
                 env,
-                CEREBRAS_API_KEY,
                 autoMode
             );
         }
@@ -499,7 +493,7 @@ async function handleSearch(query, env) {
         };
     }
 }
-async function handleSearchResults(guestbookEntry, searchResults, env, apiKey, autoMode) {
+async function handleSearchResults(guestbookEntry, searchResults, env, autoMode) {
     if (!searchResults || searchResults.length === 0) {
         return {
             success: true,
@@ -691,15 +685,18 @@ export async function onRequestGet(context) {
     });
 }
 async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.7) {
-    const callProvider = async (url, key, model, providerName) => {
-        const response = await fetch(url, {
+    if (!env.NVIDIA_API_KEY) {
+        throw new Error('未配置 NVIDIA_API_KEY');
+    }
+    return await retryWithBackoff(async () => {
+        const response = await fetch(NVIDIA_API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${key}`
+                'Authorization': `Bearer ${env.NVIDIA_API_KEY}`
             },
             body: JSON.stringify({
-                model: model,
+                model: NVIDIA_MODEL,
                 messages: messages,
                 tools: tools,
                 tool_choice: toolChoice,
@@ -708,33 +705,8 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
         });
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`${providerName} API Error: ${response.status} - ${errorText}`);
+            throw new Error(`NVIDIA API Error: ${response.status} - ${errorText}`);
         }
         return await response.json();
-    };
-    if (env.CEREBRAS_API_KEY) {
-        try {
-            return await callProvider(CEREBRAS_API_URL, env.CEREBRAS_API_KEY, MODEL, 'Cerebras');
-        } catch (error) {
-            console.error('Cerebras API 调用失败:', error.message);
-            if (!env.NVIDIA_API_KEY) throw error;
-        }
-    }
-    if (env.NVIDIA_API_KEY) {
-        try {
-            return await callProvider(NVIDIA_API_URL, env.NVIDIA_API_KEY, NVIDIA_MODEL, 'NVIDIA');
-        } catch (error) {
-            console.error('NVIDIA API 调用失败:', error.message);
-            if (!env.GROQ_API_KEY) throw error;
-        }
-    }
-    if (env.GROQ_API_KEY) {
-        try {
-            return await callProvider(GROQ_API_URL, env.GROQ_API_KEY, GROQ_MODEL, 'Groq');
-        } catch (error) {
-            console.error('Groq API 调用失败:', error.message);
-            throw new Error(`所有 API 提供商均失败。最后错误: ${error.message}`);
-        }
-    }
-    throw new Error('未配置有效的 API Key (CEREBRAS/NVIDIA/GROQ)');
+    }, 3, 1000);
 }

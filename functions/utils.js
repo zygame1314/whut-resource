@@ -79,30 +79,32 @@ export async function generateEmbeddings(env, texts) {
   if (!texts || texts.length === 0) return [];
   const apiKey = env.SILICONFLOW_API_KEY;
   if (!apiKey) throw new Error('未配置 SILICONFLOW_API_KEY');
-  const response = await fetch(SILICONFLOW_EMBEDDING_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: EMBEDDING_MODEL,
-      input: texts,
-      encoding_format: 'float',
-      dimensions: EMBEDDING_DIMENSIONS
-    })
-  });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`SiliconFlow Embedding API Error: ${response.status} - ${errorText}`);
-  }
-  const result = await response.json();
-  if (!result?.data || result.data.length !== texts.length) {
-    throw new Error('嵌入生成失败或数量不匹配');
-  }
-  return result.data
-    .sort((a, b) => a.index - b.index)
-    .map(item => item.embedding);
+  return await retryWithBackoff(async () => {
+    const response = await fetch(SILICONFLOW_EMBEDDING_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: EMBEDDING_MODEL,
+        input: texts,
+        encoding_format: 'float',
+        dimensions: EMBEDDING_DIMENSIONS
+      })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`SiliconFlow Embedding API Error: ${response.status} - ${errorText}`);
+    }
+    const result = await response.json();
+    if (!result?.data || result.data.length !== texts.length) {
+      throw new Error('嵌入生成失败或数量不匹配');
+    }
+    return result.data
+      .sort((a, b) => a.index - b.index)
+      .map(item => item.embedding);
+  }, 3, 1000);
 }
 export async function rerankResults(env, query, documents, topN = 20) {
   if (!env.SILICONFLOW_API_KEY) {
@@ -111,29 +113,30 @@ export async function rerankResults(env, query, documents, topN = 20) {
   }
   if (!documents || documents.length === 0) return [];
   try {
-    const response = await fetch(SILICONFLOW_RERANK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: RERANKER_MODEL,
-        query: query,
-        documents: documents,
-        top_n: topN,
-        return_documents: false
-      })
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Reranker API Error: ${response.status} - ${errorText}`);
-      return null;
-    }
-    const result = await response.json();
-    return result.results || null;
+    return await retryWithBackoff(async () => {
+      const response = await fetch(SILICONFLOW_RERANK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: RERANKER_MODEL,
+          query: query,
+          documents: documents,
+          top_n: topN,
+          return_documents: false
+        })
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Reranker API Error: ${response.status} - ${errorText}`);
+      }
+      const result = await response.json();
+      return result.results || null;
+    }, 2, 1000);
   } catch (error) {
-    console.error('重排请求失败:', error);
+    console.error('重排请求失败（已重试）:', error);
     return null;
   }
 }
@@ -157,19 +160,21 @@ export async function fetchSiliconFlowChat(env, { messages, tools = null, toolCh
     body.tools = tools;
     body.tool_choice = toolChoice;
   }
-  const response = await fetch(SILICONFLOW_CHAT_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
-    },
-    body: JSON.stringify(body)
-  });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`SiliconFlow API Error: ${response.status} - ${errorText}`);
-  }
-  return await response.json();
+  return await retryWithBackoff(async () => {
+    const response = await fetch(SILICONFLOW_CHAT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
+      },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`SiliconFlow API Error: ${response.status} - ${errorText}`);
+    }
+    return await response.json();
+  }, 3, 1000);
 }
 export async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
