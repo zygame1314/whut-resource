@@ -46,61 +46,83 @@
         </div>
     </nav>
 
-    <main class="main-content container" style="padding-top: 100px;">
+<main class="main-content container" style="padding-top: 100px;">
         <section class="page-content">
             <h1 class="section-title text-gradient">搜索技巧</h1>
             <div class="content-box">
-                <p class="text-secondary">资源越来越多，掌握这几招“搜商”，期末复习能省一半时间。</p>
+                <p class="text-secondary">资源越来越多，掌握这几招"搜商"，期末复习能省一半时间。</p>
 
                 <div class="rule-item">
                     <div class="rule-icon"><i class="fas fa-keyboard"></i></div>
                     <div class="rule-content">
-                        <h3>现在支持短词搜索了！</h3>
-                        <p>为了提升体验，我们升级了底层的分词引擎。现在你不再受限于 3 个字符的门槛，直接搜索 <strong>“C”</strong>、<strong>“高数”</strong>、<strong>“大物”</strong> 等短词也能精准找到资源。
-                        </p>
+                        <h3>短词搜索</h3>
+                        <p>我们升级了底层分词引擎，不再受限于 3 个字符的门槛。直接搜索 <strong>"C"</strong>、<strong>"高数"</strong>、<strong>"大物"</strong>
+                            等短词也能精准找到资源。</p>
                     </div>
                 </div>
 
                 <div class="rule-item">
                     <div class="rule-icon"><i class="fas fa-bullseye"></i></div>
                     <div class="rule-content">
-                        <h3>搜全名准，还是搜简称准？</h3>
-                        <p><strong>普通模式</strong>下，我们优先匹配文件名。所以搜 <strong>“高等数学A”</strong>
-                            肯定比搜“高数A”准，直接就能看到期末真题。别名虽然也在做，但还是大名最稳。</p>
+                        <h3>搜全名更准</h3>
+                        <p><strong>普通模式</strong>下优先匹配文件名。搜 <strong>"高等数学A"</strong>
+                            肯定比搜"高数A"准，直接就能看到期末真题。别名虽然也在做，但还是大名最稳。</p>
                     </div>
                 </div>
 
                 <div class="rule-item">
                     <div class="rule-icon"><i class="fas fa-magic"></i></div>
                     <div class="rule-content">
-                        <h3>AI 搜索是啥黑科技？</h3>
-                        <p>这可不是关键词匹配那么简单。我们接入了 <strong>LLM</strong> 和 <strong>向量数据库</strong>。</p>
-                        <ul
-                            style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
-                            <li><strong>听得懂人话</strong>：你搜“大物”，AI 会自动翻译成“大学物理”；你搜“线代”，它知道是“线性代数”。不用死记硬背课程全名。</li>
-                            <li><strong>猜得透意图</strong>：支持自然语言描述。比如试试搜 <strong>“去年高数期末卷”</strong>，AI
-                                会提取出“高等数学”、“期末”、“试卷”等核心概念，甚至能根据语意找到文件名里不带“去年”但确实是最新的文件。</li>
-                            <li><strong>原理揭秘</strong>：先用大模型把你的口语转化成标准关键词，再通过向量匹配找到内容相关的资源。所以，<strong>放飞自我，直接说人话</strong>，往往搜得更准。
-                            </li>
+                        <h3>AI 搜索</h3>
+                        <p>开启搜索框旁的 <strong>"AI 搜索"</strong> 开关，就能体验语义搜索黑科技。我们接入了 <strong>LLM</strong> 和 <strong>向量数据库</strong>：</p>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
+                            <li><strong>听得懂人话</strong>：你搜"大物"，AI 会自动翻译成"大学物理"；你搜"线代"，它知道是"线性代数"。不用死记硬背课程全名。</li>
+                            <li><strong>猜得透意图</strong>：支持自然语言描述。比如试试搜 <strong>"去年高数期末卷"</strong>，AI
+                                会提取出"高等数学"、"期末"、"试卷"等核心概念，甚至能根据语意找到文件名里不带"去年"但确实是最新的文件。</li>
+                            <li><strong>原理揭秘</strong>：先用大模型把你的口语转化成标准关键词，再通过向量匹配找到内容相关的资源。所以，<strong>放飞自我，直接说人话</strong>，往往搜得更准。</li>
                         </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item">
+                    <div class="rule-icon"><i class="fas fa-filter"></i></div>
+                    <div class="rule-content">
+                        <h3>文件类型筛选</h3>
+                        <p>搜索框下方提供了类型筛选按钮，可以快速过滤结果：<br>
+                            <strong>全部</strong>、<strong>文件夹</strong>、<strong>链接</strong>、<strong>PDF</strong>、<strong>文档</strong>、<strong>图片</strong>、<strong>视频</strong>。找特定格式的资料时特别好用。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item">
+                    <div class="rule-icon"><i class="fas fa-sort"></i></div>
+                    <div class="rule-content">
+                        <h3>排序方式</h3>
+                        <p>搜索结果和文件列表都支持多种排序：<br>
+                            名称 A-Z / Z-A、最新上传、最早上传、大小降序/升序、下载量降序/升序、点赞数降序/升序。找热门资源选"下载量降序"，找最新资料选"最新上传"。</p>
                     </div>
                 </div>
 
                 <div class="rule-item">
                     <div class="rule-icon"><i class="fas fa-code"></i></div>
                     <div class="rule-content">
-                        <h3>高级搜索语法（我是懂哥）</h3>
+                        <h3>高级搜索语法</h3>
                         <p>如果你想更精准地控制搜索结果，可以试试这些布尔运算符：</p>
-                        <ul
-                            style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
                             <li><strong>空格 (AND)</strong>：<code>高等数学 期末真题</code> → 同时包含这两个词的文件</li>
-                            <li><strong>OR (或)</strong>：<code>大学物理 OR 线性代数</code> → 包含任一关键词的文件</li>
                             <li><strong>NOT (排除)</strong>：<code>大学英语 NOT 课后习题</code> → 排除包含"课后习题"的结果</li>
                         </ul>
                         <p style="margin-top: 0.8rem; color: var(--text-secondary);">
                             <i class="fas fa-lightbulb" style="color: var(--warning-color);"></i>
-                            <strong>小贴士</strong>：回到首页，点击搜索框旁边的 <strong>"技巧"</strong> 按钮，可以随时查看这些语法提示，不用死记硬背。
+                            <strong>小贴士</strong>：回到首页，点击搜索框旁边的 <strong>"技巧"</strong> 按钮，可以随时查看这些语法提示。
                         </p>
+                    </div>
+                </div>
+
+                <div class="rule-item">
+                    <div class="rule-icon"><i class="fas fa-search"></i></div>
+                    <div class="rule-content">
+                        <h3>当前视图内搜索</h3>
+                        <p>在文件列表上方有一个 <strong>"在当前视图中搜索"</strong> 的筛选框，输入关键词可以在当前已加载的文件列表中快速过滤，不用重新请求服务器，即时响应。</p>
                     </div>
                 </div>
 

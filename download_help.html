@@ -51,29 +51,44 @@
             <h1 class="section-title text-gradient">下载与预览</h1>
             <div class="content-box">
                 <div class="rule-item">
-                    <div class="rule-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="rule-icon"><i class="fas fa-eye"></i></div>
                     <div class="rule-content">
-                        <h3>下载死活不动 / 报错 403？</h3>
-                        <p><strong>IDM 的锅</strong>：IDM (Internet Download Manager) 有时候抢链接太快，验证没过它就抢跑了。报错时按住
-                            <code>Alt</code> 键强制用浏览器下载，或者干脆把 IDM 关了试试。
-                        </p>
+                        <h3>哪些文件可以在线预览？</h3>
+                        <p>平台支持丰富的在线预览功能，无需下载即可查看：</p>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
+                            <li><strong>PDF</strong>：浏览器原生预览，手机端自动在新标签页打开。</li>
+                            <li><strong>Office 文档</strong>（Word、PPT、Excel）：通过微软 Office Online 服务在线查看，手机端会打开新标签页。</li>
+                            <li><strong>图片</strong>（JPG、PNG、GIF、BMP、WebP、SVG）：直接在页面内展示。</li>
+                            <li><strong>视频</strong>（MP4、WebM、MOV、AVI、MKV）：内置播放器在线播放。</li>
+                            <li><strong>音频</strong>（MP3、WAV、OGG、M4A、FLAC、AAC）：内置播放器在线收听。</li>
+                            <li><strong>代码/文本</strong>（TXT、MD、JS、PY、C、CPP 等）：支持语法高亮显示，Markdown 文件还能渲染预览。</li>
+                        </ul>
                     </div>
                 </div>
 
                 <div class="rule-item">
                     <div class="rule-icon"><i class="fas fa-file-invoice"></i></div>
                     <div class="rule-content">
-                        <h3>为什么有的文件不能预览？</h3>
-                        <p>为了防止你的浏览器直接卡死，我们给预览功能设了个 <strong>300MB</strong> 的上限。那种几百兆的高清视频或者超大 PDF，还是乖乖下载到本地看吧。</p>
+                        <h3>预览大小限制</h3>
+                        <p>为了防止浏览器卡死，预览功能设有大小限制：<br>
+                            普通文件超过 <strong>300MB</strong> 不支持预览，视频/音频文件超过 <strong>300MB</strong> 不支持在线播放，纯文本文件超过 <strong>10MB</strong> 不支持预览。超大文件请直接下载到本地查看。</p>
                     </div>
                 </div>
 
                 <div class="rule-item">
-                    <div class="rule-icon"><i class="fas fa-window-restore"></i></div>
+                    <div class="rule-icon"><i class="fas fa-download"></i></div>
                     <div class="rule-content">
-                        <h3>支持在线看 PPT 吗？</h3>
-                        <p><strong>必须支持！</strong> 我们集成了微软 Office 服务，Word、PPT、Excel 都能在线打开。PDF
-                            在电脑上是原生预览，<strong>手机上会自动在新标签页打开</strong>，方便你缩放查看。</p>
+                        <h3>下载与批量下载</h3>
+                        <p>每个文件都可以单独下载。此外，平台支持 <strong>批量下载</strong>：进入批量选择模式，勾选多个文件后点击"批量下载"，系统会自动打包成 ZIP 一次性下载。下载管理器支持暂停、继续等操作，大文件也不用怕断网。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item">
+                    <div class="rule-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="rule-content">
+                        <h3>下载死活不动 / 报错 403？</h3>
+                        <p><strong>IDM 的锅</strong>：IDM (Internet Download Manager) 有时候抢链接太快，验证没过它就抢跑了。报错时按住
+                            <code>Alt</code> 键强制用浏览器下载，或者干脆把 IDM 关了试试。</p>
                     </div>
                 </div>
 
@@ -82,8 +97,7 @@
                     <div class="rule-content">
                         <h3>加载慢 / 连不上？</h3>
                         <p><strong>只要 Cloudflare 没炸，那就是你的网太拉。</strong></p>
-                        <ul
-                            style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
                             <li><strong>症状</strong>：注册时人机验证一直转圈、文件下载没速度、预览加载失败。</li>
                             <li><strong>解法</strong>：校园网对 Cloudflare
                                 连接经常抽风。请别犹豫，立马<strong>切换手机热点</strong>，或者<strong>使用魔法</strong>。换个网，世界瞬间清爽。</li>
