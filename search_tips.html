@@ -55,18 +55,16 @@
                 <div class="rule-item">
                     <div class="rule-icon"><i class="fas fa-keyboard"></i></div>
                     <div class="rule-content">
-                        <h3>短词搜索</h3>
-                        <p>我们升级了底层分词引擎，不再受限于 3 个字符的门槛。直接搜索 <strong>"C"</strong>、<strong>"高数"</strong>、<strong>"大物"</strong>
-                            等短词也能精准找到资源。</p>
+                        <h3>模糊缩写搜索</h3>
+                        <p>搜索时会自动逐字拆分匹配，所以搜 <strong>"高数"</strong> 能匹配到"高等数学"，搜 <strong>"武理"</strong> 能匹配到"武汉理工大学"，搜 <strong>"大物"</strong> 能匹配到"大学物理"。不用记全名，输入核心字就能找到。</p>
                     </div>
                 </div>
 
                 <div class="rule-item">
                     <div class="rule-icon"><i class="fas fa-bullseye"></i></div>
                     <div class="rule-content">
-                        <h3>搜全名更准</h3>
-                        <p><strong>普通模式</strong>下优先匹配文件名。搜 <strong>"高等数学A"</strong>
-                            肯定比搜"高数A"准，直接就能看到期末真题。别名虽然也在做，但还是大名最稳。</p>
+                        <h3>多词精确搜索</h3>
+                        <p>输入多个词时，结果必须同时包含所有词。比如搜 <strong>"高等数学 期末"</strong>，只会返回同时出现"高等数学"和"期末"的文件。多输几个关键词，结果更精准。</p>
                     </div>
                 </div>
 
@@ -105,15 +103,14 @@
                 <div class="rule-item">
                     <div class="rule-icon"><i class="fas fa-code"></i></div>
                     <div class="rule-content">
-                        <h3>高级搜索语法</h3>
-                        <p>如果你想更精准地控制搜索结果，可以试试这些布尔运算符：</p>
+                        <h3>排除过滤</h3>
+                        <p>想排除某些结果？用 <strong>NOT</strong> 关键词：</p>
                         <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
-                            <li><strong>空格 (AND)</strong>：<code>高等数学 期末真题</code> → 同时包含这两个词的文件</li>
-                            <li><strong>NOT (排除)</strong>：<code>大学英语 NOT 课后习题</code> → 排除包含"课后习题"的结果</li>
+                            <li><code>大学英语 NOT 课后习题</code> → 排除包含"课后习题"的结果</li>
                         </ul>
                         <p style="margin-top: 0.8rem; color: var(--text-secondary);">
                             <i class="fas fa-lightbulb" style="color: var(--warning-color);"></i>
-                            <strong>小贴士</strong>：回到首页，点击搜索框旁边的 <strong>"技巧"</strong> 按钮，可以随时查看这些语法提示。
+                            <strong>小贴士</strong>：回到首页，点击搜索框旁边的 <strong>"技巧"</strong> 按钮，可以随时查看这些提示。
                         </p>
                     </div>
                 </div>
