@@ -140,7 +140,7 @@ async function fetchPendingRequestsCount() {
 async function handleBatchAction(ids, action, refreshCallback, reviewNote = '') {
     const token = localStorage.getItem('authToken');
     const total = ids.length;
-    showNotification(`正在${action === 'approve' ? '批准' : '拒绝'} ${total} 个请求...`, 'info', 0);
+    showNotification(`正在${action === 'approve' ? '批准' : '拒绝'} ${total} 个请求...`, 'info');
     try {
         const response = await fetch(API_ENDPOINTS.adminRequests, {
             method: 'PUT',

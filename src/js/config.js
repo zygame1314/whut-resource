@@ -115,10 +115,9 @@ window.showNotification = function (message, type = 'info') {
     const icon = icons[type] || icons.info;
     notification.innerHTML = `<i class="${icon}" style="margin-right: 0.5rem;"></i>${message}`;
     container.appendChild(notification);
-    setTimeout(() => {
-        notification.style.transform = 'translateX(0)';
-        notification.style.opacity = '1';
-    }, 10);
+    notification.offsetHeight;
+    notification.style.transform = 'translateX(0)';
+    notification.style.opacity = '1';
     const removeNotification = () => {
         notification.style.transform = 'translateX(calc(100% + 20px))';
         notification.style.opacity = '0';

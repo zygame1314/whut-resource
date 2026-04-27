@@ -62,7 +62,7 @@ async function fetchAndRenderHotFolders() {
                     isLongPress = false;
                     pressTimer = setTimeout(() => {
                         isLongPress = true;
-                        showNotification(`完整路径: ${folder.path || '根目录'}`, 'info', 3000);
+                        showNotification(`完整路径: ${folder.path || '根目录'}`, 'info');
                     }, 500);
                 }, { passive: true });
                 li.addEventListener('touchend', () => {
@@ -262,7 +262,7 @@ async function fetchAndRenderRecentUploads(showToast = false) {
                     isLongPress = false;
                     pressTimer = setTimeout(() => {
                         isLongPress = true;
-                        showNotification(`完整路径: ${fullPath}`, 'info', 3000);
+                        showNotification(`完整路径: ${fullPath}`, 'info');
                     }, 500);
                 }, { passive: true });
                 pathChip.addEventListener('touchend', () => {
