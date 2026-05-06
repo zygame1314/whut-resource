@@ -385,7 +385,8 @@ export async function onRequestPost({ request, env }) {
           requireCaptcha: newMaxFail >= 3,
           ssoCaptchaRequired: ssoResult.captchaRequired,
           ssoCaptchaImage: ssoResult.captchaImage,
-          ssoCookies: ssoResult.cookies
+          ssoCookies: ssoResult.cookies,
+          debugSnippet: ssoResult.debug?.bodySnippet
         }), { status: 403, headers: addCorsHeaders() });
       }
       try {
