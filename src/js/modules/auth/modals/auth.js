@@ -69,7 +69,7 @@ function showAuthModal(mode = 'login') {
                             <input type="text" id="sso-captcha-code" class="form-control" placeholder="请输入验证码">
                         </div>
                         <div class="sso-captcha-img-box">
-                            <img id="sso-captcha-img" src="" alt="验证码" title="点击重新获取密码以刷新">
+                            <img id="sso-captcha-img" src="" alt="验证码" title="点击刷新">
                         </div>
                     </div>
                 </div>
@@ -353,7 +353,8 @@ function showAuthModal(mode = 'login') {
                             currentSsoCookies = data.ssoCookies;
                             modal.querySelector('#sso-captcha-code').value = '';
                             modal.querySelector('#sso-captcha-code').focus();
-                            showNotification('请输入智慧理工大系统的验证码以继续', 'info');
+                            const captchaHint = data.error ? `${data.error}，请输入验证码以继续` : '请输入智慧理工大系统的验证码以继续';
+                        showNotification(captchaHint, 'error');
                             return;
                         }
                     }
