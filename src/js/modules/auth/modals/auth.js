@@ -353,8 +353,7 @@ function showAuthModal(mode = 'login') {
                             currentSsoCookies = data.ssoCookies;
                             modal.querySelector('#sso-captcha-code').value = '';
                             modal.querySelector('#sso-captcha-code').focus();
-                            const captchaHint = data.error ? `${data.error}，请输入验证码以继续` : '请输入智慧理工大系统的验证码以继续';
-                        showNotification(captchaHint, 'error');
+                            showNotification(data.error || '请输入验证码以继续', 'error');
                             return;
                         }
                     }
@@ -366,7 +365,7 @@ function showAuthModal(mode = 'login') {
                                 sitekey: HCAPTCHA_SITEKEY
                             });
                         }
-                        showNotification(data.error + ' 请完成人机验证后重试', 'error');
+                        showNotification(data.error, 'error');
                     } else if (needCaptcha && window.hcaptcha && loginCaptchaWidgetId !== null) {
                         hcaptcha.reset(loginCaptchaWidgetId);
                         showNotification(data.error, 'error');
