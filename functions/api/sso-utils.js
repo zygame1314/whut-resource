@@ -302,6 +302,9 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         if (!errorDetail && failureHtml.includes("验证码有误")) {
             errorDetail = "验证码有误，请重新输入";
         }
+        if (!errorDetail && failureHtml.includes('name="lt"')) {
+            errorDetail = "用户名或密码错误，请检查后重试";
+        }
         const res = {
             success: false,
             error: errorDetail || "SSO 登录失败",
@@ -309,7 +312,7 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
                 status: loginResp.status,
                 location: location,
                 cookies: cookieStr,
-                bodySnippet: failureHtml.substring(0, 500)
+                bodySnippet: failureHtml.substring(0, 2000)
             }
         };
         if (failureHtml.includes('id="codeImage"') || failureHtml.includes('/tpass/code')) {
