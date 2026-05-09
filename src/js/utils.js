@@ -208,6 +208,22 @@ function filterByFolderSearch(data, searchTerm) {
         )
     };
 }
+function filterByFileType(data, filter) {
+    if (!filter || filter === 'all') return data;
+    let dirs = data.directories || [];
+    let files = data.files || [];
+    if (filter === 'folder') {
+        files = [];
+    } else {
+        dirs = [];
+        files = files.filter(f => {
+            if (f.isDirectory) return true;
+            if (filter === 'link') return f.is_link === 1 || f.is_link === true;
+            return getFileType(f.name) === filter;
+        });
+    }
+    return { directories: dirs, files: files };
+}
 function filterTreeByKeyword(container, keyword, options = {}) {
     const {
         nodeSelector = '.path-tree-node',

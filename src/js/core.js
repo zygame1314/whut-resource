@@ -396,6 +396,7 @@ function applyLocalSortAndFilter() {
     if (!currentRawData) return;
     let processedData = sortData(currentRawData, currentSortOption);
     processedData = filterByFolderSearch(processedData, currentFolderSearchTerm);
+    processedData = filterByFileType(processedData, currentFilter);
     reRenderWithData(
         processedData,
         isShowingSearchResults,

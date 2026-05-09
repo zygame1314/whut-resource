@@ -178,19 +178,11 @@ document.addEventListener('DOMContentLoaded', () => {
             filterButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentFilter = btn.dataset.filter;
-            if (currentFetchedData) {
-                const aiSearchToggle = document.getElementById('ai-search-toggle');
-                const useAISearch = aiSearchToggle && aiSearchToggle.checked && isShowingSearchResults;
-                renderFileList(
-                    currentPrefix,
-                    currentFetchedData,
-                    isShowingSearchResults,
-                    isShowingSearchResults ? searchInput.value.trim() : '',
-                    currentPaginationData,
-                    useAISearch
-                );
+            currentPage = 1;
+            if (currentRawData) {
+                applyLocalSortAndFilter();
             } else {
-                fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage);
+                fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', 1);
             }
         });
     });
