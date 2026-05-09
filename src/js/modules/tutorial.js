@@ -25,6 +25,33 @@ function startTutorial() {
             ]
         }
     });
+    function fileActionStepHooks(selector) {
+        return {
+            beforeShowPromise() {
+                return new Promise(resolve => {
+                    const el = document.querySelector(selector);
+                    if (el) {
+                        const li = el.closest('li');
+                        const fileActions = el.closest('.file-actions');
+                        if (fileActions) fileActions.classList.add('tutorial-highlight');
+                        if (li) li.classList.add('actions-visible');
+                    }
+                    requestAnimationFrame(() => requestAnimationFrame(resolve));
+                });
+            },
+            when: {
+                hide() {
+                    const el = document.querySelector(selector);
+                    if (el) {
+                        const li = el.closest('li');
+                        const fileActions = el.closest('.file-actions');
+                        if (fileActions) fileActions.classList.remove('tutorial-highlight');
+                        if (li) li.classList.remove('actions-visible');
+                    }
+                }
+            }
+        };
+    }
     let steps = [];
     steps.push({
         id: 'intro',
@@ -42,7 +69,7 @@ function startTutorial() {
             steps.push({
                 id: 'auth',
                 title: '第一步：登录/注册',
-                text: '在移动端，登录、注册、主题切换等功能都收纳在“更多”菜单里了。请使用 @whut.edu.cn 邮箱登录以解锁全部功能！',
+                text: '在移动端，登录、注册、主题切换等功能都收纳在"更多"菜单里了。请使用 @whut.edu.cn 邮箱登录以解锁全部功能！',
                 attachTo: {
                     element: '#mobile-menu-toggle',
                     on: 'left'
@@ -182,11 +209,12 @@ function startTutorial() {
             steps.push({
                 id: 'download',
                 title: '下载文件',
-                text: '点击“下载”按钮，即可将文件保存到你的本地设备。',
+                text: '点击"下载"按钮，即可将文件保存到你的本地设备。',
                 attachTo: {
                     element: '.download-button',
                     on: 'bottom'
-                }
+                },
+                ...fileActionStepHooks('.download-button')
             });
         }
         const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
@@ -204,7 +232,7 @@ function startTutorial() {
         steps.push({
             id: 'selection-mode',
             title: '批量操作',
-            text: '需要同时处理多个文件？点击“批量选择”按钮，即可进入多选模式，进行批量下载、移动或删除。',
+            text: '需要同时处理多个文件？点击"批量选择"按钮，即可进入多选模式，进行批量下载、移动或删除。',
             attachTo: {
                 element: '#selection-mode-btn',
                 on: 'bottom'
@@ -218,7 +246,8 @@ function startTutorial() {
                 attachTo: {
                     element: '.delete-button',
                     on: 'bottom'
-                }
+                },
+                ...fileActionStepHooks('.delete-button')
             });
         }
         if (document.querySelector('.rename-button')) {
@@ -229,7 +258,8 @@ function startTutorial() {
                 attachTo: {
                     element: '.rename-button',
                     on: 'bottom'
-                }
+                },
+                ...fileActionStepHooks('.rename-button')
             });
         }
         steps.push({
@@ -246,6 +276,9 @@ function startTutorial() {
             ]
         });
     }
+    tour.on('cancel', () => {
+        document.querySelectorAll('li.actions-visible').forEach(li => li.classList.remove('actions-visible'));
+    });
     tour.addSteps(steps);
     tour.start();
 }

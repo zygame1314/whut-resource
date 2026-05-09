@@ -613,6 +613,12 @@
     pointer-events: auto;
 }
 
+.file-actions.tutorial-highlight {
+    opacity: 1 !important;
+    transform: translateY(-50%) translateX(0) !important;
+    pointer-events: auto !important;
+}
+
 .upload-section {
     padding: 2rem;
     text-align: center;
