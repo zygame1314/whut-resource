@@ -177,11 +177,10 @@ function showForgotPasswordModal(prefillEmail = '') {
         closeAuthModal(modal, () => showAuthModal('login'));
     };
     let hcaptchaWidgetId;
-    if (window.hcaptcha) {
-        hcaptchaWidgetId = hcaptcha.render('hcaptcha-reset-widget', {
-            sitekey: HCAPTCHA_SITEKEY
-        });
-    }
+    (function renderResetCaptcha() {
+        if (window.hcaptcha) { hcaptchaWidgetId = hcaptcha.render('hcaptcha-reset-widget', { sitekey: HCAPTCHA_SITEKEY }); }
+        else { setTimeout(renderResetCaptcha, 200); }
+    })();
     const step1Form = modal.querySelector('#reset-form-step1');
     const step1Div = modal.querySelector('#reset-step-1');
     const step2Div = modal.querySelector('#reset-step-2');
@@ -464,11 +463,10 @@ function showChangeEmailModal() {
         closeAuthModal(modal);
     };
     let hcaptchaWidgetId;
-    if (window.hcaptcha) {
-        hcaptchaWidgetId = hcaptcha.render('hcaptcha-change-email-widget', {
-            sitekey: HCAPTCHA_SITEKEY
-        });
-    }
+    (function renderChangeEmailCaptcha() {
+        if (window.hcaptcha) { hcaptchaWidgetId = hcaptcha.render('hcaptcha-change-email-widget', { sitekey: HCAPTCHA_SITEKEY }); }
+        else { setTimeout(renderChangeEmailCaptcha, 200); }
+    })();
     const step1Form = modal.querySelector('#change-email-form-step1');
     const step1Div = modal.querySelector('#change-email-step-1');
     const step2Div = modal.querySelector('#change-email-step-2');

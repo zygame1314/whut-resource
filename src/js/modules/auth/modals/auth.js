@@ -406,10 +406,12 @@ function showAuthModal(mode = 'login') {
                     const needCaptcha = data.requireCaptcha;
                     if (needCaptcha && captchaContainer.style.display === 'none') {
                         captchaContainer.style.display = 'block';
-                        if (window.hcaptcha && loginCaptchaWidgetId === null) {
-                            loginCaptchaWidgetId = hcaptcha.render('hcaptcha-login-widget', {
-                                sitekey: HCAPTCHA_SITEKEY
-                            });
+                        if (loginCaptchaWidgetId === null) {
+                            const tryRender = () => {
+                                if (window.hcaptcha) { loginCaptchaWidgetId = hcaptcha.render('hcaptcha-login-widget', { sitekey: HCAPTCHA_SITEKEY }); }
+                                else { setTimeout(tryRender, 200); }
+                            };
+                            tryRender();
                         }
                         showNotification(data.error, 'error');
                     } else if (needCaptcha && window.hcaptcha && loginCaptchaWidgetId !== null) {
@@ -493,11 +495,14 @@ function showAuthModal(mode = 'login') {
         }
     } else {
         let hcaptchaWidgetId;
-        if (window.hcaptcha) {
-            hcaptchaWidgetId = hcaptcha.render('hcaptcha-widget', {
-                sitekey: HCAPTCHA_SITEKEY
-            });
+        function renderHcaptcha() {
+            if (window.hcaptcha) {
+                hcaptchaWidgetId = hcaptcha.render('hcaptcha-widget', { sitekey: HCAPTCHA_SITEKEY });
+            } else {
+                setTimeout(renderHcaptcha, 200);
+            }
         }
+        renderHcaptcha();
         const step1Form = modal.querySelector('#register-form-step1');
         const step1Div = modal.querySelector('#register-step-1');
         const step2Div = modal.querySelector('#register-step-2');
@@ -587,11 +592,21 @@ function showAuthModal(mode = 'login') {
                             action: 'check-register-status',
                             payload: { emailPrefix: currentEmailPrefix },
                             mainCountdownTimer: countdownTimer,
-                            onSuccess: () => {
+                            onSuccess: async () => {
                                 step2Div.style.display = 'none';
                                 step3Div.style.display = 'block';
                                 showNotification('账户激活成功！', 'success');
-                                if (window.PublicKeyCredential) {
+                                try {
+                                    const loginRes = await fetch(AUTH_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', email: `${currentEmailPrefix}@whut.edu.cn`, password }) });
+                                    const loginData = await loginRes.json();
+                                    if (loginData.success) {
+                                        token = loginData.token;
+                                        localStorage.setItem('authToken', token);
+                                        currentUser = loginData.user;
+                                        updateAuthUI();
+                                    }
+                                } catch (_) {}
+                                if (token && window.PublicKeyCredential) {
                                     PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(ok => {
                                         if (ok) {
                                             const prompt = modal.querySelector('#passkey-setup-prompt');
