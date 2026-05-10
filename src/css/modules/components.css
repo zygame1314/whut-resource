@@ -2694,7 +2694,7 @@
 @media (max-width: 480px) {
     .auth-box {
         padding: 2.5rem 1.5rem 2rem 1.5rem;
-        max-height: 92vh;
+        max-height: 80vh;
         width: 94%;
     }
 
