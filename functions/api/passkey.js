@@ -1,12 +1,10 @@
 import { signToken, verifyToken, addCorsHeaders } from '../utils.js';
-
 function bufferToBase64url(buffer) {
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
-
 function base64urlToBuffer(str) {
     const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
     const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
@@ -15,7 +13,6 @@ function base64urlToBuffer(str) {
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     return bytes.buffer;
 }
-
 function decodeCBOR(buffer) {
     const data = new Uint8Array(buffer);
     let offset = 0;
@@ -62,7 +59,6 @@ function decodeCBOR(buffer) {
     }
     return read();
 }
-
 function derToRaw(derBuffer) {
     const bytes = new Uint8Array(derBuffer);
     let i = 0;
@@ -81,7 +77,6 @@ function derToRaw(derBuffer) {
     raw.set(s, 64 - s.length);
     return raw.buffer;
 }
-
 function parseAuthData(buffer) {
     const data = new Uint8Array(buffer);
     let offset = 0;
@@ -99,13 +94,11 @@ function parseAuthData(buffer) {
     }
     return { rpIdHash, flags, userPresent: !!(flags & 0x01), userVerified: !!(flags & 0x04), signCount, credentialId, publicKeyObj };
 }
-
 function generateChallenge() {
     const bytes = new Uint8Array(32);
     crypto.getRandomValues(bytes);
     return bufferToBase64url(bytes.buffer);
 }
-
 export async function onRequestPost({ request, env }) {
     try {
         const body = await request.json();
@@ -116,7 +109,6 @@ export async function onRequestPost({ request, env }) {
         const rpId = env.WEBAUTHN_RP_ID || 'resource.haoli.site';
         const rpName = env.WEBAUTHN_RP_NAME || 'WHUT Resource';
         const secret = env.JWT_SECRET || 'secret';
-
         const authRequired = ['register-options', 'register-verify', 'list', 'delete', 'rename'];
         let userId = null;
         if (authRequired.includes(action)) {
@@ -130,7 +122,6 @@ export async function onRequestPost({ request, env }) {
             }
             userId = payload.id;
         }
-
         if (action === 'register-options') {
             const user = await env.DB.prepare('SELECT id, email, nickname FROM users WHERE id = ?').bind(userId).first();
             if (!user) return new Response(JSON.stringify({ success: false, error: '用户不存在' }), { status: 404, headers: addCorsHeaders() });
@@ -150,7 +141,6 @@ export async function onRequestPost({ request, env }) {
                 challengeToken
             }), { status: 200, headers: addCorsHeaders() });
         }
-
         if (action === 'register-verify') {
             const { challengeToken, credential, deviceName } = body;
             if (!challengeToken || !credential) return new Response(JSON.stringify({ success: false, error: '参数不完整' }), { status: 400, headers: addCorsHeaders() });
@@ -180,7 +170,6 @@ export async function onRequestPost({ request, env }) {
             }
             return new Response(JSON.stringify({ success: true, message: '通行密钥设置成功' }), { status: 200, headers: addCorsHeaders() });
         }
-
         if (action === 'login-options') {
             const challenge = generateChallenge();
             const challengeToken = await signToken({ challenge, type: 'login', exp: Date.now() + 300000 }, secret);
@@ -190,7 +179,6 @@ export async function onRequestPost({ request, env }) {
                 challengeToken
             }), { status: 200, headers: addCorsHeaders() });
         }
-
         if (action === 'login-verify') {
             const { challengeToken, credential } = body;
             if (!challengeToken || !credential) return new Response(JSON.stringify({ success: false, error: '参数不完整' }), { status: 400, headers: addCorsHeaders() });
@@ -206,15 +194,12 @@ export async function onRequestPost({ request, env }) {
                 'SELECT p.*, u.id as uid, u.email, u.nickname, u.role, u.school_id, u.quota_limit, u.quota_used, u.last_download_date FROM user_passkeys p JOIN users u ON p.user_id = u.id WHERE p.credential_id = ?'
             ).bind(credential.id).first();
             if (!passkey) return new Response(JSON.stringify({ success: false, error: '未找到该通行密钥' }), { status: 404, headers: addCorsHeaders() });
-
             const authDataBytes = new Uint8Array(base64urlToBuffer(credential.response.authenticatorData));
             const authData = parseAuthData(credential.response.authenticatorData);
-
             const expectedRpIdHash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rpId)));
             if (!authData.rpIdHash.every((v, i) => v === expectedRpIdHash[i])) {
                 return new Response(JSON.stringify({ success: false, error: 'RP ID 不匹配' }), { status: 400, headers: addCorsHeaders() });
             }
-
             const [xB64, yB64] = passkey.public_key.split('.');
             const xBytes = new Uint8Array(base64urlToBuffer(xB64));
             const yBytes = new Uint8Array(base64urlToBuffer(yB64));
@@ -223,57 +208,49 @@ export async function onRequestPost({ request, env }) {
             uncompressed.set(xBytes, 1);
             uncompressed.set(yBytes, 33);
             const cryptoKey = await crypto.subtle.importKey('raw', uncompressed.buffer, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-
             const clientDataHash = new Uint8Array(await crypto.subtle.digest('SHA-256', base64urlToBuffer(credential.response.clientDataJSON)));
             const signedData = new Uint8Array(authDataBytes.length + clientDataHash.length);
             signedData.set(authDataBytes, 0);
             signedData.set(clientDataHash, authDataBytes.length);
-
             const rawSig = derToRaw(base64urlToBuffer(credential.response.signature));
             const valid = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, cryptoKey, rawSig, signedData.buffer);
             if (!valid) return new Response(JSON.stringify({ success: false, error: '签名验证失败' }), { status: 400, headers: addCorsHeaders() });
-
             await env.DB.prepare('UPDATE user_passkeys SET sign_count = MAX(sign_count, ?), last_used_at = CURRENT_TIMESTAMP WHERE credential_id = ?')
                 .bind(authData.signCount, credential.id).run();
-
             const authToken = await signToken({ id: passkey.uid, email: passkey.email, role: passkey.role, exp: Date.now() + 86400000 * 7 }, secret);
             const today = new Date().toISOString().split('T')[0];
             const quota_used = passkey.last_download_date !== today ? 0 : passkey.quota_used;
-
             return new Response(JSON.stringify({
                 success: true, token: authToken,
                 user: { email: passkey.email, nickname: passkey.nickname, role: passkey.role, school_id: passkey.school_id, quota_limit: passkey.quota_limit, quota_used, quota_remaining: passkey.quota_limit - quota_used }
             }), { status: 200, headers: addCorsHeaders() });
         }
-
         if (action === 'list') {
             const passkeys = await env.DB.prepare('SELECT id, device_name, sign_count, created_at, last_used_at FROM user_passkeys WHERE user_id = ? ORDER BY created_at DESC').bind(userId).all();
             return new Response(JSON.stringify({ success: true, passkeys: passkeys.results || [] }), { status: 200, headers: addCorsHeaders() });
         }
-
         if (action === 'delete') {
             const { passkeyId } = body;
             if (!passkeyId) return new Response(JSON.stringify({ success: false, error: '缺少 passkeyId' }), { status: 400, headers: addCorsHeaders() });
             const result = await env.DB.prepare('DELETE FROM user_passkeys WHERE id = ? AND user_id = ?').bind(passkeyId, userId).run();
-            return new Response(JSON.stringify(result.changes > 0 ? { success: true, message: '已删除' } : { success: false, error: '未找到' }), { status: result.changes > 0 ? 200 : 404, headers: addCorsHeaders() });
+            const deleted = result.success && (result.meta?.changes || 0) > 0;
+            return new Response(JSON.stringify(deleted ? { success: true, message: '已删除' } : { success: false, error: '未找到' }), { status: deleted ? 200 : 404, headers: addCorsHeaders() });
         }
-
         if (action === 'rename') {
             const { passkeyId, newName } = body;
             if (!passkeyId) return new Response(JSON.stringify({ success: false, error: '缺少 passkeyId' }), { status: 400, headers: addCorsHeaders() });
             if (!newName || !newName.trim()) return new Response(JSON.stringify({ success: false, error: '名称不能为空' }), { status: 400, headers: addCorsHeaders() });
             if (newName.length > 50) return new Response(JSON.stringify({ success: false, error: '名称过长（最多50字符）' }), { status: 400, headers: addCorsHeaders() });
             const result = await env.DB.prepare('UPDATE user_passkeys SET device_name = ? WHERE id = ? AND user_id = ?').bind(newName.trim(), passkeyId, userId).run();
-            return new Response(JSON.stringify(result.changes > 0 ? { success: true, message: '已更新' } : { success: false, error: '未找到' }), { status: result.changes > 0 ? 200 : 404, headers: addCorsHeaders() });
+            const updated = result.success && (result.meta?.changes || 0) > 0;
+            return new Response(JSON.stringify(updated ? { success: true, message: '已更新' } : { success: false, error: '未找到' }), { status: updated ? 200 : 404, headers: addCorsHeaders() });
         }
-
         return new Response(JSON.stringify({ success: false, error: '无效操作' }), { status: 400, headers: addCorsHeaders() });
     } catch (e) {
         console.error('[Passkey API] error:', e);
         return new Response(JSON.stringify({ success: false, error: e.message }), { status: 500, headers: addCorsHeaders() });
     }
 }
-
 export async function onRequestOptions() {
     return new Response(null, { status: 204, headers: addCorsHeaders() });
 }
