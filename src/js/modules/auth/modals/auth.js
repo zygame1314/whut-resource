@@ -85,7 +85,7 @@ function showAuthModal(mode = 'login') {
             ` : ''}
             ${!isSso ? `
             <div style="margin-top:15px">
-                <button type="button" id="passkey-login-btn" class="secondary-btn full-width" style="display:none;">
+                <button type="button" id="passkey-login-btn" class="secondary-btn full-width" style="display:none; margin-bottom: 10px;">
                     <i class="fas fa-fingerprint"></i> 使用通行密钥登录
                 </button>
                 <button type="button" id="switch-sso" class="secondary-btn full-width sso-entry-btn">
@@ -214,9 +214,9 @@ function showAuthModal(mode = 'login') {
                         <i class="fas fa-check-circle"></i>
                         <h3>注册成功！</h3>
                         <p>你的账户已激活，现在可以登录了。</p>
-                        <div id="passkey-setup-prompt" style="display:none; margin: 1rem 0; padding: 1rem; background: var(--bg-secondary, #f8f9fa); border-radius: 8px; border: 1px solid var(--border-color, #e0e0e0);">
-                            <p style="margin:0 0 0.5rem;"><i class="fas fa-fingerprint" style="color: var(--primary-color, #4a90d9);"></i> <strong>设置通行密钥</strong></p>
-                            <p style="margin:0 0 0.8rem; font-size:0.9rem; color: var(--text-secondary, #666);">使用指纹、面容或设备密码快速登录，无需每次输入密码。</p>
+                        <div id="passkey-setup-prompt" style="display:none; margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+                            <p style="margin:0 0 0.5rem;"><i class="fas fa-fingerprint" style="color: var(--primary-color);"></i> <strong>设置通行密钥</strong></p>
+                            <p style="margin:0 0 0.8rem; font-size:0.9rem; color: var(--text-secondary);">使用指纹、面容或设备密码快速登录，无需每次输入密码。</p>
                             <button type="button" id="setup-passkey-btn" class="secondary-btn full-width">
                                 <i class="fas fa-fingerprint"></i> 立即设置
                             </button>
@@ -339,7 +339,7 @@ function showAuthModal(mode = 'login') {
                                 </div>
                                 <div class="welcome-actions">
                                     <button id="go-activate-btn" class="primary-btn full-width">立即去激活/设密</button>
-                                    <button id="setup-passkey-sso-btn" class="secondary-btn full-width" style="display:none;"><i class="fas fa-fingerprint"></i> 设置通行密钥（推荐）</button>
+                                    <button id="setup-passkey-sso-btn" class="secondary-btn full-width" style="display:none;"><i class="fas fa-fingerprint"></i> 设置通行密钥</button>
                                     <button id="skip-welcome-btn" class="secondary-btn full-width">暂不激活，直接进入</button>
                                 </div>
                             </div>
@@ -382,7 +382,7 @@ function showAuthModal(mode = 'login') {
                                 } catch (e) {
                                     if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') showNotification('设置失败: ' + e.message, 'error');
                                     ssoPasskeyBtn.disabled = false;
-                                    ssoPasskeyBtn.innerHTML = '<i class="fas fa-fingerprint"></i> 设置通行密钥（推荐）';
+                                    ssoPasskeyBtn.innerHTML = '<i class="fas fa-fingerprint"></i> 设置通行密钥';
                                 }
                             };
                         }

@@ -399,5 +399,4 @@ CREATE TABLE IF NOT EXISTS user_passkeys (
     last_used_at DATETIME,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_passkeys_user ON user_passkeys(user_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_passkeys_cred ON user_passkeys(credential_id);
+CREATE INDEX IF NOT EXISTS idx_passkeys_user ON user_passkeys(user_id, created_at DESC);
