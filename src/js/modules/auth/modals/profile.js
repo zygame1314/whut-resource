@@ -148,9 +148,9 @@ function showForgotPasswordModal(prefillEmail = '') {
                 <div class="success-display">
                     <i class="fas fa-check-circle"></i>
                     <h3>密码重置成功！</h3>
-                    <p>密码已更新，可以使用新密码登录了。</p>
+                    <p>密码已更新，已自动登录。</p>
                     <button type="button" id="go-login-after-reset-btn" class="primary-btn full-width">
-                        <i class="fas fa-sign-in-alt"></i> 去登录
+                        <i class="fas fa-home"></i> 进入首页
                     </button>
                 </div>
             </div>
@@ -188,6 +188,7 @@ function showForgotPasswordModal(prefillEmail = '') {
     const backBtn = modal.querySelector('#back-to-reset-step1');
     const goLoginBtn = modal.querySelector('#go-login-after-reset-btn');
     let currentEmail = '';
+    let currentNewPassword = '';
     step1Form.onsubmit = async (e) => {
         e.preventDefault();
         const email = document.getElementById('reset-email').value.trim();
@@ -231,6 +232,7 @@ function showForgotPasswordModal(prefillEmail = '') {
             const data = await res.json();
             if (data.success) {
                 currentEmail = email;
+                currentNewPassword = newPassword;
                 step1Div.style.display = 'none';
                 step2Div.style.display = 'block';
                 modal.querySelector('#display-reset-code').textContent = data.verifyCode;
@@ -263,10 +265,23 @@ function showForgotPasswordModal(prefillEmail = '') {
                         action: 'check-reset-status',
                         payload: { email: currentEmail },
                         mainCountdownTimer: countdownTimer,
-                        onSuccess: () => {
+                        onSuccess: async () => {
                             step2Div.style.display = 'none';
                             step3Div.style.display = 'block';
                             showNotification('密码重置成功！', 'success');
+                            try {
+                                const loginRes = await fetch(AUTH_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', email: currentEmail, password: currentNewPassword }) });
+                                const loginData = await loginRes.json();
+                                if (loginData.success) {
+                                    token = loginData.token;
+                                    localStorage.setItem('authToken', token);
+                                    currentUser = loginData.user;
+                                    window.currentUser = currentUser;
+                                    updateAuthUI();
+                                    document.dispatchEvent(new Event('authSuccess'));
+                                    if (window.releaseRequests) window.releaseRequests(true);
+                                }
+                            } catch (_) {}
                         },
                         onExpired: () => {
                             modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请重新获取';
@@ -305,7 +320,7 @@ function showForgotPasswordModal(prefillEmail = '') {
         }
     };
     goLoginBtn.onclick = () => {
-        closeAuthModal(modal, () => showAuthModal('login'));
+        closeAuthModal(modal, () => window.location.reload());
     };
 }
 function showChangePasswordModal() {

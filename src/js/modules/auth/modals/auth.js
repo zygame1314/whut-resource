@@ -222,7 +222,7 @@ function showAuthModal(mode = 'login') {
                             </button>
                         </div>
                         <button type="button" id="go-login-btn" class="primary-btn full-width">
-                            <i class="fas fa-sign-in-alt"></i> 去登录
+                            <i class="fas fa-home"></i> 进入首页
                         </button>
                     </div>
                 </div>
@@ -603,7 +603,10 @@ function showAuthModal(mode = 'login') {
                                         token = loginData.token;
                                         localStorage.setItem('authToken', token);
                                         currentUser = loginData.user;
+                                        window.currentUser = currentUser;
                                         updateAuthUI();
+                                        document.dispatchEvent(new Event('authSuccess'));
+                                        if (window.releaseRequests) window.releaseRequests(true);
                                     }
                                 } catch (_) {}
                                 if (token && window.PublicKeyCredential) {
@@ -652,7 +655,7 @@ function showAuthModal(mode = 'login') {
             }
         };
         goLoginBtn.onclick = () => {
-            closeAuthModal(modal, () => showAuthModal('login'));
+            closeAuthModal(modal, () => window.location.reload());
         };
         const setupPasskeyBtn = modal.querySelector('#setup-passkey-btn');
         if (setupPasskeyBtn) {
