@@ -122,3 +122,50 @@ function closeAuthModal(modal, onAfterRemove) {
     modal.addEventListener('animationend', removeModal, { once: true });
     setTimeout(removeModal, 350);
 }
+function getDeviceName() {
+    const ua = navigator.userAgent;
+    const platform = navigator.platform || '';
+    let device = '';
+    const iphoneMatch = ua.match(/iPhone OS (\d+)[_.](\d+)/);
+    if (iphoneMatch) { device = `iPhone (iOS ${iphoneMatch[1]}.${iphoneMatch[2]})`; }
+    const ipadMatch = ua.match(/iPad.*OS (\d+)[_.](\d+)/);
+    if (ipadMatch) { device = `iPad (iPadOS ${ipadMatch[1]}.${ipadMatch[2]})`; }
+    if (!device) {
+        const miMatch = ua.match(/Redmi\s?([^;)/]+)/i) || ua.match(/Mi\s?(\d+[^;)/]*)/i) || ua.match(/POCO\s?([^;)/]+)/i);
+        const samsungMatch = ua.match(/SM-[A-Z0-9]+/i) || ua.match(/Galaxy\s?([^;)/]+)/i);
+        const huaweiMatch = ua.match(/HUAWEI\s?([^;)/]+)/i) || ua.match(/(?:HW-)?(?:ALP|BLA|EML|LYA|MAR|PCT|VOG|WAS|LIO|OCE|NOH|NOP|ABR)-[A-Z0-9]+/i);
+        const honorMatch = ua.match(/HONOR\s?([^;)/]+)/i);
+        const oppoMatch = ua.match(/(?:OPPO|PDCM)\s?([^;)/]+)/i) || ua.match(/PG[A-Z]{2}\d+/i);
+        const vivoMatch = ua.match(/vivo\s?([^;)/]+)/i) || ua.match(/V\d{4}[A-Z]?/i);
+        const oneplusMatch = ua.match(/(?:ONEPLUS|KB)\s?([^;)/]+)/i);
+        const pixelMatch = ua.match(/Pixel\s?([^;)/]+)/i);
+        const androidMatch = ua.match(/Android\s?(\d+[\.\d]*)/i);
+        const androidVer = androidMatch ? androidMatch[1] : '';
+        if (miMatch) device = `小米 ${miMatch[1] ? miMatch[1].trim() : ''}`;
+        else if (samsungMatch) device = `三星 ${samsungMatch[0]}`;
+        else if (huaweiMatch) device = `华为 ${huaweiMatch[1] ? huaweiMatch[1].trim() : huaweiMatch[0]}`;
+        else if (honorMatch) device = `荣耀 ${honorMatch[1] ? honorMatch[1].trim() : ''}`;
+        else if (oneplusMatch) device = `一加 ${oneplusMatch[1] ? oneplusMatch[1].trim() : ''}`;
+        else if (oppoMatch) device = `OPPO ${oppoMatch[1] ? oppoMatch[1].trim() : ''}`;
+        else if (vivoMatch) device = `vivo ${vivoMatch[1] ? vivoMatch[1].trim() : ''}`;
+        else if (pixelMatch) device = `Pixel ${pixelMatch[1]}`;
+        else if (androidVer) device = `Android ${androidVer}`;
+    }
+    if (!device) {
+        const macMatch = ua.match(/Mac OS X (\d+)[_.](\d+)/);
+        if (macMatch) device = `Mac (macOS ${macMatch[1]}.${macMatch[2]})`;
+    }
+    if (!device && /Windows/i.test(ua)) {
+        const winVer = ua.match(/Windows NT (\d+\.\d+)/);
+        const verMap = { '10.0': '10/11', '6.3': '8.1', '6.2': '8', '6.1': '7' };
+        device = `Windows ${winVer ? (verMap[winVer[1]] || winVer[1]) : ''}`;
+    }
+    if (!device) device = platform || '未知设备';
+    let browser = '';
+    if (/Edg\//i.test(ua)) browser = 'Edge';
+    else if (/OPR\//i.test(ua) || /Opera/i.test(ua)) browser = 'Opera';
+    else if (/Chrome\//i.test(ua) && !/Edg/i.test(ua)) browser = 'Chrome';
+    else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+    else if (/Safari\//i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+    return browser ? `${device} · ${browser}` : device;
+}
