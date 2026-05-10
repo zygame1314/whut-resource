@@ -387,3 +387,17 @@ CREATE TABLE IF NOT EXISTS vector_sync_failures (
 
 CREATE INDEX IF NOT EXISTS idx_vector_sync_unresolved ON vector_sync_failures(resolved, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vector_sync_file_id ON vector_sync_failures(file_id, resolved);
+
+CREATE TABLE IF NOT EXISTS user_passkeys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    credential_id TEXT UNIQUE NOT NULL,
+    public_key TEXT NOT NULL,
+    sign_count INTEGER DEFAULT 0,
+    device_name TEXT DEFAULT 'Passkey',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_used_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_passkeys_user ON user_passkeys(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_passkeys_cred ON user_passkeys(credential_id);

@@ -578,3 +578,110 @@ function showChangeEmailModal() {
         closeAuthModal(modal, () => showAuthModal('login'));
     };
 }
+function showPasskeyManageModal() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.innerHTML = `
+        <div class="auth-box">
+            <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+            <h2 class="auth-title"><i class="fas fa-fingerprint"></i> 通行密钥管理</h2>
+            <div id="passkey-list-container" style="min-height:100px;">
+                <div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>
+            </div>
+            <div style="margin-top:1rem; border-top: 1px dashed var(--border-color); padding-top: 1rem;">
+                <button type="button" id="add-passkey-btn" class="primary-btn full-width"><i class="fas fa-plus"></i> 添加新通行密钥</button>
+            </div>
+            <p class="auth-footer" style="font-size:0.85rem; margin-top:0.8rem;">
+                <i class="fas fa-info-circle"></i> 通行密钥支持指纹、面容、YubiKey 等方式登录
+            </p>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#close-modal').onclick = () => closeAuthModal(modal);
+
+    async function loadPasskeys() {
+        const container = modal.querySelector('#passkey-list-container');
+        try {
+            const res = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'list' }) });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error);
+            const passkeys = data.passkeys || [];
+            if (passkeys.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-secondary);"><i class="fas fa-key" style="font-size:2rem;margin-bottom:0.5rem;display:block;"></i>暂无通行密钥<br><small>添加一个即可使用指纹/面容快速登录</small></div>';
+                return;
+            }
+            container.innerHTML = passkeys.map(pk => `
+                <div class="passkey-item" data-id="${pk.id}" style="display:flex;align-items:center;justify-content:space-between;padding:0.8rem;border:1px solid var(--border-color);border-radius:8px;margin-bottom:0.5rem;">
+                    <div style="flex:1;">
+                        <div style="font-weight:600;"><i class="fas fa-key" style="color:var(--primary-color);margin-right:0.3rem;"></i> <span class="pk-name">${escapeHtml(pk.device_name)}</span></div>
+                        <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:0.2rem;">
+                            创建: ${formatDateLocal(pk.created_at)}${pk.last_used_at ? ' · 最后使用: ' + formatDateLocal(pk.last_used_at) : ''}
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:0.3rem;margin-left:0.5rem;">
+                        <button class="icon-btn pk-rename-btn" title="重命名" data-id="${pk.id}" data-name="${escapeHtml(pk.device_name)}"><i class="fas fa-pen"></i></button>
+                        <button class="icon-btn pk-delete-btn" title="删除" data-id="${pk.id}" style="color:var(--color-error,#e74c3c);"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+            container.querySelectorAll('.pk-rename-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    const id = btn.dataset.id;
+                    const oldName = btn.dataset.name;
+                    const newName = prompt('输入新名称:', oldName);
+                    if (!newName || newName.trim() === oldName) return;
+                    const r = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'rename', passkeyId: parseInt(id), newName: newName.trim() }) });
+                    const d = await r.json();
+                    if (d.success) { showNotification('已重命名', 'success'); loadPasskeys(); }
+                    else showNotification(d.error || '重命名失败', 'error');
+                };
+            });
+            container.querySelectorAll('.pk-delete-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    if (!confirm('确定删除此通行密钥？删除后将无法使用该密钥登录。')) return;
+                    const id = btn.dataset.id;
+                    const r = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'delete', passkeyId: parseInt(id) }) });
+                    const d = await r.json();
+                    if (d.success) { showNotification('已删除', 'success'); loadPasskeys(); }
+                    else showNotification(d.error || '删除失败', 'error');
+                };
+            });
+        } catch (e) {
+            container.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--color-error);">加载失败: ${e.message}</div>`;
+        }
+    }
+
+    loadPasskeys();
+
+    modal.querySelector('#add-passkey-btn').onclick = async () => {
+        const btn = modal.querySelector('#add-passkey-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 请验证身份...';
+        try {
+            const b64ToAb = (s) => { const b = atob(s.replace(/-/g,'+').replace(/_/g,'/')); const a = new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; };
+            const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+            const optRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-options' }) });
+            const optData = await optRes.json();
+            if (!optData.success) throw new Error(optData.error);
+            const opts = optData.options;
+            const cred = await navigator.credentials.create({ publicKey: {
+                rp: opts.rp,
+                user: { id: new Uint8Array(b64ToAb(opts.user.id)), name: opts.user.name, displayName: opts.user.displayName },
+                challenge: new Uint8Array(b64ToAb(opts.challenge)),
+                pubKeyCredParams: opts.pubKeyCredParams,
+                authenticatorSelection: opts.authenticatorSelection,
+                timeout: opts.timeout,
+                attestation: opts.attestation
+            }});
+            const verifyRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-verify', challengeToken: optData.challengeToken, credential: { id: cred.id, rawId: abToB64(cred.rawId), response: { attestationObject: abToB64(cred.response.attestationObject), clientDataJSON: abToB64(cred.response.clientDataJSON) }, type: cred.type }, deviceName: navigator.userAgent.includes('iPhone') ? 'iPhone' : navigator.userAgent.includes('Android') ? 'Android 设备' : '浏览器通行密钥' }) });
+            const verifyData = await verifyRes.json();
+            if (verifyData.success) { showNotification('通行密钥添加成功！', 'success'); loadPasskeys(); }
+            else throw new Error(verifyData.error);
+        } catch (e) {
+            if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') showNotification('添加失败: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plus"></i> 添加新通行密钥';
+        }
+    };
+}

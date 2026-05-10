@@ -85,6 +85,9 @@ function showAuthModal(mode = 'login') {
             ` : ''}
             ${!isSso ? `
             <div style="margin-top:15px">
+                <button type="button" id="passkey-login-btn" class="secondary-btn full-width" style="display:none;">
+                    <i class="fas fa-fingerprint"></i> 使用通行密钥登录
+                </button>
                 <button type="button" id="switch-sso" class="secondary-btn full-width sso-entry-btn">
                     <i class="fas fa-university"></i> 直接使用智慧理工大登录
                 </button>
@@ -211,6 +214,13 @@ function showAuthModal(mode = 'login') {
                         <i class="fas fa-check-circle"></i>
                         <h3>注册成功！</h3>
                         <p>你的账户已激活，现在可以登录了。</p>
+                        <div id="passkey-setup-prompt" style="display:none; margin: 1rem 0; padding: 1rem; background: var(--bg-secondary, #f8f9fa); border-radius: 8px; border: 1px solid var(--border-color, #e0e0e0);">
+                            <p style="margin:0 0 0.5rem;"><i class="fas fa-fingerprint" style="color: var(--primary-color, #4a90d9);"></i> <strong>设置通行密钥</strong></p>
+                            <p style="margin:0 0 0.8rem; font-size:0.9rem; color: var(--text-secondary, #666);">使用指纹、面容或设备密码快速登录，无需每次输入密码。</p>
+                            <button type="button" id="setup-passkey-btn" class="secondary-btn full-width">
+                                <i class="fas fa-fingerprint"></i> 立即设置
+                            </button>
+                        </div>
                         <button type="button" id="go-login-btn" class="primary-btn full-width">
                             <i class="fas fa-sign-in-alt"></i> 去登录
                         </button>
@@ -329,6 +339,7 @@ function showAuthModal(mode = 'login') {
                                 </div>
                                 <div class="welcome-actions">
                                     <button id="go-activate-btn" class="primary-btn full-width">立即去激活/设密</button>
+                                    <button id="setup-passkey-sso-btn" class="secondary-btn full-width" style="display:none;"><i class="fas fa-fingerprint"></i> 设置通行密钥（推荐）</button>
                                     <button id="skip-welcome-btn" class="secondary-btn full-width">暂不激活，直接进入</button>
                                 </div>
                             </div>
@@ -340,6 +351,41 @@ function showAuthModal(mode = 'login') {
                         welcomeModal.querySelector('#go-activate-btn').onclick = () => {
                             closeAuthModal(welcomeModal, () => showForgotPasswordModal(currentUser.email));
                         };
+                        const ssoPasskeyBtn = welcomeModal.querySelector('#setup-passkey-sso-btn');
+                        if (ssoPasskeyBtn && window.PublicKeyCredential) {
+                            PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(ok => {
+                                if (ok) ssoPasskeyBtn.style.display = '';
+                            });
+                            ssoPasskeyBtn.onclick = async () => {
+                                ssoPasskeyBtn.disabled = true;
+                                ssoPasskeyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 设置中...';
+                                try {
+                                    const b64ToAb = (s) => { const b = atob(s.replace(/-/g,'+').replace(/_/g,'/')); const a = new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; };
+                                    const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+                                    const optRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-options' }) });
+                                    const optData = await optRes.json();
+                                    if (!optData.success) throw new Error(optData.error);
+                                    const opts = optData.options;
+                                    const cred = await navigator.credentials.create({ publicKey: {
+                                        rp: opts.rp,
+                                        user: { id: new Uint8Array(b64ToAb(opts.user.id)), name: opts.user.name, displayName: opts.user.displayName },
+                                        challenge: new Uint8Array(b64ToAb(opts.challenge)),
+                                        pubKeyCredParams: opts.pubKeyCredParams,
+                                        authenticatorSelection: opts.authenticatorSelection,
+                                        timeout: opts.timeout,
+                                        attestation: opts.attestation
+                                    }});
+                                    const verifyRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-verify', challengeToken: optData.challengeToken, credential: { id: cred.id, rawId: abToB64(cred.rawId), response: { attestationObject: abToB64(cred.response.attestationObject), clientDataJSON: abToB64(cred.response.clientDataJSON) }, type: cred.type }, deviceName: navigator.userAgent.includes('iPhone') ? 'iPhone' : navigator.userAgent.includes('Android') ? 'Android 设备' : '浏览器通行密钥' }) });
+                                    const verifyData = await verifyRes.json();
+                                    if (verifyData.success) { showNotification('通行密钥设置成功！', 'success'); ssoPasskeyBtn.innerHTML = '<i class="fas fa-check"></i> 已设置'; }
+                                    else throw new Error(verifyData.error);
+                                } catch (e) {
+                                    if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') showNotification('设置失败: ' + e.message, 'error');
+                                    ssoPasskeyBtn.disabled = false;
+                                    ssoPasskeyBtn.innerHTML = '<i class="fas fa-fingerprint"></i> 设置通行密钥（推荐）';
+                                }
+                            };
+                        }
                     } else {
                         closeAuthModal(modal, () => window.location.reload());
                     }
@@ -405,6 +451,42 @@ function showAuthModal(mode = 'login') {
                         showNotification('刷新验证码失败: ' + err.message, 'error');
                     } finally {
                         ssoCaptchaImg.style.opacity = '1';
+                    }
+                };
+            }
+        }
+        if (!isSso) {
+            const passkeyBtn = modal.querySelector('#passkey-login-btn');
+            if (passkeyBtn && window.PublicKeyCredential) {
+                PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(available => {
+                    if (available) passkeyBtn.style.display = '';
+                });
+                passkeyBtn.onclick = async () => {
+                    passkeyBtn.disabled = true;
+                    passkeyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 验证中...';
+                    try {
+                        const optRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login-options' }) });
+                        const optData = await optRes.json();
+                        if (!optData.success) throw new Error(optData.error);
+                        const b64ToAb = (s) => { const b = atob(s.replace(/-/g,'+').replace(/_/g,'/')); const a = new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; };
+                        const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+                        const cred = await navigator.credentials.get({ publicKey: { ...optData.options, challenge: new Uint8Array(b64ToAb(optData.options.challenge)) } });
+                        const verifyRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login-verify', challengeToken: optData.challengeToken, credential: { id: cred.id, rawId: abToB64(cred.rawId), response: { authenticatorData: abToB64(cred.response.authenticatorData), clientDataJSON: abToB64(cred.response.clientDataJSON), signature: abToB64(cred.response.signature) }, type: cred.type } }) });
+                        const verifyData = await verifyRes.json();
+                        if (verifyData.success) {
+                            token = verifyData.token;
+                            localStorage.setItem('authToken', token);
+                            currentUser = verifyData.user;
+                            updateAuthUI();
+                            closeAuthModal(modal, () => window.location.reload());
+                        } else {
+                            showNotification(verifyData.error || '通行密钥验证失败', 'error');
+                        }
+                    } catch (e) {
+                        if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') showNotification('通行密钥登录失败: ' + e.message, 'error');
+                    } finally {
+                        passkeyBtn.disabled = false;
+                        passkeyBtn.innerHTML = '<i class="fas fa-fingerprint"></i> 使用通行密钥登录';
                     }
                 };
             }
@@ -509,6 +591,14 @@ function showAuthModal(mode = 'login') {
                                 step2Div.style.display = 'none';
                                 step3Div.style.display = 'block';
                                 showNotification('账户激活成功！', 'success');
+                                if (window.PublicKeyCredential) {
+                                    PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(ok => {
+                                        if (ok) {
+                                            const prompt = modal.querySelector('#passkey-setup-prompt');
+                                            if (prompt) prompt.style.display = 'block';
+                                        }
+                                    });
+                                }
                             },
                             onExpired: () => {
                                 modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';
@@ -549,5 +639,42 @@ function showAuthModal(mode = 'login') {
         goLoginBtn.onclick = () => {
             closeAuthModal(modal, () => showAuthModal('login'));
         };
+        const setupPasskeyBtn = modal.querySelector('#setup-passkey-btn');
+        if (setupPasskeyBtn) {
+            setupPasskeyBtn.onclick = async () => {
+                setupPasskeyBtn.disabled = true;
+                setupPasskeyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 设置中...';
+                try {
+                    if (!token) throw new Error('请先登录');
+                    const b64ToAb = (s) => { const b = atob(s.replace(/-/g,'+').replace(/_/g,'/')); const a = new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; };
+                    const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+                    const optRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-options' }) });
+                    const optData = await optRes.json();
+                    if (!optData.success) throw new Error(optData.error);
+                    const opts = optData.options;
+                    const cred = await navigator.credentials.create({ publicKey: {
+                        rp: opts.rp,
+                        user: { id: new Uint8Array(b64ToAb(opts.user.id)), name: opts.user.name, displayName: opts.user.displayName },
+                        challenge: new Uint8Array(b64ToAb(opts.challenge)),
+                        pubKeyCredParams: opts.pubKeyCredParams,
+                        authenticatorSelection: opts.authenticatorSelection,
+                        timeout: opts.timeout,
+                        attestation: opts.attestation
+                    }});
+                    const verifyRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-verify', challengeToken: optData.challengeToken, credential: { id: cred.id, rawId: abToB64(cred.rawId), response: { attestationObject: abToB64(cred.response.attestationObject), clientDataJSON: abToB64(cred.response.clientDataJSON) }, type: cred.type }, deviceName: navigator.userAgent.includes('iPhone') ? 'iPhone' : navigator.userAgent.includes('Android') ? 'Android 设备' : '浏览器通行密钥' }) });
+                    const verifyData = await verifyRes.json();
+                    if (verifyData.success) {
+                        showNotification('通行密钥设置成功！下次可直接使用指纹/面容登录', 'success');
+                        setupPasskeyBtn.innerHTML = '<i class="fas fa-check"></i> 已设置';
+                    } else {
+                        throw new Error(verifyData.error);
+                    }
+                } catch (e) {
+                    if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') showNotification('设置失败: ' + e.message, 'error');
+                    setupPasskeyBtn.disabled = false;
+                    setupPasskeyBtn.innerHTML = '<i class="fas fa-fingerprint"></i> 立即设置';
+                }
+            };
+        }
     }
 }

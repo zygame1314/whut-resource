@@ -17,7 +17,8 @@ const API_ENDPOINTS = {
     adminRequests: `${API_BASE}/api/admin-requests`,
     downloadLog: `${API_BASE.replace(/^http/, 'ws')}/api/ws`,
     maintenance: `${API_BASE}/api/maintenance`,
-    urlSafety: `${API_BASE}/api/url-safety`
+    urlSafety: `${API_BASE}/api/url-safety`,
+    passkey: `${API_BASE}/api/passkey`
 };
 const HCAPTCHA_SITEKEY = '1c847708-56b8-4c60-96ec-3968456c4442';
 window.filterTreeByKeyword = function (container, keyword, options = {}) {
