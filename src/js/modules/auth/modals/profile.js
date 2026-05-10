@@ -599,7 +599,7 @@ function showPasskeyManageModal() {
             <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             <h2 class="auth-title"><i class="fas fa-fingerprint"></i> 通行密钥管理</h2>
             <div id="passkey-list-container" style="min-height:100px;">
-                <div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>
+                <div style="text-align:center;padding:2rem;"><div class="loading-spinner"></div></div>
             </div>
             <div style="margin-top:1rem; border-top: 1px dashed var(--border-color); padding-top: 1rem;">
                 <button type="button" id="add-passkey-btn" class="primary-btn full-width"><i class="fas fa-plus"></i> 添加新通行密钥</button>
@@ -641,7 +641,7 @@ function showPasskeyManageModal() {
                 btn.onclick = async () => {
                     const id = btn.dataset.id;
                     const oldName = btn.dataset.name;
-                    const newName = prompt('输入新名称:', oldName);
+                    const newName = await showPrompt({ title: '重命名通行密钥', message: '输入新名称:', initialValue: oldName, placeholder: '设备名称', confirmText: '保存', cancelText: '取消' });
                     if (!newName || newName.trim() === oldName) return;
                     const r = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'rename', passkeyId: parseInt(id), newName: newName.trim() }) });
                     const d = await r.json();
@@ -651,7 +651,8 @@ function showPasskeyManageModal() {
             });
             container.querySelectorAll('.pk-delete-btn').forEach(btn => {
                 btn.onclick = async () => {
-                    if (!confirm('确定删除此通行密钥？删除后将无法使用该密钥登录。')) return;
+                    const confirmed = await showConfirmation({ title: '删除通行密钥', message: '确定删除此通行密钥？<br>删除后将无法使用该密钥登录。', confirmText: '删除', confirmClass: 'danger' });
+                    if (!confirmed) return;
                     const id = btn.dataset.id;
                     const r = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'delete', passkeyId: parseInt(id) }) });
                     const d = await r.json();
