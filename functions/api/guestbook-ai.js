@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults, retryWithBackoff } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
-const AI_MODEL = 'step-3.5-flash';
+const AI_MODEL = 'gemini-3-flash-preview';
 const TOOLS = [
     {
         type: 'function',
