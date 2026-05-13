@@ -124,7 +124,7 @@ export async function refreshSsoCaptcha(initialCookies) {
         return { success: false, error: "获取验证码失败: " + e.message };
     }
 }
-export async function verifyWHUTCredentials(username, password, captchaCode = "", initialCookies = "") {
+export async function verifyWHUTCredentials(username, password, captchaCode = "", initialCookies = "", smsCode = "") {
     const baseUrl = "https://zhlgd.whut.edu.cn/tpass";
     const loginUrl = `${baseUrl}/login`;
     const rsaUrl = `${baseUrl}/rsa?skipWechat=true`;
@@ -225,7 +225,7 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         const modulusLen = atob(modulusB64).length;
         const ul = rsaEncryptRaw(username, n, e, modulusLen);
         const pl = rsaEncryptRaw(password, n, e, modulusLen);
-        const formBody = `un=&pd=&ul=${encodeURIComponent(ul)}&pl=${encodeURIComponent(pl)}&lt=${encodeURIComponent(lt)}&execution=${encodeURIComponent(execution)}&_eventId=${encodeURIComponent(eventId)}&code=${encodeURIComponent(captchaCode || "")}`;
+        const formBody = `un=&pd=&ul=${encodeURIComponent(ul)}&pl=${encodeURIComponent(pl)}&lt=${encodeURIComponent(lt)}&execution=${encodeURIComponent(execution)}&_eventId=${encodeURIComponent(eventId)}&code=${encodeURIComponent(captchaCode || "")}&smsCode=${encodeURIComponent(smsCode || "")}`;
         const loginResp = await retryAsync(async () => {
             return fetch(loginUrl, {
                 method: "POST",
@@ -340,6 +340,21 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
             }
         }
         const failureHtml = await loginResp.text();
+        if (
+            failureHtml.includes('短信验证码') ||
+            failureHtml.includes('手机验证码') ||
+            failureHtml.includes('动态验证码') ||
+            failureHtml.includes('短信验证') ||
+            (failureHtml.includes('smsCode') && failureHtml.includes('<input')) ||
+            (failureHtml.includes('phoneCode') && failureHtml.includes('<input'))
+        ) {
+            return {
+                success: false,
+                smsRequired: true,
+                cookies: cookieStr,
+                error: '该账号需要短信验证，请输入手机验证码'
+            };
+        }
         const errorMsgMatch = failureHtml.match(ERROR_REGEX);
         let errorDetail = errorMsgMatch ? errorMsgMatch[1].trim() : null;
         if (!errorDetail && failureHtml.includes("验证码有误")) {

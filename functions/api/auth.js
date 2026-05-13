@@ -324,7 +324,7 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify(result), { status: result.success ? 200 : 500, headers: addCorsHeaders() });
     }
     if (action === 'whut-login') {
-      const { studentId: inputId, password, cfToken, ssoCode, ssoCookies } = body;
+      const { studentId: inputId, password, cfToken, ssoCode, ssoCookies, ssoSmsCode } = body;
       if (!inputId || !password) {
         return new Response(JSON.stringify({ success: false, error: '学号/卡号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
       }
@@ -369,11 +369,19 @@ export async function onRequestPost({ request, env }) {
       let ssoResult;
       let isNewSsoUser = false;
       try {
-        ssoResult = await verifyWHUTCredentials(inputId, password, ssoCode, ssoCookies);
+        ssoResult = await verifyWHUTCredentials(inputId, password, ssoCode, ssoCookies, ssoSmsCode);
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: 'SSO 服务连接出错: ' + e.message }), { status: 500, headers: addCorsHeaders() });
       }
       if (!ssoResult.success || !ssoResult.sno) {
+        if (ssoResult.smsRequired) {
+          return new Response(JSON.stringify({
+            success: false,
+            smsRequired: true,
+            ssoCookies: ssoResult.cookies,
+            error: ssoResult.error || '请输入短信验证码'
+          }), { status: 403, headers: addCorsHeaders() });
+        }
         await Promise.all([
           recordLoginAttempt(env.DB, ip, 'ip'),
           recordLoginAttempt(env.DB, inputId, 'email')

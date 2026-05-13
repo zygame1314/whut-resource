@@ -73,6 +73,14 @@ function showAuthModal(mode = 'login') {
                         </div>
                     </div>
                 </div>
+                <div id="sso-sms-container" class="form-group" style="display: none;">
+                    <label>短信验证码 (SMS Code)</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-sms"></i>
+                        <input type="text" id="sso-sms-code" class="form-control" placeholder="请输入手机收到的短信验证码" autocomplete="one-time-code" inputmode="numeric">
+                    </div>
+                    <div class="form-hint"><i class="fas fa-info-circle"></i> 验证码已发送到你绑定的手机号</div>
+                </div>
                 ` : ''}
                 <button type="submit" class="primary-btn full-width ${isSso ? 'sso-btn' : ''}">
                     ${isSso ? '<i class="fas fa-shield-alt"></i> 安全登录' : title}
@@ -297,6 +305,7 @@ function showAuthModal(mode = 'login') {
                 payload.studentId = identifier;
                 payload.ssoCode = modal.querySelector('#sso-captcha-code')?.value || '';
                 payload.ssoCookies = currentSsoCookies;
+                payload.ssoSmsCode = modal.querySelector('#sso-sms-code')?.value || '';
             } else {
                 payload.action = 'login';
                 if (!identifier.includes('@')) {
@@ -400,6 +409,17 @@ function showAuthModal(mode = 'login') {
                             modal.querySelector('#sso-captcha-code').value = '';
                             modal.querySelector('#sso-captcha-code').focus();
                             showNotification(data.error || '请输入验证码以继续', 'error');
+                            return;
+                        }
+                    }
+                    if (isSso && data.smsRequired) {
+                        const ssoSmsContainer = modal.querySelector('#sso-sms-container');
+                        if (ssoSmsContainer) {
+                            ssoSmsContainer.style.display = 'block';
+                            if (data.ssoCookies) currentSsoCookies = data.ssoCookies;
+                            modal.querySelector('#sso-sms-code').value = '';
+                            modal.querySelector('#sso-sms-code').focus();
+                            showNotification(data.error || '请输入短信验证码', 'info');
                             return;
                         }
                     }

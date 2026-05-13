@@ -2448,6 +2448,20 @@
     display: block;
 }
 
+#sso-sms-container .form-hint {
+    margin-top: 6px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#sso-sms-container .form-hint i {
+    color: var(--primary-color);
+    font-size: 0.8rem;
+}
+
 .sso-brand {
     background: transparent !important;
     padding: 0;
