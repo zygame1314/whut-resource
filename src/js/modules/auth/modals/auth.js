@@ -97,7 +97,7 @@ function showAuthModal(mode = 'login') {
                     <i class="fas fa-fingerprint"></i> 使用通行密钥登录
                 </button>
                 <button type="button" id="switch-sso" class="secondary-btn full-width sso-entry-btn">
-                    <i class="fas fa-university"></i> 直接使用智慧理工大登录
+                    <i class="fas fa-university"></i> 使用智慧理工大登录
                 </button>
             </div>
             ` : ''}

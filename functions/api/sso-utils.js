@@ -352,11 +352,13 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
             (failureHtml.includes('phoneCode') && failureHtml.includes('<input'))
         ) {
             const smsErrMsg = failureHtml.match(SMS_ERROR_REGEX);
+            let smsError = smsErrMsg ? smsErrMsg[1].trim() : '该账号需要短信验证，请输入手机验证码';
+            smsError = smsError.replace(/推荐您使用企业微信.*$/, '').trim();
             return {
                 success: false,
                 smsRequired: true,
                 cookies: cookieStr,
-                error: smsErrMsg ? smsErrMsg[1].trim() : '该账号需要短信验证，请输入手机验证码'
+                error: smsError || '验证码已发送，请输入手机验证码'
             };
         }
         const errorMsgMatch = failureHtml.match(ERROR_REGEX);
@@ -457,7 +459,10 @@ export async function verifySsoSmsCode(smsCode, initialCookies) {
         }
         const resultHtml = await smsResp.text();
         const smsErrMsg = resultHtml.match(SMS_ERROR_REGEX);
-        const errorDetail = smsErrMsg ? smsErrMsg[1].trim() : null;
+        let errorDetail = smsErrMsg ? smsErrMsg[1].trim() : null;
+        if (errorDetail) {
+            errorDetail = errorDetail.replace(/推荐您使用企业微信.*$/, '').trim();
+        }
         if (resultHtml.includes('PM1') || resultHtml.includes('短信验证码')) {
             return {
                 success: false,
