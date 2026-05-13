@@ -40,6 +40,7 @@ const EVENT_ID_REGEX = /name=["']?_eventId["']?\s+value=["']?([^"']+)["']?/i;
 const NAME_REGEX = /id="user-btn-01"[\s\S]*?<span class="tit">\s*(.*?)\s*<\/span>/i;
 const CARD_REGEX = /[?&]account_name=([0-9]+)/i;
 const ERROR_REGEX = /<div id="msg".*?>(.*?)<\/div>/s;
+const SMS_ERROR_REGEX = /id="errormsg"[^>]*>([\s\S]*?)<\/span>/i;
 const FETCH_TIMEOUT = 8000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY = 1000;
@@ -85,6 +86,90 @@ function parseAndMergeCookies(currentJar, newSetCookies) {
     }
     return parts.join("; ");
 }
+async function followCasAndFetchUser(successResp, cookieStr, UA) {
+    const authCookieJar = parseAndMergeCookies(cookieStr, successResp.headers.getSetCookie());
+    const yktServiceUrl = "https://yktapp.whut.edu.cn/berserker-auth/cas/login/neusoftCas?targetUrl=https%3A%2F%2Fyktapp.whut.edu.cn%2Fplat-pc";
+    const tpassCasUrl = `https://zhlgd.whut.edu.cn/tpass/login?service=${encodeURIComponent(yktServiceUrl)}`;
+    let token = await retryAsync(async () => {
+        let currentUrl = tpassCasUrl;
+        let yktCookieJar = authCookieJar;
+        let t = "";
+        for (let i = 0; i < 10 && !t; i++) {
+            const resp = await fetch(currentUrl, {
+                method: "GET",
+                headers: { "User-Agent": UA, "Cookie": yktCookieJar },
+                redirect: "manual",
+                signal: AbortSignal.timeout(FETCH_TIMEOUT)
+            });
+            const newCookies = resp.headers.getSetCookie();
+            if (newCookies) {
+                yktCookieJar = parseAndMergeCookies(yktCookieJar, newCookies);
+                for (const c of newCookies) {
+                    if (c.toLowerCase().includes("synjones-auth=")) {
+                        t = c.split(/synjones-auth=/i)[1].split(";")[0];
+                    }
+                }
+            }
+            if (t) break;
+            const loc = resp.headers.get("location");
+            if (loc) {
+                try {
+                    const locUrl = new URL(loc.startsWith("/") ? `https://${new URL(currentUrl).host}${loc}` : loc);
+                    t = locUrl.searchParams.get("token") || locUrl.searchParams.get("synjones-auth") || "";
+                } catch (e) { }
+            }
+            if (t) break;
+            if (resp.status === 302 || resp.status === 301 || resp.status === 307) {
+                if (resp.body) await resp.body.cancel();
+                if (!loc) break;
+                currentUrl = loc.startsWith("/") ? `https://${new URL(currentUrl).host}${loc}` : loc;
+                continue;
+            }
+            const bodyText = await resp.text();
+            const tokenMatch = bodyText.match(/synjones-auth[=:]\s*["']?bearer\s+([^"'\s;]+)/i)
+                || bodyText.match(/token[=:]\s*["']?([A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+)/i);
+            if (tokenMatch) t = tokenMatch[1];
+            break;
+        }
+        if (!t) throw new Error("CAS重定向链中未获取到token");
+        return t;
+    }, MAX_RETRIES, RETRY_DELAY, "CAS重定向链");
+    if (token) {
+        let yktData = null;
+        for (let retry = 0; retry < 3; retry++) {
+            try {
+                const yktUserResp = await fetch("https://yktapp.whut.edu.cn/berserker-base/user?synAccessSource=pc", {
+                    method: "GET",
+                    headers: {
+                        "User-Agent": UA,
+                        "synaccesssource": "pc",
+                        "synjones-auth": `bearer ${token}`
+                    },
+                    signal: AbortSignal.timeout(6000)
+                });
+                if (yktUserResp.status === 200) {
+                    yktData = await yktUserResp.json();
+                    if (yktData && yktData.data) break;
+                }
+            } catch (e) {
+                console.log(`[SSO] 个人信息抓取第 ${retry + 1} 次尝试失败: ${e.message}`);
+            }
+        }
+        if (yktData && yktData.data) {
+            const data = yktData.data;
+            const finalSno = data.sno || data.account;
+            if (finalSno) {
+                return {
+                    success: true,
+                    nickname: data.name,
+                    cardId: data.cardAccount,
+                    sno: finalSno
+                };
+            }
+        }
+    }
+    throw new Error("未能从学校一卡通系统同步到信息（sno 缺失或服务超时）");
+}
 export async function refreshSsoCaptcha(initialCookies) {
     const baseUrl = "https://zhlgd.whut.edu.cn/tpass";
     const loginUrl = `${baseUrl}/login`;
@@ -124,7 +209,7 @@ export async function refreshSsoCaptcha(initialCookies) {
         return { success: false, error: "获取验证码失败: " + e.message };
     }
 }
-export async function verifyWHUTCredentials(username, password, captchaCode = "", initialCookies = "", smsCode = "") {
+export async function verifyWHUTCredentials(username, password, captchaCode = "", initialCookies = "") {
     const baseUrl = "https://zhlgd.whut.edu.cn/tpass";
     const loginUrl = `${baseUrl}/login`;
     const rsaUrl = `${baseUrl}/rsa?skipWechat=true`;
@@ -225,7 +310,7 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         const modulusLen = atob(modulusB64).length;
         const ul = rsaEncryptRaw(username, n, e, modulusLen);
         const pl = rsaEncryptRaw(password, n, e, modulusLen);
-        const formBody = `un=&pd=&ul=${encodeURIComponent(ul)}&pl=${encodeURIComponent(pl)}&lt=${encodeURIComponent(lt)}&execution=${encodeURIComponent(execution)}&_eventId=${encodeURIComponent(eventId)}&code=${encodeURIComponent(captchaCode || "")}&smsCode=${encodeURIComponent(smsCode || "")}`;
+        const formBody = `un=&pd=&ul=${encodeURIComponent(ul)}&pl=${encodeURIComponent(pl)}&lt=${encodeURIComponent(lt)}&execution=${encodeURIComponent(execution)}&_eventId=${encodeURIComponent(eventId)}&code=${encodeURIComponent(captchaCode || "")}`;
         const loginResp = await retryAsync(async () => {
             return fetch(loginUrl, {
                 method: "POST",
@@ -244,92 +329,10 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         const location = loginResp.headers.get("location");
         console.log(`[SSO] Location: ${location}`);
         if (loginResp.status === 302 || loginResp.status === 307) {
-            let nickname = null;
-            let cardId = null;
             try {
-                const authCookieJar = parseAndMergeCookies(cookieStr, loginResp.headers.getSetCookie());
-                const yktServiceUrl = "https://yktapp.whut.edu.cn/berserker-auth/cas/login/neusoftCas?targetUrl=https%3A%2F%2Fyktapp.whut.edu.cn%2Fplat-pc";
-                const tpassCasUrl = `https://zhlgd.whut.edu.cn/tpass/login?service=${encodeURIComponent(yktServiceUrl)}`;
-                let token = await retryAsync(async () => {
-                    let currentUrl = tpassCasUrl;
-                    let yktCookieJar = authCookieJar;
-                    let t = "";
-                    for (let i = 0; i < 10 && !t; i++) {
-                        const resp = await fetch(currentUrl, {
-                            method: "GET",
-                            headers: { "User-Agent": UA, "Cookie": yktCookieJar },
-                            redirect: "manual",
-                            signal: AbortSignal.timeout(FETCH_TIMEOUT)
-                        });
-                        const newCookies = resp.headers.getSetCookie();
-                        if (newCookies) {
-                            yktCookieJar = parseAndMergeCookies(yktCookieJar, newCookies);
-                            for (const c of newCookies) {
-                                if (c.toLowerCase().includes("synjones-auth=")) {
-                                    t = c.split(/synjones-auth=/i)[1].split(";")[0];
-                                }
-                            }
-                        }
-                        if (t) break;
-                        const loc = resp.headers.get("location");
-                        if (loc) {
-                            try {
-                                const locUrl = new URL(loc.startsWith("/") ? `https://${new URL(currentUrl).host}${loc}` : loc);
-                                t = locUrl.searchParams.get("token") || locUrl.searchParams.get("synjones-auth") || "";
-                            } catch (e) { }
-                        }
-                        if (t) break;
-                        if (resp.status === 302 || resp.status === 301 || resp.status === 307) {
-                            if (resp.body) await resp.body.cancel();
-                            if (!loc) break;
-                            currentUrl = loc.startsWith("/") ? `https://${new URL(currentUrl).host}${loc}` : loc;
-                            continue;
-                        }
-                        const bodyText = await resp.text();
-                        const tokenMatch = bodyText.match(/synjones-auth[=:]\s*["']?bearer\s+([^"'\s;]+)/i)
-                            || bodyText.match(/token[=:]\s*["']?([A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+)/i);
-                        if (tokenMatch) t = tokenMatch[1];
-                        break;
-                    }
-                    if (!t) throw new Error("CAS重定向链中未获取到token");
-                    return t;
-                }, MAX_RETRIES, RETRY_DELAY, "CAS重定向链");
-                if (token) {
-                    let yktData = null;
-                    for (let retry = 0; retry < 3; retry++) {
-                        try {
-                            const yktUserResp = await fetch("https://yktapp.whut.edu.cn/berserker-base/user?synAccessSource=pc", {
-                                method: "GET",
-                                headers: {
-                                    "User-Agent": UA,
-                                    "synaccesssource": "pc",
-                                    "synjones-auth": `bearer ${token}`
-                                },
-                                signal: AbortSignal.timeout(6000)
-                            });
-                            if (yktUserResp.status === 200) {
-                                yktData = await yktUserResp.json();
-                                if (yktData && yktData.data) break;
-                            }
-                        } catch (e) {
-                            console.log(`[SSO] 个人信息抓取第 ${retry + 1} 次尝试失败: ${e.message}`);
-                        }
-                    }
-                    if (yktData && yktData.data) {
-                        const data = yktData.data;
-                        const finalSno = data.sno || data.account;
-                        if (finalSno) {
-                            return {
-                                success: true,
-                                location: location,
-                                nickname: data.name,
-                                cardId: data.cardAccount,
-                                sno: finalSno
-                            };
-                        }
-                    }
-                }
-                throw new Error("未能从学校一卡通系统同步到信息（sno 缺失或服务超时）");
+                const result = await followCasAndFetchUser(loginResp, cookieStr, UA);
+                result.location = location;
+                return result;
             } catch (err) {
                 console.log("[SSO] 个人信息获取关键失败", err.message);
                 return {
@@ -348,11 +351,12 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
             (failureHtml.includes('smsCode') && failureHtml.includes('<input')) ||
             (failureHtml.includes('phoneCode') && failureHtml.includes('<input'))
         ) {
+            const smsErrMsg = failureHtml.match(SMS_ERROR_REGEX);
             return {
                 success: false,
                 smsRequired: true,
                 cookies: cookieStr,
-                error: '该账号需要短信验证，请输入手机验证码'
+                error: smsErrMsg ? smsErrMsg[1].trim() : '该账号需要短信验证，请输入手机验证码'
             };
         }
         const errorMsgMatch = failureHtml.match(ERROR_REGEX);
@@ -389,6 +393,83 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
             }
         }
         return res;
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+export async function verifySsoSmsCode(smsCode, initialCookies) {
+    const baseUrl = "https://zhlgd.whut.edu.cn/tpass";
+    const loginUrl = `${baseUrl}/login`;
+    const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)";
+    try {
+        const html = await retryAsync(async () => {
+            const resp = await fetch(loginUrl, {
+                headers: {
+                    "User-Agent": UA,
+                    "Cookie": initialCookies,
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                },
+                signal: AbortSignal.timeout(FETCH_TIMEOUT)
+            });
+            return resp.text();
+        }, MAX_RETRIES, RETRY_DELAY, "短信验证页获取");
+        const formActionMatch = html.match(/<form[^>]*id="loginForm"[^>]*action="([^"]+)"/i)
+            || html.match(/<form[^>]*action="([^"]*login[^"]*)"[^>]*>/i);
+        let formAction = formActionMatch ? formActionMatch[1] : loginUrl;
+        if (formAction.startsWith('/')) {
+            formAction = `https://zhlgd.whut.edu.cn${formAction}`;
+        }
+        const relayStateMatch = html.match(/name=["']RelayState["'][^>]*value=["']([^"']*)["']/i);
+        const executionMatch = html.match(/name=["']execution["'][^>]*value=["']([^"']*)["']/i);
+        const relayState = relayStateMatch ? relayStateMatch[1] : '';
+        const executionVal = executionMatch ? executionMatch[1] : 'e1s1';
+        const formBody = `PM1=${encodeURIComponent(smsCode)}&RelayState=${encodeURIComponent(relayState)}&execution=${encodeURIComponent(executionVal)}&_eventId=submit`;
+        console.log(`[SSO] Submitting SMS code to ${formAction}`);
+        const smsResp = await retryAsync(async () => {
+            return fetch(formAction, {
+                method: "POST",
+                headers: {
+                    "User-Agent": UA,
+                    "Cookie": initialCookies,
+                    "Referer": loginUrl,
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: formBody,
+                redirect: "manual",
+                signal: AbortSignal.timeout(FETCH_TIMEOUT)
+            });
+        }, MAX_RETRIES, RETRY_DELAY, "短信验证码提交");
+        console.log(`[SSO] SMS Submit Status: ${smsResp.status}`);
+        const smsNewCookies = smsResp.headers.getSetCookie();
+        const updatedCookies = (smsNewCookies && smsNewCookies.length > 0)
+            ? parseAndMergeCookies(initialCookies, smsNewCookies)
+            : initialCookies;
+        if (smsResp.status === 302 || smsResp.status === 307) {
+            try {
+                return await followCasAndFetchUser(smsResp, initialCookies, UA);
+            } catch (err) {
+                console.log("[SSO] SMS登录成功但获取用户信息失败", err.message);
+                return {
+                    success: false,
+                    error: "登录成功但获取用户信息失败: " + err.message
+                };
+            }
+        }
+        const resultHtml = await smsResp.text();
+        const smsErrMsg = resultHtml.match(SMS_ERROR_REGEX);
+        const errorDetail = smsErrMsg ? smsErrMsg[1].trim() : null;
+        if (resultHtml.includes('PM1') || resultHtml.includes('短信验证码')) {
+            return {
+                success: false,
+                smsRequired: true,
+                cookies: updatedCookies,
+                error: errorDetail || '验证码错误，请重新输入'
+            };
+        }
+        return {
+            success: false,
+            error: errorDetail || '短信验证失败，请重试'
+        };
     } catch (e) {
         return { success: false, error: e.message };
     }

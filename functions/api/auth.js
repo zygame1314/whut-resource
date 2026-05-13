@@ -1,5 +1,5 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders } from '../utils.js';
-import { verifyWHUTCredentials, refreshSsoCaptcha } from './sso-utils.js';
+import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
 async function recordLoginAttempt(db, identifier, type) {
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   const now = new Date().toISOString();
@@ -369,7 +369,11 @@ export async function onRequestPost({ request, env }) {
       let ssoResult;
       let isNewSsoUser = false;
       try {
-        ssoResult = await verifyWHUTCredentials(inputId, password, ssoCode, ssoCookies, ssoSmsCode);
+        if (ssoSmsCode && ssoCookies) {
+          ssoResult = await verifySsoSmsCode(ssoSmsCode, ssoCookies);
+        } else {
+          ssoResult = await verifyWHUTCredentials(inputId, password, ssoCode, ssoCookies);
+        }
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: 'SSO 服务连接出错: ' + e.message }), { status: 500, headers: addCorsHeaders() });
       }
