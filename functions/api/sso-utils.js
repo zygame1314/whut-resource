@@ -40,6 +40,24 @@ const EVENT_ID_REGEX = /name=["']?_eventId["']?\s+value=["']?([^"']+)["']?/i;
 const NAME_REGEX = /id="user-btn-01"[\s\S]*?<span class="tit">\s*(.*?)\s*<\/span>/i;
 const CARD_REGEX = /[?&]account_name=([0-9]+)/i;
 const ERROR_REGEX = /<div id="msg".*?>(.*?)<\/div>/s;
+const FETCH_TIMEOUT = 8000;
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 1000;
+async function retryAsync(fn, maxRetries = MAX_RETRIES, delayMs = RETRY_DELAY, label = "") {
+    let lastErr;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn(attempt);
+        } catch (e) {
+            lastErr = e;
+            if (attempt < maxRetries) {
+                console.log(`[SSO] ${label} 第 ${attempt + 1} 次失败: ${e.message}, ${delayMs}ms 后重试...`);
+                await new Promise(r => setTimeout(r, delayMs));
+            }
+        }
+    }
+    throw lastErr;
+}
 function parseAndMergeCookies(currentJar, newSetCookies) {
     const cookieMap = {};
     if (currentJar) {
@@ -78,7 +96,9 @@ export async function refreshSsoCaptcha(initialCookies) {
     try {
         let cookieStr = initialCookies;
         if (!initialCookies) {
-            const initResp = await fetch(loginUrl, { headers });
+            const initResp = await retryAsync(async () => {
+                return fetch(loginUrl, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+            }, MAX_RETRIES, RETRY_DELAY, "验证码页初始化");
             const setCookie = initResp.headers.get("set-cookie");
             if (setCookie) {
                 const allCookies = initResp.headers.getSetCookie();
@@ -87,9 +107,12 @@ export async function refreshSsoCaptcha(initialCookies) {
                     : setCookie.split(";")[0];
             }
         }
-        const captchaResp = await fetch(`${baseUrl}/code`, {
-            headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl }
-        });
+        const captchaResp = await retryAsync(async () => {
+            return fetch(`${baseUrl}/code`, {
+                headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl },
+                signal: AbortSignal.timeout(FETCH_TIMEOUT)
+            });
+        }, MAX_RETRIES, RETRY_DELAY, "验证码获取");
         const arrayBuffer = await captchaResp.arrayBuffer();
         const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
         return {
@@ -117,18 +140,26 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         let execution = "e1s1";
         let eventId = "submit";
         if (!initialCookies) {
-            const initResp = await fetch(loginUrl, { headers });
-            const setCookie = initResp.headers.get("set-cookie");
-            html = await initResp.text();
-            if (setCookie) {
-                const allCookies = initResp.headers.getSetCookie();
-                cookieStr = (allCookies && allCookies.length > 0)
-                    ? allCookies.map(c => c.split(";")[0]).join("; ")
-                    : setCookie.split(";")[0];
-            }
+            const initResult = await retryAsync(async () => {
+                const resp = await fetch(loginUrl, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+                const sc = resp.headers.get("set-cookie");
+                const text = await resp.text();
+                let cookies = "";
+                if (sc) {
+                    const all = resp.headers.getSetCookie();
+                    cookies = (all && all.length > 0)
+                        ? all.map(c => c.split(";")[0]).join("; ")
+                        : sc.split(";")[0];
+                }
+                return { cookies, html: text };
+            }, MAX_RETRIES, RETRY_DELAY, "登录页获取");
+            cookieStr = initResult.cookies;
+            html = initResult.html;
         } else {
-            const initResp = await fetch(loginUrl, { headers: { ...headers, "Cookie": cookieStr } });
-            html = await initResp.text();
+            html = await retryAsync(async () => {
+                const resp = await fetch(loginUrl, { headers: { ...headers, "Cookie": cookieStr }, signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+                return resp.text();
+            }, MAX_RETRIES, RETRY_DELAY, "登录页获取");
         }
         const ltMatch = html.match(LT_REGEX);
         if (!ltMatch) throw new Error("无法获取登录票据 (LT)");
@@ -145,7 +176,8 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
             console.log("[SSO] Detected captcha required, but no code provided.");
             try {
                 const captchaResp = await fetch(`${baseUrl}/code`, {
-                    headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl }
+                    headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl },
+                    signal: AbortSignal.timeout(FETCH_TIMEOUT)
                 });
                 const arrayBuffer = await captchaResp.arrayBuffer();
                 const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
@@ -160,11 +192,14 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
                 console.log("[SSO] Failed to fetch captcha image:", e.message);
             }
         }
-        const rsaResp = await fetch(rsaUrl, {
-            method: "POST",
-            headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl }
-        });
-        const rsaJson = await rsaResp.json();
+        const rsaJson = await retryAsync(async () => {
+            const resp = await fetch(rsaUrl, {
+                method: "POST",
+                headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl },
+                signal: AbortSignal.timeout(FETCH_TIMEOUT)
+            });
+            return resp.json();
+        }, MAX_RETRIES, RETRY_DELAY, "RSA公钥获取");
         const publicKeyStr = rsaJson.publicKey;
         if (!publicKeyStr) throw new Error("获取公钥失败");
         const base64Key = publicKeyStr
@@ -191,17 +226,20 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         const ul = rsaEncryptRaw(username, n, e, modulusLen);
         const pl = rsaEncryptRaw(password, n, e, modulusLen);
         const formBody = `un=&pd=&ul=${encodeURIComponent(ul)}&pl=${encodeURIComponent(pl)}&lt=${encodeURIComponent(lt)}&execution=${encodeURIComponent(execution)}&_eventId=${encodeURIComponent(eventId)}&code=${encodeURIComponent(captchaCode || "")}`;
-        const loginResp = await fetch(loginUrl, {
-            method: "POST",
-            headers: {
-                "User-Agent": UA,
-                "Cookie": cookieStr,
-                "Referer": loginUrl,
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: formBody,
-            redirect: "manual"
-        });
+        const loginResp = await retryAsync(async () => {
+            return fetch(loginUrl, {
+                method: "POST",
+                headers: {
+                    "User-Agent": UA,
+                    "Cookie": cookieStr,
+                    "Referer": loginUrl,
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: formBody,
+                redirect: "manual",
+                signal: AbortSignal.timeout(FETCH_TIMEOUT)
+            });
+        }, MAX_RETRIES, RETRY_DELAY, "登录请求");
         console.log(`[SSO] Login Status: ${loginResp.status}`);
         const location = loginResp.headers.get("location");
         console.log(`[SSO] Location: ${location}`);
@@ -212,45 +250,50 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
                 const authCookieJar = parseAndMergeCookies(cookieStr, loginResp.headers.getSetCookie());
                 const yktServiceUrl = "https://yktapp.whut.edu.cn/berserker-auth/cas/login/neusoftCas?targetUrl=https%3A%2F%2Fyktapp.whut.edu.cn%2Fplat-pc";
                 const tpassCasUrl = `https://zhlgd.whut.edu.cn/tpass/login?service=${encodeURIComponent(yktServiceUrl)}`;
-                let currentUrl = tpassCasUrl;
-                let yktCookieJar = authCookieJar;
-                let token = "";
-                for (let i = 0; i < 10 && !token; i++) {
-                    const resp = await fetch(currentUrl, {
-                        method: "GET",
-                        headers: { "User-Agent": UA, "Cookie": yktCookieJar },
-                        redirect: "manual"
-                    });
-                    const newCookies = resp.headers.getSetCookie();
-                    if (newCookies) {
-                        yktCookieJar = parseAndMergeCookies(yktCookieJar, newCookies);
-                        for (const c of newCookies) {
-                            if (c.toLowerCase().includes("synjones-auth=")) {
-                                token = c.split(/synjones-auth=/i)[1].split(";")[0];
+                let token = await retryAsync(async () => {
+                    let currentUrl = tpassCasUrl;
+                    let yktCookieJar = authCookieJar;
+                    let t = "";
+                    for (let i = 0; i < 10 && !t; i++) {
+                        const resp = await fetch(currentUrl, {
+                            method: "GET",
+                            headers: { "User-Agent": UA, "Cookie": yktCookieJar },
+                            redirect: "manual",
+                            signal: AbortSignal.timeout(FETCH_TIMEOUT)
+                        });
+                        const newCookies = resp.headers.getSetCookie();
+                        if (newCookies) {
+                            yktCookieJar = parseAndMergeCookies(yktCookieJar, newCookies);
+                            for (const c of newCookies) {
+                                if (c.toLowerCase().includes("synjones-auth=")) {
+                                    t = c.split(/synjones-auth=/i)[1].split(";")[0];
+                                }
                             }
                         }
+                        if (t) break;
+                        const loc = resp.headers.get("location");
+                        if (loc) {
+                            try {
+                                const locUrl = new URL(loc.startsWith("/") ? `https://${new URL(currentUrl).host}${loc}` : loc);
+                                t = locUrl.searchParams.get("token") || locUrl.searchParams.get("synjones-auth") || "";
+                            } catch (e) { }
+                        }
+                        if (t) break;
+                        if (resp.status === 302 || resp.status === 301 || resp.status === 307) {
+                            if (resp.body) await resp.body.cancel();
+                            if (!loc) break;
+                            currentUrl = loc.startsWith("/") ? `https://${new URL(currentUrl).host}${loc}` : loc;
+                            continue;
+                        }
+                        const bodyText = await resp.text();
+                        const tokenMatch = bodyText.match(/synjones-auth[=:]\s*["']?bearer\s+([^"'\s;]+)/i)
+                            || bodyText.match(/token[=:]\s*["']?([A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+)/i);
+                        if (tokenMatch) t = tokenMatch[1];
+                        break;
                     }
-                    if (token) break;
-                    const loc = resp.headers.get("location");
-                    if (loc) {
-                        try {
-                            const locUrl = new URL(loc.startsWith("/") ? `https://${new URL(currentUrl).host}${loc}` : loc);
-                            token = locUrl.searchParams.get("token") || locUrl.searchParams.get("synjones-auth") || "";
-                        } catch (e) { }
-                    }
-                    if (token) break;
-                    if (resp.status === 302 || resp.status === 301 || resp.status === 307) {
-                        if (resp.body) await resp.body.cancel();
-                        if (!loc) break;
-                        currentUrl = loc.startsWith("/") ? `https://${new URL(currentUrl).host}${loc}` : loc;
-                        continue;
-                    }
-                    const bodyText = await resp.text();
-                    const tokenMatch = bodyText.match(/synjones-auth[=:]\s*["']?bearer\s+([^"'\s;]+)/i)
-                        || bodyText.match(/token[=:]\s*["']?([A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+)/i);
-                    if (tokenMatch) token = tokenMatch[1];
-                    break;
-                }
+                    if (!t) throw new Error("CAS重定向链中未获取到token");
+                    return t;
+                }, MAX_RETRIES, RETRY_DELAY, "CAS重定向链");
                 if (token) {
                     let yktData = null;
                     for (let retry = 0; retry < 3; retry++) {
@@ -320,7 +363,8 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
             res.cookies = cookieStr;
             try {
                 const captchaResp = await fetch(`${baseUrl}/code`, {
-                    headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl }
+                    headers: { "User-Agent": UA, "Cookie": cookieStr, "Referer": loginUrl },
+                    signal: AbortSignal.timeout(FETCH_TIMEOUT)
                 });
                 const arrayBuffer = await captchaResp.arrayBuffer();
                 const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
