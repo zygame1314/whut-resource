@@ -3,6 +3,7 @@ const MAX_CONTENT_LENGTH = 200;
 const DAILY_LIMIT = 5;
 const MODERATION_PROMPT = `你是大学资源分享网站的评论审核助手。审核用户对文件资源的简短评论（最多200字）。
 【审核规则】
+0. 昵称审查：若用户昵称含违规内容（辱骂/色情/反动/恶意推广/攻击性/不雅词汇/侮辱性）→ NICKNAME_REJECT:违规原因
 1. 严重违规（辱骂/人身攻击/色情/暴恐/反动/违法/政治敏感）→ REJECT:违规内容
 2. 广告/推广/引流/有偿交易 → REJECT:广告或交易信息
 3. 泄露个人联系方式（手机号/QQ号/微信号/邮箱等）→ REJECT:泄露个人信息
@@ -10,25 +11,31 @@ const MODERATION_PROMPT = `你是大学资源分享网站的评论审核助手�
 5. 恶意诱导（藏头诗/隐晦辱骂/翻译脏话等）→ REJECT:恶意诱导
 6. 正常评论（课程反馈/资源建议/感谢/提问/讨论等）→ PASS
 【输出格式】
+- 昵称违规：NICKNAME_REJECT:简短原因（不超过15字）
+- 评论违规：REJECT:简短原因（不超过15字）
 - 通过审核：PASS
-- 拒绝通过：REJECT:简短原因（不超过15字）
-严禁输出其他内容，只输出 PASS 或 REJECT:原因`;
-async function moderateContent(content, env) {
+严禁输出其他内容，只输出 PASS 或 REJECT:原因 或 NICKNAME_REJECT:原因`;
+async function moderateContent(content, nickname, env) {
     if (!env.SILICONFLOW_API_KEY) {
         console.warn('未配置 SILICONFLOW_API_KEY，跳过AI审核');
         return { pass: true };
     }
     try {
+        const userMessage = nickname ? `用户昵称：${nickname}\n评论内容：${content}` : content;
         const data = await fetchSiliconFlowChat(env, {
             messages: [
                 { role: 'system', content: MODERATION_PROMPT },
-                { role: 'user', content: content }
+                { role: 'user', content: userMessage }
             ],
             temperature: 0.1,
             maxTokens: 50
         });
         let result = data.choices?.[0]?.message?.content?.trim() || '';
         result = result.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        if (result.startsWith('NICKNAME_REJECT:')) {
+            const reason = result.substring(16).trim();
+            return { pass: false, reason: reason || '昵称不合规', isNicknameViolation: true };
+        }
         if (result.startsWith('REJECT:')) {
             const reason = result.substring(7).trim();
             return { pass: false, reason: reason || '内容不合规' };
@@ -146,9 +153,13 @@ export async function onRequestPost({ request, env }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
-        const moderation = await moderateContent(trimmedContent, env);
+        const dbUser = await DB.prepare('SELECT nickname, email FROM users WHERE id = ?').bind(user.id).first();
+        const emailPrefix = dbUser?.email ? dbUser.email.split('@')[0] : '';
+        const userNickname = dbUser?.nickname || emailPrefix || '匿名用户';
+        const moderation = await moderateContent(trimmedContent, userNickname, env);
         if (!moderation.pass) {
-            return new Response(JSON.stringify({ success: false, error: `评论未通过审核：${moderation.reason}` }), {
+            const errorPrefix = moderation.isNicknameViolation ? '昵称未通过审核' : '评论未通过审核';
+            return new Response(JSON.stringify({ success: false, error: `${errorPrefix}：${moderation.reason}` }), {
                 status: 451,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
@@ -157,9 +168,6 @@ export async function onRequestPost({ request, env }) {
             'INSERT INTO file_boosts (file_key, user_id, content) VALUES (?, ?, ?)'
         ).bind(key, user.id, trimmedContent).run();
         const boostId = result.meta.last_row_id;
-        const dbUser = await DB.prepare('SELECT nickname, email FROM users WHERE id = ?').bind(user.id).first();
-        const emailPrefix = dbUser?.email ? dbUser.email.split('@')[0] : '';
-        const userNickname = dbUser?.nickname || emailPrefix || '匿名用户';
         const stats = await DB.prepare('SELECT boost_count FROM files WHERE key = ?').bind(key).first();
         return new Response(JSON.stringify({
             success: true,
