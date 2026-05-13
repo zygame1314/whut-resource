@@ -417,6 +417,10 @@ function showAuthModal(mode = 'login') {
                         if (ssoSmsContainer) {
                             ssoSmsContainer.style.display = 'block';
                             if (data.ssoCookies) currentSsoCookies = data.ssoCookies;
+                            const ssoCaptchaContainer = modal.querySelector('#sso-captcha-container');
+                            if (ssoCaptchaContainer) ssoCaptchaContainer.style.display = 'none';
+                            const loginCaptchaContainer = modal.querySelector('#login-captcha-container');
+                            if (loginCaptchaContainer) loginCaptchaContainer.style.display = 'none';
                             modal.querySelector('#sso-sms-code').value = '';
                             modal.querySelector('#sso-sms-code').focus();
                             showNotification(data.error || '请输入短信验证码', 'info');

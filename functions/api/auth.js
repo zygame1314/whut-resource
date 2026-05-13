@@ -341,7 +341,8 @@ export async function onRequestPost({ request, env }) {
       const idFailCount = idAttempt?.fail_count || 0;
       const maxFailCount = Math.max(ipFailCount, idFailCount);
       const requireCaptcha = maxFailCount >= 3;
-      if (requireCaptcha) {
+      const isSmsVerification = ssoSmsCode && ssoCookies;
+      if (requireCaptcha && !isSmsVerification) {
         if (!cfToken) {
           return new Response(JSON.stringify({
             success: false,
