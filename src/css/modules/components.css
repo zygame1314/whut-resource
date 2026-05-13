@@ -7660,6 +7660,25 @@ input#prompt-input {
     flex-wrap: wrap;
 }
 
+.file-list li:has(.boost-panel) .file-actions {
+    top: 6px;
+    transform: translateY(0) translateX(10px);
+    pointer-events: none;
+    opacity: 0;
+}
+
+.file-list li:has(.boost-panel):hover .file-actions {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+    pointer-events: auto;
+}
+
+.file-list li:has(.boost-panel).actions-visible .file-actions {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+    pointer-events: auto;
+}
+
 .boost-panel {
     width: 100%;
     align-self: stretch;
@@ -7681,7 +7700,7 @@ input#prompt-input {
 .boost-panel-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
     padding: 8px 14px;
     background: rgba(52, 152, 219, 0.06);
     border-bottom: 1px solid var(--border-color);
@@ -7703,6 +7722,27 @@ input#prompt-input {
 .boost-panel-count {
     font-size: 0.7rem;
     color: var(--text-muted);
+}
+
+.boost-panel-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    margin-left: auto;
+    transition: background 0.15s, color 0.15s;
+}
+
+.boost-panel-close:hover {
+    background: rgba(231, 76, 60, 0.12);
+    color: #e74c3c;
 }
 
 .boost-list {

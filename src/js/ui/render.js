@@ -757,6 +757,7 @@ function toggleBoostPanel(li, item, boostBtn) {
         <div class="boost-panel-header">
             <span class="boost-panel-title"><i class="fas fa-comment-dots"></i> 评论</span>
             <span class="boost-panel-count"></span>
+            <button class="boost-panel-close" title="关闭评论"><i class="fas fa-times"></i></button>
         </div>
         <div class="boost-list"><div class="boost-loading">加载中...</div></div>
         <div class="boost-input-area">
@@ -875,6 +876,17 @@ function toggleBoostPanel(li, item, boostBtn) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBoost(); }
     };
     boostInput.onclick = (e) => e.stopPropagation();
+    const closeBtn = panel.querySelector('.boost-panel-close');
+    if (closeBtn) {
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            panel.classList.add('closing');
+            boostBtn.classList.remove('active');
+            setTimeout(() => {
+                if (panel.parentNode) panel.remove();
+            }, 250);
+        };
+    }
     loadBoosts();
 }
 function renderBoostList(container, boosts, item) {
