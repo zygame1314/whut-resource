@@ -595,7 +595,7 @@
     border: 1px solid var(--border-color);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease, top 0.25s ease;
     z-index: 10;
     display: flex;
     gap: 0.3rem;
