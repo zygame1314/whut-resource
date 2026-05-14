@@ -371,7 +371,7 @@ export async function onRequestPost({ request, env }) {
       let isNewSsoUser = false;
       try {
         if (ssoSmsCode && ssoCookies) {
-          ssoResult = await verifySsoSmsCode(ssoSmsCode, ssoCookies);
+          ssoResult = await verifySsoSmsCode(ssoSmsCode, ssoCookies, body.ssoSmsHtml);
         } else {
           ssoResult = await verifyWHUTCredentials(inputId, password, ssoCode, ssoCookies);
         }
@@ -384,6 +384,7 @@ export async function onRequestPost({ request, env }) {
             success: false,
             smsRequired: true,
             ssoCookies: ssoResult.cookies,
+            ssoSmsHtml: ssoResult.html,
             error: ssoResult.error || '请输入短信验证码'
           }), { status: 403, headers: addCorsHeaders() });
         }

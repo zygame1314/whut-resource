@@ -343,24 +343,6 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
             }
         }
         const failureHtml = await loginResp.text();
-        if (
-            failureHtml.includes('短信验证码') ||
-            failureHtml.includes('手机验证码') ||
-            failureHtml.includes('动态验证码') ||
-            failureHtml.includes('短信验证') ||
-            (failureHtml.includes('smsCode') && failureHtml.includes('<input')) ||
-            (failureHtml.includes('phoneCode') && failureHtml.includes('<input'))
-        ) {
-            const smsErrMsg = failureHtml.match(SMS_ERROR_REGEX);
-            let smsError = smsErrMsg ? smsErrMsg[1].trim() : '该账号需要短信验证，请输入手机验证码';
-            smsError = smsError.replace(/推荐您使用企业微信.*$/, '').trim();
-            return {
-                success: false,
-                smsRequired: true,
-                cookies: cookieStr,
-                error: smsError || '验证码已发送，请输入手机验证码'
-            };
-        }
         const errorMsgMatch = failureHtml.match(ERROR_REGEX);
         let errorDetail = errorMsgMatch ? errorMsgMatch[1].trim() : null;
         if (!errorDetail && failureHtml.includes("验证码有误")) {
@@ -368,6 +350,23 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         }
         if (!errorDetail && failureHtml.includes('name="lt"')) {
             errorDetail = "用户名或密码错误，请检查后重试";
+        }
+        if (!errorDetail) {
+            const hasSmsInput = (failureHtml.includes('smsCode') && failureHtml.includes('<input'))
+                || (failureHtml.includes('phoneCode') && failureHtml.includes('<input'))
+                || failureHtml.includes('name="PM1"');
+            if (hasSmsInput) {
+                const smsErrMsg = failureHtml.match(SMS_ERROR_REGEX);
+                let smsError = smsErrMsg ? smsErrMsg[1].trim() : '该账号需要短信验证，请输入手机验证码';
+                smsError = smsError.replace(/推荐您使用企业微信.*$/, '').trim();
+                return {
+                    success: false,
+                    smsRequired: true,
+                    cookies: cookieStr,
+                    html: failureHtml,
+                    error: smsError || '验证码已发送，请输入手机验证码'
+                };
+            }
         }
         const res = {
             success: false,
@@ -399,34 +398,55 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         return { success: false, error: e.message };
     }
 }
-export async function verifySsoSmsCode(smsCode, initialCookies) {
+export async function verifySsoSmsCode(smsCode, initialCookies, smsHtml) {
     const baseUrl = "https://zhlgd.whut.edu.cn/tpass";
     const loginUrl = `${baseUrl}/login`;
     const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)";
     try {
-        const html = await retryAsync(async () => {
-            const resp = await fetch(loginUrl, {
-                headers: {
-                    "User-Agent": UA,
-                    "Cookie": initialCookies,
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-                },
-                signal: AbortSignal.timeout(FETCH_TIMEOUT)
-            });
-            return resp.text();
-        }, MAX_RETRIES, RETRY_DELAY, "短信验证页获取");
-        const formActionMatch = html.match(/<form[^>]*id="loginForm"[^>]*action="([^"]+)"/i)
-            || html.match(/<form[^>]*action="([^"]*login[^"]*)"[^>]*>/i);
-        let formAction = formActionMatch ? formActionMatch[1] : loginUrl;
-        if (formAction.startsWith('/')) {
-            formAction = `https://zhlgd.whut.edu.cn${formAction}`;
+        let html = smsHtml;
+        if (!html) {
+            html = await retryAsync(async () => {
+                const resp = await fetch(loginUrl, {
+                    headers: {
+                        "User-Agent": UA,
+                        "Cookie": initialCookies,
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                    },
+                    signal: AbortSignal.timeout(FETCH_TIMEOUT)
+                });
+                return resp.text();
+            }, MAX_RETRIES, RETRY_DELAY, "短信验证页获取");
         }
-        const relayStateMatch = html.match(/name=["']RelayState["'][^>]*value=["']([^"']*)["']/i);
-        const executionMatch = html.match(/name=["']execution["'][^>]*value=["']([^"']*)["']/i);
-        const relayState = relayStateMatch ? relayStateMatch[1] : '';
-        const executionVal = executionMatch ? executionMatch[1] : 'e1s1';
-        const formBody = `PM1=${encodeURIComponent(smsCode)}&RelayState=${encodeURIComponent(relayState)}&execution=${encodeURIComponent(executionVal)}&_eventId=submit`;
-        console.log(`[SSO] Submitting SMS code to ${formAction}`);
+        const formRegex = /<form[^>]*>/i;
+        const formMatch = html.match(formRegex);
+        let formAction = loginUrl;
+        if (formMatch) {
+            const actionMatch = formMatch[0].match(/action=["']([^"']+)["']/i);
+            if (actionMatch) {
+                formAction = actionMatch[1];
+                if (formAction.startsWith('/')) {
+                    formAction = `https://zhlgd.whut.edu.cn${formAction}`;
+                }
+            }
+        }
+        const hiddenFields = {};
+        const hiddenRegex = /<input[^>]+type=["']hidden["'][^>]*>/gi;
+        let hiddenMatch;
+        while ((hiddenMatch = hiddenRegex.exec(html)) !== null) {
+            const tag = hiddenMatch[0];
+            const nameMatch = tag.match(/name=["']([^"']+)["']/i);
+            const valueMatch = tag.match(/value=["']([^"']*)["']/i);
+            if (nameMatch) {
+                hiddenFields[nameMatch[1]] = valueMatch ? valueMatch[1] : '';
+            }
+        }
+        const formParts = [`PM1=${encodeURIComponent(smsCode)}`];
+        for (const [name, value] of Object.entries(hiddenFields)) {
+            formParts.push(`${encodeURIComponent(name)}=${encodeURIComponent(value)}`);
+        }
+        formParts.push("_eventId=submit");
+        const formBody = formParts.join("&");
+        console.log(`[SSO] Submitting SMS code to ${formAction}, fields: ${Object.keys(hiddenFields).join(',')}`);
         const smsResp = await retryAsync(async () => {
             return fetch(formAction, {
                 method: "POST",
@@ -448,7 +468,7 @@ export async function verifySsoSmsCode(smsCode, initialCookies) {
             : initialCookies;
         if (smsResp.status === 302 || smsResp.status === 307) {
             try {
-                return await followCasAndFetchUser(smsResp, initialCookies, UA);
+                return await followCasAndFetchUser(smsResp, updatedCookies, UA);
             } catch (err) {
                 console.log("[SSO] SMS登录成功但获取用户信息失败", err.message);
                 return {
@@ -463,11 +483,16 @@ export async function verifySsoSmsCode(smsCode, initialCookies) {
         if (errorDetail) {
             errorDetail = errorDetail.replace(/推荐您使用企业微信.*$/, '').trim();
         }
-        if (resultHtml.includes('PM1') || resultHtml.includes('短信验证码')) {
+        const resultNewCookies = smsResp.headers.getSetCookie();
+        const resultCookies = (resultNewCookies && resultNewCookies.length > 0)
+            ? parseAndMergeCookies(updatedCookies, resultNewCookies)
+            : updatedCookies;
+        if (resultHtml.includes('name="PM1"') || (resultHtml.includes('短信验证码') && resultHtml.includes('<input'))) {
             return {
                 success: false,
                 smsRequired: true,
-                cookies: updatedCookies,
+                cookies: resultCookies,
+                html: resultHtml,
                 error: errorDetail || '验证码错误，请重新输入'
             };
         }

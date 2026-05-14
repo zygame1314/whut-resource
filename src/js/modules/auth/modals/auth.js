@@ -275,6 +275,7 @@ function showAuthModal(mode = 'login') {
     initPasswordToggles(modal);
     let loginCaptchaWidgetId = null;
     let currentSsoCookies = '';
+    let currentSsoSmsHtml = '';
     if (isLogin || isSso) {
         const form = modal.querySelector('#auth-form');
         const forgotPasswordLink = modal.querySelector('#forgot-password');
@@ -306,6 +307,7 @@ function showAuthModal(mode = 'login') {
                 payload.ssoCode = modal.querySelector('#sso-captcha-code')?.value || '';
                 payload.ssoCookies = currentSsoCookies;
                 payload.ssoSmsCode = modal.querySelector('#sso-sms-code')?.value || '';
+                payload.ssoSmsHtml = currentSsoSmsHtml;
             } else {
                 payload.action = 'login';
                 if (!identifier.includes('@')) {
@@ -417,6 +419,7 @@ function showAuthModal(mode = 'login') {
                         if (ssoSmsContainer) {
                             ssoSmsContainer.style.display = 'block';
                             if (data.ssoCookies) currentSsoCookies = data.ssoCookies;
+                            if (data.ssoSmsHtml) currentSsoSmsHtml = data.ssoSmsHtml;
                             const ssoCaptchaContainer = modal.querySelector('#sso-captcha-container');
                             if (ssoCaptchaContainer) ssoCaptchaContainer.style.display = 'none';
                             const loginCaptchaContainer = modal.querySelector('#login-captcha-container');
