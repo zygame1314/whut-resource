@@ -458,6 +458,87 @@
     display: block;
 }
 
+.creative-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 2rem;
+}
+
+.creative-loader-scene {
+    position: relative;
+    width: 120px;
+    height: 100px;
+}
+
+.creative-loader-folder {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3rem;
+    color: var(--primary-color);
+    animation: loaderFolderBreathe 2s ease-in-out infinite;
+    filter: drop-shadow(0 4px 12px rgba(var(--primary-rgb), 0.3));
+    z-index: 2;
+}
+
+.creative-loader-folder .folder-back {
+    opacity: 0.4;
+}
+
+.creative-loader-file {
+    position: absolute;
+    font-size: 1.1rem;
+    color: var(--primary-light);
+    opacity: 0;
+    z-index: 1;
+}
+
+.creative-loader-file:nth-child(2) {
+    animation: loaderFileFloat1 2.4s ease-in-out infinite;
+}
+
+.creative-loader-file:nth-child(3) {
+    animation: loaderFileFloat2 2.4s ease-in-out 0.6s infinite;
+}
+
+.creative-loader-file:nth-child(4) {
+    animation: loaderFileFloat3 2.4s ease-in-out 1.2s infinite;
+}
+
+.creative-loader-file:nth-child(5) {
+    animation: loaderFileFloat4 2.4s ease-in-out 1.8s infinite;
+}
+
+.creative-loader-glow {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(var(--primary-rgb), 0.15) 0%, transparent 70%);
+    animation: loaderGlow 2s ease-in-out infinite;
+    z-index: 0;
+}
+
+.creative-loader-text {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-style: italic;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.creative-loader-dots::after {
+    content: '';
+    animation: loaderDots 1.5s steps(4, end) infinite;
+}
+
 .download-button {
     width: 32px;
     height: 32px;
@@ -5764,6 +5845,12 @@ input#prompt-input {
 .pagination-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .pagination-btn-text {
+        display: none;
+    }
 }
 
 .pagination-info {

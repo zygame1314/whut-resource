@@ -114,7 +114,7 @@
         <div class="container">
             <div class="explorer-container">
                 <aside id="folder-tree-container" class="folder-tree-container">
-                    <section id="announcement-section" class="announcement-section" style="display: none;">
+                    <section id="announcement-section" class="announcement-section">
                         <div class="announcement-card">
                             <div class="announcement-header">
                                 <h3><i class="fas fa-bullhorn"></i> 公告</h3>
@@ -124,6 +124,12 @@
                                 </button>
                             </div>
                             <div id="announcement-content" class="announcement-content">
+                                <div class="announcement-skeleton">
+                                    <div class="announcement-skeleton-title"></div>
+                                    <div class="announcement-skeleton-text"></div>
+                                    <div class="announcement-skeleton-text short"></div>
+                                    <div class="announcement-skeleton-meta"></div>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -295,8 +301,17 @@
                         </div>
                         <ul id="recent-uploads-list" class="recent-uploads-list">
                             <li class="loading-item">
-                                <div class="loading-spinner"></div>
-                                <span>请先完成验证以查看最近上传</span>
+                                <div class="creative-loader">
+                                    <div class="creative-loader-scene">
+                                        <div class="creative-loader-glow"></div>
+                                        <div class="creative-loader-folder"><i class="fas fa-clock-rotate-left"></i></div>
+                                        <div class="creative-loader-file"><i class="fas fa-file-alt"></i></div>
+                                        <div class="creative-loader-file"><i class="fas fa-file-pdf"></i></div>
+                                        <div class="creative-loader-file"><i class="fas fa-file-word"></i></div>
+                                        <div class="creative-loader-file"><i class="fas fa-file-image"></i></div>
+                                    </div>
+                                    <div class="creative-loader-text">请先完成验证以查看最近上传</div>
+                                </div>
                             </li>
                         </ul>
                     </section>
@@ -334,7 +349,7 @@
                         <div class="file-tools-bar">
                             <div class="folder-search-wrapper">
                                 <i class="fas fa-filter"></i>
-                                <input type="text" id="folder-search-input" placeholder="在当前视图中搜索...">
+                                <input type="text" id="folder-search-input" placeholder="在当前文件夹中搜索...">
                                 <button id="clear-folder-search" class="clear-folder-search-btn" style="display: none;">
                                     <i class="fas fa-times"></i>
                                 </button>
@@ -399,8 +414,17 @@
                     <div class="file-list-container">
                         <ul id="file-list" class="file-list">
                             <li class="loading-item">
-                                <div class="loading-spinner"></div>
-                                <span>正在加载文件列表...</span>
+                                <div class="creative-loader">
+                                    <div class="creative-loader-scene">
+                                        <div class="creative-loader-glow"></div>
+                                        <div class="creative-loader-folder"><i class="fas fa-folder-open"></i></div>
+                                        <div class="creative-loader-file"><i class="fas fa-file-alt"></i></div>
+                                        <div class="creative-loader-file"><i class="fas fa-file-pdf"></i></div>
+                                        <div class="creative-loader-file"><i class="fas fa-file-word"></i></div>
+                                        <div class="creative-loader-file"><i class="fas fa-file-image"></i></div>
+                                    </div>
+                                    <div class="creative-loader-text">正在加载文件列表<span class="creative-loader-dots"></span></div>
+                                </div>
                             </li>
                         </ul>
                     </div>
@@ -654,7 +678,7 @@
                     <div class="announcement-view-nav" aria-label="公告详情切换">
                         <button id="announcement-view-prev" class="pagination-button" aria-label="上一条公告">
                             <i class="fas fa-chevron-left"></i>
-                            上一条
+                            <span class="pagination-btn-text">上一条</span>
                         </button>
                         <span class="announcement-view-indicator-wrap">
                             第
@@ -663,7 +687,7 @@
                             / <span id="announcement-view-total">1</span> 条
                         </span>
                         <button id="announcement-view-next" class="pagination-button" aria-label="下一条公告">
-                            下一条
+                            <span class="pagination-btn-text">下一条</span>
                             <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>

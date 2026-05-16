@@ -600,3 +600,135 @@
         opacity: 1;
     }
 }
+
+@keyframes loaderFolderBreathe {
+
+    0%,
+    100% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    }
+
+    25% {
+        transform: translate(-50%, -50%) scale(1.08) rotate(-3deg);
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    }
+
+    75% {
+        transform: translate(-50%, -50%) scale(1.08) rotate(3deg);
+    }
+}
+
+@keyframes loaderFileFloat1 {
+    0% {
+        opacity: 0;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+
+    20% {
+        opacity: 0.9;
+    }
+
+    100% {
+        opacity: 0;
+        top: -10%;
+        left: 15%;
+        transform: translate(-50%, -50%) scale(1) rotate(-25deg);
+    }
+}
+
+@keyframes loaderFileFloat2 {
+    0% {
+        opacity: 0;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+
+    20% {
+        opacity: 0.9;
+    }
+
+    100% {
+        opacity: 0;
+        top: -5%;
+        left: 80%;
+        transform: translate(-50%, -50%) scale(1) rotate(20deg);
+    }
+}
+
+@keyframes loaderFileFloat3 {
+    0% {
+        opacity: 0;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+
+    20% {
+        opacity: 0.8;
+    }
+
+    100% {
+        opacity: 0;
+        top: 85%;
+        left: 10%;
+        transform: translate(-50%, -50%) scale(1) rotate(-15deg);
+    }
+}
+
+@keyframes loaderFileFloat4 {
+    0% {
+        opacity: 0;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+
+    20% {
+        opacity: 0.8;
+    }
+
+    100% {
+        opacity: 0;
+        top: 90%;
+        left: 85%;
+        transform: translate(-50%, -50%) scale(1) rotate(30deg);
+    }
+}
+
+@keyframes loaderGlow {
+
+    0%,
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 1;
+    }
+}
+
+@keyframes loaderDots {
+    0% {
+        content: '';
+    }
+
+    25% {
+        content: '.';
+    }
+
+    50% {
+        content: '..';
+    }
+
+    75% {
+        content: '...';
+    }
+}

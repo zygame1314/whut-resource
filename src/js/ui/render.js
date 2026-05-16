@@ -160,6 +160,7 @@ function renderFolderNode(name, node, currentPath) {
     const hasChildren = Object.keys(node).length > 0;
     const nodeContent = document.createElement('div');
     nodeContent.className = 'folder-tree-item';
+    nodeContent.dataset.path = fullPath;
     nodeContent.innerHTML = `
         <span class="folder-item-main">
             <i class="fas fa-chevron-right folder-toggle-icon ${hasChildren ? '' : 'hidden'}"></i>
@@ -198,6 +199,24 @@ function renderFolderNode(name, node, currentPath) {
         li.appendChild(sublist);
     }
     return li;
+}
+function highlightCurrentFolder(prefix) {
+    document.querySelectorAll('.folder-tree-item.active').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.folder-tree-list .folder-tree-list').forEach(ul => ul.style.display = 'none');
+    document.querySelectorAll('.folder-toggle-icon.expanded').forEach(icon => icon.classList.remove('expanded'));
+    if (!prefix) return;
+    const target = document.querySelector(`.folder-tree-item[data-path="${CSS.escape(prefix)}"]`);
+    if (!target) return;
+    target.classList.add('active');
+    let parent = target.closest('.folder-tree-node');
+    while (parent) {
+        const sublist = parent.querySelector(':scope > .folder-tree-list');
+        if (sublist) sublist.style.display = 'block';
+        const toggle = parent.querySelector(':scope > .folder-tree-item .folder-toggle-icon');
+        if (toggle) toggle.classList.add('expanded');
+        parent = parent.parentElement ? parent.parentElement.closest('.folder-tree-node') : null;
+    }
+    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const li = document.createElement('li');
@@ -665,7 +684,7 @@ function renderPaginationControls(paginationData) {
     controlsContainer.style.display = 'flex';
     const { currentPage, totalPages, totalItems } = paginationData;
     const prevButton = document.createElement('button');
-    prevButton.innerHTML = '<i class="fas fa-chevron-left"></i> 上一页';
+    prevButton.innerHTML = '<i class="fas fa-chevron-left"></i> <span class="pagination-btn-text">上一页</span>';
     prevButton.className = 'pagination-button';
     prevButton.disabled = currentPage <= 1;
     prevButton.onclick = () => {
@@ -706,7 +725,7 @@ function renderPaginationControls(paginationData) {
     pageInfoContainer.appendChild(totalPageSpan);
     controlsContainer.appendChild(pageInfoContainer);
     const nextButton = document.createElement('button');
-    nextButton.innerHTML = '下一页 <i class="fas fa-chevron-right"></i>';
+    nextButton.innerHTML = '<span class="pagination-btn-text">下一页</span> <i class="fas fa-chevron-right"></i>';
     nextButton.className = 'pagination-button';
     nextButton.disabled = currentPage >= totalPages;
     nextButton.onclick = () => {

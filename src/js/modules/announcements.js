@@ -59,12 +59,14 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAndDisplayAnnouncements(currentAnnouncementPage);
     initAnnouncementManager();
 });
+document.addEventListener('authSuccess', () => {
+    fetchAndDisplayAnnouncements(currentAnnouncementPage);
+});
 async function fetchAndDisplayAnnouncements(page = 1) {
     const requestId = ++fetchAnnouncementsRequestId;
     try {
         const token = localStorage.getItem('authToken');
         if (!token) {
-            announcementSection.style.display = 'none';
             return;
         }
         const headers = {};
@@ -93,6 +95,7 @@ async function fetchAndDisplayAnnouncements(page = 1) {
         checkAdminPermission();
     } catch (error) {
         console.error('Error fetching announcements:', error);
+        announcementSection.style.display = 'none';
     }
 }
 function renderAnnouncements(announcements) {
@@ -631,7 +634,7 @@ function renderAdminAnnouncementList() {
         html += `
             <div class="pagination-controls" style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; align-items: center;">
                 <button class="secondary-btn" onclick="changeAnnouncementPage(${currentAnnouncementPage - 1})" ${currentAnnouncementPage === 1 ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
-                    <i class="fas fa-chevron-left"></i> 上一页
+                    <i class="fas fa-chevron-left"></i> <span class="pagination-btn-text">上一页</span>
                 </button>
                 <div style="display:flex; align-items:center;">
                     <input type="number" min="1" max="${totalAnnouncementPages}" value="${currentAnnouncementPage}" 
@@ -642,7 +645,7 @@ function renderAdminAnnouncementList() {
                     <span style="color: var(--text-secondary); font-size: 0.9rem;">/ ${totalAnnouncementPages}</span>
                 </div>
                 <button class="secondary-btn" onclick="changeAnnouncementPage(${currentAnnouncementPage + 1})" ${currentAnnouncementPage === totalAnnouncementPages ? 'disabled' : ''} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
-                    下一页 <i class="fas fa-chevron-right"></i>
+                    <span class="pagination-btn-text">下一页</span> <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
         `;
@@ -736,8 +739,8 @@ async function saveAnnouncement() {
         });
         if (response.ok) {
             allAnnouncementsCache = [];
+            announcementModal.classList.remove('visible');
             await fetchAndDisplayAnnouncements(1);
-            openAnnouncementModal();
         } else {
             alert('保存失败');
         }

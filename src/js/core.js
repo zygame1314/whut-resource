@@ -110,7 +110,9 @@ async function fetchAndRenderRecentUploads(showToast = false) {
     if (!recentUploadsListElement) return;
     const token = localStorage.getItem('authToken');
     if (!token) {
-        recentUploadsListElement.innerHTML = '<li class="empty-state-small">请先完成验证以查看最近上传</li>';
+        if (showToast) {
+            showNotification('请先登录后再查看最近上传', 'warning');
+        }
         return;
     }
     if (showToast) {
@@ -118,8 +120,17 @@ async function fetchAndRenderRecentUploads(showToast = false) {
     }
     recentUploadsListElement.innerHTML = `
         <li class="loading-item">
-            <div class="loading-spinner"></div>
-            <span>正在加载最近上传...</span>
+            <div class="creative-loader">
+                <div class="creative-loader-scene">
+                    <div class="creative-loader-glow"></div>
+                    <div class="creative-loader-folder"><i class="fas fa-clock-rotate-left"></i></div>
+                    <div class="creative-loader-file"><i class="fas fa-file-alt"></i></div>
+                    <div class="creative-loader-file"><i class="fas fa-file-pdf"></i></div>
+                    <div class="creative-loader-file"><i class="fas fa-file-word"></i></div>
+                    <div class="creative-loader-file"><i class="fas fa-file-image"></i></div>
+                </div>
+                <div class="creative-loader-text">正在加载最近上传<span class="creative-loader-dots"></span></div>
+            </div>
         </li>
     `;
     if (refreshRecentUploadsBtn) {
@@ -527,6 +538,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
     if (!isGlobal) {
         currentPrefix = prefix;
         currentFolderSearchTerm = '';
+        highlightCurrentFolder(prefix);
         const folderSearchInput = document.getElementById('folder-search-input');
         const clearFolderSearchBtn = document.getElementById('clear-folder-search');
         if (folderSearchInput) {
@@ -553,11 +565,20 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
     }
     const aiSearchToggle = document.getElementById('ai-search-toggle');
     const useAISearch = aiSearchToggle && aiSearchToggle.checked && isGlobal;
-    const loadingMessage = useAISearch ? 'AI 正在分析语义...' : '正在加载文件列表...';
+    const loadingMessage = useAISearch ? 'AI 正在分析语义' : '正在加载文件列表';
     fileListElement.innerHTML = `
         <li class="loading-item">
-            <div class="loading-spinner"></div>
-            <span>${loadingMessage}<br>(第 ${currentPage} 页)</span>
+            <div class="creative-loader">
+                <div class="creative-loader-scene">
+                    <div class="creative-loader-glow"></div>
+                    <div class="creative-loader-folder"><i class="fas fa-folder-open"></i></div>
+                    <div class="creative-loader-file"><i class="fas fa-file-alt"></i></div>
+                    <div class="creative-loader-file"><i class="fas fa-file-pdf"></i></div>
+                    <div class="creative-loader-file"><i class="fas fa-file-word"></i></div>
+                    <div class="creative-loader-file"><i class="fas fa-file-image"></i></div>
+                </div>
+                <div class="creative-loader-text">${loadingMessage}<span class="creative-loader-dots"></span><br>(第 ${currentPage} 页)</div>
+            </div>
         </li>
     `;
     renderPaginationControls(null);

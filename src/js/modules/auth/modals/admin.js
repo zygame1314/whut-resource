@@ -209,9 +209,9 @@ async function showAdminLogsModal() {
                 `;
             }).join('');
             let paginationHtml = '';
-            if (page > 1) paginationHtml += `<button class="pagination-button" id="logs-prev-page"><i class="fas fa-chevron-left"></i> 上一页</button>`;
+            if (page > 1) paginationHtml += `<button class="pagination-button" id="logs-prev-page"><i class="fas fa-chevron-left"></i> <span class="pagination-btn-text">上一页</span></button>`;
             paginationHtml += `<span class="pagination-info">${page} / ${totalPages}</span>`;
-            if (page < totalPages) paginationHtml += `<button class="pagination-button" id="logs-next-page">下一页 <i class="fas fa-chevron-right"></i></button>`;
+            if (page < totalPages) paginationHtml += `<button class="pagination-button" id="logs-next-page"><span class="pagination-btn-text">下一页</span> <i class="fas fa-chevron-right"></i></button>`;
             pagination.innerHTML = paginationHtml;
             const nextBtn = pagination.querySelector('#logs-next-page');
             const prevBtn = pagination.querySelector('#logs-prev-page');
