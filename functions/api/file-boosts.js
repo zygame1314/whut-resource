@@ -143,10 +143,11 @@ export async function onRequestPost({ request, env }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
-        const todayStart = new Date().toISOString().split('T')[0] + 'T00:00:00Z';
+        const todayStart = new Date(new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0] + 'T00:00:00Z').getTime() - 8 * 3600000;
+        const todayStartISO = new Date(todayStart).toISOString();
         const dailyCount = await DB.prepare(
             'SELECT COUNT(*) as count FROM file_boosts WHERE user_id = ? AND file_key = ? AND created_at >= ?'
-        ).bind(user.id, key, todayStart).first();
+        ).bind(user.id, key, todayStartISO).first();
         if (dailyCount && dailyCount.count >= DAILY_LIMIT) {
             return new Response(JSON.stringify({ success: false, error: `每天最多发送${DAILY_LIMIT}条评论` }), {
                 status: 429,

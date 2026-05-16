@@ -76,7 +76,7 @@ export async function onRequest(context) {
       if (user.is_banned) {
         return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法下载文件。' }), { status: 403, headers: addCorsHeaders() });
       }
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
       const recentDuplicate = await env.DB.prepare(
         `SELECT id FROM downloads
            WHERE user_id = ? AND file_key = ?
@@ -154,7 +154,7 @@ export async function onRequest(context) {
     if (user.is_banned) {
       return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法下载文件。' }), { status: 403, headers: addCorsHeaders() });
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
     if (Array.isArray(path)) {
       key = decodeURIComponent(path.join('/'));
     } else {

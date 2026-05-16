@@ -456,7 +456,7 @@ export async function onRequestPost({ request, env }) {
           }
         }
         const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
         if (user.last_download_date !== today) {
           user.quota_used = 0;
         }
@@ -560,7 +560,7 @@ export async function onRequestPost({ request, env }) {
         env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(email, 'email').run()
       ]);
       const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
       if (user.last_download_date !== today) {
         user.quota_used = 0;
       }
@@ -585,7 +585,7 @@ export async function onRequestGet({ request, env }) {
   }
   const user = await env.DB.prepare('SELECT id, email, nickname, role, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(payload.id).first();
   if (user) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
     if (user.last_download_date !== today) {
       user.quota_used = 0;
     }

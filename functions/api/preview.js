@@ -85,7 +85,7 @@ export async function onRequest(context) {
       const shouldCountThisDownload = !recentDuplicate;
       let quotaUpdated = false;
       if (shouldCountThisDownload) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
         if (userInfo.last_download_date !== today) {
           await env.DB.prepare('UPDATE users SET quota_used = 1, last_download_date = ? WHERE id = ?').bind(today, user.id).run();
           quotaUpdated = true;

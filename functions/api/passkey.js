@@ -218,7 +218,7 @@ export async function onRequestPost({ request, env }) {
             await env.DB.prepare('UPDATE user_passkeys SET sign_count = MAX(sign_count, ?), last_used_at = CURRENT_TIMESTAMP WHERE credential_id = ?')
                 .bind(authData.signCount, credential.id).run();
             const authToken = await signToken({ id: passkey.uid, email: passkey.email, role: passkey.role, exp: Date.now() + 86400000 * 7 }, secret);
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
             const quota_used = passkey.last_download_date !== today ? 0 : passkey.quota_used;
             return new Response(JSON.stringify({
                 success: true, token: authToken,
