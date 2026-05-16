@@ -53,11 +53,14 @@ let hasTriedEntryPopup = false;
 let currentViewedAnnouncement = null;
 let announcementReachedBottomAt = 0;
 let isAnnouncementScrollingBackUp = false;
+let announcementItemAnimId = 0;
+let fetchAnnouncementsRequestId = 0;
 document.addEventListener('DOMContentLoaded', () => {
     fetchAndDisplayAnnouncements(currentAnnouncementPage);
     initAnnouncementManager();
 });
 async function fetchAndDisplayAnnouncements(page = 1) {
+    const requestId = ++fetchAnnouncementsRequestId;
     try {
         const token = localStorage.getItem('authToken');
         if (!token) {
@@ -72,11 +75,13 @@ async function fetchAndDisplayAnnouncements(page = 1) {
             const response = await fetch(`${ANNOUNCEMENTS_API_URL}`, { headers });
             if (!response.ok) throw new Error('Failed to fetch announcements');
             const data = await response.json();
+            if (requestId !== fetchAnnouncementsRequestId) return;
             allAnnouncementsCache = data.data || [];
         }
         const startIndex = (page - 1) * ANNOUNCEMENTS_PER_PAGE;
         const endIndex = startIndex + ANNOUNCEMENTS_PER_PAGE;
         const announcements = allAnnouncementsCache.slice(startIndex, endIndex);
+        if (requestId !== fetchAnnouncementsRequestId) return;
         allAnnouncements = announcements;
         currentAnnouncementItemIndex = 0;
         announcementReachedBottomAt = 0;
@@ -157,12 +162,14 @@ function updateAnnouncementItemView(direction = 0) {
         dot.classList.toggle('active', index === currentAnnouncementItemIndex);
     });
     if (isAnnouncementItemSwitching) {
+        announcementItemAnimId++;
         items.forEach(item => {
             item.classList.remove('slide-out-left', 'slide-in-right', 'slide-out-right', 'slide-in-left');
         });
         items.forEach((item, index) => {
             item.style.display = index === currentAnnouncementItemIndex ? 'block' : 'none';
         });
+        isAnnouncementItemSwitching = false;
         return;
     }
     if (direction === 0) {
@@ -171,6 +178,8 @@ function updateAnnouncementItemView(direction = 0) {
         });
         return;
     }
+    announcementItemAnimId++;
+    const currentAnimId = announcementItemAnimId;
     isAnnouncementItemSwitching = true;
     const visibleItems = [...items].filter(item => item.style.display !== 'none');
     const currentItem = visibleItems[0];
@@ -186,11 +195,13 @@ function updateAnnouncementItemView(direction = 0) {
     const inClass = direction > 0 ? 'slide-in-right' : 'slide-in-left';
     currentItem.classList.add(outClass);
     setTimeout(() => {
+        if (announcementItemAnimId !== currentAnimId) return;
         currentItem.style.display = 'none';
         currentItem.classList.remove(outClass);
         nextItem.style.display = 'block';
         nextItem.classList.add(inClass);
         setTimeout(() => {
+            if (announcementItemAnimId !== currentAnimId) return;
             nextItem.classList.remove(inClass);
             isAnnouncementItemSwitching = false;
         }, 250);
@@ -242,9 +253,8 @@ async function changeAnnouncementPageInternal(page, options = {}) {
         await fetchAndDisplayAnnouncements(page);
         announcementContent.style.opacity = '';
         announcementContent.classList.add('page-fade-in');
-        setTimeout(() => {
-            announcementContent.classList.remove('page-fade-in');
-        }, 250);
+        await new Promise(resolve => setTimeout(resolve, 250));
+        announcementContent.classList.remove('page-fade-in');
     } finally {
         isAnnouncementPageSwitching = false;
     }
