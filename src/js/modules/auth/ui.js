@@ -78,7 +78,8 @@ function updateAuthUI() {
             }
             authSection.innerHTML = `
                 <span class="user-info">
-                    <i class="fas fa-user"></i> ${escapeHtml(currentUser.nickname || currentUser.email)}
+                    <i class="fas fa-user"></i>
+                    <span class="user-info-name" title="${escapeHtml(currentUser.nickname || currentUser.email)}">${escapeHtml(currentUser.nickname || currentUser.email)}</span>
                     <span class="quota" title="今日配额：已用 / 总限额&#10;• 每次下载或预览扣除 1 次&#10;• 文件下载在30秒内重复操作不扣次数&#10;• 每日北京时间 00:00 自动重置">(${quotaDisplay})</span>
                 </span>
                 ${requestButton}

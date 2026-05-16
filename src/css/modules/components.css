@@ -1329,6 +1329,10 @@
     font-weight: 600;
     color: var(--text-primary);
     font-size: 1rem;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .timestamp {
@@ -3054,6 +3058,13 @@
     animation: pulse 2s infinite;
 }
 
+.user-info .user-info-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .user-info .quota {
     display: inline-flex;
     align-items: center;
@@ -3811,7 +3822,7 @@ textarea.form-input {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex-wrap: wrap;
+    min-width: 0;
 }
 
 .user-badges {
@@ -7837,6 +7848,10 @@ input#prompt-input {
     font-size: 0.75rem;
     font-weight: 600;
     color: #3498db;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .boost-self .boost-nickname {

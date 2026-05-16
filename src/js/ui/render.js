@@ -846,7 +846,7 @@ function toggleBoostPanel(li, item, boostBtn) {
                 const nickname = result.boost.nickname || '我';
                 newBoost.innerHTML = `
                     <div class="boost-bubble-header">
-                        <span class="boost-nickname">${escapeHtml(nickname)}</span>
+                        <span class="boost-nickname" title="${escapeHtml(nickname)}">${escapeHtml(nickname)}</span>
                         <span class="boost-time">刚刚</span>
                         <button class="boost-delete-btn" title="删除" data-id="${result.boost.id}"><i class="fas fa-times"></i></button>
                     </div>
@@ -905,7 +905,7 @@ function renderBoostList(container, boosts, item) {
         return `
             <div class="${bubbleClass}" data-boost-id="${b.id}">
                 <div class="boost-bubble-header">
-                    <span class="boost-nickname">${escapeHtml(nickname)}</span>
+                    <span class="boost-nickname" title="${escapeHtml(nickname)}">${escapeHtml(nickname)}</span>
                     <span class="boost-time">${timeStr}</span>
                     ${deleteBtn}
                 </div>

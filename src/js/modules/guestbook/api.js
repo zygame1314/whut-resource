@@ -103,6 +103,7 @@ async function handleGuestbookSubmit(e) {
             guestbookContentInput.value = '';
             showNotification('留言发布成功！', 'success');
             const isAdmin = isGuestbookAdmin(window.currentUser);
+            const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
             const newMessage = {
                 id: result.id,
                 user_id: window.currentUser.id,
@@ -117,7 +118,8 @@ async function handleGuestbookSubmit(e) {
                 resolve_note: null,
                 created_at: new Date().toISOString(),
                 role: window.currentUser.role,
-                isAdmin: isAdmin
+                isAdmin: isAdmin,
+                isSuperAdmin: isSuperAdmin
             };
             guestbookCache.data.unshift(newMessage);
             fetchAndDisplayGuestbook(1);

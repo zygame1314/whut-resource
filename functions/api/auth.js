@@ -1,5 +1,41 @@
-import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders } from '../utils.js';
+import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, fetchSiliconFlowChat } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
+const NICKNAME_MODERATION_PROMPT = `你是昵称审核助手，检查用户昵称是否合规。
+【审核规则】
+1. 含辱骂/色情/反动/暴恐/违法/政治敏感内容 -> REJECT:违规原因
+2. 含恶意推广/广告/引流内容 -> REJECT:违规原因
+3. 含攻击性/不雅/侮辱性词汇 -> REJECT:违规原因
+4. 正常昵称 -> PASS
+【输出格式】
+- 违规：REJECT:简短原因（不超过15字）
+- 通过：PASS
+严禁输出其他内容，只输出 PASS 或 REJECT:原因`;
+async function moderateNickname(nickname, env) {
+  if (!env.SILICONFLOW_API_KEY) {
+    console.warn('未配置 SILICONFLOW_API_KEY，跳过昵称审核');
+    return { pass: true };
+  }
+  try {
+    const data = await fetchSiliconFlowChat(env, {
+      messages: [
+        { role: 'system', content: NICKNAME_MODERATION_PROMPT },
+        { role: 'user', content: nickname }
+      ],
+      temperature: 0.1,
+      maxTokens: 30
+    });
+    let result = data.choices?.[0]?.message?.content?.trim() || '';
+    result = result.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    if (result.startsWith('REJECT:')) {
+      const reason = result.substring(7).trim();
+      return { pass: false, reason: reason || '昵称不合规' };
+    }
+    return { pass: true };
+  } catch (error) {
+    console.error('昵称审核失败，放行:', error);
+    return { pass: true };
+  }
+}
 async function recordLoginAttempt(db, identifier, type) {
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   const now = new Date().toISOString();
@@ -85,6 +121,10 @@ export async function onRequestPost({ request, env }) {
       }
       if (sanitizedNickname.length === 0) {
         sanitizedNickname = emailPrefix;
+      }
+      const nicknameModeration = await moderateNickname(sanitizedNickname, env);
+      if (!nicknameModeration.pass) {
+        return new Response(JSON.stringify({ success: false, error: `昵称未通过审核：${nicknameModeration.reason}` }), { status: 451, headers: addCorsHeaders() });
       }
       await env.DB.prepare('DELETE FROM pending_registrations WHERE email_prefix = ?').bind(emailPrefix).run();
       await env.DB.prepare('INSERT INTO pending_registrations (email_prefix, password_hash, nickname, verify_code, expires_at) VALUES (?, ?, ?, ?, ?)')
@@ -276,6 +316,10 @@ export async function onRequestPost({ request, env }) {
       }
       if (newNickname.length > 20) {
         return new Response(JSON.stringify({ success: false, error: '昵称过长（最多20字符）。' }), { status: 400, headers: addCorsHeaders() });
+      }
+      const nicknameModeration = await moderateNickname(newNickname, env);
+      if (!nicknameModeration.pass) {
+        return new Response(JSON.stringify({ success: false, error: `昵称未通过审核：${nicknameModeration.reason}` }), { status: 451, headers: addCorsHeaders() });
       }
       await env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?')
         .bind(newNickname, payload.id)

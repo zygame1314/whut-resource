@@ -114,7 +114,7 @@ function renderGuestbook(messages) {
                         <div class="guestbook-user-info">
                             <div class="user-info-top">
                                 <div class="nickname-wrapper">
-                                    <span class="nickname">${escapeHtml(msg.nickname || '匿名用户')}</span>
+                                    <span class="nickname" title="${safeNickname}">${safeNickname}</span>
                                     ${msg.isAdmin ? `<span class="admin-badge${msg.isSuperAdmin ? ' super' : ''}"><i class="fas fa-${msg.isSuperAdmin ? 'crown' : 'shield-alt'}"></i> ${msg.isSuperAdmin ? '超级管理员' : '管理员'}</span>` : ''}
                                 </div>
                                 <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
