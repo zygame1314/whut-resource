@@ -1,15 +1,27 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, fetchSiliconFlowChat } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
-const NICKNAME_MODERATION_PROMPT = `你是昵称审核助手，检查用户昵称是否合规。
-【审核规则】
-1. 含辱骂/色情/反动/暴恐/违法/政治敏感内容 -> REJECT:违规原因
-2. 含恶意推广/广告/引流内容 -> REJECT:违规原因
-3. 含攻击性/不雅/侮辱性词汇 -> REJECT:违规原因
-4. 正常昵称 -> PASS
-【输出格式】
-- 违规：REJECT:简短原因（不超过15字）
-- 通过：PASS
-严禁输出其他内容，只输出 PASS 或 REJECT:原因`;
+const NICKNAME_MODERATION_PROMPT = `你是严格的昵称审核助手。逐条检查以下规则，命中任意一条即 REJECT。
+
+【必须拒绝的类型】
+1. 辱骂/色情/暴恐/违法/政治敏感 -> REJECT:违规内容
+2. 广告/推广/引流/营销/带货/代理/加群/关注 -> REJECT:含广告引流
+3. 冒充官方/管理员/系统/客服/老师/学校/通知/公告 -> REJECT:冒充身份
+4. 含QQ/微信/手机号/网址/链接/联系方式/加我/私聊 -> REJECT:含联系方式
+5. 诱导点击/钓鱼/诈骗/中奖/免费领/兼职/刷单/贷款 -> REJECT:涉嫌欺诈诱导
+6. 含特殊符号伪装官方标签如【】《》「」[ ]等+官方/通知/系统等词 -> REJECT:伪装官方标识
+7. 攻击/侮辱/歧视/人身攻击/地域黑/性别歧视 -> REJECT:含攻击性内容
+8. 含不雅/低俗/擦边/性暗示/谐音脏话 -> REJECT:含不雅内容
+9. 名称过短无意义(如单个字母/数字)或纯乱码 -> REJECT:无效昵称
+10. 模仿系统消息/弹窗提示/紧急通知等欺骗性内容 -> REJECT:伪装系统消息
+
+【通过条件】
+仅当昵称是正常、无害、无误导性的普通用户名时 -> PASS
+
+【输出格式】只输出一行：
+PASS
+或
+REJECT:原因（不超过15字）
+严禁输出其他任何内容。`;
 async function moderateNickname(nickname, env) {
   if (!env.SILICONFLOW_API_KEY) {
     console.warn('未配置 SILICONFLOW_API_KEY，跳过昵称审核');
