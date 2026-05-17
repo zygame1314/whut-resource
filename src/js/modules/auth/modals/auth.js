@@ -92,7 +92,7 @@ function showAuthModal(mode = 'login') {
             </form>
             ${isSso ? `
                 <div class="sso-security-hint">
-                    <i class="fas fa-lock"></i> 你的凭据直接发送至学校认证系统，本站不存储密码
+                    <i class="fas fa-lock"></i> 凭据直接发送至学校认证系统，本站不存储密码
                 </div>
             ` : ''}
             ${!isSso ? `
