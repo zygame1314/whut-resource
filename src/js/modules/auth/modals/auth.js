@@ -26,6 +26,10 @@ function showAuthModal(mode = 'login') {
                     <i class="fas fa-info-circle"></i>
                     <span>提示：教职工建议直接使用学校邮箱注册登录</span>
                 </div>
+                <div class="teacher-hint" style="background: rgba(231, 76, 60, 0.08); border-color: rgba(231, 76, 60, 0.2); color: #c0392b;">
+                    <i class="fas fa-exclamation-triangle" style="color: #c0392b;"></i>
+                    <span>SSO 登录为逆向实现，可能不稳定。如遇报错请改用邮箱注册登录。</span>
+                </div>
             ` : `
                 <h2 class="auth-title">${title}</h2>
             `}

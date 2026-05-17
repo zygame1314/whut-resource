@@ -6,13 +6,13 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'reject_message',
-            description: '驳回留言。当留言明确无效、违规或属于烂梗时使用。此操作会将留言设为隐藏，并向作者显示具体的驳回原因。',
+            description: '驳回留言。当留言明确无效、违规时使用。此操作会将留言设为隐藏，并向作者显示具体的驳回原因。',
             parameters: {
                 type: 'object',
                 properties: {
                     reason: {
                         type: 'string',
-                        description: '驳回原因。例如：表述不清、无意义内容、烂梗、刷屏、非资源请求等。'
+                        description: '驳回原因。例如：表述不清、无意义内容、刷屏、非资源请求等。'
                     }
                 },
                 required: ['reason']
