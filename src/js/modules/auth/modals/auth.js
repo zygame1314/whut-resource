@@ -28,7 +28,7 @@ function showAuthModal(mode = 'login') {
                 </div>
                 <div class="teacher-hint" style="background: rgba(231, 76, 60, 0.08); border-color: rgba(231, 76, 60, 0.2); color: #c0392b;">
                     <i class="fas fa-exclamation-triangle" style="color: #c0392b;"></i>
-                    <span>SSO 登录为逆向实现，可能不稳定。如遇报错请改用邮箱注册登录。</span>
+                    <span>统一认证不稳定，报错请改用邮箱登录</span>
                 </div>
             ` : `
                 <h2 class="auth-title">${title}</h2>
