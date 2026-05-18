@@ -74,7 +74,8 @@ const cssBundles = {
         'modules/layout.css',
         'modules/components.css',
         'modules/pages.css',
-        'modules/dynamic.css'
+        'modules/dynamic.css',
+        'modules/tutorial.css'
     ],
     'css/graph.css': ['modules/graph.css']
 };
