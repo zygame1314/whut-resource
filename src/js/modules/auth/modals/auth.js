@@ -28,7 +28,7 @@ function showAuthModal(mode = 'login') {
                 </div>
                 <div class="teacher-hint" style="background: rgba(231, 76, 60, 0.08); border-color: rgba(231, 76, 60, 0.2); color: #c0392b;">
                     <i class="fas fa-exclamation-triangle" style="color: #c0392b;"></i>
-                    <span>统一认证不稳定，报错请改用邮箱登录</span>
+                    <span>统一认证不稳定，如报错请改用邮箱登录</span>
                 </div>
             ` : `
                 <h2 class="auth-title">${title}</h2>
@@ -112,6 +112,9 @@ function showAuthModal(mode = 'login') {
                 没有账号? <a href="#" id="switch-mode">去注册</a> | <a href="#" id="forgot-password">忘记密码?</a>
                 `}
             </p>
+            <div class="free-notice">
+                <span>本平台完全免费，<strong>从未授权任何付费渠道</strong>。如有人向你收费，请自觉抵制。</span>
+            </div>
         </div>
         `;
     } else {
@@ -241,6 +244,9 @@ function showAuthModal(mode = 'login') {
                 <p class="auth-footer">
                     已有账号? <a href="#" id="switch-mode">去登录</a>
                 </p>
+                <div class="free-notice">
+                    <span>本平台完全免费，<strong>从未授权任何付费渠道</strong>。如有人向你收费，请自觉抵制。</span>
+                </div>
             </div >
             `;
     }

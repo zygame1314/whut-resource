@@ -3077,6 +3077,25 @@
     width: 100%;
 }
 
+.free-notice {
+    margin-top: 1rem;
+    padding: 0.6rem 0.8rem;
+    background: rgba(255, 193, 7, 0.08);
+    border: 1px solid rgba(255, 193, 7, 0.25);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.82rem;
+    color: #b8860b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+.free-notice i {
+    color: #e74c3c;
+    font-size: 0.85rem;
+}
+
 .full-width {
     width: 100%;
     justify-content: center;
@@ -8779,6 +8798,8 @@ input#prompt-input {
     color: var(--primary-color);
     text-decoration: none;
     transition: opacity 0.2s;
+    overflow-wrap: anywhere;
+    word-break: break-all;
 }
 
 .markdown-body a:hover {
