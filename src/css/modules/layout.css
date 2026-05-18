@@ -748,6 +748,79 @@
     flex-shrink: 0;
 }
 
+#download-history-list {
+    margin-top: 1rem;
+}
+
+.download-history-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.download-history-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+    border-radius: var(--border-radius-medium);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.download-history-item:hover {
+    background-color: var(--background-hover);
+}
+
+.download-history-name {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.download-history-name i {
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.download-history-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.download-history-path {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.download-history-path i {
+    color: var(--primary-color);
+    font-size: 0.7rem;
+}
+
+.download-history-time {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
 .empty-state-small {
     font-size: 0.9rem;
     color: var(--text-secondary);

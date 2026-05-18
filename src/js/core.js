@@ -106,6 +106,117 @@ async function fetchAndRenderHotFolders() {
         showNotification(`请求热门文件夹出错: ${error.message}`, 'error');
     }
 }
+async function fetchAndRenderDownloadHistory() {
+    if (!downloadHistoryListElement) return;
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        downloadHistoryListElement.innerHTML = '<p class="empty-state-small">登录后查看下载历史</p>';
+        return;
+    }
+    downloadHistoryListElement.innerHTML = `
+        <div class="sidebar-skeleton-hot">
+            <div class="skeleton-hot-item">
+                <div class="skeleton-hot-left"><div class="skeleton-folder-icon"></div><div class="skeleton-text medium"></div></div>
+                <div class="skeleton-hot-right"><div class="skeleton-fire-icon"></div><div class="skeleton-count"></div></div>
+            </div>
+            <div class="skeleton-hot-item">
+                <div class="skeleton-hot-left"><div class="skeleton-folder-icon"></div><div class="skeleton-text short"></div></div>
+                <div class="skeleton-hot-right"><div class="skeleton-fire-icon"></div><div class="skeleton-count"></div></div>
+            </div>
+            <div class="skeleton-hot-item">
+                <div class="skeleton-hot-left"><div class="skeleton-folder-icon"></div><div class="skeleton-text"></div></div>
+                <div class="skeleton-hot-right"><div class="skeleton-fire-icon"></div><div class="skeleton-count"></div></div>
+            </div>
+        </div>`;
+    try {
+        const response = await fetch(`${FILES_API_URL}?action=downloadHistory&limit=10`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (response.ok && result.success && result.files) {
+            if (result.files.length === 0) {
+                downloadHistoryListElement.innerHTML = '<p class="empty-state-small">暂无下载记录</p>';
+                return;
+            }
+            downloadHistoryListElement.innerHTML = '';
+            const ul = document.createElement('ul');
+            ul.className = 'download-history-list';
+            result.files.forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'download-history-item';
+                const isLink = file.is_link === 1 || file.is_link === true;
+                const iconClass = isLink ? 'fas fa-link' : getFileIcon(file.name, false);
+                const parentPath = typeof file.parent_path === 'string' ? file.parent_path : '';
+                const normalizedPath = parentPath.endsWith('/') ? parentPath.slice(0, -1) : parentPath;
+                const truncateMiddle = (str, len = 12) => {
+                    if (!str || str.length <= len) return str;
+                    return str.slice(0, Math.ceil(len / 2)) + '...' + str.slice(-Math.floor(len / 2));
+                };
+                const displayPath = normalizedPath ? truncateMiddle(normalizedPath.split('/').pop(), 14) : '根目录';
+                const timeStr = formatHistoryTime(file.downloaded_at);
+                li.innerHTML = `
+                    <span class="download-history-name" title="${escapeHtml(file.name)}">
+                       <i class="${iconClass}"></i>
+                       ${escapeHtml(file.name)}
+                    </span>
+                    <span class="download-history-meta">
+                        <span class="download-history-path" title="${escapeHtml(parentPath || '根目录')}"><i class="fas fa-folder-open"></i> ${escapeHtml(displayPath)}</span>
+                        <span class="download-history-time">${timeStr}</span>
+                    </span>
+                `;
+                let pressTimer = null;
+                let isLongPress = false;
+                li.addEventListener('touchstart', (e) => {
+                    isLongPress = false;
+                    pressTimer = setTimeout(() => {
+                        isLongPress = true;
+                        showNotification(`完整路径: ${parentPath || '根目录'}`, 'info');
+                    }, 500);
+                }, { passive: true });
+                li.addEventListener('touchend', () => { clearTimeout(pressTimer); });
+                li.addEventListener('touchcancel', () => { clearTimeout(pressTimer); });
+                li.addEventListener('contextmenu', (e) => {
+                    if (isLongPress) { e.preventDefault(); e.stopPropagation(); }
+                });
+                li.addEventListener('click', (e) => {
+                    if (isLongPress) { e.preventDefault(); e.stopPropagation(); return; }
+                    if (isLink && file.link_url) {
+                        if (typeof openLink === 'function') {
+                            openLink(file.key, file.link_url);
+                        } else {
+                            window.open(file.link_url, '_blank');
+                        }
+                    } else {
+                        if (searchInput) searchInput.value = '';
+                        fetchAndDisplayFiles(parentPath || '');
+                    }
+                });
+                ul.appendChild(li);
+            });
+            downloadHistoryListElement.appendChild(ul);
+        } else {
+            downloadHistoryListElement.innerHTML = '<p class="empty-state-small">无法加载下载历史。</p>';
+            console.error('获取下载历史失败:', result.error);
+        }
+    } catch (error) {
+        downloadHistoryListElement.innerHTML = '<p class="empty-state-small">加载下载历史时出错。</p>';
+        console.error('请求下载历史出错:', error);
+    }
+}
+function formatHistoryTime(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z'));
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return '刚刚';
+    if (diffMin < 60) return `${diffMin}分钟前`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}小时前`;
+    const diffDay = Math.floor(diffHour / 24);
+    if (diffDay < 30) return `${diffDay}天前`;
+    return date.toLocaleDateString('zh-CN');
+}
 async function fetchAndRenderRecentUploads(showToast = false) {
     if (!recentUploadsListElement) return;
     const token = localStorage.getItem('authToken');

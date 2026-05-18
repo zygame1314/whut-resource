@@ -53,6 +53,7 @@ document.addEventListener('authSuccess', async () => {
     fetchFileStats();
     fetchAndBuildFolderTree();
     fetchAndRenderHotFolders();
+    fetchAndRenderDownloadHistory();
     fetchAndRenderRecentUploads();
     if (typeof checkAdminPermission === 'function') {
         checkAdminPermission();
@@ -84,6 +85,7 @@ document.addEventListener('authRestored', () => {
     fetchFileStats();
     fetchAndBuildFolderTree();
     fetchAndRenderHotFolders();
+    fetchAndRenderDownloadHistory();
     fetchAndRenderRecentUploads();
     const uploadBtnLink = document.getElementById('upload-btn-link');
     if (uploadBtnLink) {
@@ -339,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         overlay.addEventListener('click', closeSidebar);
         sidebar.addEventListener('click', (e) => {
-            if (e.target.closest('.go-to-folder-btn') || e.target.closest('.hot-folder-item')) {
+            if (e.target.closest('.go-to-folder-btn') || e.target.closest('.hot-folder-item') || e.target.closest('.download-history-item')) {
                 closeSidebar();
             }
         });

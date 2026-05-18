@@ -285,6 +285,33 @@ export async function onRequestGet({ request, env, waitUntil }) {
             const { results } = await stmt.bind(limit).all();
             return new Response(JSON.stringify({ success: true, files: results }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
+        if (action === 'downloadHistory') {
+            if (!user) {
+                return new Response(JSON.stringify({ success: false, error: '需要登录' }), {
+                    status: 401,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            const limit = Math.min(parseInt(url.searchParams.get('limit') || '15') || 15, 50);
+            const offset = Math.max(parseInt(url.searchParams.get('offset') || '0') || 0, 0);
+            const stmt = DB.prepare(`
+                SELECT f.key, f.name, f.parent_path, f.is_directory, f.is_link, f.link_url, f.size, f.downloads, f.contentType,
+                       d.downloaded_at,
+                       ${user ? `(SELECT COUNT(*) FROM file_reactions WHERE file_key = f.key AND user_id = ${user.id}) as is_liked` : '0 as is_liked'}
+                FROM downloads d
+                JOIN files f ON d.file_key = f.key
+                WHERE d.user_id = ?
+                ORDER BY d.downloaded_at DESC
+                LIMIT ? OFFSET ?
+            `);
+            const { results } = await stmt.bind(user.id, limit, offset).all();
+            const countResult = await DB.prepare('SELECT COUNT(*) as total FROM downloads WHERE user_id = ?').bind(user.id).first();
+            return new Response(JSON.stringify({
+                success: true,
+                files: results,
+                total: countResult?.total || 0
+            }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
         if (action === 'getById') {
             const id = url.searchParams.get('id');
             if (!id || !/^\d+$/.test(id)) {

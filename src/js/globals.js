@@ -17,6 +17,7 @@ const DOWNLOAD_API_BASE_URL = API_ENDPOINTS.download;
 const searchCache = new Map();
 const folderTreeElement = document.getElementById('folder-tree');
 const hotFoldersListElement = document.getElementById('hot-folders-list');
+const downloadHistoryListElement = document.getElementById('download-history-list');
 const recentUploadsSection = document.getElementById('recent-uploads-section');
 const recentUploadsListElement = document.getElementById('recent-uploads-list');
 const refreshRecentUploadsBtn = document.getElementById('refresh-recent-uploads');

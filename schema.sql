@@ -124,6 +124,7 @@ CREATE INDEX IF NOT EXISTS idx_guestbook_likes_reverse ON guestbook_likes(guestb
 CREATE INDEX IF NOT EXISTS idx_downloads_file_key ON downloads(file_key);
 CREATE INDEX IF NOT EXISTS idx_downloads_cleanup ON downloads(downloaded_at);
 CREATE INDEX IF NOT EXISTS idx_downloads_debounce ON downloads(user_id, file_key, downloaded_at DESC);
+CREATE INDEX IF NOT EXISTS idx_downloads_user_history ON downloads(user_id, downloaded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_admin_list ON guestbook(is_pinned DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_list_default ON guestbook(is_hidden, is_pinned DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_user_daily_limit ON guestbook(user_id, created_at);
