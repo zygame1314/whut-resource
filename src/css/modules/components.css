@@ -3352,7 +3352,7 @@
     max-height: 150px;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--border-color) transparent;
+    scrollbar-color: var(--primary-color) transparent;
 }
 
 .announcement-text::-webkit-scrollbar {
@@ -3364,12 +3364,12 @@
 }
 
 .announcement-text::-webkit-scrollbar-thumb {
-    background-color: var(--border-color);
+    background-color: var(--primary-color);
     border-radius: 2px;
 }
 
 .announcement-text::-webkit-scrollbar-thumb:hover {
-    background-color: var(--text-secondary);
+    background-color: var(--primary-dark);
 }
 
 .announcement-text h1,

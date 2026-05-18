@@ -97,6 +97,7 @@
 .explorer-container {
     display: flex;
     gap: 2rem;
+    align-items: flex-start;
 }
 
 .folder-tree-container {
@@ -110,6 +111,25 @@
     max-height: calc(100vh - 110px);
     width: 28%;
     min-width: 320px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) transparent;
+}
+
+.folder-tree-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+.folder-tree-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.folder-tree-container::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.folder-tree-container::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
 }
 
 .folder-tree-container .section-title {
@@ -567,7 +587,7 @@
     max-height: 300px;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--border-color) transparent;
+    scrollbar-color: var(--primary-color) transparent;
     position: relative;
 }
 
@@ -576,8 +596,12 @@
 }
 
 .folder-tree-scroll-wrapper::-webkit-scrollbar-thumb {
-    background: var(--border-color);
+    background: var(--primary-color);
     border-radius: 4px;
+}
+
+.folder-tree-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
 }
 
 .folder-tree-scroll-indicator {
@@ -616,6 +640,7 @@
 .folder-tree-scroll-indicator:hover {
     color: var(--primary-color);
     background: var(--background-hover);
+    transition: transform var(--transition-normal), opacity var(--transition-normal), max-height var(--transition-normal), padding var(--transition-normal), color var(--transition-fast), background var(--transition-fast);
 }
 
 .folder-tree-scroll-indicator i {
@@ -827,6 +852,8 @@
     max-height: 240px;
     overflow-y: auto;
     padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) transparent;
 }
 
 .download-history-list::-webkit-scrollbar {
@@ -838,7 +865,7 @@
 }
 
 .download-history-list::-webkit-scrollbar-thumb {
-    background-color: var(--border-color);
+    background-color: var(--primary-color);
     border-radius: 2px;
 }
 

@@ -150,7 +150,8 @@ button,
 }
 
 ::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -164,6 +165,11 @@ button,
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary-dark);
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--background-alt);
 }
 
 ::selection {
