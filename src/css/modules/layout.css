@@ -104,9 +104,10 @@
     background: var(--background-secondary);
     padding: 1.5rem;
     border-radius: var(--border-radius-large);
-    height: 100%;
     position: sticky;
     top: 90px;
+    overflow-y: auto;
+    max-height: calc(100vh - 110px);
     width: 28%;
     min-width: 320px;
 }
