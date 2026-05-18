@@ -36,7 +36,7 @@
     background: var(--background);
 }
 
-.shepherd-custom-theme .shepherd-header {
+.shepherd-custom-theme.shepherd-has-title .shepherd-content .shepherd-header {
     background: var(--background-alt);
     border-bottom: 1px solid var(--border-color);
     padding: 1rem 1.25rem;
@@ -217,7 +217,7 @@
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(77, 163, 255, 0.1);
 }
 
-[data-theme="dark"] .shepherd-custom-theme .shepherd-header {
+[data-theme="dark"] .shepherd-custom-theme.shepherd-has-title .shepherd-content .shepherd-header {
     background: rgba(15, 52, 96, 0.3);
     border-bottom-color: var(--dark-border);
 }
