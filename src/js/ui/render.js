@@ -144,6 +144,11 @@ function buildTree(paths) {
 }
 function renderFolderTree(tree, container) {
     container.innerHTML = '';
+    const scrollContainer = document.createElement('div');
+    scrollContainer.className = 'folder-tree-scroll-wrapper';
+    const scrollIndicator = document.createElement('div');
+    scrollIndicator.className = 'folder-tree-scroll-indicator';
+    scrollIndicator.innerHTML = '<i class="fas fa-folder-tree"></i> <span class="folder-tree-scroll-indicator-text"></span> <i class="fas fa-chevron-up folder-tree-scroll-collapse-icon"></i>';
     const ul = document.createElement('ul');
     ul.className = 'folder-tree-list';
     Object.keys(tree).sort().forEach(key => {
@@ -151,7 +156,28 @@ function renderFolderTree(tree, container) {
         const li = renderFolderNode(key, node, '');
         ul.appendChild(li);
     });
-    container.appendChild(ul);
+    scrollContainer.appendChild(scrollIndicator);
+    scrollContainer.appendChild(ul);
+    container.appendChild(scrollContainer);
+    scrollContainer.addEventListener('scroll', () => {
+        updateFolderTreeScrollIndicator(scrollContainer, scrollIndicator);
+    });
+    scrollIndicator.addEventListener('click', () => {
+        const currentPath = scrollIndicator.dataset.currentPath;
+        if (!currentPath) return;
+        const targetItem = container.querySelector(`.folder-tree-item[data-path="${CSS.escape(currentPath)}"]`);
+        if (!targetItem) return;
+        const node = targetItem.closest('.folder-tree-node');
+        const sublist = node ? node.querySelector(':scope > .folder-tree-list') : null;
+        const toggleIcon = node ? node.querySelector(':scope > .folder-tree-item .folder-toggle-icon') : null;
+        if (sublist) {
+            sublist.style.display = 'none';
+            if (toggleIcon) toggleIcon.classList.remove('expanded');
+        }
+        requestAnimationFrame(() => {
+            updateFolderTreeScrollIndicator(scrollContainer, scrollIndicator);
+        });
+    });
 }
 function renderFolderNode(name, node, currentPath) {
     const li = document.createElement('li');
@@ -179,6 +205,13 @@ function renderFolderNode(name, node, currentPath) {
                 li.querySelector('.folder-toggle-icon').classList.toggle('expanded');
             }
         }
+        requestAnimationFrame(() => {
+            const scrollContainer = li.closest('.folder-tree-scroll-wrapper');
+            const scrollIndicator = scrollContainer?.querySelector('.folder-tree-scroll-indicator');
+            if (scrollContainer && scrollIndicator) {
+                updateFolderTreeScrollIndicator(scrollContainer, scrollIndicator);
+            }
+        });
     });
     const goToBtn = nodeContent.querySelector('.go-to-folder-btn');
     goToBtn.addEventListener('click', (e) => {
@@ -217,6 +250,54 @@ function highlightCurrentFolder(prefix) {
         parent = parent.parentElement ? parent.parentElement.closest('.folder-tree-node') : null;
     }
     target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    requestAnimationFrame(() => {
+        const scrollContainer = document.querySelector('#folder-tree .folder-tree-scroll-wrapper');
+        const scrollIndicator = scrollContainer?.querySelector('.folder-tree-scroll-indicator');
+        if (scrollContainer && scrollIndicator) {
+            updateFolderTreeScrollIndicator(scrollContainer, scrollIndicator);
+        }
+    });
+}
+function updateFolderTreeScrollIndicator(scrollContainer, scrollIndicator) {
+    const topNodes = scrollContainer.querySelectorAll(':scope > .folder-tree-list > .folder-tree-node');
+    if (!topNodes || topNodes.length === 0) {
+        scrollIndicator.classList.remove('visible');
+        scrollIndicator.dataset.currentPath = '';
+        return;
+    }
+    const scrollTop = scrollContainer.scrollTop;
+    if (scrollTop < 10) {
+        scrollIndicator.classList.remove('visible');
+        scrollIndicator.dataset.currentPath = '';
+        return;
+    }
+    const containerTop = scrollContainer.getBoundingClientRect().top;
+    let currentTopFolder = null;
+    for (const node of topNodes) {
+        const item = node.querySelector(':scope > .folder-tree-item');
+        if (!item) continue;
+        const itemRect = item.getBoundingClientRect();
+        const itemTop = itemRect.top - containerTop;
+        if (itemTop > 0) {
+            break;
+        }
+        const sublist = node.querySelector(':scope > .folder-tree-list');
+        if (sublist && sublist.style.display !== 'none') {
+            currentTopFolder = item;
+        }
+    }
+    const indicatorText = scrollIndicator.querySelector('.folder-tree-scroll-indicator-text');
+    if (!currentTopFolder) {
+        scrollIndicator.classList.remove('visible');
+        scrollIndicator.dataset.currentPath = '';
+    } else {
+        const folderName = currentTopFolder.querySelector('.folder-name');
+        if (folderName) {
+            indicatorText.textContent = folderName.textContent;
+            scrollIndicator.classList.add('visible');
+            scrollIndicator.dataset.currentPath = currentTopFolder.dataset.path || '';
+        }
+    }
 }
 function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const li = document.createElement('li');

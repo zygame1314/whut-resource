@@ -560,19 +560,83 @@
     list-style: none;
     padding: 0;
     margin: 0;
+}
+
+.folder-tree-scroll-wrapper {
     max-height: 300px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
+    position: relative;
 }
 
-.folder-tree-list::-webkit-scrollbar {
+.folder-tree-scroll-wrapper::-webkit-scrollbar {
     width: 4px;
 }
 
-.folder-tree-list::-webkit-scrollbar-thumb {
+.folder-tree-scroll-wrapper::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 4px;
+}
+
+.folder-tree-scroll-indicator {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    background: var(--background);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    cursor: pointer;
+    transform: translateY(-100%);
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: transform var(--transition-normal), opacity var(--transition-normal), max-height var(--transition-normal), padding var(--transition-normal);
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.folder-tree-scroll-indicator.visible {
+    transform: translateY(0);
+    opacity: 1;
+    max-height: 40px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.folder-tree-scroll-indicator:hover {
+    color: var(--primary-color);
+    background: var(--background-hover);
+}
+
+.folder-tree-scroll-indicator i {
+    color: var(--primary-color);
+    font-size: 0.75rem;
+}
+
+.folder-tree-scroll-collapse-icon {
+    margin-left: auto;
+    opacity: 0.5;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.folder-tree-scroll-indicator:hover .folder-tree-scroll-collapse-icon {
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+.folder-tree-scroll-indicator-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .folder-tree-list .folder-tree-list {
@@ -759,6 +823,22 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.download-history-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.download-history-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.download-history-list::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 2px;
 }
 
 .download-history-item {
