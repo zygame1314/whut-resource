@@ -686,7 +686,7 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
     }
     return await retryWithBackoff(async () => {
         const controller = new AbortController();
-        const timeoutId = setTimeout(60000, () => controller.abort());
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
         try {
             const response = await fetch(AI_API_URL, {
                 method: 'POST',

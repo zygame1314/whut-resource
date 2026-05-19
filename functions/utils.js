@@ -81,7 +81,7 @@ export async function generateEmbeddings(env, texts) {
   if (!apiKey) throw new Error('未配置 SILICONFLOW_API_KEY');
   return await retryWithBackoff(async () => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(30000, () => controller.abort());
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
       const response = await fetch(SILICONFLOW_EMBEDDING_URL, {
         method: 'POST',
@@ -122,7 +122,7 @@ export async function rerankResults(env, query, documents, topN = 20) {
   try {
     return await retryWithBackoff(async () => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(30000, () => controller.abort());
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       try {
         const response = await fetch(SILICONFLOW_RERANK_URL, {
           method: 'POST',
@@ -176,7 +176,7 @@ export async function fetchSiliconFlowChat(env, { messages, tools = null, toolCh
   }
   return await retryWithBackoff(async () => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(30000, () => controller.abort());
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
       const response = await fetch(SILICONFLOW_CHAT_URL, {
         method: 'POST',
