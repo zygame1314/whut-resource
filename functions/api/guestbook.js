@@ -107,15 +107,13 @@ async function handleGet(request, env) {
     let params = [];
     let results;
     const adminSelect = `SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
-        CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
+        EXISTS(SELECT 1 FROM guestbook_likes WHERE guestbook_likes.guestbook_id = g.id AND guestbook_likes.user_id = ?) as has_liked
         FROM guestbook g
-        LEFT JOIN users u ON g.user_id = u.id
-        LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?`;
+        LEFT JOIN users u ON g.user_id = u.id`;
     const userSelect = `SELECT g.*, u.nickname, u.email, u.role,
-        CASE WHEN gl.user_id IS NOT NULL THEN 1 ELSE 0 END as has_liked
+        EXISTS(SELECT 1 FROM guestbook_likes WHERE guestbook_likes.guestbook_id = g.id AND guestbook_likes.user_id = ?) as has_liked
         FROM guestbook g
-        LEFT JOIN users u ON g.user_id = u.id
-        LEFT JOIN guestbook_likes gl ON gl.guestbook_id = g.id AND gl.user_id = ?`;
+        LEFT JOIN users u ON g.user_id = u.id`;
     if (isAdminUser) {
         query = `${adminSelect} ${orderByClause} LIMIT ?`;
         params = [currentUserId, MAX_LIMIT];
