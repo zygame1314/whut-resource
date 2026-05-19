@@ -288,8 +288,33 @@ async function handleReplySubmit(parentId, content) {
             body: JSON.stringify({ content, parent_id: parentId })
         });
         if (response.ok) {
-            showNotification('回复发布成功！审核后将显示', 'success');
-            setTimeout(() => refreshGuestbook(currentGuestbookPage), 1500);
+            const result = await response.json();
+            const isAdmin = isGuestbookAdmin(window.currentUser);
+            const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
+            const newReply = {
+                id: result.id,
+                user_id: window.currentUser.id,
+                nickname: window.currentUser.nickname || '匿名用户',
+                content: content,
+                parent_id: parentId,
+                likes: 0,
+                has_liked: false,
+                is_hidden: isAdmin ? 0 : 1,
+                status: 'unresolved',
+                reject_reason: null,
+                resolve_note: null,
+                created_at: new Date().toISOString(),
+                role: window.currentUser.role,
+                isAdmin: isAdmin,
+                isSuperAdmin: isSuperAdmin
+            };
+            const parent = guestbookCache.data.find(m => m.id === parentId);
+            if (parent) {
+                if (!parent.replies) parent.replies = [];
+                parent.replies.push(newReply);
+                fetchAndDisplayGuestbook(currentGuestbookPage);
+            }
+            showNotification(isAdmin ? '回复发布成功！' : '回复发布成功！审核后将显示', 'success');
         } else {
             const data = await response.json();
             showNotification(data.error || '回复失败', 'error');
