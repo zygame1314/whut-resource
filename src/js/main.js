@@ -397,24 +397,15 @@ if (themeToggle) {
             icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
         }
     };
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    if (savedTheme === 'dark') {
-        document.body.setAttribute('data-theme', 'dark');
-        updateThemeIcon(true);
-    } else {
-        updateThemeIcon(false);
-    }
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    updateThemeIcon(currentTheme === 'dark');
     themeToggle.addEventListener('click', () => {
-        const isCurrentDark = document.body.getAttribute('data-theme') === 'dark';
-        if (isCurrentDark) {
-            document.body.removeAttribute('data-theme');
-            localStorage.setItem('theme', 'light');
-            updateThemeIcon(false);
-        } else {
-            document.body.setAttribute('data-theme', 'dark');
-            localStorage.setItem('theme', 'dark');
-            updateThemeIcon(true);
-        }
+        const isCurrentDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const newTheme = isCurrentDark ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        localStorage.setItem('autoTheme', 'false');
+        updateThemeIcon(newTheme === 'dark');
         createParticleBackground();
     });
 }

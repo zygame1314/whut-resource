@@ -19,17 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (icon) {
             icon.className = currentTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
         }
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            localStorage.setItem('autoTheme', 'false');
-            const iconEl = themeToggle.querySelector('i');
-            if (iconEl) {
-                iconEl.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-            }
-        });
     }
     checkAuth();
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
