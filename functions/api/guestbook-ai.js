@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults, retryWithBackoff, fetchSiliconFlowChat } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'gemini-3-flash-preview';
 const TOOLS = [
@@ -235,7 +235,17 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
     if (message.tool_calls && message.tool_calls.length > 0) {
         const toolCall = message.tool_calls[0];
         const functionName = toolCall.function.name;
-        const functionArgs = JSON.parse(toolCall.function.arguments);
+        let functionArgs;
+        try {
+            functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+        } catch (e) {
+            return {
+                success: false,
+                action: 'no_action',
+                message: `AI 返回参数解析失败: ${e.message}`,
+                ai_response: message.content
+            };
+        }
         const toolResult = await executeToolCall(
             functionName,
             functionArgs,
@@ -556,7 +566,17 @@ ${resourceList}
     if (message?.tool_calls?.length > 0) {
         const toolCall = message.tool_calls[0];
         const functionName = toolCall.function.name;
-        const functionArgs = JSON.parse(toolCall.function.arguments);
+        let functionArgs;
+        try {
+            functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+        } catch (e) {
+            return {
+                success: true,
+                action: 'search_completed',
+                message: 'AI参数解析失败，请管理员确认',
+                searchResults: searchResults
+            };
+        }
         if (functionName === 'mark_resolved') {
             const idx = functionArgs.matched_file_index;
             let resourcePath = null;
@@ -665,25 +685,33 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
         throw new Error('未配置 AI_API_KEY');
     }
     return await retryWithBackoff(async () => {
-        const response = await fetch(AI_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${env.AI_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: AI_MODEL,
-                messages: messages,
-                tools: tools,
-                tool_choice: toolChoice,
-                temperature: temperature
-            })
-        });
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`AI API Error: ${response.status} - ${errorText}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(60000, () => controller.abort());
+        try {
+            const response = await fetch(AI_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${env.AI_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: AI_MODEL,
+                    messages: messages,
+                    tools: tools,
+                    tool_choice: toolChoice,
+                    temperature: temperature
+                }),
+                signal: controller.signal
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`AI API Error: ${response.status} - ${errorText}`);
+            }
+            const data = await response.json();
+            return validateAIResponse(data, '[大模型] ');
+        } finally {
+            clearTimeout(timeoutId);
         }
-        return await response.json();
     }, 3, 1000);
 }
 const REPLY_SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板的内容审核AI，判断内容是否合规。
@@ -776,7 +804,12 @@ ${parentContext ? `原留言内容：${parentContext}` : ''}
         if (message.tool_calls && message.tool_calls.length > 0) {
             const toolCall = message.tool_calls[0];
             const functionName = toolCall.function.name;
-            const functionArgs = JSON.parse(toolCall.function.arguments);
+            let functionArgs;
+            try {
+                functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+            } catch (e) {
+                return { success: true, action: 'keep_pending', message: `AI参数解析失败，需人工处理: ${e.message}` };
+            }
             if (functionName === 'reject') {
                 const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
                 await env.DB.prepare(
@@ -854,7 +887,13 @@ export async function preFilterWithSmallModel(entry, env) {
         }
         const toolCall = message.tool_calls[0];
         const functionName = toolCall.function.name;
-        const functionArgs = JSON.parse(toolCall.function.arguments);
+        let functionArgs;
+        try {
+            functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+        } catch (e) {
+            console.error('小模型预筛参数解析失败:', e);
+            return { passed: true };
+        }
         if (functionName === 'ban_user') {
             const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim() || '昵称违规';
             return {

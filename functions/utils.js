@@ -80,30 +80,37 @@ export async function generateEmbeddings(env, texts) {
   const apiKey = env.SILICONFLOW_API_KEY;
   if (!apiKey) throw new Error('未配置 SILICONFLOW_API_KEY');
   return await retryWithBackoff(async () => {
-    const response = await fetch(SILICONFLOW_EMBEDDING_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: texts,
-        encoding_format: 'float',
-        dimensions: EMBEDDING_DIMENSIONS
-      })
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`SiliconFlow Embedding API Error: ${response.status} - ${errorText}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(30000, () => controller.abort());
+    try {
+      const response = await fetch(SILICONFLOW_EMBEDDING_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: EMBEDDING_MODEL,
+          input: texts,
+          encoding_format: 'float',
+          dimensions: EMBEDDING_DIMENSIONS
+        }),
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`SiliconFlow Embedding API Error: ${response.status} - ${errorText}`);
+      }
+      const result = await response.json();
+      if (!result?.data || result.data.length !== texts.length) {
+        throw new Error('嵌入生成失败或数量不匹配');
+      }
+      return result.data
+        .sort((a, b) => a.index - b.index)
+        .map(item => item.embedding);
+    } finally {
+      clearTimeout(timeoutId);
     }
-    const result = await response.json();
-    if (!result?.data || result.data.length !== texts.length) {
-      throw new Error('嵌入生成失败或数量不匹配');
-    }
-    return result.data
-      .sort((a, b) => a.index - b.index)
-      .map(item => item.embedding);
   }, 3, 1000);
 }
 export async function rerankResults(env, query, documents, topN = 20) {
@@ -114,26 +121,33 @@ export async function rerankResults(env, query, documents, topN = 20) {
   if (!documents || documents.length === 0) return [];
   try {
     return await retryWithBackoff(async () => {
-      const response = await fetch(SILICONFLOW_RERANK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: RERANKER_MODEL,
-          query: query,
-          documents: documents,
-          top_n: topN,
-          return_documents: false
-        })
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Reranker API Error: ${response.status} - ${errorText}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(30000, () => controller.abort());
+      try {
+        const response = await fetch(SILICONFLOW_RERANK_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: RERANKER_MODEL,
+            query: query,
+            documents: documents,
+            top_n: topN,
+            return_documents: false
+          }),
+          signal: controller.signal
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Reranker API Error: ${response.status} - ${errorText}`);
+        }
+        const result = await response.json();
+        return result.results || null;
+      } finally {
+        clearTimeout(timeoutId);
       }
-      const result = await response.json();
-      return result.results || null;
     }, 2, 1000);
   } catch (error) {
     console.error('重排请求失败（已重试）:', error);
@@ -161,19 +175,27 @@ export async function fetchSiliconFlowChat(env, { messages, tools = null, toolCh
     body.tool_choice = toolChoice;
   }
   return await retryWithBackoff(async () => {
-    const response = await fetch(SILICONFLOW_CHAT_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
-      },
-      body: JSON.stringify(body)
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`SiliconFlow API Error: ${response.status} - ${errorText}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(30000, () => controller.abort());
+    try {
+      const response = await fetch(SILICONFLOW_CHAT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`SiliconFlow API Error: ${response.status} - ${errorText}`);
+      }
+      const data = await response.json();
+      return validateAIResponse(data, '[SiliconFlow] ');
+    } finally {
+      clearTimeout(timeoutId);
     }
-    return await response.json();
   }, 3, 1000);
 }
 export async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
@@ -187,6 +209,41 @@ export async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
+}
+
+export function validateAIResponse(data, context = '') {
+  if (!data || !data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+    throw new Error(`${context}AI 返回数据结构异常: ${JSON.stringify(data).substring(0, 200)}`);
+  }
+  const choice = data.choices[0];
+  if (choice.finish_reason === 'length') {
+    throw new Error(`${context}AI 输出被截断 (finish_reason=length)，可能内容不完整`);
+  }
+  const message = choice.message;
+  if (!message) {
+    throw new Error(`${context}AI 未返回有效消息`);
+  }
+  const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
+  const hasContent = message.content && message.content.trim().length > 0;
+  if (!hasToolCalls && !hasContent) {
+    throw new Error(`${context}AI 返回内容为空`);
+  }
+  if (hasToolCalls) {
+    for (let i = 0; i < message.tool_calls.length; i++) {
+      const tc = message.tool_calls[i];
+      if (!tc.function || !tc.function.name) {
+        throw new Error(`${context}AI tool_call[${i}] 缺少函数名`);
+      }
+      if (tc.function.arguments) {
+        try {
+          JSON.parse(tc.function.arguments);
+        } catch (e) {
+          throw new Error(`${context}AI tool_call[${i}] arguments JSON 解析失败: ${tc.function.arguments.substring(0, 100)}`);
+        }
+      }
+    }
+  }
+  return data;
 }
 export async function recordVectorSyncFailure(env, operation, fileId, fileData, errorMessage) {
   if (!env.DB) return;
