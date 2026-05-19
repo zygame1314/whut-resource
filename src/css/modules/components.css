@@ -1441,6 +1441,156 @@
     margin-top: 0.5rem;
 }
 
+.reply-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.reply-btn:hover {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    border-color: #667eea;
+}
+
+.reply-btn i {
+    font-size: 0.7rem;
+}
+
+.reply-form-container {
+    margin-top: 0.75rem;
+}
+
+.reply-form-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.reply-form-wrapper textarea {
+    width: 100%;
+    min-height: 60px;
+    max-height: 120px;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--background);
+    color: var(--text-primary);
+    resize: vertical;
+    font-family: inherit;
+    font-size: 0.9rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.reply-form-wrapper textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.reply-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.guestbook-replies {
+    margin-top: 1rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid rgba(102, 126, 234, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.guestbook-reply-item {
+    display: flex;
+    gap: 0.8rem;
+    padding: 0.75rem 1rem;
+    background: var(--background-alt);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.guestbook-reply-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.guestbook-reply-item.is-hidden {
+    opacity: 0.6;
+}
+
+.guestbook-reply-avatar {
+    flex-shrink: 0;
+}
+
+.reply-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.9rem !important;
+}
+
+.guestbook-reply-main {
+    flex-grow: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.guestbook-reply-item .guestbook-content {
+    font-size: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    margin-top: 0.1rem;
+}
+
+.guestbook-reply-item .guestbook-header {
+    gap: 0.5rem;
+}
+
+.guestbook-reply-item .nickname {
+    font-size: 0.9rem;
+}
+
+.guestbook-reply-item .timestamp {
+    font-size: 0.75rem;
+}
+
+.guestbook-reply-item .guestbook-footer {
+    margin-top: 0.25rem;
+    gap: 0.75rem;
+}
+
+.guestbook-reply-item .like-btn {
+    padding: 3px 8px;
+    font-size: 0.82rem;
+}
+
+.guestbook-reply-item .admin-badge {
+    font-size: 0.65rem;
+    padding: 1px 5px;
+}
+
+.reply-indicator {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-left: 2px;
+}
+
+.reply-indicator i {
+    font-size: 0.65rem;
+}
+
 .guestbook-admin-controls {
     display: flex;
     flex-wrap: wrap;
@@ -3942,6 +4092,31 @@ textarea.form-input {
         width: 35px;
         height: 35px;
         font-size: 1rem;
+    }
+
+    .guestbook-reply-item {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.6rem 0.8rem;
+    }
+
+    .guestbook-replies {
+        padding-left: 0.3rem;
+    }
+
+    .reply-avatar {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 0.8rem !important;
+    }
+
+    .guestbook-footer {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .reply-form-actions {
+        flex-wrap: wrap;
     }
 }
 

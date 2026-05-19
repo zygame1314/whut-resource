@@ -100,6 +100,7 @@ CREATE TABLE guestbook (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     content TEXT NOT NULL,
+    parent_id INTEGER DEFAULT NULL,
     likes INTEGER DEFAULT 0,
     is_hidden BOOLEAN DEFAULT FALSE,
     is_pinned BOOLEAN DEFAULT FALSE,
@@ -107,8 +108,10 @@ CREATE TABLE guestbook (
     reject_reason TEXT DEFAULT NULL,
     resolve_note TEXT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES guestbook(id) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS idx_guestbook_parent ON guestbook(parent_id, created_at ASC);
 
 DROP TABLE IF EXISTS guestbook_likes;
 CREATE TABLE guestbook_likes (

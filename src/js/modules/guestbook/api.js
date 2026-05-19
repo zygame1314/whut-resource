@@ -30,7 +30,11 @@ async function fetchAndDisplayGuestbook(page = 1) {
         }
         let processedData = [...guestbookCache.data];
         if (currentGuestbookFilter === 'mine' && window.currentUser) {
-            processedData = processedData.filter(msg => msg.user_id === window.currentUser.id);
+            processedData = processedData.filter(msg => {
+                if (msg.user_id === window.currentUser.id) return true;
+                if (msg.replies && msg.replies.some(r => r.user_id === window.currentUser.id)) return true;
+                return false;
+            });
         }
         if (currentGuestbookSort === 'likes') {
             processedData.sort((a, b) => {
@@ -109,6 +113,7 @@ async function handleGuestbookSubmit(e) {
                 user_id: window.currentUser.id,
                 nickname: window.currentUser.nickname || '匿名用户',
                 content: content,
+                parent_id: null,
                 likes: 0,
                 has_liked: false,
                 is_hidden: isAdmin ? 0 : 1,
@@ -119,7 +124,8 @@ async function handleGuestbookSubmit(e) {
                 created_at: new Date().toISOString(),
                 role: window.currentUser.role,
                 isAdmin: isAdmin,
-                isSuperAdmin: isSuperAdmin
+                isSuperAdmin: isSuperAdmin,
+                replies: []
             };
             guestbookCache.data.unshift(newMessage);
             fetchAndDisplayGuestbook(1);
@@ -180,10 +186,24 @@ async function handleGuestbookAction(id, action, btnElement) {
             }
         } else {
             if (action === 'like' || action === 'unlike') {
+                let found = false;
                 const msg = guestbookCache.data.find(m => m.id === id);
                 if (msg) {
                     msg.likes = action === 'like' ? msg.likes + 1 : Math.max(0, msg.likes - 1);
                     msg.has_liked = action === 'like';
+                    found = true;
+                }
+                if (!found) {
+                    for (const parent of guestbookCache.data) {
+                        if (parent.replies) {
+                            const reply = parent.replies.find(r => r.id === id);
+                            if (reply) {
+                                reply.likes = action === 'like' ? reply.likes + 1 : Math.max(0, reply.likes - 1);
+                                reply.has_liked = action === 'like';
+                                break;
+                            }
+                        }
+                    }
                 }
             } else if (action === 'hide') {
                 updateGuestbookCache(id, { is_hidden: 1 });
@@ -254,5 +274,28 @@ async function handleDeleteGuestbook(id) {
     } catch (error) {
         console.error('Error deleting guestbook:', error);
         showNotification('删除出错', 'error');
+    }
+}
+async function handleReplySubmit(parentId, content) {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(GUESTBOOK_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ content, parent_id: parentId })
+        });
+        if (response.ok) {
+            showNotification('回复发布成功！审核后将显示', 'success');
+            setTimeout(() => refreshGuestbook(currentGuestbookPage), 1500);
+        } else {
+            const data = await response.json();
+            showNotification(data.error || '回复失败', 'error');
+        }
+    } catch (error) {
+        console.error('Error posting reply:', error);
+        showNotification('回复出错，请检查网络', 'error');
     }
 }

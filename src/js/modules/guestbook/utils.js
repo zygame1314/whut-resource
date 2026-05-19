@@ -45,9 +45,34 @@ function updateGuestbookCache(id, updates) {
     if (index !== -1) {
         guestbookCache.data[index] = { ...guestbookCache.data[index], ...updates };
         fetchAndDisplayGuestbook(currentGuestbookPage);
+        return;
+    }
+    for (const parent of guestbookCache.data) {
+        if (parent.replies) {
+            const replyIdx = parent.replies.findIndex(r => r.id === id);
+            if (replyIdx !== -1) {
+                parent.replies[replyIdx] = { ...parent.replies[replyIdx], ...updates };
+                fetchAndDisplayGuestbook(currentGuestbookPage);
+                return;
+            }
+        }
     }
 }
 function removeFromGuestbookCache(id) {
-    guestbookCache.data = guestbookCache.data.filter(msg => msg.id !== id);
-    fetchAndDisplayGuestbook(currentGuestbookPage);
+    const parentIdx = guestbookCache.data.findIndex(msg => msg.id === id);
+    if (parentIdx !== -1) {
+        guestbookCache.data.splice(parentIdx, 1);
+        fetchAndDisplayGuestbook(currentGuestbookPage);
+        return;
+    }
+    for (const parent of guestbookCache.data) {
+        if (parent.replies) {
+            const replyIdx = parent.replies.findIndex(r => r.id === id);
+            if (replyIdx !== -1) {
+                parent.replies.splice(replyIdx, 1);
+                fetchAndDisplayGuestbook(currentGuestbookPage);
+                return;
+            }
+        }
+    }
 }

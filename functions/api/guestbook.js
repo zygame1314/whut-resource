@@ -1,5 +1,5 @@
 import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin } from '../utils.js';
-import { processWithAIAgent } from './guestbook-ai.js';
+import { processWithAIAgent, processReplyWithAI } from './guestbook-ai.js';
 const CLEANUP_DAYS = 7;
 export async function onRequest(context) {
     const { request, env } = context;
@@ -145,9 +145,21 @@ async function handleGet(request, env) {
         }
         return msg;
     });
+    const parentMessages = sanitizedResults.filter(msg => !msg.parent_id);
+    const replyMap = {};
+    for (const msg of sanitizedResults) {
+        if (msg.parent_id) {
+            if (!replyMap[msg.parent_id]) replyMap[msg.parent_id] = [];
+            replyMap[msg.parent_id].push(msg);
+        }
+    }
+    const organizedData = parentMessages.map(parent => ({
+        ...parent,
+        replies: replyMap[parent.id] || []
+    }));
     return new Response(JSON.stringify({
-        data: sanitizedResults,
-        totalItems: sanitizedResults.length
+        data: organizedData,
+        totalItems: organizedData.length
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePost(request, env, context) {
@@ -168,16 +180,31 @@ async function handlePost(request, env, context) {
     if (!isAdmin(user) && postCountResult.count >= 10) {
         return new Response(JSON.stringify({ error: '每日限制已达到（每天10条帖子）。' }), { status: 429, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    const { content } = await request.json();
+    const body = await request.json();
+    const { content, parent_id } = body;
     if (!content || content.trim().length === 0) {
         return new Response(JSON.stringify({ error: '内容不能为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     if (content.length > 500) {
         return new Response(JSON.stringify({ error: '内容过长（最多500字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    let parentId = null;
+    if (parent_id) {
+        const parentEntry = await env.DB.prepare('SELECT id, parent_id, is_hidden FROM guestbook WHERE id = ?').bind(parent_id).first();
+        if (!parentEntry) {
+            return new Response(JSON.stringify({ error: '回复的留言不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (parentEntry.parent_id) {
+            return new Response(JSON.stringify({ error: '不支持多层回复，请直接回复原留言' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (parentEntry.is_hidden && !isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '无法回复审核中的留言' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        parentId = parseInt(parent_id);
+    }
     const result = await env.DB.prepare(
-        'INSERT INTO guestbook (user_id, content, is_hidden) VALUES (?, ?, 1)'
-    ).bind(user.id, content.trim()).run();
+        'INSERT INTO guestbook (user_id, content, parent_id, is_hidden) VALUES (?, ?, ?, 1)'
+    ).bind(user.id, content.trim(), parentId).run();
     const newId = result.meta.last_row_id;
     if (context && context.waitUntil) {
         context.waitUntil((async () => {
@@ -186,9 +213,16 @@ async function handlePost(request, env, context) {
                     'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                 ).bind(newId).first();
                 if (newEntry && !isAdmin(newEntry)) {
-                    const aiResult = await processWithAIAgent(newEntry, env, true);
-                    if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
-                        await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
+                    if (newEntry.parent_id) {
+                        const replyResult = await processReplyWithAI(newEntry, env);
+                        if (replyResult && replyResult.success && (replyResult.action === 'no_action' || replyResult.action === 'keep_pending' || replyResult.action === 'resolve')) {
+                            await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
+                        }
+                    } else {
+                        const aiResult = await processWithAIAgent(newEntry, env, true);
+                        if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
+                            await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
+                        }
                     }
                 }
             } catch (err) {
@@ -261,9 +295,16 @@ async function handlePut(request, env, context) {
                         'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                     ).bind(id).first();
                     if (updatedEntry && !isAdmin(user)) {
-                        const aiResult = await processWithAIAgent(updatedEntry, env, true);
-                        if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
-                            await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
+                        if (updatedEntry.parent_id) {
+                            const replyResult = await processReplyWithAI(updatedEntry, env);
+                            if (replyResult && replyResult.success && (replyResult.action === 'no_action' || replyResult.action === 'keep_pending' || replyResult.action === 'resolve')) {
+                                await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
+                            }
+                        } else {
+                            const aiResult = await processWithAIAgent(updatedEntry, env, true);
+                            if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
+                                await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
+                            }
                         }
                     }
                 } catch (err) {

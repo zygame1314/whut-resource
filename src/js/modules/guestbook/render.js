@@ -104,6 +104,93 @@ function renderGuestbook(messages) {
         if (msg.is_pinned) {
             pinnedBadge = '<span class="pinned-badge"><i class="fas fa-thumbtack"></i> 置顶</span>';
         }
+        let repliesHtml = '';
+        if (msg.replies && msg.replies.length > 0) {
+            const replies = msg.replies.map(reply => {
+                const replyNickname = reply.nickname || '匿名用户';
+                const replySafeNickname = escapeHtml(replyNickname);
+                const replyAvatarChar = replySafeNickname.charAt(0).toUpperCase();
+                const replyAvatarColor = getAvatarColor(replyNickname);
+                const likedClass = reply.has_liked ? 'active' : '';
+                const likeAction = reply.has_liked ? `unlikeGuestbook(${reply.id}, this)` : `likeGuestbook(${reply.id}, this)`;
+                const likeIcon = reply.has_liked ? 'fas fa-heart' : 'far fa-heart';
+                let replyAdminControls = '';
+                let replyAuthorControls = '';
+                if (isAdmin) {
+                    const replyEncodedContent = btoa(encodeURIComponent(reply.content));
+                    replyAdminControls = `
+                    <div class="guestbook-admin-controls">
+                        <button class="icon-btn small" onclick="editGuestbook(${reply.id}, '${replyEncodedContent}')" title="编辑回复">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="icon-btn small danger" onclick="deleteGuestbook(${reply.id})" title="删除回复">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>`;
+                }
+                if (currentUserId === reply.user_id && !isAdmin) {
+                    const replyEncodedContent = btoa(encodeURIComponent(reply.content));
+                    replyAuthorControls = `
+                    <div class="guestbook-author-controls">
+                        <button class="icon-btn small" onclick="editGuestbook(${reply.id}, '${replyEncodedContent}')" title="编辑回复">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="icon-btn small danger" onclick="deleteGuestbook(${reply.id})" title="删除回复">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>`;
+                }
+                let replyStatusBadge = '';
+                let replyRejectHtml = '';
+                let replyResolveHtml = '';
+                if (reply.status === 'resolved') {
+                    replyStatusBadge = '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>';
+                    if (reply.resolve_note) {
+                        replyResolveHtml = renderResolveNote(reply.resolve_note);
+                    }
+                } else if (reply.status === 'rejected') {
+                    replyStatusBadge = '<span class="status-badge rejected"><i class="fas fa-times"></i> 已驳回</span>';
+                    if (reply.reject_reason) {
+                        replyRejectHtml = `<div class="reject-reason"><i class="fas fa-comment-slash"></i> 驳回原因：${escapeHtml(reply.reject_reason)}</div>`;
+                    }
+                }
+                if (reply.is_hidden && reply.status !== 'rejected') {
+                    replyStatusBadge = '<span class="status-badge auditing"><i class="fas fa-hourglass-half"></i> 审核中</span>';
+                }
+                return `
+                    <div class="guestbook-reply-item ${reply.is_hidden ? 'is-hidden' : ''}">
+                        <div class="guestbook-reply-avatar">
+                            <div class="user-avatar-placeholder reply-avatar" style="background: ${replyAvatarColor}">${replyAvatarChar}</div>
+                        </div>
+                        <div class="guestbook-reply-main">
+                            <div class="guestbook-header">
+                                <div class="guestbook-user-info">
+                                    <div class="user-info-top">
+                                        <div class="nickname-wrapper">
+                                            <span class="nickname" title="${replySafeNickname}">${replySafeNickname}</span>
+                                            ${reply.isAdmin ? `<span class="admin-badge${reply.isSuperAdmin ? ' super' : ''}"><i class="fas fa-${reply.isSuperAdmin ? 'crown' : 'shield-alt'}"></i> ${reply.isSuperAdmin ? '超级管理员' : '管理员'}</span>` : ''}
+                                            <span class="reply-indicator"><i class="fas fa-reply"></i></span>
+                                        </div>
+                                        <span class="timestamp">${formatDateLocal(reply.created_at)}</span>
+                                    </div>
+                                    <div class="user-badges">${replyStatusBadge}</div>
+                                </div>
+                                ${replyAdminControls}${replyAuthorControls}
+                            </div>
+                            <div class="guestbook-content">${escapeHtml(reply.content)}</div>
+                            ${replyRejectHtml}
+                            ${replyResolveHtml}
+                            <div class="guestbook-footer">
+                                <button class="like-btn ${likedClass}" onclick="${likeAction}">
+                                    <i class="${likeIcon}"></i> <span>${reply.likes}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            repliesHtml = `<div class="guestbook-replies">${replies}</div>`;
+        }
         return `
             <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''} ${msg.is_pinned ? 'is-pinned' : ''}">
                 <div class="guestbook-left">
@@ -133,7 +220,20 @@ function renderGuestbook(messages) {
                         <button class="like-btn ${likedClass}" onclick="${likeAction}">
                             <i class="${likeIcon}"></i> <span>${msg.likes}</span>
                         </button>
+                        <button class="reply-btn" onclick="showReplyForm(${msg.id})">
+                            <i class="fas fa-reply"></i> 回复
+                        </button>
                     </div>
+                    <div id="reply-form-${msg.id}" class="reply-form-container" style="display: none;">
+                        <div class="reply-form-wrapper">
+                            <textarea id="reply-input-${msg.id}" placeholder="写回复..." maxlength="500"></textarea>
+                            <div class="reply-form-actions">
+                                <button class="secondary-btn small" onclick="hideReplyForm(${msg.id})">取消</button>
+                                <button class="primary-btn small" onclick="submitReply(${msg.id})">发送回复</button>
+                            </div>
+                        </div>
+                    </div>
+                    ${repliesHtml}
                 </div>
             </div>
         `;

@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults, retryWithBackoff } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults, retryWithBackoff, fetchSiliconFlowChat } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'gemini-3-flash-preview';
 const TOOLS = [
@@ -709,4 +709,104 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
         }
         return await response.json();
     }, 3, 1000);
+}
+const REPLY_SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板的回复审核AI。你的任务非常简单：判断回复内容是否合规。
+判断标准：
+1. 含暴恐/反动/色情/违法/辱骂/人身攻击 -> 返回 reject，reason 写明违规类型
+2. 含广告/刷屏/无意义内容 -> 返回 reject，reason 写明原因
+3. 留联系方式(QQ/微信/邮箱/手机号) -> 返回 reject，reason: 请勿在留言板泄露个人信息
+4. 正常交流（感谢、讨论、补充信息等）-> 返回 approve
+5. 资源请求类 -> 返回 approve（后续会走主留言AI流程处理）
+所有输出必须是纯文本，禁用Markdown。`;
+
+const REPLY_TOOLS = [
+    {
+        type: 'function',
+        function: {
+            name: 'approve',
+            description: '回复内容合规，通过审核',
+            parameters: {
+                type: 'object',
+                properties: {},
+                required: []
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'reject',
+            description: '回复内容违规，需要驳回',
+            parameters: {
+                type: 'object',
+                properties: {
+                    reason: {
+                        type: 'string',
+                        description: '驳回原因'
+                    }
+                },
+                required: ['reason']
+            }
+        }
+    }
+];
+
+export async function processReplyWithAI(replyEntry, env) {
+    if (!env.SILICONFLOW_API_KEY) {
+        return { success: true, action: 'no_action', message: '未配置回复审核API' };
+    }
+    const parentEntry = await env.DB.prepare(
+        'SELECT g.content, g.status FROM guestbook g WHERE g.id = ?'
+    ).bind(replyEntry.parent_id).first();
+    const parentContext = parentEntry ? parentEntry.content.substring(0, 200) : '';
+    const roleTag = (replyEntry.role === 'admin' || replyEntry.role === 'super_admin') ? '【管理员】' : '【普通用户】';
+    const userMessage = `用户身份：${roleTag}
+用户昵称：${replyEntry.nickname || '匿名用户'}
+${parentContext ? `原留言内容：${parentContext}` : ''}
+回复内容：${replyEntry.content}`;
+
+    try {
+        const aiResponse = await fetchSiliconFlowChat(env, {
+            messages: [
+                { role: 'system', content: REPLY_SYSTEM_PROMPT },
+                { role: 'user', content: userMessage }
+            ],
+            tools: REPLY_TOOLS,
+            toolChoice: 'auto',
+            temperature: 0.3,
+            model: 'Qwen/Qwen3-8B'
+        });
+        const message = aiResponse.choices?.[0]?.message;
+        if (!message) {
+            return { success: true, action: 'no_action', message: 'AI未返回有效响应' };
+        }
+        if (message.tool_calls && message.tool_calls.length > 0) {
+            const toolCall = message.tool_calls[0];
+            const functionName = toolCall.function.name;
+            const functionArgs = JSON.parse(toolCall.function.arguments);
+            if (functionName === 'reject') {
+                const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                await env.DB.prepare(
+                    'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
+                ).bind('rejected', reason, replyEntry.id).run();
+                await logAdminAction(env, 'ai_reject_reply', 'guestbook', replyEntry.id, reason, JSON.stringify({
+                    content: replyEntry.content,
+                    nickname: replyEntry.nickname,
+                    user_id: replyEntry.user_id,
+                    parent_id: replyEntry.parent_id
+                }));
+                return {
+                    success: true,
+                    action: 'reject',
+                    message: `回复已驳回: ${reason}`,
+                    reason: reason
+                };
+            }
+            return { success: true, action: 'no_action', message: '回复通过审核' };
+        }
+        return { success: true, action: 'no_action', message: 'AI未决定采取行动', ai_response: message.content };
+    } catch (error) {
+        console.error('回复AI审核失败:', error);
+        return { success: true, action: 'keep_pending', message: '回复AI审核失败，需人工处理' };
+    }
 }

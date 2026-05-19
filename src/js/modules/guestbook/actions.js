@@ -155,3 +155,52 @@ window.resolveGuestbook = async function (id) {
         showNotification('操作出错', 'error');
     }
 };
+window.showReplyForm = function (parentId) {
+    const formContainer = document.getElementById(`reply-form-${parentId}`);
+    if (!formContainer) return;
+    document.querySelectorAll('.reply-form-container').forEach(el => {
+        if (el.id !== `reply-form-${parentId}`) {
+            el.style.display = 'none';
+        }
+    });
+    formContainer.style.display = formContainer.style.display === 'none' ? 'block' : 'none';
+    if (formContainer.style.display === 'block') {
+        const input = document.getElementById(`reply-input-${parentId}`);
+        if (input) input.focus();
+    }
+};
+window.hideReplyForm = function (parentId) {
+    const formContainer = document.getElementById(`reply-form-${parentId}`);
+    if (formContainer) {
+        formContainer.style.display = 'none';
+        const input = document.getElementById(`reply-input-${parentId}`);
+        if (input) input.value = '';
+    }
+};
+window.submitReply = async function (parentId) {
+    const input = document.getElementById(`reply-input-${parentId}`);
+    if (!input) return;
+    const content = input.value.trim();
+    if (!content) {
+        showNotification('回复内容不能为空', 'warning');
+        return;
+    }
+    if (content.length > 500) {
+        showNotification('回复内容过长（最多500字符）', 'warning');
+        return;
+    }
+    const submitBtn = input.closest('.reply-form-wrapper').querySelector('.primary-btn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 发送中...';
+    }
+    try {
+        await handleReplySubmit(parentId, content);
+        hideReplyForm(parentId);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '发送回复';
+        }
+    }
+};
