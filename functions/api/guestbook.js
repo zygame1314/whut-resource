@@ -212,7 +212,9 @@ async function handlePost(request, env, context) {
                 const newEntry = await env.DB.prepare(
                     'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                 ).bind(newId).first();
-                if (newEntry && !isAdmin(newEntry)) {
+                if (newEntry && isAdmin(newEntry)) {
+                    await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
+                } else if (newEntry) {
                     if (newEntry.parent_id) {
                         const replyResult = await processReplyWithAI(newEntry, env);
                         if (replyResult && replyResult.success && (replyResult.action === 'no_action' || replyResult.action === 'keep_pending' || replyResult.action === 'resolve')) {
@@ -310,7 +312,9 @@ async function handlePut(request, env, context) {
                     const updatedEntry = await env.DB.prepare(
                         'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                     ).bind(id).first();
-                    if (updatedEntry && !isAdmin(user)) {
+                    if (updatedEntry && isAdmin(user)) {
+                        await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
+                    } else if (updatedEntry) {
                         if (updatedEntry.parent_id) {
                             const replyResult = await processReplyWithAI(updatedEntry, env);
                             if (replyResult && replyResult.success && (replyResult.action === 'no_action' || replyResult.action === 'keep_pending' || replyResult.action === 'resolve')) {
