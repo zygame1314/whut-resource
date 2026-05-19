@@ -22,27 +22,57 @@ const API_ENDPOINTS = {
 };
 window.filesApiCache = {
     _cache: {},
-    get(key, maxAgeMs) {
-        const entry = this._cache[key];
-        if (!entry) return null;
-        if (Date.now() - entry.timestamp > maxAgeMs) {
-            delete this._cache[key];
+    _load(key) {
+        try {
+            const raw = sessionStorage.getItem('fac_' + key);
+            if (!raw) return null;
+            const entry = JSON.parse(raw);
+            if (Date.now() - entry.timestamp > entry.maxAge) {
+                sessionStorage.removeItem('fac_' + key);
+                return null;
+            }
+            return entry.data;
+        } catch (e) {
             return null;
         }
-        return entry.data;
+    },
+    _save(key, data, maxAge) {
+        try {
+            sessionStorage.setItem('fac_' + key, JSON.stringify({ data, timestamp: Date.now(), maxAge }));
+        } catch (e) {}
+    },
+    _remove(key) {
+        try {
+            if (key) sessionStorage.removeItem('fac_' + key);
+            else {
+                Object.keys(sessionStorage).forEach(k => {
+                    if (k.startsWith('fac_')) sessionStorage.removeItem(k);
+                });
+            }
+        } catch (e) {}
+    },
+    get(key, maxAgeMs) {
+        const inMem = this._cache[key];
+        if (inMem && Date.now() - inMem.timestamp <= maxAgeMs) return inMem.data;
+        const fromSS = this._load(key);
+        if (fromSS) {
+            this._cache[key] = { data: fromSS, timestamp: JSON.parse(sessionStorage.getItem('fac_' + key)).timestamp };
+            return fromSS;
+        }
+        return null;
     },
     set(key, data) {
         this._cache[key] = { data, timestamp: Date.now() };
+        this._save(key, data, 3600000);
     },
     invalidate(key) {
         if (key) {
             delete this._cache[key];
+            this._remove(key);
         } else {
             this._cache = {};
+            this._remove();
         }
-    },
-    invalidateAll() {
-        this._cache = {};
     }
 };
 async function fetchCached(url, cacheKey, maxAgeMs, options = {}) {
