@@ -18,11 +18,10 @@ async function fetchAndRenderHotFolders() {
         </div>`;
     hotFoldersListElement.innerHTML = skeletonHTML;
     try {
-        const response = await fetch(`${FILES_API_URL}?action=getHotFolders`, {
+        const result = await fetchCached(`${FILES_API_URL}?action=getHotFolders`, 'getHotFolders', 3600000, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        const result = await response.json();
-        if (response.ok && result.success && result.hotFolders) {
+        if (result.success && result.hotFolders) {
             if (result.hotFolders.length === 0) {
                 hotFoldersListElement.innerHTML = '<p class="empty-state-small">暂无热门文件夹。</p>';
                 return;
@@ -449,16 +448,14 @@ async function fetchAndBuildFolderTree() {
         </div>`;
     folderTreeElement.innerHTML = skeletonHTML;
     try {
-        const response = await fetch(`${FILES_API_URL}?action=listAllDirs`, {
+        const result = await fetchCached(`${FILES_API_URL}?action=listAllDirs`, 'listAllDirs', 3600000, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        const result = await response.json();
-        if (response.ok && result.success) {
+        if (result.success) {
             const tree = buildTree(result.directories);
             renderFolderTree(tree, folderTreeElement);
         } else {
             folderTreeElement.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem;">无法加载文件夹树。</p>';
-            console.error('获取文件夹树失败:', result.error);
             showNotification(`获取文件夹树失败: ${result.error}`, 'error');
         }
     } catch (error) {

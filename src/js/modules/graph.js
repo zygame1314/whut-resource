@@ -184,11 +184,10 @@ class KnowledgeGraph {
         try {
             const token = localStorage.getItem('authToken');
             if (!token) throw new Error('请先登录');
-            const response = await fetch(`${API_ENDPOINTS.files}?action=listAllDirs`, {
+            const result = await fetchCached(`${API_ENDPOINTS.files}?action=listAllDirs`, 'listAllDirs', 3600000, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.error || '获取目录数据失败');
+            if (!result.success) throw new Error(result.error || '获取目录数据失败');
             this.processData(result.directories);
             this.render();
             document.getElementById('stats-nodes').textContent = this.nodes.length;

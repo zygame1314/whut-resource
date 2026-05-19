@@ -26,10 +26,9 @@ async function fetchDirectories() {
     const token = localStorage.getItem('authToken');
     if (!token) return [];
     try {
-        const response = await fetch(`${API_ENDPOINTS.files}?action=listAllDirs`, {
+        const result = await fetchCached(`${API_ENDPOINTS.files}?action=listAllDirs`, 'listAllDirs', 3600000, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        const result = await response.json();
         if (result.success && result.directories) {
             return result.directories;
         }

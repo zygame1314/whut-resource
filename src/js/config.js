@@ -20,6 +20,40 @@ const API_ENDPOINTS = {
     urlSafety: `${API_BASE}/api/url-safety`,
     passkey: `${API_BASE}/api/passkey`
 };
+window.filesApiCache = {
+    _cache: {},
+    get(key, maxAgeMs) {
+        const entry = this._cache[key];
+        if (!entry) return null;
+        if (Date.now() - entry.timestamp > maxAgeMs) {
+            delete this._cache[key];
+            return null;
+        }
+        return entry.data;
+    },
+    set(key, data) {
+        this._cache[key] = { data, timestamp: Date.now() };
+    },
+    invalidate(key) {
+        if (key) {
+            delete this._cache[key];
+        } else {
+            this._cache = {};
+        }
+    },
+    invalidateAll() {
+        this._cache = {};
+    }
+};
+async function fetchCached(url, cacheKey, maxAgeMs, options = {}) {
+    const cached = window.filesApiCache.get(cacheKey, maxAgeMs);
+    if (cached) return cached;
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = await response.json();
+    window.filesApiCache.set(cacheKey, result);
+    return result;
+}
 const HCAPTCHA_SITEKEY = '1c847708-56b8-4c60-96ec-3968456c4442';
 window.filterTreeByKeyword = function (container, keyword, options = {}) {
     const {

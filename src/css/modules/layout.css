@@ -1304,10 +1304,6 @@
         display: inline-flex;
     }
 
-    .explorer-container {
-        flex-direction: column;
-    }
-
     .folder-tree-container {
         position: fixed;
         top: 0;

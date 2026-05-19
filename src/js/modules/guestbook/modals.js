@@ -76,19 +76,6 @@ window.showRejectPrompt = function (options = {}) {
     });
 }
 async function showResolvePrompt() {
-    const token = localStorage.getItem('authToken');
-    let directories = [];
-    try {
-        const response = await fetch(`${API_ENDPOINTS.files}?action=listAllDirs`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const result = await response.json();
-        if (result.success && result.directories) {
-            directories = result.directories.map(d => d.endsWith('/') ? d.slice(0, -1) : d);
-        }
-    } catch (e) {
-        console.warn('获取目录列表失败:', e);
-    }
     function buildDirectoryTree(dirs) {
         const tree = {};
         dirs.forEach(dir => {
@@ -134,9 +121,8 @@ async function showResolvePrompt() {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'confirmation-modal-overlay';
         let selectedPath = '';
-        const tree = buildDirectoryTree(directories);
-        const hasDirectories = directories.length > 0;
-        const pathSelectorHtml = hasDirectories ? `
+        let directories = [];
+        const pathSelectorHtml = `
             <div class="resolve-path-selector">
                 <label class="resolve-label"><i class="fas fa-folder-open"></i> 资源目录（可选）</label>
                 <div class="path-dropdown-wrapper">
@@ -152,11 +138,13 @@ async function showResolvePrompt() {
                         <div class="path-search-wrapper">
                             <input type="text" id="resolve-path-search" class="path-search-input" placeholder="搜索目录...">
                         </div>
-                        <div id="resolve-path-tree-container" class="path-tree-container"></div>
+                        <div id="resolve-path-tree-container" class="path-tree-container">
+                            <div class="path-tree-loading">加载中...</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        ` : '';
+        `;
         modalOverlay.innerHTML = `
             <div class="confirmation-modal resolve-modal">
                 <h3><i class="fas fa-check-circle" style="color: var(--success);"></i> 标记为已解决</h3>
@@ -179,11 +167,17 @@ async function showResolvePrompt() {
         const pathTreeContainer = modalOverlay.querySelector('#resolve-path-tree-container');
         const clearPathBtn = modalOverlay.querySelector('#clear-path-btn');
         const searchInput = modalOverlay.querySelector('#resolve-path-search');
-        if (pathTreeContainer && hasDirectories) {
+        function populateTree(dirs) {
+            if (!pathTreeContainer) return;
+            pathTreeContainer.innerHTML = '';
+            if (dirs.length === 0) return;
+            const tree = buildDirectoryTree(dirs);
             const ul = document.createElement('ul');
             ul.className = 'path-tree-list root';
             ul.appendChild(renderPathTreeNode('根目录', tree, '', true));
             pathTreeContainer.appendChild(ul);
+        }
+        if (pathTreeContainer) {
             pathTreeContainer.addEventListener('click', (e) => {
                 const toggleIcon = e.target.closest('.path-toggle-icon');
                 const folderIcon = e.target.closest('.path-folder-icon');
@@ -224,6 +218,24 @@ async function showResolvePrompt() {
                 }
             });
         }
+         (async () => {
+             const token = localStorage.getItem('authToken');
+             try {
+                 const result = await fetchCached(`${API_ENDPOINTS.files}?action=listAllDirs`, 'listAllDirs', 3600000, {
+                     headers: { 'Authorization': `Bearer ${token}` }
+                 });
+                 if (result.success && result.directories) {
+                     directories = result.directories.map(d => d.endsWith('/') ? d.slice(0, -1) : d);
+                 }
+             } catch (e) {
+                 console.warn('获取目录列表失败:', e);
+             }
+            if (directories.length > 0) {
+                populateTree(directories);
+            } else if (pathTreeContainer) {
+                pathTreeContainer.innerHTML = '<div class="path-tree-empty" style="padding:8px;color:var(--text-secondary);">暂无目录</div>';
+            }
+        })();
         if (searchInput) {
             searchInput.addEventListener('click', (e) => e.stopPropagation());
             searchInput.addEventListener('input', (e) => {
