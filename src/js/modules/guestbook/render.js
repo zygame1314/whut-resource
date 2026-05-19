@@ -1,7 +1,7 @@
 function renderGuestbook(messages) {
     if (!guestbookList) return;
     if (!messages || messages.length === 0) {
-        guestbookList.innerHTML = '<p class="empty-state-small">暂无留言，快来发布第一条心愿吧！</p>';
+        guestbookList.innerHTML = '<div class="empty-state-small"><i class="far fa-comment-dots" style="font-size:2rem;opacity:0.4;display:block;margin-bottom:0.5rem;"></i>暂无留言，快来发布第一条心愿吧！</div>';
         return;
     }
     const isAdmin = isGuestbookAdmin(window.currentUser);

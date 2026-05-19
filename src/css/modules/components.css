@@ -1216,10 +1216,22 @@
 
 .guestbook-form-container {
     background: var(--background-alt);
-    padding: 1.5rem;
+    padding: 1.25rem;
     border-radius: 16px;
-    margin-bottom: 2rem;
-    border: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(var(--primary-rgb), 0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+.guestbook-form-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(var(--primary-rgb), 0.15), transparent);
 }
 
 .welcome-box {
@@ -1310,8 +1322,8 @@
     min-height: 80px;
     max-height: 150px;
     padding: 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border: 1px solid rgba(var(--primary-rgb), 0.15);
+    border-radius: 14px;
     background: var(--background);
     color: var(--text-primary);
     resize: vertical;
@@ -1322,52 +1334,91 @@
 #guestbook-content:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1), 0 2px 8px rgba(var(--primary-rgb), 0.06);
 }
 
 .guestbook-list {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.25rem;
 }
 
 .guestbook-item {
+    position: relative;
     background: var(--background);
-    padding: 1.5rem;
-    border-radius: 16px;
+    padding: 1.25rem 1.5rem 1.25rem 1.5rem;
+    border-radius: 18px;
     border: 1px solid var(--border-color);
     display: flex;
-    gap: 1.2rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    gap: 1rem;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+    overflow: visible;
+}
+
+.guestbook-item::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.02) 0%, transparent 50%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 .guestbook-item:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-light);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(var(--primary-rgb), 0.06);
     border-color: var(--primary-light);
+}
+
+.guestbook-item:hover::after {
+    opacity: 1;
 }
 
 .guestbook-item.is-pinned {
     position: relative;
     border: 2px solid transparent;
     background: linear-gradient(var(--background), var(--background)) padding-box,
-        linear-gradient(135deg, rgba(0, 123, 255, 0.3), rgba(77, 163, 255, 0.5)) border-box;
-    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.15);
+        linear-gradient(135deg, rgba(0, 123, 255, 0.4), rgba(102, 126, 234, 0.4), rgba(77, 163, 255, 0.3)) border-box;
+    box-shadow: 0 4px 24px rgba(0, 123, 255, 0.12), 0 0 0 1px rgba(0, 123, 255, 0.05);
 }
 
 .guestbook-item.is-pinned::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: linear-gradient(180deg, #007BFF 0%, #4DA3FF 100%);
-    border-radius: 16px 0 0 16px;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.06), rgba(102, 126, 234, 0.03), transparent);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.guestbook-item.is-pinned > * {
+    position: relative;
+    z-index: 1;
+}
+
+.guestbook-item.is-hidden {
+    opacity: 0.7;
+    background: repeating-linear-gradient(
+        -45deg,
+        var(--background),
+        var(--background) 10px,
+        var(--background-alt) 10px,
+        var(--background-alt) 20px
+    );
 }
 
 .guestbook-left {
     flex-shrink: 0;
+    position: relative;
 }
 
 .guestbook-main {
@@ -1375,21 +1426,29 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .user-avatar-placeholder {
-    width: 45px;
-    height: 45px;
+    width: 44px;
+    height: 44px;
     background: var(--primary-gradient);
-    border-radius: 50%;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-weight: 600;
-    font-size: 1.2rem;
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+    font-weight: 700;
+    font-size: 1.15rem;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    letter-spacing: 0.5px;
+}
+
+.guestbook-item:hover .user-avatar-placeholder {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .guestbook-header {
@@ -1406,39 +1465,70 @@
     gap: 0.5rem;
 }
 
+.user-info-top {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.nickname-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
 .nickname {
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
-    font-size: 1rem;
+    font-size: 0.95rem;
     max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    letter-spacing: 0.01em;
 }
 
 .timestamp {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--text-muted);
     margin-top: 2px;
+    opacity: 0.85;
 }
 
 .guestbook-content {
-    color: var(--text-secondary);
-    line-height: 1.6;
+    color: var(--text-primary);
+    line-height: 1.7;
     font-size: 0.95rem;
     white-space: pre-wrap;
     word-break: break-word;
     background: var(--background-alt);
-    padding: 1rem;
-    border-radius: 0 12px 12px 12px;
-    margin-top: 0.2rem;
+    padding: 0.85rem 1.1rem;
+    border-radius: 4px 16px 16px 16px;
+    margin-top: 0.15rem;
+    position: relative;
+    border: 1px solid rgba(var(--primary-rgb), 0.06);
+}
+
+.guestbook-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.02) 0%, transparent 60%);
+    pointer-events: none;
 }
 
 .guestbook-footer {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    margin-top: 0.5rem;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+    padding-left: 2px;
 }
 
 .reply-btn {
@@ -1448,17 +1538,34 @@
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 0.3rem;
-    padding: 4px 10px;
-    border-radius: 16px;
+    gap: 0.35rem;
+    padding: 5px 12px;
+    border-radius: 20px;
     font-size: 0.8rem;
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.reply-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    border-radius: inherit;
 }
 
 .reply-btn:hover {
-    background: rgba(102, 126, 234, 0.1);
     color: #667eea;
     border-color: #667eea;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.reply-btn:hover::before {
+    opacity: 1;
 }
 
 .reply-btn i {
@@ -1467,6 +1574,12 @@
 
 .reply-form-container {
     margin-top: 0.75rem;
+    display: none;
+    animation: slideDown 0.25s ease forwards;
+}
+
+.reply-form-container.closing {
+    animation: slideUp 0.2s ease forwards;
 }
 
 .reply-form-wrapper {
@@ -1479,21 +1592,21 @@
     width: 100%;
     min-height: 60px;
     max-height: 120px;
-    padding: 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid rgba(var(--primary-rgb), 0.15);
+    border-radius: 12px;
     background: var(--background);
     color: var(--text-primary);
     resize: vertical;
     font-family: inherit;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .reply-form-wrapper textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12), 0 2px 8px rgba(102, 126, 234, 0.08);
 }
 
 .reply-form-actions {
@@ -1503,12 +1616,12 @@
 }
 
 .guestbook-replies {
-    margin-top: 1rem;
-    padding-left: 0.5rem;
-    border-left: 2px solid rgba(102, 126, 234, 0.2);
+    margin-top: 0.75rem;
+    padding: 1rem;
+    border-left: 3px solid rgba(102, 126, 234, 0.15);
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.6rem;
     max-height: 600px;
     overflow-y: auto;
     scrollbar-width: thin;
@@ -1516,21 +1629,28 @@
 
 .guestbook-reply-item {
     display: flex;
-    gap: 0.8rem;
-    padding: 0.75rem 1rem;
+    gap: 0.7rem;
+    padding: 0.7rem 0.85rem;
     background: var(--background-alt);
     border-radius: 12px;
-    border: 1px solid var(--border-color);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border: 1px solid rgba(var(--primary-rgb), 0.06);
+    border-left: 3px solid rgba(102, 126, 234, 0.3);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease, border-left-color 0.2s ease;
 }
 
 .guestbook-reply-item:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.08);
+    border-color: rgba(102, 126, 234, 0.15);
+    border-left-color: rgba(102, 126, 234, 0.6);
 }
 
 .guestbook-reply-item.is-hidden {
-    opacity: 0.6;
+    opacity: 0.65;
+}
+
+.guestbook-reply-item.is-hidden:hover {
+    opacity: 0.85;
 }
 
 .guestbook-reply-avatar {
@@ -1538,9 +1658,11 @@
 }
 
 .reply-avatar {
-    width: 32px !important;
-    height: 32px !important;
-    font-size: 0.9rem !important;
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 0.82rem !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
 }
 
 .guestbook-reply-main {
@@ -1552,9 +1674,11 @@
 }
 
 .guestbook-reply-item .guestbook-content {
-    font-size: 0.9rem;
-    padding: 0.6rem 0.8rem;
+    font-size: 0.88rem;
+    padding: 0.55rem 0.75rem;
     margin-top: 0.1rem;
+    border-radius: 4px 12px 12px 12px;
+    background: var(--background);
 }
 
 .guestbook-reply-item .guestbook-header {
@@ -1562,11 +1686,11 @@
 }
 
 .guestbook-reply-item .nickname {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
 }
 
 .guestbook-reply-item .timestamp {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
 }
 
 .guestbook-reply-item .guestbook-footer {
@@ -1576,7 +1700,7 @@
 
 .guestbook-reply-item .like-btn {
     padding: 3px 8px;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
 }
 
 .guestbook-reply-item .admin-badge {
@@ -1585,26 +1709,26 @@
 }
 
 .reply-indicator {
-    color: var(--text-muted);
-    font-size: 0.75rem;
+    color: rgba(102, 126, 234, 0.6);
+    font-size: 0.72rem;
     margin-left: 2px;
 }
 
 .reply-indicator i {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
 }
 
 .guestbook-admin-controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.35rem;
     align-items: center;
 }
 
 .guestbook-author-controls {
     display: flex;
     flex-direction: row;
-    gap: 0.5rem;
+    gap: 0.35rem;
     align-items: center;
 }
 
@@ -1616,34 +1740,38 @@
 
 .like-btn {
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     color: var(--text-muted);
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 6px 12px;
+    padding: 5px 12px;
     border-radius: 20px;
-    transition: background 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-size: 0.85rem;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
 }
 
 .like-btn:hover {
-    background: rgba(231, 76, 60, 0.1);
+    background: rgba(231, 76, 60, 0.08);
     color: var(--accent-color);
+    border-color: rgba(231, 76, 60, 0.15);
     transform: translateY(-1px);
 }
 
 .like-btn:active {
-    transform: scale(0.9);
+    transform: scale(0.92);
 }
 
 .like-btn.active {
-    color: var(--accent-color);
-    background: rgba(231, 76, 60, 0.05);
+    color: #E74C3C;
+    background: rgba(231, 76, 60, 0.06);
+    border-color: rgba(231, 76, 60, 0.1);
 }
 
 .like-btn.active i {
-    animation: heartbeat 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: heartbeat 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .admin-actions {
@@ -1670,8 +1798,14 @@
 }
 
 .item-hidden {
-    opacity: 0.6;
-    background: var(--background-alt);
+    opacity: 0.65;
+    background: repeating-linear-gradient(
+        -45deg,
+        var(--background),
+        var(--background) 10px,
+        var(--background-alt) 10px,
+        var(--background-alt) 20px
+    );
     border-style: dashed;
 }
 
@@ -1679,15 +1813,39 @@
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    padding: 0.3rem 0.7rem;
-    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 50%, #FF6B6B 100%);
+    padding: 0.25rem 0.65rem;
+    background: linear-gradient(135deg, #FF6B6B 0%, #ee5a24 50%, #FF6B6B 100%);
     background-size: 200% 100%;
     color: white;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+    border-radius: 6px 14px 14px 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 10px rgba(255, 107, 107, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
     animation: pinShine 3s ease-in-out infinite;
+    position: relative;
+    overflow: hidden;
+}
+
+.pinned-badge::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.15) 50%,
+        transparent 70%
+    );
+    animation: pinShimmer 3s ease-in-out infinite;
+}
+
+@keyframes pinShimmer {
+    0%, 100% { transform: translateX(-100%) rotate(45deg); }
+    50% { transform: translateX(100%) rotate(45deg); }
 }
 
 .pinned-badge i {
@@ -1697,18 +1855,21 @@
 .status-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.3rem 0.7rem;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 600;
+    gap: 0.3rem;
+    padding: 0.22rem 0.6rem;
+    border-radius: 6px 14px 14px 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
     transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 .status-badge.resolved {
     background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     color: white;
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    box-shadow: 0 2px 10px rgba(40, 167, 69, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .status-badge.resolved i {
@@ -1716,15 +1877,15 @@
 }
 
 .status-badge.unresolved {
-    background: linear-gradient(135deg, rgba(108, 117, 125, 0.15) 0%, rgba(108, 117, 125, 0.25) 100%);
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.12) 0%, rgba(108, 117, 125, 0.2) 100%);
     color: var(--text-secondary);
-    border: 1.5px solid rgba(108, 117, 125, 0.3);
+    border: 1.5px solid rgba(108, 117, 125, 0.25);
 }
 
 .status-badge.rejected {
     background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     color: white;
-    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+    box-shadow: 0 2px 10px rgba(220, 53, 69, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .status-badge.rejected i {
@@ -1734,7 +1895,7 @@
 .status-badge.auditing {
     background: linear-gradient(135deg, #ff9800 0%, #ffc107 100%);
     color: white;
-    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+    box-shadow: 0 2px 10px rgba(255, 193, 7, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .status-badge.auditing i {
@@ -1742,28 +1903,29 @@
 }
 
 .reject-reason {
-    margin-top: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: linear-gradient(135deg, rgba(220, 53, 69, 0.08) 0%, rgba(220, 53, 69, 0.12) 100%);
+    margin-top: 0.6rem;
+    padding: 0.65rem 0.9rem;
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.06) 0%, rgba(220, 53, 69, 0.1) 100%);
     border-left: 3px solid #dc3545;
-    border-radius: 0 8px 8px 0;
+    border-radius: 4px 10px 10px 4px;
     color: #dc3545;
-    font-size: 0.85rem;
+    font-size: 0.83rem;
     line-height: 1.5;
+    position: relative;
 }
 
 .reject-reason i {
-    margin-right: 0.5rem;
+    margin-right: 0.4rem;
 }
 
 .resolve-note {
-    margin-top: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: linear-gradient(135deg, rgba(40, 167, 69, 0.08) 0%, rgba(40, 167, 69, 0.12) 100%);
+    margin-top: 0.6rem;
+    padding: 0.65rem 0.9rem;
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.06) 0%, rgba(40, 167, 69, 0.1) 100%);
     border-left: 3px solid #28a745;
-    border-radius: 0 8px 8px 0;
+    border-radius: 4px 10px 10px 4px;
     color: #28a745;
-    font-size: 0.85rem;
+    font-size: 0.83rem;
     line-height: 1.5;
     display: flex;
     align-items: center;
@@ -1775,7 +1937,7 @@
 }
 
 .resolve-note-text {
-    background: linear-gradient(135deg, rgba(0, 123, 255, 0.08) 0%, rgba(0, 123, 255, 0.12) 100%);
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.06) 0%, rgba(var(--primary-rgb), 0.1) 100%);
     border-left-color: var(--primary-color);
     color: var(--primary-color);
 }
@@ -1784,8 +1946,8 @@
     color: #28a745;
     text-decoration: none;
     font-weight: 600;
-    padding: 0.2rem 0.5rem;
-    background: rgba(40, 167, 69, 0.1);
+    padding: 0.15rem 0.4rem;
+    background: rgba(40, 167, 69, 0.08);
     border-radius: 4px;
     transition: background 0.2s ease, transform 0.2s ease;
     display: inline-flex;
@@ -1795,7 +1957,7 @@
 }
 
 .resolve-note-link:hover {
-    background: rgba(40, 167, 69, 0.2);
+    background: rgba(40, 167, 69, 0.18);
     text-decoration: none;
     transform: translateX(2px);
 }
@@ -1804,7 +1966,7 @@
     content: '\f061';
     font-family: 'Font Awesome 5 Free';
     font-weight: 900;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     opacity: 0;
     transition: opacity 0.2s ease;
 }
@@ -4065,19 +4227,6 @@ textarea.form-input {
     background: var(--background-dark);
 }
 
-.user-info-top {
-    display: flex;
-    gap: 5px;
-    flex-direction: column;
-}
-
-.nickname-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-}
-
 .user-badges {
     display: flex;
     flex-wrap: wrap;
@@ -4089,12 +4238,23 @@ textarea.form-input {
     .guestbook-item {
         flex-direction: column;
         gap: 0.8rem;
+        padding: 1rem;
+    }
+
+    .guestbook-item:hover {
+        transform: translateY(-2px);
     }
 
     .user-avatar-placeholder {
-        width: 35px;
-        height: 35px;
-        font-size: 1rem;
+        width: 36px;
+        height: 36px;
+        font-size: 0.95rem;
+        border-radius: 12px;
+    }
+
+    .guestbook-content {
+        padding: 0.7rem 0.9rem;
+        border-radius: 4px 14px 14px 14px;
     }
 
     .guestbook-reply-item {
@@ -4104,13 +4264,14 @@ textarea.form-input {
     }
 
     .guestbook-replies {
-        padding-left: 0.3rem;
+        padding: 0.5rem;
     }
 
     .reply-avatar {
-        width: 28px !important;
-        height: 28px !important;
-        font-size: 0.8rem !important;
+        width: 26px !important;
+        height: 26px !important;
+        font-size: 0.78rem !important;
+        border-radius: 8px !important;
     }
 
     .guestbook-footer {

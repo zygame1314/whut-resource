@@ -249,7 +249,20 @@ function highlightCurrentFolder(prefix) {
         if (toggle) toggle.classList.add('expanded');
         parent = parent.parentElement ? parent.parentElement.closest('.folder-tree-node') : null;
     }
-    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const scrollContainer = document.querySelector('#folder-tree .folder-tree-scroll-wrapper');
+    if (scrollContainer) {
+        const indicator = scrollContainer.querySelector('.folder-tree-scroll-indicator');
+        const offset = (indicator && indicator.classList.contains('visible')) ? indicator.offsetHeight : 0;
+        const targetRect = target.getBoundingClientRect();
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const relativeTop = targetRect.top - containerRect.top + scrollContainer.scrollTop - offset;
+        const targetBottom = relativeTop + target.offsetHeight;
+        const viewTop = scrollContainer.scrollTop + offset;
+        const viewBottom = scrollContainer.scrollTop + scrollContainer.offsetHeight;
+        if (relativeTop < viewTop || targetBottom > viewBottom) {
+            scrollContainer.scrollTo({ top: relativeTop - 8, behavior: 'smooth' });
+        }
+    }
     requestAnimationFrame(() => {
         const scrollContainer = document.querySelector('#folder-tree .folder-tree-scroll-wrapper');
         const scrollIndicator = scrollContainer?.querySelector('.folder-tree-scroll-indicator');

@@ -114,18 +114,21 @@ async function fetchAndRenderDownloadHistory() {
         return;
     }
     downloadHistoryListElement.innerHTML = `
-        <div class="sidebar-skeleton-hot">
-            <div class="skeleton-hot-item">
-                <div class="skeleton-hot-left"><div class="skeleton-folder-icon"></div><div class="skeleton-text medium"></div></div>
-                <div class="skeleton-hot-right"><div class="skeleton-fire-icon"></div><div class="skeleton-count"></div></div>
+        <div class="sidebar-skeleton-dl">
+            <div class="skeleton-dl-item">
+                <div class="skeleton-dl-icon"></div>
+                <div class="skeleton-dl-text medium"></div>
+                <div class="skeleton-dl-time"></div>
             </div>
-            <div class="skeleton-hot-item">
-                <div class="skeleton-hot-left"><div class="skeleton-folder-icon"></div><div class="skeleton-text short"></div></div>
-                <div class="skeleton-hot-right"><div class="skeleton-fire-icon"></div><div class="skeleton-count"></div></div>
+            <div class="skeleton-dl-item">
+                <div class="skeleton-dl-icon"></div>
+                <div class="skeleton-dl-text short"></div>
+                <div class="skeleton-dl-time"></div>
             </div>
-            <div class="skeleton-hot-item">
-                <div class="skeleton-hot-left"><div class="skeleton-folder-icon"></div><div class="skeleton-text"></div></div>
-                <div class="skeleton-hot-right"><div class="skeleton-fire-icon"></div><div class="skeleton-count"></div></div>
+            <div class="skeleton-dl-item">
+                <div class="skeleton-dl-icon"></div>
+                <div class="skeleton-dl-text"></div>
+                <div class="skeleton-dl-time"></div>
             </div>
         </div>`;
     try {

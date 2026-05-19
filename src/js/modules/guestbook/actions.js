@@ -160,22 +160,31 @@ window.showReplyForm = function (parentId) {
     if (!formContainer) return;
     document.querySelectorAll('.reply-form-container').forEach(el => {
         if (el.id !== `reply-form-${parentId}`) {
-            el.style.display = 'none';
+            hideReplyFormAnimated(el);
         }
     });
-    formContainer.style.display = formContainer.style.display === 'none' ? 'block' : 'none';
-    if (formContainer.style.display === 'block') {
-        const input = document.getElementById(`reply-input-${parentId}`);
-        if (input) input.focus();
-    }
+    formContainer.classList.remove('closing');
+    formContainer.style.display = 'block';
+    formContainer.style.animation = 'slideDown 0.25s ease forwards';
+    const input = document.getElementById(`reply-input-${parentId}`);
+    if (input) input.focus();
 };
+function hideReplyFormAnimated(el) {
+    if (!el || el.classList.contains('closing')) return;
+    el.classList.add('closing');
+    el.style.animation = 'slideUp 0.2s ease forwards';
+    const input = el.querySelector('textarea');
+    if (input) input.value = '';
+    el.addEventListener('animationend', function handler() {
+        el.removeEventListener('animationend', handler);
+        el.style.display = 'none';
+        el.style.animation = '';
+        el.classList.remove('closing');
+    });
+}
 window.hideReplyForm = function (parentId) {
     const formContainer = document.getElementById(`reply-form-${parentId}`);
-    if (formContainer) {
-        formContainer.style.display = 'none';
-        const input = document.getElementById(`reply-input-${parentId}`);
-        if (input) input.value = '';
-    }
+    if (formContainer) hideReplyFormAnimated(formContainer);
 };
 window.submitReply = async function (parentId) {
     const input = document.getElementById(`reply-input-${parentId}`);
