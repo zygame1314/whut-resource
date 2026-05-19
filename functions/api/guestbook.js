@@ -188,6 +188,7 @@ async function handlePost(request, env, context) {
     if (content.length > 500) {
         return new Response(JSON.stringify({ error: '内容过长（最多500字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    const MAX_REPLIES_PER_POST = 50;
     let parentId = null;
     if (parent_id) {
         const parentEntry = await env.DB.prepare('SELECT id, parent_id, is_hidden FROM guestbook WHERE id = ?').bind(parent_id).first();
@@ -199,6 +200,10 @@ async function handlePost(request, env, context) {
         }
         if (parentEntry.is_hidden && !isAdmin(user)) {
             return new Response(JSON.stringify({ error: '无法回复审核中的留言' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const replyCount = await env.DB.prepare('SELECT COUNT(*) as count FROM guestbook WHERE parent_id = ?').bind(parent_id).first();
+        if (!isAdmin(user) && replyCount.count >= MAX_REPLIES_PER_POST) {
+            return new Response(JSON.stringify({ error: `该留言回复数已达上限（${MAX_REPLIES_PER_POST}条）` }), { status: 429, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         parentId = parseInt(parent_id);
     }
