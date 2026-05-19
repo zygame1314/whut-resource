@@ -120,7 +120,36 @@ async function deleteFile(key, isDirectory) {
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
     };
     try {
-        await performDelete();
+        const displayName = key.endsWith('/') ? key.slice(0, -1).split('/').pop() : key.split('/').pop();
+        if (isDirectory) {
+            const firstConfirm = await showConfirmation({
+                title: '⚠️ 删除文件夹',
+                message: `你确定要永久删除文件夹 "<b>${displayName}</b>" 及其<b>所有内容</b>吗？<br><br><span style="color: var(--accent-color);">⚠️ 这将删除该文件夹内的所有文件和子文件夹！<br>此操作不可逆！</span>`,
+                confirmText: '继续删除',
+                confirmClass: 'confirm-btn-danger'
+            });
+            if (!firstConfirm) {
+                showNotification('删除操作已取消', 'info');
+                return;
+            }
+            let inputName;
+            try {
+                inputName = await showPrompt({
+                    title: '🔐 二次确认删除',
+                    message: `请输入文件夹名称 "<b>${displayName}</b>" 以确认删除：`,
+                    placeholder: '输入文件夹名称',
+                    confirmText: '永久删除',
+                    cancelText: '取消'
+                });
+            } catch (e) {
+                showNotification('删除操作已取消', 'info');
+                return;
+            }
+            if (inputName !== displayName) {
+                showNotification('文件夹名称不匹配，删除操作已取消', 'warning');
+                return;
+            }
+            await performDelete();
         } else {
             const confirmed = await showConfirmation({
                 title: '确认删除',
