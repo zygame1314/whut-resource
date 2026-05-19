@@ -105,8 +105,8 @@ async function handleGuestbookSubmit(e) {
         if (response.ok) {
             const result = await response.json();
             guestbookContentInput.value = '';
-            showNotification('留言发布成功！', 'success');
             const isAdmin = isGuestbookAdmin(window.currentUser);
+            showNotification(isAdmin ? '留言发布成功！' : '留言已提交，请耐心等待审核', 'success');
             const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
             const newMessage = {
                 id: result.id,

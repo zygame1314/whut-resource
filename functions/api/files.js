@@ -195,7 +195,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                     if (cacheData.updated_at) {
                         const updatedAt = new Date(cacheData.updated_at + 'Z').getTime();
                         const now = Date.now();
-                        needsBackgroundRefresh = (now - updatedAt) > 3600000;
+                        needsBackgroundRefresh = (now - updatedAt) > 86400000;
                     }
                 } catch (e) {
                     console.error('解析热门文件夹缓存失败:', e);

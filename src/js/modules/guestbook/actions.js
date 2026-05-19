@@ -158,6 +158,10 @@ window.resolveGuestbook = async function (id) {
 window.showReplyForm = function (parentId) {
     const formContainer = document.getElementById(`reply-form-${parentId}`);
     if (!formContainer) return;
+    if (formContainer.style.display === 'block' && !formContainer.classList.contains('closing')) {
+        hideReplyFormAnimated(formContainer);
+        return;
+    }
     document.querySelectorAll('.reply-form-container').forEach(el => {
         if (el.id !== `reply-form-${parentId}`) {
             hideReplyFormAnimated(el);
