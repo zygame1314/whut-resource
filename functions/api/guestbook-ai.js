@@ -715,12 +715,14 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
     }, 3, 1000);
 }
 const REPLY_SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板的内容审核AI，判断内容是否合规。
+重要背景：本站是资源分享平台，用户请求课程资料、真题、课件等属于正常行为，不是广告或垃圾信息。
+
 判断标准（按优先级）：
 1. 昵称含辱骂/色情/反动/恶意推广/攻击性/不雅词汇 -> ban_user，reason 写明昵称违规类型（无论留言内容如何，必须封禁）
 2. 含暴恐/反动/色情/违法/辱骂/人身攻击 -> reject，reason 写明违规类型
-3. 含广告/刷屏/无意义内容 -> reject，reason 写明原因
+3. 含广告/刷屏/无意义内容 -> reject，reason 写明原因（注意：求课程资料、求真题等资源请求不是广告，必须approve）
 4. 留联系方式(QQ/微信/邮箱/手机号) -> reject，reason: 请勿在留言板泄露个人信息
-5. 其他正常内容 -> approve
+5. 其他正常内容（包括资源请求、感谢等） -> approve
 所有输出必须是纯文本，禁用Markdown。`;
 
 const REPLY_TOOLS = [
