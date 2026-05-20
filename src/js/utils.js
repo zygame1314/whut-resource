@@ -240,9 +240,13 @@ function filterTreeByKeyword(container, keyword, options = {}) {
             node.style.display = '';
             const sublist = node.querySelector(':scope > ' + listSelector);
             if (sublist) sublist.style.display = 'none';
+            const item = node.querySelector(':scope > ' + itemSelector);
             const toggle = node.querySelector(toggleSelector);
             if (toggle && useTransform) toggle.style.transform = '';
             if (toggle) toggle.classList.remove('expanded');
+            if (item && item.dataset && item.dataset.expanded !== undefined) {
+                item.dataset.expanded = 'false';
+            }
         });
         const rootList = container.querySelector(':scope > ' + listSelector);
         if (rootList) rootList.style.display = 'block';

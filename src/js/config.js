@@ -115,6 +115,9 @@ window.filterTreeByKeyword = function (container, keyword, options = {}) {
                         toggleIcon.classList.remove(expandClass);
                     }
                 }
+                if (parentItem.dataset && parentItem.dataset.expanded !== undefined) {
+                    parentItem.dataset.expanded = 'false';
+                }
             }
         });
         return;

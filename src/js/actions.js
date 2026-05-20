@@ -605,82 +605,7 @@ function showDirectoryPicker(itemsToMove = []) {
         const treeContainer = modalOverlay.querySelector('#directory-picker-tree');
         const confirmBtn = modalOverlay.querySelector('.confirm-btn');
         let selectedPath = null;
-        const renderTree = (tree, container) => {
-            const ul = document.createElement('ul');
-            ul.className = 'folder-tree-list';
-            const rootNode = renderNode('根目录', tree, '', true, true);
-            ul.appendChild(rootNode);
-            container.innerHTML = '';
-            container.appendChild(ul);
-        };
-        const renderNode = (name, node, path, isRoot = false, isLast = false) => {
-            const li = document.createElement('li');
-            li.className = 'folder-tree-node';
-            if (isLast) {
-                li.classList.add('is-last');
-            }
-            const fullPath = isRoot ? '' : `${path}${name}/`;
-            const children = isRoot ? node : node;
-            const hasChildren = Object.keys(children).length > 0;
-            const nodeContent = document.createElement('div');
-            nodeContent.className = 'folder-tree-item';
-            nodeContent.dataset.path = fullPath;
-            nodeContent.innerHTML = `
-                <i class="fas fa-chevron-right folder-toggle-icon ${hasChildren ? '' : 'hidden'}"></i>
-                <i class="fas fa-folder folder-icon"></i>
-                <span class="folder-name">${name}</span>
-            `;
-            li.appendChild(nodeContent);
-            if (hasChildren) {
-                const sublist = document.createElement('ul');
-                sublist.className = 'folder-tree-list';
-                sublist.style.display = isRoot ? 'block' : 'none';
-                const childKeys = Object.keys(children).sort();
-                childKeys.forEach((key, index) => {
-                    const isLastInSublist = index === childKeys.length - 1;
-                    sublist.appendChild(renderNode(key, children[key], fullPath, false, isLastInSublist));
-                });
-                li.appendChild(sublist);
-            }
-            return li;
-        };
-        treeContainer.addEventListener('click', (e) => {
-            const itemTarget = e.target.closest('.folder-tree-item');
-            if (!itemTarget) return;
-            const toggleIcon = e.target.closest('.folder-toggle-icon');
-            const folderIcon = e.target.closest('.folder-icon');
-            const sublist = itemTarget.parentElement.querySelector('.folder-tree-list');
-            let actAsToggle = false;
-            let targetToggleIcon = itemTarget.querySelector('.folder-toggle-icon');
-            if (toggleIcon && sublist) {
-                actAsToggle = true;
-            } else if (folderIcon && sublist) {
-                if (targetToggleIcon && !targetToggleIcon.classList.contains('hidden')) {
-                    actAsToggle = true;
-                }
-            }
-            if (actAsToggle && targetToggleIcon) {
-                e.stopPropagation();
-                const isExpanded = sublist.style.display === 'block';
-                sublist.style.display = isExpanded ? 'none' : 'block';
-                targetToggleIcon.classList.toggle('expanded', !isExpanded);
-            } else {
-                const path = itemTarget.dataset.path;
-                const isInvalidMove = itemsToMove.some(itemKey => path.startsWith(itemKey + '/'));
-                if (isInvalidMove) {
-                    showNotification('不能将文件夹移动到其自身或其子文件夹中。', 'error');
-                    return;
-                }
-                if (selectedPath !== null) {
-                    const prevSelected = treeContainer.querySelector(`.folder-tree-item.active`);
-                    if (prevSelected) prevSelected.classList.remove('active');
-                }
-                itemTarget.classList.add('active');
-                selectedPath = path;
-                confirmBtn.disabled = false;
-                confirmBtn.textContent = `移动到 "${itemTarget.querySelector('.folder-name').textContent}"`;
-            }
-        });
+        let pickerTree = null;
         const closeModal = (value) => {
             modalOverlay.classList.add('closing');
             modalOverlay.addEventListener('animationend', () => {
@@ -700,20 +625,48 @@ function showDirectoryPicker(itemsToMove = []) {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (result.success) {
-                const tree = buildTree(result.directories);
-                renderTree(tree, treeContainer);
+                pickerTree = new LazyFolderTree({
+                    container: treeContainer,
+                    rootLabel: '根目录',
+                    rootIconClass: 'fas fa-home path-folder-icon',
+                    folderIconClass: 'fas fa-folder path-folder-icon',
+                    toggleClassName: 'path-toggle-icon',
+                    nameClassName: 'path-folder-name',
+                    nodeClassName: 'path-tree-node',
+                    itemClassName: 'path-tree-item',
+                    listClassName: 'path-tree-list',
+                    selectionMode: true,
+                    useTransformToggle: true,
+                    onSelect: function(nodeContent, path, e) {
+                        const isInvalidMove = itemsToMove.some(itemKey => path.startsWith(itemKey + '/'));
+                        if (isInvalidMove) {
+                            showNotification('不能将文件夹移动到其自身或其子文件夹中。', 'error');
+                            return;
+                        }
+                        if (selectedPath !== null) {
+                            const prevSelected = treeContainer.querySelector('.path-tree-item.selected');
+                            if (prevSelected) prevSelected.classList.remove('selected');
+                        }
+                        nodeContent.classList.add('selected');
+                        selectedPath = path;
+                        confirmBtn.disabled = false;
+                        confirmBtn.textContent = `移动到 "${nodeContent.querySelector('.path-folder-name').textContent}"`;
+                    }
+                });
+                pickerTree.render(result.directories);
                 const searchInput = modalOverlay.querySelector('.directory-picker-search-input');
                 if (searchInput) {
                     searchInput.addEventListener('click', (e) => e.stopPropagation());
                     searchInput.addEventListener('input', (e) => {
                         try {
+                            if (pickerTree) pickerTree.ensureAllRendered();
                             filterTreeByKeyword(treeContainer, e.target.value, {
-                                nodeSelector: '.folder-tree-node',
-                                itemSelector: '.folder-tree-item',
-                                nameSelector: '.folder-name',
-                                listSelector: '.folder-tree-list',
-                                toggleSelector: '.folder-toggle-icon',
-                                useTransform: false
+                                nodeSelector: '.path-tree-node',
+                                itemSelector: '.path-tree-item',
+                                nameSelector: '.path-folder-name',
+                                listSelector: '.path-tree-list',
+                                toggleSelector: '.path-toggle-icon',
+                                useTransform: true
                             });
                         } catch (ex) { }
                     });

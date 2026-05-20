@@ -142,102 +142,31 @@ function buildTree(paths) {
     });
     return tree;
 }
+
+let sidebarTree = null;
+
 function renderFolderTree(tree, container) {
-    container.innerHTML = '';
-    const scrollContainer = document.createElement('div');
-    scrollContainer.className = 'folder-tree-scroll-wrapper';
-    const scrollIndicator = document.createElement('div');
-    scrollIndicator.className = 'folder-tree-scroll-indicator';
-    scrollIndicator.innerHTML = '<i class="fas fa-folder-tree"></i> <span class="folder-tree-scroll-indicator-text"></span> <i class="fas fa-chevron-up folder-tree-scroll-collapse-icon"></i>';
-    const ul = document.createElement('ul');
-    ul.className = 'folder-tree-list';
-    Object.keys(tree).sort().forEach(key => {
-        const node = tree[key];
-        const li = renderFolderNode(key, node, '');
-        ul.appendChild(li);
-    });
-    scrollContainer.appendChild(scrollIndicator);
-    scrollContainer.appendChild(ul);
-    container.appendChild(scrollContainer);
-    scrollContainer.addEventListener('scroll', () => {
-        updateFolderTreeScrollIndicator(scrollContainer, scrollIndicator);
-    });
-    scrollIndicator.addEventListener('click', () => {
-        const currentPath = scrollIndicator.dataset.currentPath;
-        if (!currentPath) return;
-        const targetItem = container.querySelector(`.folder-tree-item[data-path="${CSS.escape(currentPath)}"]`);
-        if (!targetItem) return;
-        const node = targetItem.closest('.folder-tree-node');
-        const sublist = node ? node.querySelector(':scope > .folder-tree-list') : null;
-        const toggleIcon = node ? node.querySelector(':scope > .folder-tree-item .folder-toggle-icon') : null;
-        if (sublist) {
-            sublist.style.display = 'none';
-            if (toggleIcon) toggleIcon.classList.remove('expanded');
+    sidebarTree = new LazyFolderTree({
+        container: container,
+        scrollWrapper: true,
+        showGoToBtn: true,
+        onGoTo: function(path, item) {
+            fetchAndDisplayFiles(path);
+            document.querySelectorAll('.folder-tree-item.active').forEach(item => item.classList.remove('active'));
+            item.classList.add('active');
         }
-        requestAnimationFrame(() => {
-            updateFolderTreeScrollIndicator(scrollContainer, scrollIndicator);
-        });
     });
-}
-function renderFolderNode(name, node, currentPath) {
-    const li = document.createElement('li');
-    li.className = 'folder-tree-node';
-    const fullPath = currentPath ? `${currentPath}${name}/` : `${name}/`;
-    const hasChildren = Object.keys(node).length > 0;
-    const nodeContent = document.createElement('div');
-    nodeContent.className = 'folder-tree-item';
-    nodeContent.dataset.path = fullPath;
-    nodeContent.innerHTML = `
-        <span class="folder-item-main">
-            <i class="fas fa-chevron-right folder-toggle-icon ${hasChildren ? '' : 'hidden'}"></i>
-            <i class="fas fa-folder folder-icon"></i>
-            <span class="folder-name" title="${name}">${name}</span>
-        </span>
-        <button class="go-to-folder-btn" title="进入文件夹">
-            <i class="fas fa-arrow-right"></i>
-        </button>
-    `;
-    nodeContent.addEventListener('click', () => {
-        if (hasChildren) {
-            const sublist = li.querySelector('.folder-tree-list');
-            if (sublist) {
-                sublist.style.display = sublist.style.display === 'none' ? 'block' : 'none';
-                li.querySelector('.folder-toggle-icon').classList.toggle('expanded');
-            }
-        }
-        requestAnimationFrame(() => {
-            const scrollContainer = li.closest('.folder-tree-scroll-wrapper');
-            const scrollIndicator = scrollContainer?.querySelector('.folder-tree-scroll-indicator');
-            if (scrollContainer && scrollIndicator) {
-                updateFolderTreeScrollIndicator(scrollContainer, scrollIndicator);
-            }
-        });
-    });
-    const goToBtn = nodeContent.querySelector('.go-to-folder-btn');
-    goToBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        fetchAndDisplayFiles(fullPath);
-        document.querySelectorAll('.folder-tree-item.active').forEach(item => item.classList.remove('active'));
-        nodeContent.classList.add('active');
-    });
-    li.appendChild(nodeContent);
-    if (hasChildren) {
-        const sublist = document.createElement('ul');
-        sublist.className = 'folder-tree-list';
-        sublist.style.display = 'none';
-        Object.keys(node).sort().forEach(key => {
-            const childNode = renderFolderNode(key, node[key], fullPath);
-            sublist.appendChild(childNode);
-        });
-        li.appendChild(sublist);
-    }
-    return li;
+    sidebarTree.render(tree._sourceDirectories || []);
 }
 function highlightCurrentFolder(prefix) {
     document.querySelectorAll('.folder-tree-item.active').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.folder-tree-list .folder-tree-list').forEach(ul => ul.style.display = 'none');
+    document.querySelectorAll('.folder-tree-item[data-expanded="true"]').forEach(item => item.dataset.expanded = 'false');
     document.querySelectorAll('.folder-toggle-icon.expanded').forEach(icon => icon.classList.remove('expanded'));
     if (!prefix) return;
+    if (sidebarTree) {
+        sidebarTree.expandToPath(prefix);
+    }
     const target = document.querySelector(`.folder-tree-item[data-path="${CSS.escape(prefix)}"]`);
     if (!target) return;
     target.classList.add('active');
@@ -246,7 +175,9 @@ function highlightCurrentFolder(prefix) {
         const sublist = parent.querySelector(':scope > .folder-tree-list');
         if (sublist) sublist.style.display = 'block';
         const toggle = parent.querySelector(':scope > .folder-tree-item .folder-toggle-icon');
+        const item = parent.querySelector(':scope > .folder-tree-item');
         if (toggle) toggle.classList.add('expanded');
+        if (item) item.dataset.expanded = 'true';
         parent = parent.parentElement ? parent.parentElement.closest('.folder-tree-node') : null;
     }
     const scrollContainer = document.querySelector('#folder-tree .folder-tree-scroll-wrapper');

@@ -76,52 +76,10 @@ window.showRejectPrompt = function (options = {}) {
     });
 }
 async function showResolvePrompt() {
-    function buildDirectoryTree(dirs) {
-        const tree = {};
-        dirs.forEach(dir => {
-            const parts = dir.split('/');
-            let current = tree;
-            parts.forEach(part => {
-                if (!current[part]) {
-                    current[part] = {};
-                }
-                current = current[part];
-            });
-        });
-        return tree;
-    }
-    function renderPathTreeNode(name, children, path, isRoot = false) {
-        const fullPath = isRoot ? '' : path;
-        const hasChildren = Object.keys(children).length > 0;
-        const li = document.createElement('li');
-        li.className = 'path-tree-node';
-        const nodeContent = document.createElement('div');
-        nodeContent.className = 'path-tree-item';
-        nodeContent.dataset.path = fullPath;
-        nodeContent.innerHTML = `
-            <i class="fas fa-chevron-right path-toggle-icon ${hasChildren ? '' : 'invisible'}"></i>
-            <i class="fas ${isRoot ? 'fa-home' : 'fa-folder'} path-folder-icon"></i>
-            <span class="path-folder-name">${escapeHtml(name)}</span>
-        `;
-        li.appendChild(nodeContent);
-        if (hasChildren) {
-            const sublist = document.createElement('ul');
-            sublist.className = 'path-tree-list';
-            sublist.style.display = isRoot ? 'block' : 'none';
-            const sortedKeys = Object.keys(children).sort();
-            sortedKeys.forEach(key => {
-                const childPath = isRoot ? key : path + '/' + key;
-                sublist.appendChild(renderPathTreeNode(key, children[key], childPath, false));
-            });
-            li.appendChild(sublist);
-        }
-        return li;
-    }
     return new Promise((resolve, reject) => {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'confirmation-modal-overlay';
         let selectedPath = '';
-        let directories = [];
         const pathSelectorHtml = `
             <div class="resolve-path-selector">
                 <label class="resolve-label"><i class="fas fa-folder-open"></i> 资源目录（可选）</label>
@@ -167,57 +125,7 @@ async function showResolvePrompt() {
         const pathTreeContainer = modalOverlay.querySelector('#resolve-path-tree-container');
         const clearPathBtn = modalOverlay.querySelector('#clear-path-btn');
         const searchInput = modalOverlay.querySelector('#resolve-path-search');
-        function populateTree(dirs) {
-            if (!pathTreeContainer) return;
-            pathTreeContainer.innerHTML = '';
-            if (dirs.length === 0) return;
-            const tree = buildDirectoryTree(dirs);
-            const ul = document.createElement('ul');
-            ul.className = 'path-tree-list root';
-            ul.appendChild(renderPathTreeNode('根目录', tree, '', true));
-            pathTreeContainer.appendChild(ul);
-        }
-        if (pathTreeContainer) {
-            pathTreeContainer.addEventListener('click', (e) => {
-                const toggleIcon = e.target.closest('.path-toggle-icon');
-                const folderIcon = e.target.closest('.path-folder-icon');
-                const treeItem = e.target.closest('.path-tree-item');
-                let actAsToggle = false;
-                let targetToggleIcon = toggleIcon;
-                if (toggleIcon && !toggleIcon.classList.contains('invisible')) {
-                    actAsToggle = true;
-                } else if (folderIcon) {
-                    const parentItem = folderIcon.closest('.path-tree-item');
-                    if (parentItem) {
-                        const siblingToggle = parentItem.querySelector('.path-toggle-icon');
-                        if (siblingToggle && !siblingToggle.classList.contains('invisible')) {
-                            actAsToggle = true;
-                            targetToggleIcon = siblingToggle;
-                        }
-                    }
-                }
-                if (actAsToggle && targetToggleIcon) {
-                    e.stopPropagation();
-                    const parentLi = targetToggleIcon.closest('.path-tree-node');
-                    const sublist = parentLi.querySelector(':scope > .path-tree-list');
-                    if (sublist) {
-                        const isExpanded = sublist.style.display !== 'none';
-                        sublist.style.display = isExpanded ? 'none' : 'block';
-                        targetToggleIcon.style.transform = isExpanded ? '' : 'rotate(90deg)';
-                        targetToggleIcon.classList.toggle('expanded', !isExpanded);
-                    }
-                } else if (treeItem) {
-                    pathTreeContainer.querySelectorAll('.path-tree-item').forEach(item => {
-                        item.classList.remove('selected');
-                    });
-                    treeItem.classList.add('selected');
-                    selectedPath = treeItem.dataset.path;
-                    pathBtn.querySelector('.selected-path').textContent = selectedPath || '根目录';
-                    pathDropdown.classList.remove('open');
-                    pathBtn.classList.remove('open');
-                }
-            });
-        }
+        let resolveTree = null;
          (async () => {
              const token = localStorage.getItem('authToken');
              try {
@@ -225,14 +133,38 @@ async function showResolvePrompt() {
                      headers: { 'Authorization': `Bearer ${token}` }
                  });
                  if (result.success && result.directories) {
-                     directories = result.directories.map(d => d.endsWith('/') ? d.slice(0, -1) : d);
+                     const directories = result.directories.map(d => d.endsWith('/') ? d.slice(0, -1) : d);
+                     if (directories.length > 0 && pathTreeContainer) {
+                         resolveTree = new LazyFolderTree({
+                             container: pathTreeContainer,
+                             rootLabel: '根目录',
+                             rootIconClass: 'fas fa-home path-folder-icon',
+                             folderIconClass: 'fas fa-folder path-folder-icon',
+                             toggleClassName: 'path-toggle-icon',
+                             nameClassName: 'path-folder-name',
+                             nodeClassName: 'path-tree-node',
+                             itemClassName: 'path-tree-item',
+                             listClassName: 'path-tree-list',
+                             useTransformToggle: true,
+                             selectionMode: true,
+                             onSelect: function(nodeContent, path, e) {
+                                 pathTreeContainer.querySelectorAll('.path-tree-item').forEach(function(item) {
+                                     item.classList.remove('selected');
+                                 });
+                                 nodeContent.classList.add('selected');
+                                 selectedPath = path;
+                                 pathBtn.querySelector('.selected-path').textContent = selectedPath || '根目录';
+                                 pathDropdown.classList.remove('open');
+                                 pathBtn.classList.remove('open');
+                             }
+                         });
+                         resolveTree.render(directories);
+                     }
                  }
              } catch (e) {
                  console.warn('获取目录列表失败:', e);
              }
-            if (directories.length > 0) {
-                populateTree(directories);
-            } else if (pathTreeContainer) {
+            if (!resolveTree && pathTreeContainer) {
                 pathTreeContainer.innerHTML = '<div class="path-tree-empty" style="padding:8px;color:var(--text-secondary);">暂无目录</div>';
             }
         })();
@@ -240,6 +172,7 @@ async function showResolvePrompt() {
             searchInput.addEventListener('click', (e) => e.stopPropagation());
             searchInput.addEventListener('input', (e) => {
                 if (typeof filterTreeByKeyword === 'function') {
+                    if (resolveTree) resolveTree.ensureAllRendered();
                     filterTreeByKeyword(pathTreeContainer, e.target.value, {
                         nodeSelector: '.path-tree-node',
                         itemSelector: '.path-tree-item',

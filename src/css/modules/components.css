@@ -6088,99 +6088,54 @@ input#prompt-input {
     margin-bottom: 1.5rem;
 }
 
-.directory-picker-tree .folder-tree-list {
+.directory-picker-tree .path-tree-list {
     list-style: none;
     margin: 0;
-    padding-left: 20px;
-    position: relative;
-}
-
-.directory-picker-tree .folder-tree-list::before {
-    content: '';
-    position: absolute;
-    left: 8px;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: var(--border-color);
-}
-
-.directory-picker-tree .folder-tree-node {
-    margin: 0;
     padding: 0;
-    position: relative;
 }
 
-.directory-picker-tree .folder-tree-node::before {
-    content: '';
-    position: absolute;
-    left: -12px;
-    top: 20px;
-    width: 12px;
-    height: 1px;
-    background: var(--border-color);
+.directory-picker-tree .path-tree-list:not(.root) {
+    margin-left: 1.2rem;
+    border-left: 1px dashed var(--border-color);
+    padding-left: 0.5rem;
 }
 
-.directory-picker-tree .folder-tree-node.is-last::before {
-    height: 1px;
+.directory-picker-tree .path-tree-node {
+    margin: 2px 0;
 }
 
-.directory-picker-tree .folder-tree-node.is-last::after {
-    content: '';
-    position: absolute;
-    left: -20px;
-    top: 21px;
-    bottom: 0;
-    width: 1px;
-    background: var(--background-alt);
-}
-
-#directory-picker-tree>.folder-tree-list {
-    padding-left: 0;
-}
-
-#directory-picker-tree>.folder-tree-list::before {
-    display: none;
-}
-
-#directory-picker-tree>.folder-tree-list>.folder-tree-node::before,
-#directory-picker-tree>.folder-tree-list>.folder-tree-node::after {
-    display: none;
-}
-
-.directory-picker-tree .folder-tree-item {
+.directory-picker-tree .path-tree-item {
     display: flex;
     align-items: center;
+    gap: 0.5rem;
     padding: 0.6rem 0.8rem;
     cursor: pointer;
     border-radius: 8px;
     transition: background-color 0.2s ease, color 0.2s ease;
-    gap: 0.5rem;
-    margin-top: 4px;
-    margin-bottom: 4px;
-    justify-content: flex-start;
+    color: var(--text-primary);
     user-select: none;
 }
 
-.directory-picker-tree .folder-tree-item:hover {
+.directory-picker-tree .path-tree-item:hover {
     background-color: var(--background-hover);
 }
 
-.directory-picker-tree .folder-tree-item.active {
+.directory-picker-tree .path-tree-item.selected {
     background: var(--primary-gradient);
     color: white;
     box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
 }
 
-.directory-picker-tree .folder-icon {
+.directory-picker-tree .path-folder-icon {
     color: var(--primary-color);
+    font-size: 1rem;
 }
 
-.directory-picker-tree .folder-tree-item.active .folder-icon {
+.directory-picker-tree .path-tree-item.selected .path-folder-icon {
     color: white;
 }
 
-.directory-picker-tree .folder-toggle-icon {
+.directory-picker-tree .path-toggle-icon {
     width: 32px !important;
     height: 32px !important;
     min-width: 32px !important;
@@ -6198,23 +6153,23 @@ input#prompt-input {
     line-height: 1 !important;
     transform-origin: center center;
     border: none !important;
+    cursor: pointer;
 }
 
-.directory-picker-tree .folder-toggle-icon:hover {
+.directory-picker-tree .path-toggle-icon:hover {
     color: var(--primary-color);
     background-color: rgba(0, 0, 0, 0.05);
 }
 
-[data-theme="dark"] .directory-picker-tree .folder-toggle-icon:hover {
+[data-theme="dark"] .directory-picker-tree .path-toggle-icon:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-.directory-picker-tree .folder-toggle-icon.expanded {
-    transform: rotate(90deg);
-}
-
-.directory-picker-tree .folder-toggle-icon.hidden {
-    visibility: hidden;
+.directory-picker-tree .path-folder-name {
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .pagination-controls {

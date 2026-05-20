@@ -1,6 +1,7 @@
 const uploadPathBtn = document.getElementById('upload-path-btn');
 const uploadPathDropdown = document.getElementById('upload-path-dropdown');
 const pathTreeContainer = document.getElementById('path-tree-container');
+let uploadTree = null;
 (function initPathFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
     const initialPath = urlParams.get('path');
@@ -36,50 +37,6 @@ async function fetchDirectories() {
         console.error('获取目录列表失败:', error);
     }
     return [];
-}
-function buildDirectoryTree(directories) {
-    const tree = {};
-    directories.forEach(dir => {
-        const cleanPath = dir.endsWith('/') ? dir.slice(0, -1) : dir;
-        const parts = cleanPath.split('/');
-        let current = tree;
-        parts.forEach(part => {
-            if (!current[part]) {
-                current[part] = {};
-            }
-            current = current[part];
-        });
-    });
-    return tree;
-}
-function renderPathTreeNode(name, children, path, isRoot = false) {
-    const li = document.createElement('li');
-    li.className = 'path-tree-node';
-    const fullPath = isRoot ? '' : path;
-    const hasChildren = Object.keys(children).length > 0;
-    const isSelected = fullPath === currentUploadPath || (fullPath === '' && currentUploadPath === '');
-    const nodeContent = document.createElement('div');
-    nodeContent.className = 'path-tree-item';
-    if (isSelected) nodeContent.classList.add('selected');
-    nodeContent.dataset.path = fullPath;
-    nodeContent.innerHTML = `
-        <i class="fas fa-chevron-right path-toggle-icon ${hasChildren ? '' : 'invisible'}"></i>
-        <i class="fas ${isRoot ? 'fa-home' : 'fa-folder'} path-folder-icon"></i>
-        <span class="path-folder-name">${name}</span>
-    `;
-    li.appendChild(nodeContent);
-    if (hasChildren) {
-        const sublist = document.createElement('ul');
-        sublist.className = 'path-tree-list';
-        sublist.style.display = isRoot ? 'block' : 'none';
-        const sortedKeys = Object.keys(children).sort();
-        sortedKeys.forEach(key => {
-            const childPath = isRoot ? key + '/' : path + key + '/';
-            sublist.appendChild(renderPathTreeNode(key, children[key], childPath, false));
-        });
-        li.appendChild(sublist);
-    }
-    return li;
 }
 async function handleAIPathRecommend(e) {
     e.preventDefault();
@@ -138,6 +95,9 @@ async function handleAIPathRecommend(e) {
         if (result.success && result.path) {
             let recPath = result.path.replace(/^\/|\/$/g, '');
             currentUploadPath = recPath + '/';
+            if (uploadTree) {
+                uploadTree.expandToPath(currentUploadPath);
+            }
             const treeItem = pathTreeContainer.querySelector(`.path-tree-item[data-path="${currentUploadPath}"]`);
             if (treeItem) {
                 pathTreeContainer.querySelectorAll('.path-tree-item').forEach(item => item.classList.remove('selected'));
@@ -202,47 +162,25 @@ async function initUploadPathSelector() {
     if (watermarkOption) watermarkOption.style.display = 'flex';
     updateSelectedPathDisplay();
     const directories = await fetchDirectories();
-    const tree = buildDirectoryTree(directories);
     if (pathTreeContainer) {
-        const ul = document.createElement('ul');
-        ul.className = 'path-tree-list root';
-        ul.appendChild(renderPathTreeNode('根目录', tree, '', true));
-        pathTreeContainer.innerHTML = '';
-        pathTreeContainer.appendChild(ul);
-        pathTreeContainer.addEventListener('click', (e) => {
-            const toggleIcon = e.target.closest('.path-toggle-icon');
-            const folderIcon = e.target.closest('.path-folder-icon');
-            const treeItem = e.target.closest('.path-tree-item');
-            let actAsToggle = false;
-            let targetToggleIcon = toggleIcon;
-            if (toggleIcon && !toggleIcon.classList.contains('invisible')) {
-                actAsToggle = true;
-            } else if (folderIcon) {
-                const parentItem = folderIcon.closest('.path-tree-item');
-                if (parentItem) {
-                    const siblingToggle = parentItem.querySelector('.path-toggle-icon');
-                    if (siblingToggle && !siblingToggle.classList.contains('invisible')) {
-                        actAsToggle = true;
-                        targetToggleIcon = siblingToggle;
-                    }
-                }
-            }
-            if (actAsToggle && targetToggleIcon) {
-                e.stopPropagation();
-                const parentLi = targetToggleIcon.closest('.path-tree-node');
-                const sublist = parentLi.querySelector(':scope > .path-tree-list');
-                if (sublist) {
-                    const isExpanded = sublist.style.display !== 'none';
-                    sublist.style.display = isExpanded ? 'none' : 'block';
-                    targetToggleIcon.style.transform = isExpanded ? '' : 'rotate(90deg)';
-                    targetToggleIcon.classList.toggle('expanded', !isExpanded);
-                }
-            } else if (treeItem) {
-                pathTreeContainer.querySelectorAll('.path-tree-item').forEach(item => {
+        uploadTree = new LazyFolderTree({
+            container: pathTreeContainer,
+            rootLabel: '根目录',
+            rootIconClass: 'fas fa-home path-folder-icon',
+            folderIconClass: 'fas fa-folder path-folder-icon',
+            toggleClassName: 'path-toggle-icon',
+            nameClassName: 'path-folder-name',
+            nodeClassName: 'path-tree-node',
+            itemClassName: 'path-tree-item',
+            listClassName: 'path-tree-list',
+            useTransformToggle: true,
+            selectionMode: true,
+            onSelect: function(nodeContent, path, e) {
+                pathTreeContainer.querySelectorAll('.path-tree-item').forEach(function(item) {
                     item.classList.remove('selected');
                 });
-                treeItem.classList.add('selected');
-                currentUploadPath = treeItem.dataset.path;
+                nodeContent.classList.add('selected');
+                currentUploadPath = path;
                 updateSelectedPathDisplay();
                 updateUrlPath();
                 if (uploadPathDropdown) {
@@ -251,6 +189,7 @@ async function initUploadPathSelector() {
                 }
             }
         });
+        uploadTree.render(directories);
     }
     if (uploadPathBtn && uploadPathDropdown) {
         const btnContainer = uploadPathBtn.parentNode;
@@ -274,6 +213,7 @@ async function initUploadPathSelector() {
                 searchInput.addEventListener('click', (e) => e.stopPropagation());
                 searchInput.addEventListener('input', (e) => {
                     if (typeof filterTreeByKeyword === 'function') {
+                        if (uploadTree) uploadTree.ensureAllRendered();
                         filterTreeByKeyword(pathTreeContainer, e.target.value, {
                             nodeSelector: '.path-tree-node',
                             itemSelector: '.path-tree-item',

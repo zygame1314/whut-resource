@@ -18,6 +18,7 @@ const scriptModules = [
     'globals.js',
     'utils.js',
     'ui/modals.js',
+    'ui/folder-tree-lazy.js',
     'ui/render.js',
     'modules/preview.js',
     'actions.js',
@@ -27,6 +28,7 @@ const scriptModules = [
 ];
 const uploadModules = [
     'utils.js',
+    'ui/folder-tree-lazy.js',
     'modules/upload/ui.js',
     'modules/upload/handlers.js',
     'modules/upload/path-selector.js',
@@ -47,6 +49,7 @@ const authModules = [
 const guestbookModules = [
     'modules/guestbook/state.js',
     'modules/guestbook/utils.js',
+    'ui/folder-tree-lazy.js',
     'modules/guestbook/api.js',
     'modules/guestbook/render.js',
     'modules/guestbook/modals.js',

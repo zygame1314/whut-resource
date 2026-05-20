@@ -453,6 +453,7 @@ async function fetchAndBuildFolderTree() {
         });
         if (result.success) {
             const tree = buildTree(result.directories);
+            tree._sourceDirectories = result.directories;
             renderFolderTree(tree, folderTreeElement);
         } else {
             folderTreeElement.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem;">无法加载文件夹树。</p>';
