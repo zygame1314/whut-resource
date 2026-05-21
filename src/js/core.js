@@ -64,6 +64,9 @@ async function fetchAndRenderHotFolders() {
                         showNotification(`完整路径: ${folder.path || '根目录'}`, 'info');
                     }, 500);
                 }, { passive: true });
+                li.addEventListener('touchmove', () => {
+                    clearTimeout(pressTimer);
+                }, { passive: true });
                 li.addEventListener('touchend', () => {
                     clearTimeout(pressTimer);
                 });
@@ -175,6 +178,7 @@ async function fetchAndRenderDownloadHistory() {
                         showNotification(`完整路径: ${parentPath || '根目录'}`, 'info');
                     }, 500);
                 }, { passive: true });
+                li.addEventListener('touchmove', () => { clearTimeout(pressTimer); }, { passive: true });
                 li.addEventListener('touchend', () => { clearTimeout(pressTimer); });
                 li.addEventListener('touchcancel', () => { clearTimeout(pressTimer); });
                 li.addEventListener('contextmenu', (e) => {
@@ -388,6 +392,9 @@ async function fetchAndRenderRecentUploads(showToast = false) {
                         isLongPress = true;
                         showNotification(`完整路径: ${fullPath}`, 'info');
                     }, 500);
+                }, { passive: true });
+                pathChip.addEventListener('touchmove', () => {
+                    clearTimeout(pressTimer);
                 }, { passive: true });
                 pathChip.addEventListener('touchend', () => {
                     clearTimeout(pressTimer);
