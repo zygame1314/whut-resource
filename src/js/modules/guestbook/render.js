@@ -79,7 +79,7 @@ function renderGuestbook(messages) {
         }
         const nickname = msg.nickname || '匿名用户';
         const safeNickname = escapeHtml(nickname);
-        const avatarChar = safeNickname.charAt(0).toUpperCase();
+        const avatarChar = getAvatarChars(nickname);
         const avatarColor = getAvatarColor(nickname);
         let statusBadge = '';
         let rejectReasonHtml = '';
@@ -109,7 +109,7 @@ function renderGuestbook(messages) {
             const replies = msg.replies.map(reply => {
                 const replyNickname = reply.nickname || '匿名用户';
                 const replySafeNickname = escapeHtml(replyNickname);
-                const replyAvatarChar = replySafeNickname.charAt(0).toUpperCase();
+                const replyAvatarChar = getAvatarChars(replyNickname);
                 const replyAvatarColor = getAvatarColor(replyNickname);
                 const likedClass = reply.has_liked ? 'active' : '';
                 const likeAction = reply.has_liked ? `unlikeGuestbook(${reply.id}, this)` : `likeGuestbook(${reply.id}, this)`;
@@ -160,7 +160,7 @@ function renderGuestbook(messages) {
                 return `
                     <div class="guestbook-reply-item ${reply.is_hidden ? 'is-hidden' : ''}">
                         <div class="guestbook-reply-avatar">
-                            <div class="user-avatar-placeholder reply-avatar" style="background: ${replyAvatarColor}">${replyAvatarChar}</div>
+                            <div class="user-avatar-placeholder reply-avatar" style="background: ${replyAvatarColor}">${reply.isAdmin ? `<i class="fas fa-${reply.isSuperAdmin ? 'crown' : 'shield-alt'} avatar-role-icon reply-role-icon${reply.isSuperAdmin ? ' super' : ''}"></i>` : ''}${replyAvatarChar}</div>
                         </div>
                         <div class="guestbook-reply-main">
                             <div class="guestbook-header">
@@ -168,7 +168,6 @@ function renderGuestbook(messages) {
                                     <div class="user-info-top">
                                         <div class="nickname-wrapper">
                                             <span class="nickname" title="${replySafeNickname}">${replySafeNickname}</span>
-                                            ${reply.isAdmin ? `<span class="admin-badge${reply.isSuperAdmin ? ' super' : ''}"><i class="fas fa-${reply.isSuperAdmin ? 'crown' : 'shield-alt'}"></i> ${reply.isSuperAdmin ? '超级管理员' : '管理员'}</span>` : ''}
                                             <span class="reply-indicator"><i class="fas fa-reply"></i></span>
                                         </div>
                                         <span class="timestamp">${formatDateLocal(reply.created_at)}</span>
@@ -194,7 +193,7 @@ function renderGuestbook(messages) {
         return `
             <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''} ${msg.is_pinned ? 'is-pinned' : ''}">
                 <div class="guestbook-left">
-                    <div class="user-avatar-placeholder" style="background: ${avatarColor}">${avatarChar}</div>
+                    <div class="user-avatar-placeholder" style="background: ${avatarColor}">${msg.isAdmin ? `<i class="fas fa-${msg.isSuperAdmin ? 'crown' : 'shield-alt'} avatar-role-icon${msg.isSuperAdmin ? ' super' : ''}"></i>` : ''}${avatarChar}</div>
                 </div>
                 <div class="guestbook-main">
                     <div class="guestbook-header">
