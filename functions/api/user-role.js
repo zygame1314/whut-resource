@@ -35,8 +35,8 @@ async function handleGet(request, env) {
     const action = url.searchParams.get('action');
     if (action === 'search') {
         const keyword = url.searchParams.get('keyword') || '';
-        if (!keyword || keyword.trim().length < 2) {
-            return new Response(JSON.stringify({ error: '请输入完整邮箱前缀进行搜索' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        if (!keyword || keyword.trim().length < 4) {
+            return new Response(JSON.stringify({ error: '请输入至少4个字符的邮箱前缀' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const prefix = `${keyword.trim()}%`;
         const { results } = await env.DB.prepare(

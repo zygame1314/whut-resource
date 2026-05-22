@@ -7454,6 +7454,49 @@ input#prompt-input {
     white-space: nowrap;
 }
 
+.role-user-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 10px;
+}
+
+.role-user-item .banned-user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.role-user-item .banned-user-nickname {
+    font-weight: bold;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.role-user-item .banned-user-email {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+.role-user-item .banned-user-action {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .role-user-item {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+    }
+    .role-user-item .banned-user-action button {
+        width: auto;
+    }
+}
+
 .role-search-bar {
     display: flex;
     gap: 0.5rem;

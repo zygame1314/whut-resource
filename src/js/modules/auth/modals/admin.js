@@ -657,10 +657,10 @@ async function showUserRoleModal() {
                 </div>
                 <button id="user-search-btn" class="primary-btn"><i class="fas fa-search"></i> 搜索</button>
             </div>
-            <div id="search-results" class="admin-scrollable-container" style="min-height:80px;max-height:200px;"></div>
+            <div id="search-results" style="max-height:200px;overflow-y:auto;display:none;border:1px solid var(--border-color);border-radius:8px;padding:10px;"></div>
             <div style="margin:1rem 0;border-top:1px dashed var(--border-color);"></div>
             <h3 style="font-size:1rem;margin-bottom:0.8rem;color:var(--text-secondary);"><i class="fas fa-users-cog"></i> 管理员列表</h3>
-            <div id="admin-list-container" class="admin-scrollable-container">
+            <div id="admin-list-container" style="max-height:300px;overflow-y:auto;border:1px solid var(--border-color);border-radius:8px;padding:10px;">
                 <div class="loading-spinner"></div>
             </div>
         </div>
@@ -672,7 +672,6 @@ async function showUserRoleModal() {
     const searchBtn = modal.querySelector('#user-search-btn');
     const searchResults = modal.querySelector('#search-results');
     const adminListContainer = modal.querySelector('#admin-list-container');
-    let searchDebounceTimer = null;
 
     const loadAdmins = async () => {
         adminListContainer.innerHTML = '<div class="loading-spinner"></div>';
@@ -706,7 +705,7 @@ async function showUserRoleModal() {
                 ? `<button class="secondary-btn small demote-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-arrow-down"></i> 降权</button>`
                 : `<button class="primary-btn small promote-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-arrow-up"></i> 升权</button>`;
             return `
-                <div class="banned-user-item">
+                <div class="role-user-item">
                     <div class="banned-user-info">
                         <div class="banned-user-nickname">${escapeHtml(user.nickname || '未设置昵称')} ${roleLabel}${bannedLabel}</div>
                         <div class="banned-user-email">${escapeHtml(user.email)}${user.school_id ? ` · ${escapeHtml(user.school_id)}` : ''}</div>
@@ -738,7 +737,7 @@ async function showUserRoleModal() {
                     if (result.success) {
                         showNotification('已提升为管理员', 'success');
                         loadAdmins();
-                        searchResults.innerHTML = '';
+                        searchResults.style.display = 'none';
                         searchInput.value = '';
                     } else {
                         throw new Error(result.error || '操作失败');
@@ -773,7 +772,7 @@ async function showUserRoleModal() {
                     if (result.success) {
                         showNotification('已降为普通用户', 'success');
                         loadAdmins();
-                        searchResults.innerHTML = '';
+                        searchResults.style.display = 'none';
                         searchInput.value = '';
                     } else {
                         throw new Error(result.error || '操作失败');
@@ -789,10 +788,11 @@ async function showUserRoleModal() {
 
     const doSearch = async () => {
         const keyword = searchInput.value.trim();
-        if (keyword.length < 2) {
-            showNotification('搜索关键词至少2个字符', 'warning');
+        if (keyword.length < 4) {
+            showNotification('请输入至少4个字符的邮箱前缀', 'warning');
             return;
         }
+        searchResults.style.display = 'block';
         searchResults.innerHTML = '<div class="loading-spinner"></div>';
         try {
             const res = await fetch(`${API_ENDPOINTS.userRole}?action=search&keyword=${encodeURIComponent(keyword)}`, {
@@ -809,12 +809,6 @@ async function showUserRoleModal() {
     searchBtn.addEventListener('click', doSearch);
     searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') doSearch();
-    });
-    searchInput.addEventListener('input', () => {
-        clearTimeout(searchDebounceTimer);
-        searchDebounceTimer = setTimeout(() => {
-            if (searchInput.value.trim().length >= 2) doSearch();
-        }, 500);
     });
     loadAdmins();
 }
