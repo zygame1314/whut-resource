@@ -134,7 +134,7 @@ async function fetchAndRenderDownloadHistory() {
             </div>
         </div>`;
     try {
-        const response = await fetch(`${FILES_API_URL}?action=downloadHistory&limit=10`, {
+            const response = await fetch(`${FILES_API_URL}?action=downloadHistory&limit=10`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const result = await response.json();

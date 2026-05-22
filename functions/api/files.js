@@ -304,12 +304,13 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 ORDER BY d.downloaded_at DESC
                 LIMIT ? OFFSET ?
             `);
-            const { results } = await stmt.bind(user.id, limit, offset).all();
-            const countResult = await DB.prepare('SELECT COUNT(*) as total FROM downloads WHERE user_id = ?').bind(user.id).first();
+            const { results } = await stmt.bind(user.id, limit, offset + 1).all();
+            const hasMore = results.length > limit;
+            if (hasMore) results.pop();
             return new Response(JSON.stringify({
                 success: true,
                 files: results,
-                total: countResult?.total || 0
+                hasMore
             }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'getById') {

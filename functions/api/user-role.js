@@ -38,9 +38,9 @@ async function handleGet(request, env) {
         if (!keyword || keyword.trim().length < 4) {
             return new Response(JSON.stringify({ error: '请输入至少4个字符的邮箱前缀' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        const prefix = `${keyword.trim()}%`;
+        const prefix = `${keyword.trim()}*`;
         const { results } = await env.DB.prepare(
-            "SELECT id, email, nickname, role, is_banned, created_at FROM users WHERE email LIKE ? AND role != 'super_admin' LIMIT 20"
+            "SELECT id, email, nickname, role, is_banned, created_at FROM users WHERE email GLOB ? AND role != 'super_admin' LIMIT 20"
         ).bind(prefix).all();
         return new Response(JSON.stringify({ success: true, users: results }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
