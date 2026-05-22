@@ -18,7 +18,8 @@ const API_ENDPOINTS = {
     downloadLog: `${API_BASE.replace(/^http/, 'ws')}/api/ws`,
     maintenance: `${API_BASE}/api/maintenance`,
     urlSafety: `${API_BASE}/api/url-safety`,
-    passkey: `${API_BASE}/api/passkey`
+    passkey: `${API_BASE}/api/passkey`,
+    userRole: `${API_BASE}/api/user-role`
 };
 window.filesApiCache = {
     _cache: {},

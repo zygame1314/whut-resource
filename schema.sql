@@ -14,6 +14,7 @@ CREATE TABLE users (
 );
 CREATE INDEX IF NOT EXISTS idx_users_school_id ON users(school_id);
 CREATE INDEX IF NOT EXISTS idx_users_banned ON users(is_banned, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
 DROP TABLE IF EXISTS files;
 CREATE TABLE files (

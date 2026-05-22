@@ -641,3 +641,180 @@ async function showAdminRequestsModal(mode = 'all') {
     }
     await loadRequests();
 }
+async function showUserRoleModal() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal banned-users-modal';
+    modal.innerHTML = `
+        <div class="auth-box">
+            <div class="admin-modal-header">
+                <h2 class="auth-title"><i class="fas fa-user-shield u-margin-right-small"></i>权限管理</h2>
+                <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="role-search-bar">
+                <div class="input-with-icon" style="flex:1;">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="user-search-input" class="form-control" placeholder="输入邮箱前缀搜索用户..." style="padding-left:2.5rem;">
+                </div>
+                <button id="user-search-btn" class="primary-btn"><i class="fas fa-search"></i> 搜索</button>
+            </div>
+            <div id="search-results" class="admin-scrollable-container" style="min-height:80px;max-height:200px;"></div>
+            <div style="margin:1rem 0;border-top:1px dashed var(--border-color);"></div>
+            <h3 style="font-size:1rem;margin-bottom:0.8rem;color:var(--text-secondary);"><i class="fas fa-users-cog"></i> 管理员列表</h3>
+            <div id="admin-list-container" class="admin-scrollable-container">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    const closeBtn = modal.querySelector('#close-modal');
+    closeBtn.onclick = () => closeAuthModal(modal);
+    const searchInput = modal.querySelector('#user-search-input');
+    const searchBtn = modal.querySelector('#user-search-btn');
+    const searchResults = modal.querySelector('#search-results');
+    const adminListContainer = modal.querySelector('#admin-list-container');
+    let searchDebounceTimer = null;
+
+    const loadAdmins = async () => {
+        adminListContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const res = await fetch(`${API_ENDPOINTS.userRole}?action=admins`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error);
+            renderUserList(adminListContainer, data.users || [], true);
+        } catch (e) {
+            adminListContainer.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
+        }
+    };
+
+    function renderUserList(container, users, showDemote) {
+        if (!users || users.length === 0) {
+            container.innerHTML = '<div class="admin-empty-state-padded"><div class="admin-empty-state-icon"><i class="fas fa-search"></i></div>未找到用户</div>';
+            return;
+        }
+        container.innerHTML = users.map(user => {
+            const roleLabel = user.role === 'super_admin'
+                ? '<span class="status-badge resolved"><i class="fas fa-crown"></i> 超级管理员</span>'
+                : user.role === 'admin'
+                    ? '<span class="status-badge auditing"><i class="fas fa-user-shield"></i> 管理员</span>'
+                    : '<span class="status-badge"><i class="fas fa-user"></i> 普通用户</span>';
+            const bannedLabel = user.is_banned
+                ? ' <span class="status-badge rejected" style="font-size:0.75rem;"><i class="fas fa-ban"></i> 封禁</span>'
+                : '';
+            const actionBtn = user.role === 'super_admin' ? '' : showDemote && user.role === 'admin'
+                ? `<button class="secondary-btn small demote-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-arrow-down"></i> 降权</button>`
+                : `<button class="primary-btn small promote-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-arrow-up"></i> 升权</button>`;
+            return `
+                <div class="banned-user-item">
+                    <div class="banned-user-info">
+                        <div class="banned-user-nickname">${escapeHtml(user.nickname || '未设置昵称')} ${roleLabel}${bannedLabel}</div>
+                        <div class="banned-user-email">${escapeHtml(user.email)}${user.school_id ? ` · ${escapeHtml(user.school_id)}` : ''}</div>
+                    </div>
+                    <div class="banned-user-action">${actionBtn}</div>
+                </div>
+            `;
+        }).join('');
+        container.querySelectorAll('.promote-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const userId = btn.dataset.userId;
+                const nickname = btn.dataset.nickname;
+                const confirmed = await showConfirmation({
+                    title: '确认升权',
+                    message: `确定将 <strong>${nickname}</strong> 提升为管理员吗？`,
+                    confirmText: '确认升权',
+                    confirmClass: 'confirm-btn-primary'
+                });
+                if (!confirmed) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                try {
+                    const res = await fetch(API_ENDPOINTS.userRole, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ user_id: parseInt(userId), action: 'promote' })
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        showNotification('已提升为管理员', 'success');
+                        loadAdmins();
+                        searchResults.innerHTML = '';
+                        searchInput.value = '';
+                    } else {
+                        throw new Error(result.error || '操作失败');
+                    }
+                } catch (err) {
+                    showNotification(err.message, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-arrow-up"></i> 升权';
+                }
+            });
+        });
+        container.querySelectorAll('.demote-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const userId = btn.dataset.userId;
+                const nickname = btn.dataset.nickname;
+                const confirmed = await showConfirmation({
+                    title: '确认降权',
+                    message: `确定将管理员 <strong>${nickname}</strong> 降为普通用户吗？`,
+                    confirmText: '确认降权',
+                    confirmClass: 'danger'
+                });
+                if (!confirmed) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                try {
+                    const res = await fetch(API_ENDPOINTS.userRole, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ user_id: parseInt(userId), action: 'demote' })
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        showNotification('已降为普通用户', 'success');
+                        loadAdmins();
+                        searchResults.innerHTML = '';
+                        searchInput.value = '';
+                    } else {
+                        throw new Error(result.error || '操作失败');
+                    }
+                } catch (err) {
+                    showNotification(err.message, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-arrow-down"></i> 降权';
+                }
+            });
+        });
+    }
+
+    const doSearch = async () => {
+        const keyword = searchInput.value.trim();
+        if (keyword.length < 2) {
+            showNotification('搜索关键词至少2个字符', 'warning');
+            return;
+        }
+        searchResults.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const res = await fetch(`${API_ENDPOINTS.userRole}?action=search&keyword=${encodeURIComponent(keyword)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error);
+            renderUserList(searchResults, data.users || [], true);
+        } catch (e) {
+            searchResults.innerHTML = `<div class="admin-error-state">搜索失败: ${e.message}</div>`;
+        }
+    };
+
+    searchBtn.addEventListener('click', doSearch);
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') doSearch();
+    });
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            if (searchInput.value.trim().length >= 2) doSearch();
+        }, 500);
+    });
+    loadAdmins();
+}

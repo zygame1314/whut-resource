@@ -7454,6 +7454,13 @@ input#prompt-input {
     white-space: nowrap;
 }
 
+.role-search-bar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
 
 @media (max-width: 768px) {
 
