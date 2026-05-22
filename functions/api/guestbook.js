@@ -271,6 +271,27 @@ async function handleDelete(request, env) {
     if (!isAdmin(user) && entry.user_id !== user.id) {
         return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    if (isAdmin(user) && entry.user_id !== user.id) {
+        const entryAuthor = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(entry.user_id).first();
+        if (entryAuthor && entryAuthor.role === 'super_admin' && !isSuperAdmin(user)) {
+            return new Response(JSON.stringify({ error: '普通管理员不能删除超级管理员的留言' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+    }
+    await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(id).run();
+    return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+}
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+    if (!id) {
+        return new Response(JSON.stringify({ error: '缺少ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    const entry = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
+    if (!entry) {
+        return new Response(JSON.stringify({ error: '留言不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    if (!isAdmin(user) && entry.user_id !== user.id) {
+        return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(id).run();
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }

@@ -109,7 +109,7 @@ function renderGuestbook(messages) {
             const replies = msg.replies.map(reply => {
                 const replyNickname = reply.nickname || '匿名用户';
                 const replySafeNickname = escapeHtml(replyNickname);
-                const replyAvatarChar = getAvatarChars(replyNickname);
+                const replyAvatarChar = replySafeNickname.charAt(0).toUpperCase();
                 const replyAvatarColor = getAvatarColor(replyNickname);
                 const likedClass = reply.has_liked ? 'active' : '';
                 const likeAction = reply.has_liked ? `unlikeGuestbook(${reply.id}, this)` : `likeGuestbook(${reply.id}, this)`;
