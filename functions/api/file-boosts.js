@@ -157,13 +157,15 @@ export async function onRequestPost({ request, env }) {
         const dbUser = await DB.prepare('SELECT nickname, email FROM users WHERE id = ?').bind(user.id).first();
         const emailPrefix = dbUser?.email ? dbUser.email.split('@')[0] : '';
         const userNickname = dbUser?.nickname || emailPrefix || '匿名用户';
-        const moderation = await moderateContent(trimmedContent, userNickname, env);
-        if (!moderation.pass) {
-            const errorPrefix = moderation.isNicknameViolation ? '昵称未通过审核' : '评论未通过审核';
-            return new Response(JSON.stringify({ success: false, error: `${errorPrefix}：${moderation.reason}` }), {
-                status: 451,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-            });
+        if (!isAdmin(user)) {
+            const moderation = await moderateContent(trimmedContent, userNickname, env);
+            if (!moderation.pass) {
+                const errorPrefix = moderation.isNicknameViolation ? '昵称未通过审核' : '评论未通过审核';
+                return new Response(JSON.stringify({ success: false, error: `${errorPrefix}：${moderation.reason}` }), {
+                    status: 451,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
         }
         const result = await DB.prepare(
             'INSERT INTO file_boosts (file_key, user_id, content) VALUES (?, ?, ?)'

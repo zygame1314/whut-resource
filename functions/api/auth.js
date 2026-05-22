@@ -1,4 +1,4 @@
-import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, fetchSiliconFlowChat } from '../utils.js';
+import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
 const NICKNAME_MODERATION_PROMPT = `你是严格的昵称审核助手。逐条检查以下规则，命中任意一条即 REJECT。
 
@@ -329,9 +329,12 @@ export async function onRequestPost({ request, env }) {
       if (newNickname.length > 20) {
         return new Response(JSON.stringify({ success: false, error: '昵称过长（最多20字符）。' }), { status: 400, headers: addCorsHeaders() });
       }
-      const nicknameModeration = await moderateNickname(newNickname, env);
-      if (!nicknameModeration.pass) {
-        return new Response(JSON.stringify({ success: false, error: `昵称未通过审核：${nicknameModeration.reason}` }), { status: 451, headers: addCorsHeaders() });
+      const currentUser = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(payload.id).first();
+      if (!isAdmin(currentUser)) {
+        const nicknameModeration = await moderateNickname(newNickname, env);
+        if (!nicknameModeration.pass) {
+          return new Response(JSON.stringify({ success: false, error: `昵称未通过审核：${nicknameModeration.reason}` }), { status: 451, headers: addCorsHeaders() });
+        }
       }
       await env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?')
         .bind(newNickname, payload.id)
