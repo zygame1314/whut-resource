@@ -36,10 +36,9 @@ function updateAuthUI() {
             if (isSuperAdmin(currentUser)) {
                 dropdownItems += `
                     <button id="maintenance-toggle-btn" class="dropdown-item"><i class="fas fa-hard-hat"></i> 维护模式</button>
-                    <button id="user-role-btn" class="dropdown-item"><i class="fas fa-user-shield"></i> 权限管理</button>
+                    <button id="user-role-btn" class="dropdown-item"><i class="fas fa-users-cog"></i> 用户管理</button>
                     <button id="sync-btn" class="dropdown-item"><i class="fas fa-sync"></i> 同步R2文件</button>
                     <button id="vector-sync-btn" class="dropdown-item"><i class="fas fa-brain"></i> 同步向量索引</button>
-                    <button id="banned-users-btn" class="dropdown-item"><i class="fas fa-user-lock"></i> 封禁用户管理</button>
                     <div class="dropdown-divider"></div>
                 `;
             }
@@ -125,12 +124,10 @@ function updateAuthUI() {
                     if (syncBtn) syncBtn.addEventListener('click', syncFiles);
                     const vectorSyncBtn = document.getElementById('vector-sync-btn');
                     if (vectorSyncBtn) vectorSyncBtn.addEventListener('click', syncVectorIndex);
-                    const bannedUsersBtn = document.getElementById('banned-users-btn');
-                    if (bannedUsersBtn) bannedUsersBtn.addEventListener('click', showBannedUsersModal);
                     const maintenanceBtn = document.getElementById('maintenance-toggle-btn');
                     if (maintenanceBtn) maintenanceBtn.addEventListener('click', showMaintenanceModal);
                     const userRoleBtn = document.getElementById('user-role-btn');
-                    if (userRoleBtn) userRoleBtn.addEventListener('click', showUserRoleModal);
+                    if (userRoleBtn) userRoleBtn.addEventListener('click', () => showAdminManagementModal('roles'));
                     const reqBtn = document.getElementById('admin-requests-btn');
                     if (reqBtn) reqBtn.addEventListener('click', () => showAdminRequestsModal('all'));
                 }

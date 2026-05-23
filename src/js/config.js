@@ -14,12 +14,12 @@ const API_ENDPOINTS = {
     aiSearch: `${API_BASE}/api/ai-search`,
     reindex: `${API_BASE}/api/reindex`,
     pathRecommend: `${API_BASE}/api/path-recommend`,
-    adminRequests: `${API_BASE}/api/admin-requests`,
+    adminManagement: `${API_BASE}/api/admin-management`,
     downloadLog: `${API_BASE.replace(/^http/, 'ws')}/api/ws`,
     maintenance: `${API_BASE}/api/maintenance`,
     urlSafety: `${API_BASE}/api/url-safety`,
     passkey: `${API_BASE}/api/passkey`,
-    userRole: `${API_BASE}/api/user-role`
+    userRole: `${API_BASE}/api/admin-management`
 };
 window.filesApiCache = {
     _cache: {},

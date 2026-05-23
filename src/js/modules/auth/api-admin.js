@@ -111,7 +111,7 @@ async function syncVectorIndex() {
 }
 async function fetchPendingRequestsCount() {
     try {
-        const response = await fetch(`${API_ENDPOINTS.adminRequests}?action=pending_count`, {
+        const response = await fetch(`${API_ENDPOINTS.adminManagement}?action=pending_count`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
@@ -142,7 +142,7 @@ async function handleBatchAction(ids, action, refreshCallback, reviewNote = '') 
     const total = ids.length;
     showNotification(`正在${action === 'approve' ? '批准' : '拒绝'} ${total} 个请求...`, 'info');
     try {
-        const response = await fetch(API_ENDPOINTS.adminRequests, {
+        const response = await fetch(API_ENDPOINTS.adminManagement, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -192,7 +192,7 @@ async function handleBatchAction(ids, action, refreshCallback, reviewNote = '') 
 }
 async function handleRequestAction(requestId, action, refreshCallback, reviewNote = '') {
     try {
-        const response = await fetch(API_ENDPOINTS.adminRequests, {
+        const response = await fetch(API_ENDPOINTS.adminManagement, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',

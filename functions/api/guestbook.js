@@ -35,22 +35,6 @@ async function getUser(request, env) {
 async function handleGet(request, env) {
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
-    if (action === 'banned_users') {
-        const user = await getUser(request, env);
-        if (!isSuperAdmin(user)) {
-            return new Response(JSON.stringify({ error: '需要超级管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-        }
-        const bannedUsers = await env.DB.prepare(`
-            SELECT id, email, nickname, created_at 
-            FROM users 
-            WHERE is_banned = 1 
-            ORDER BY created_at DESC
-        `).all();
-        return new Response(JSON.stringify({
-            success: true,
-            users: bannedUsers.results
-        }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-    }
     if (action === 'stats') {
         const user = await getUser(request, env);
         if (!isAdmin(user)) {
@@ -67,36 +51,6 @@ async function handleGet(request, env) {
                 current_messages_count: stats.current_messages_count
             }
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-    }
-    if (action === 'unban_user') {
-        const user = await getUser(request, env);
-        if (!isAdmin(user)) {
-            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-        }
-        const userId = url.searchParams.get('user_id');
-        if (!userId) {
-            return new Response(JSON.stringify({ error: '缺少用户ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-        }
-        if (isSuperAdmin(user)) {
-            await env.DB.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(parseInt(userId)).run();
-            return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-        } else {
-            const targetUser = await env.DB.prepare('SELECT nickname FROM users WHERE id = ?').bind(parseInt(userId)).first();
-            const requestData = {
-                user_id: parseInt(userId),
-                nickname: targetUser ? targetUser.nickname : '未知用户',
-                source: 'banned_users_list'
-            };
-            await env.DB.prepare(`
-                INSERT INTO admin_requests (request_type, request_data, requested_by, status)
-                VALUES (?, ?, ?, 'pending')
-            `).bind('unban_user', JSON.stringify(requestData), user.id).run();
-            return new Response(JSON.stringify({
-                success: true,
-                pending_approval: true,
-                message: '已提交解封请求，等待超级管理员审批'
-            }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-        }
     }
     const MAX_LIMIT = 500;
     const user = await getUser(request, env);

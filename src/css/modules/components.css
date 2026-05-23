@@ -7270,7 +7270,7 @@ input#prompt-input {
 }
 
 .banned-users-modal .auth-box {
-    max-width: 600px;
+    max-width: 700px;
 }
 
 .admin-modal-header {
@@ -7502,6 +7502,44 @@ input#prompt-input {
     gap: 0.5rem;
     align-items: center;
     margin-bottom: 0.5rem;
+}
+
+.admin-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.admin-tab {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+    border-radius: 0;
+}
+
+.admin-tab:hover {
+    color: var(--primary-color);
+    background: rgba(46, 139, 87, 0.05);
+}
+
+.admin-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    font-weight: 600;
+    background: rgba(46, 139, 87, 0.08);
+}
+
+.admin-tab-content {
+    max-height: calc(90vh - 200px);
+    overflow-y: auto;
 }
 
 
