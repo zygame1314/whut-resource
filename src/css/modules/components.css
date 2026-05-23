@@ -5886,6 +5886,7 @@ textarea.form-input {
     flex-direction: column;
     text-align: center;
     animation: fadeInUp 0.3s ease;
+    overflow-y: auto;
 }
 
 .confirmation-modal-overlay.closing .confirmation-modal {
@@ -5901,6 +5902,8 @@ textarea.form-input {
     margin-top: 0;
     margin-bottom: 1rem;
     color: var(--text-primary);
+    overflow-wrap: break-word;
+    word-break: break-all;
 }
 
 .confirmation-modal p:not(.markdown-body p) {
@@ -5908,6 +5911,13 @@ textarea.form-input {
     margin-bottom: 1rem;
     color: var(--text-secondary);
     line-height: 1.6;
+    overflow-wrap: break-word;
+    word-break: break-all;
+}
+
+.confirmation-modal .modal-message {
+    overflow-wrap: break-word;
+    word-break: break-all;
 }
 
 .confirmation-buttons {
