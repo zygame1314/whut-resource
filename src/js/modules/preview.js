@@ -400,8 +400,14 @@ function parseCentralDirectory(buffer, cdOffset, cdSize, entryCount) {
 
 async function parseZipViaRange(url) {
     try {
-        const headResp = await fetch(url, { headers: { 'Range': 'bytes=0-0' } });
-        const contentRange = headResp.headers.get('Content-Range');
+        const TAIL_SIZE = 128 * 1024;
+        const tailResp = await fetch(url, {
+            headers: { 'Range': `bytes=-${TAIL_SIZE}` }
+        });
+        if (!tailResp.ok && tailResp.status !== 206) {
+            return await parseZipFallback(url);
+        }
+        const contentRange = tailResp.headers.get('Content-Range');
         let fileSize = 0;
         if (contentRange) {
             const match = contentRange.match(/bytes \d+-\d+\/(\d+)/);
@@ -410,23 +416,17 @@ async function parseZipViaRange(url) {
         if (!fileSize) {
             return await parseZipFallback(url);
         }
-        const tailSize = Math.min(128 * 1024, fileSize);
-        const tailResp = await fetch(url, {
-            headers: { 'Range': `bytes=${fileSize - tailSize}-${fileSize - 1}` }
-        });
-        if (!tailResp.ok && tailResp.status !== 206) {
-            return await parseZipFallback(url);
-        }
         const tailBuffer = await tailResp.arrayBuffer();
-        const eocd = findEocd(tailBuffer, tailSize, fileSize);
+        const eocd = findEocd(tailBuffer, Math.min(TAIL_SIZE, fileSize), fileSize);
         if (!eocd) {
             return await parseZipFallback(url);
         }
         const cdStart = eocd.cdOffset;
         const cdEnd = Math.min(cdStart + eocd.cdSize, fileSize);
+        const tailStartInFile = fileSize - Math.min(TAIL_SIZE, fileSize);
         let cdBuffer;
-        if (cdStart >= fileSize - tailSize && cdEnd <= fileSize) {
-            const offsetInTail = cdStart - (fileSize - tailSize);
+        if (cdStart >= tailStartInFile && cdEnd <= fileSize) {
+            const offsetInTail = cdStart - tailStartInFile;
             cdBuffer = tailBuffer.slice(offsetInTail, offsetInTail + eocd.cdSize);
         } else {
             const cdResp = await fetch(url, {

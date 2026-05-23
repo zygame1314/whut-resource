@@ -223,15 +223,22 @@ export async function onRequest(context) {
         });
       }
       const fileSize = object.size;
+      const suffixMatch = rangeHeader.match(/^bytes=-(\d+)$/);
       const rangeMatch = rangeHeader.match(/^bytes=(\d*)-(\d*)$/);
-      if (!rangeMatch) {
+      let start, end;
+      if (suffixMatch) {
+        const suffixLength = parseInt(suffixMatch[1], 10);
+        start = Math.max(0, fileSize - suffixLength);
+        end = fileSize - 1;
+      } else if (rangeMatch) {
+        start = rangeMatch[1] ? parseInt(rangeMatch[1], 10) : 0;
+        end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fileSize - 1;
+      } else {
         return new Response(JSON.stringify({ success: false, error: '无效的 Range 请求。' }), {
           status: 416,
           headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
       }
-      let start = rangeMatch[1] ? parseInt(rangeMatch[1], 10) : 0;
-      let end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fileSize - 1;
       if (start >= fileSize || end >= fileSize || start > end) {
         const headers416 = new Headers();
         headers416.set('Content-Range', `bytes */${fileSize}`);
