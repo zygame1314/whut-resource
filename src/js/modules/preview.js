@@ -145,12 +145,18 @@ async function previewFile(fileKey, fileName, fileSize) {
                 });
             } else if (isArchivePreview) {
                 const previewUrl = data.url;
-                const archiveResponse = await fetch(previewUrl);
-                if (!archiveResponse.ok) {
-                    throw new Error('无法下载压缩包文件');
+                const archiveType = getArchiveType(fileName);
+                let archiveData;
+                if (archiveType === 'zip') {
+                    archiveData = await parseZipViaRange(previewUrl);
+                } else {
+                    const archiveResponse = await fetch(previewUrl);
+                    if (!archiveResponse.ok) {
+                        throw new Error('无法下载压缩包文件');
+                    }
+                    const archiveBuffer = await archiveResponse.arrayBuffer();
+                    archiveData = await parseArchive(archiveBuffer, fileName);
                 }
-                const archiveBuffer = await archiveResponse.arrayBuffer();
-                const archiveData = await parseArchive(archiveBuffer, fileName);
                 const archivePreviewWrapper = document.createElement('div');
                 archivePreviewWrapper.className = 'preview-zip-wrapper';
                 archivePreviewWrapper.style.opacity = '0';
@@ -159,7 +165,6 @@ async function previewFile(fileKey, fileName, fileSize) {
                 const archiveHeader = document.createElement('div');
                 archiveHeader.className = 'preview-zip-header';
                 const archiveIcon = document.createElement('i');
-                const archiveType = getArchiveType(fileName);
                 archiveIcon.className = archiveType === 'tar' ? 'fas fa-box-open' : 'fas fa-file-archive';
                 const archiveTitle = document.createElement('span');
                 archiveTitle.textContent = fileName;
@@ -332,6 +337,122 @@ function getArchiveType(fileName) {
     const ext = lower.split('.').pop();
     if (ext === 'gz') return 'tar.gz';
     return 'zip';
+}
+
+function findEocd(buffer, searchSize, fileSize) {
+    const bytes = new Uint8Array(buffer);
+    const eocdSignature = 0x06054b50;
+    const minEOCD = 22;
+    const searchEnd = bytes.length;
+    const searchStart = Math.max(0, searchEnd - searchSize - 64);
+    for (let i = searchEnd - minEOCD; i >= searchStart; i--) {
+        if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 0x05 && bytes[i + 3] === 0x06) {
+            const view = new DataView(buffer, i);
+            const commentLen = view.getUint16(20, true);
+            if (i + minEOCD + commentLen === bytes.length || i + minEOCD + commentLen <= bytes.length) {
+                const cdOffset = view.getUint32(16, true);
+                const cdSize = view.getUint32(12, true);
+                const entryCount = view.getUint16(10, true);
+                return { eocdOffset: i, cdOffset, cdSize, entryCount, fileSize };
+            }
+        }
+    }
+    return null;
+}
+
+function parseCentralDirectory(buffer, cdOffset, cdSize, entryCount) {
+    const view = new DataView(buffer);
+    const entries = [];
+    let offset = cdOffset;
+    for (let i = 0; i < entryCount && offset + 46 <= buffer.byteLength; i++) {
+        const sig = view.getUint32(offset, true);
+        if (sig !== 0x02014b50) break;
+        const compressionMethod = view.getUint16(offset + 10, true);
+        const compressedSize = view.getUint32(offset + 20, true);
+        const uncompressedSize = view.getUint32(offset + 24, true);
+        const nameLen = view.getUint16(offset + 28, true);
+        const extraLen = view.getUint16(offset + 30, true);
+        const commentLen = view.getUint16(offset + 32, true);
+        const externalAttrs = view.getUint32(offset + 38, true);
+        const nameBytes = new Uint8Array(buffer, offset + 46, nameLen);
+        let name = '';
+        for (let j = 0; j < nameLen; j++) {
+            name += String.fromCharCode(nameBytes[j]);
+        }
+        const isDir = name.endsWith('/') || ((externalAttrs >> 16) & 0x10) !== 0;
+        entries.push({
+            path: name,
+            dir: isDir,
+            size: uncompressedSize
+        });
+        offset += 46 + nameLen + extraLen + commentLen;
+    }
+    return entries;
+}
+
+async function parseZipViaRange(url) {
+    const HEAD_SIZE = 64 * 1024;
+    const headResponse = await fetch(url, {
+        headers: { 'Range': `bytes=0-${HEAD_SIZE - 1}` }
+    });
+    if (!headResponse.ok && headResponse.status !== 206) {
+        throw new Error('无法获取压缩包文件头部');
+    }
+    const contentRange = headResponse.headers.get('Content-Range');
+    let fileSize = 0;
+    if (contentRange) {
+        const match = contentRange.match(/bytes \d+-\d+\/(\d+)/);
+        if (match) fileSize = parseInt(match[1], 10);
+    }
+    if (!fileSize) {
+        const totalLen = headResponse.headers.get('Content-Length');
+        if (headResponse.status === 206 && totalLen) {
+            fileSize = parseInt(totalLen, 10);
+        }
+    }
+    if (!fileSize) {
+        const fullResp = await fetch(url);
+        if (!fullResp.ok) throw new Error('无法下载压缩包文件');
+        const buf = await fullResp.arrayBuffer();
+        if (typeof JSZip === 'undefined') throw new Error('JSZip 未加载，请刷新页面重试');
+        const zip = await JSZip.loadAsync(buf);
+        const entries = [];
+        Object.keys(zip.files).forEach(path => {
+            const file = zip.files[path];
+            entries.push({ path, dir: file.dir, size: file._data ? file._data.uncompressedSize || 0 : 0 });
+        });
+        return entries;
+    }
+
+    const tailSize = Math.min(64 * 1024, fileSize);
+    const tailResponse = await fetch(url, {
+        headers: { 'Range': `bytes=${fileSize - tailSize}-${fileSize - 1}` }
+    });
+    if (!tailResponse.ok && tailResponse.status !== 206) {
+        throw new Error('无法获取压缩包目录');
+    }
+    const tailBuffer = await tailResponse.arrayBuffer();
+    const eocd = findEocd(tailBuffer, tailSize, fileSize);
+    if (!eocd) {
+        throw new Error('无法解析压缩包目录，请尝试下载后查看');
+    }
+
+    const cdEnd = Math.min(eocd.cdOffset + eocd.cdSize, fileSize);
+    const cdStart = eocd.cdOffset;
+    let cdBuffer;
+    if (cdStart >= fileSize - tailSize && cdEnd <= fileSize) {
+        const offsetInTail = cdStart - (fileSize - tailSize);
+        cdBuffer = tailBuffer.slice(offsetInTail, offsetInTail + eocd.cdSize);
+    } else {
+        const cdResponse = await fetch(url, {
+            headers: { 'Range': `bytes=${cdStart}-${cdEnd - 1}` }
+        });
+        if (!cdResponse.ok && cdResponse.status !== 206) {
+            throw new Error('无法获取压缩包目录数据');
+        }
+        cdBuffer = await cdResponse.arrayBuffer();
+    }
+    return parseCentralDirectory(cdBuffer, 0, eocd.cdSize, eocd.entryCount);
 }
 
 async function decompressGzip(buffer) {

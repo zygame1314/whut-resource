@@ -213,6 +213,57 @@ export async function onRequest(context) {
     })());
   }
   try {
+    const rangeHeader = request.headers.get('Range');
+    if (rangeHeader) {
+      const object = await env.R2_bucket.get(key);
+      if (object === null) {
+        return new Response(JSON.stringify({ success: false, error: '存储中未找到文件。' }), {
+          status: 404,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const fileSize = object.size;
+      const rangeMatch = rangeHeader.match(/^bytes=(\d*)-(\d*)$/);
+      if (!rangeMatch) {
+        return new Response(JSON.stringify({ success: false, error: '无效的 Range 请求。' }), {
+          status: 416,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      let start = rangeMatch[1] ? parseInt(rangeMatch[1], 10) : 0;
+      let end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fileSize - 1;
+      if (start >= fileSize || end >= fileSize || start > end) {
+        const headers416 = new Headers();
+        headers416.set('Content-Range', `bytes */${fileSize}`);
+        const cors416 = addCorsHeaders();
+        for (const [k, v] of Object.entries(cors416)) { headers416.set(k, v); }
+        return new Response(null, { status: 416, headers: headers416 });
+      }
+      const rangeR2 = { offset: start, length: end - start + 1 };
+      const rangeObject = await env.R2_bucket.get(key, { range: rangeR2 });
+      if (rangeObject === null) {
+        return new Response(JSON.stringify({ success: false, error: '存储中未找到文件。' }), {
+          status: 404,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      const headers = new Headers();
+      rangeObject.writeHttpMetadata(headers);
+      headers.set('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+      headers.set('Content-Length', String(end - start + 1));
+      headers.set('Accept-Ranges', 'bytes');
+      headers.set('Cache-Control', 'no-store');
+      const isInline = url.searchParams.get('inline') === 'true';
+      const filename = key.split('/').pop();
+      if (isInline) {
+        headers.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
+      } else {
+        headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+      }
+      const corsHeaders = addCorsHeaders();
+      for (const [k, v] of Object.entries(corsHeaders)) { headers.set(k, v); }
+      return new Response(rangeObject.body, { status: 206, headers });
+    }
     const cache = caches.default;
     const cacheUrl = new URL(request.url);
     const cacheKey = new Request(cacheUrl.toString(), {
@@ -243,6 +294,7 @@ export async function onRequest(context) {
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
+    headers.set('Accept-Ranges', 'bytes');
     const isInline = url.searchParams.get('inline') === 'true';
     const filename = key.split('/').pop();
     if (isInline) {
