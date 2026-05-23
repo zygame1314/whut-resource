@@ -7299,6 +7299,7 @@ input#prompt-input {
 .admin-scrollable-container {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 10px;
