@@ -391,68 +391,69 @@ function parseCentralDirectory(buffer, cdOffset, cdSize, entryCount) {
 }
 
 async function parseZipViaRange(url) {
-    const HEAD_SIZE = 64 * 1024;
-    const headResponse = await fetch(url, {
-        headers: { 'Range': `bytes=0-${HEAD_SIZE - 1}` }
-    });
-    if (!headResponse.ok && headResponse.status !== 206) {
-        throw new Error('无法获取压缩包文件头部');
-    }
-    const contentRange = headResponse.headers.get('Content-Range');
-    let fileSize = 0;
-    if (contentRange) {
-        const match = contentRange.match(/bytes \d+-\d+\/(\d+)/);
-        if (match) fileSize = parseInt(match[1], 10);
-    }
-    if (!fileSize) {
-        const totalLen = headResponse.headers.get('Content-Length');
-        if (headResponse.status === 206 && totalLen) {
-            fileSize = parseInt(totalLen, 10);
+    try {
+        const headResp = await fetch(url, { headers: { 'Range': 'bytes=0-0' } });
+        const contentRange = headResp.headers.get('Content-Range');
+        let fileSize = 0;
+        if (contentRange) {
+            const match = contentRange.match(/bytes \d+-\d+\/(\d+)/);
+            if (match) fileSize = parseInt(match[1], 10);
         }
-    }
-    if (!fileSize) {
-        const fullResp = await fetch(url);
-        if (!fullResp.ok) throw new Error('无法下载压缩包文件');
-        const buf = await fullResp.arrayBuffer();
-        if (typeof JSZip === 'undefined') throw new Error('JSZip 未加载，请刷新页面重试');
-        const zip = await JSZip.loadAsync(buf);
-        const entries = [];
-        Object.keys(zip.files).forEach(path => {
-            const file = zip.files[path];
-            entries.push({ path, dir: file.dir, size: file._data ? file._data.uncompressedSize || 0 : 0 });
+        if (!fileSize) {
+            return await parseZipFallback(url);
+        }
+        const tailSize = Math.min(128 * 1024, fileSize);
+        const tailResp = await fetch(url, {
+            headers: { 'Range': `bytes=${fileSize - tailSize}-${fileSize - 1}` }
         });
+        if (!tailResp.ok && tailResp.status !== 206) {
+            return await parseZipFallback(url);
+        }
+        const tailBuffer = await tailResp.arrayBuffer();
+        const eocd = findEocd(tailBuffer, tailSize, fileSize);
+        if (!eocd) {
+            return await parseZipFallback(url);
+        }
+        const cdStart = eocd.cdOffset;
+        const cdEnd = Math.min(cdStart + eocd.cdSize, fileSize);
+        let cdBuffer;
+        if (cdStart >= fileSize - tailSize && cdEnd <= fileSize) {
+            const offsetInTail = cdStart - (fileSize - tailSize);
+            cdBuffer = tailBuffer.slice(offsetInTail, offsetInTail + eocd.cdSize);
+        } else {
+            const cdResp = await fetch(url, {
+                headers: { 'Range': `bytes=${cdStart}-${cdEnd - 1}` }
+            });
+            if (!cdResp.ok && cdResp.status !== 206) {
+                return await parseZipFallback(url);
+            }
+            cdBuffer = await cdResp.arrayBuffer();
+        }
+        const entries = parseCentralDirectory(cdBuffer, 0, eocd.cdSize, eocd.entryCount);
+        if (entries.length === 0) {
+            return await parseZipFallback(url);
+        }
         return entries;
+    } catch (e) {
+        console.warn('Range 请求解析 ZIP 失败，降级为全量下载:', e);
+        return await parseZipFallback(url);
     }
+}
 
-    const tailSize = Math.min(64 * 1024, fileSize);
-    const tailResponse = await fetch(url, {
-        headers: { 'Range': `bytes=${fileSize - tailSize}-${fileSize - 1}` }
+async function parseZipFallback(url) {
+    if (typeof JSZip === 'undefined') {
+        throw new Error('JSZip 未加载，请刷新页面重试');
+    }
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('无法下载压缩包文件');
+    const buf = await resp.arrayBuffer();
+    const zip = await JSZip.loadAsync(buf);
+    const entries = [];
+    Object.keys(zip.files).forEach(path => {
+        const file = zip.files[path];
+        entries.push({ path, dir: file.dir, size: file._data ? file._data.uncompressedSize || 0 : 0 });
     });
-    if (!tailResponse.ok && tailResponse.status !== 206) {
-        throw new Error('无法获取压缩包目录');
-    }
-    const tailBuffer = await tailResponse.arrayBuffer();
-    const eocd = findEocd(tailBuffer, tailSize, fileSize);
-    if (!eocd) {
-        throw new Error('无法解析压缩包目录，请尝试下载后查看');
-    }
-
-    const cdEnd = Math.min(eocd.cdOffset + eocd.cdSize, fileSize);
-    const cdStart = eocd.cdOffset;
-    let cdBuffer;
-    if (cdStart >= fileSize - tailSize && cdEnd <= fileSize) {
-        const offsetInTail = cdStart - (fileSize - tailSize);
-        cdBuffer = tailBuffer.slice(offsetInTail, offsetInTail + eocd.cdSize);
-    } else {
-        const cdResponse = await fetch(url, {
-            headers: { 'Range': `bytes=${cdStart}-${cdEnd - 1}` }
-        });
-        if (!cdResponse.ok && cdResponse.status !== 206) {
-            throw new Error('无法获取压缩包目录数据');
-        }
-        cdBuffer = await cdResponse.arrayBuffer();
-    }
-    return parseCentralDirectory(cdBuffer, 0, eocd.cdSize, eocd.entryCount);
+    return entries;
 }
 
 async function decompressGzip(buffer) {
