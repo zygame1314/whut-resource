@@ -58,7 +58,7 @@ async function handleGet(request, env, user) {
             users: bannedUsers.results
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    if (action === 'user_search') {
+    if (action === 'search') {
         if (!isSuperAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要超级管理员权限' }), {
                 status: 403,

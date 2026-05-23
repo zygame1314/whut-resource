@@ -290,7 +290,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
 
         function renderUserList(container, users, showDemote) {
             if (!users || users.length === 0) {
-                container.innerHTML = '<div class="admin-empty-state-padded"><div class="admin-empty-state-icon"><i class="fas fa-search"></i></div>未找到用户</div>';
+                container.innerHTML = '<div class="admin-empty-state" style="padding:1.5rem 1rem;">未找到用户</div>';
                 return;
             }
             container.innerHTML = users.map(user => {
