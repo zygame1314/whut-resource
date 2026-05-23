@@ -213,6 +213,38 @@ async function handlePut(request, env, user) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
+    if (action === 'ban') {
+        if (!isSuperAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要超级管理员权限' }), {
+                status: 403,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            });
+        }
+        const { user_id } = body;
+        if (!user_id) {
+            return new Response(JSON.stringify({ error: '缺少用户ID' }), {
+                status: 400,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            });
+        }
+        const targetUser = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(user_id).first();
+        if (!targetUser) {
+            return new Response(JSON.stringify({ error: '用户不存在' }), {
+                status: 404,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            });
+        }
+        if (targetUser.role === 'admin' || targetUser.role === 'super_admin') {
+            return new Response(JSON.stringify({ error: '无法封禁管理员' }), {
+                status: 403,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            });
+        }
+        await env.DB.prepare('UPDATE users SET is_banned = TRUE WHERE id = ?').bind(user_id).run();
+        return new Response(JSON.stringify({ success: true }), {
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+        });
+    }
     if (action === 'unban') {
         if (!isSuperAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要超级管理员权限' }), {

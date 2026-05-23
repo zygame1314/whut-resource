@@ -302,9 +302,20 @@ async function showAdminManagementModal(initialTab = 'roles') {
                 const bannedLabel = user.is_banned
                     ? ' <span class="status-badge rejected" style="font-size:0.75rem;"><i class="fas fa-ban"></i> 封禁</span>'
                     : '';
-                const actionBtn = user.role === 'super_admin' ? '' : showDemote && user.role === 'admin'
-                    ? `<button class="secondary-btn small demote-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-arrow-down"></i> 降权</button>`
-                    : `<button class="primary-btn small promote-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-arrow-up"></i> 升权</button>`;
+                const actionBtn = user.role === 'super_admin' ? '' : (() => {
+                    let btns = '';
+                    if (showDemote && user.role === 'admin') {
+                        btns += `<button class="secondary-btn small demote-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-arrow-down"></i> 降权</button>`;
+                    } else if (user.role === 'user') {
+                        btns += `<button class="primary-btn small promote-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-arrow-up"></i> 升权</button>`;
+                    }
+                    if (user.is_banned) {
+                        btns += `<button class="primary-btn small unban-role-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}" style="margin-left:4px;"><i class="fas fa-user-check"></i> 解封</button>`;
+                    } else if (user.role === 'user') {
+                        btns += `<button class="secondary-btn small ban-role-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}" style="margin-left:4px;"><i class="fas fa-ban"></i> 封禁</button>`;
+                    }
+                    return btns;
+                })();
                 return `
                     <div class="role-user-item">
                         <div class="banned-user-info">
@@ -382,6 +393,76 @@ async function showAdminManagementModal(initialTab = 'roles') {
                         showNotification(err.message, 'error');
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-arrow-down"></i> 降权';
+                    }
+                });
+            });
+            container.querySelectorAll('.ban-role-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const userId = btn.dataset.userId;
+                    const nickname = btn.dataset.nickname;
+                    const confirmed = await showConfirmation({
+                        title: '确认封禁',
+                        message: `确定要封禁用户 <strong>${nickname}</strong> 吗？封禁后该用户将无法登录和使用系统。`,
+                        confirmText: '确认封禁',
+                        confirmClass: 'danger'
+                    });
+                    if (!confirmed) return;
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    try {
+                        const res = await fetch(API_ENDPOINTS.adminManagement, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify({ action: 'ban', user_id: parseInt(userId) })
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                            showNotification('已封禁该用户', 'success');
+                            loadAdmins();
+                            searchResults.style.display = 'none';
+                            searchInput.value = '';
+                        } else {
+                            throw new Error(result.error || '操作失败');
+                        }
+                    } catch (err) {
+                        showNotification(err.message, 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-ban"></i> 封禁';
+                    }
+                });
+            });
+            container.querySelectorAll('.unban-role-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const userId = btn.dataset.userId;
+                    const nickname = btn.dataset.nickname;
+                    const confirmed = await showConfirmation({
+                        title: '确认解封',
+                        message: `确定要解封用户 <strong>${nickname}</strong> 吗？`,
+                        confirmText: '确认解封',
+                        confirmClass: 'confirm-btn-primary'
+                    });
+                    if (!confirmed) return;
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    try {
+                        const res = await fetch(API_ENDPOINTS.adminManagement, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify({ action: 'unban', user_id: parseInt(userId) })
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                            showNotification('已解封该用户', 'success');
+                            loadAdmins();
+                            searchResults.style.display = 'none';
+                            searchInput.value = '';
+                        } else {
+                            throw new Error(result.error || '操作失败');
+                        }
+                    } catch (err) {
+                        showNotification(err.message, 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-user-check"></i> 解封';
                     }
                 });
             });
