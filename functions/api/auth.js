@@ -134,9 +134,11 @@ export async function onRequestPost({ request, env }) {
       if (sanitizedNickname.length === 0) {
         sanitizedNickname = emailPrefix;
       }
-      const nicknameModeration = await moderateNickname(sanitizedNickname, env);
-      if (!nicknameModeration.pass) {
-        return new Response(JSON.stringify({ success: false, error: `昵称未通过审核：${nicknameModeration.reason}` }), { status: 451, headers: addCorsHeaders() });
+      if (nickname && nickname.trim()) {
+        const nicknameModeration = await moderateNickname(sanitizedNickname, env);
+        if (!nicknameModeration.pass) {
+          return new Response(JSON.stringify({ success: false, error: `昵称未通过审核：${nicknameModeration.reason}` }), { status: 451, headers: addCorsHeaders() });
+        }
       }
       await env.DB.prepare('DELETE FROM pending_registrations WHERE email_prefix = ?').bind(emailPrefix).run();
       await env.DB.prepare('INSERT INTO pending_registrations (email_prefix, password_hash, nickname, verify_code, expires_at) VALUES (?, ?, ?, ?, ?)')
