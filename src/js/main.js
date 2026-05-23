@@ -297,9 +297,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 existingVideoWrapper.remove();
             }
+            const existingAudioWrapper = previewModal.querySelector('.preview-audio-wrapper');
+            if (existingAudioWrapper) {
+                existingAudioWrapper.remove();
+            }
             const existingTextWrapper = previewModal.querySelector('.preview-text-wrapper');
             if (existingTextWrapper) {
                 existingTextWrapper.remove();
+            }
+            const existingZipWrapper = previewModal.querySelector('.preview-zip-wrapper');
+            if (existingZipWrapper) {
+                existingZipWrapper.remove();
             }
         };
         closePreviewBtn.addEventListener('click', closeAndCleanup);

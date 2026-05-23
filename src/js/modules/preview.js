@@ -5,14 +5,20 @@ async function previewFile(fileKey, fileName, fileSize) {
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
     const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv'];
     const txtExtensions = ['txt'];
+    const archiveExtensions = ['zip', 'tar', 'gz', 'tgz'];
     const isVideo = videoExtensions.includes(extension);
     const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'];
     const isAudio = audioExtensions.includes(extension);
+    const isArchive = archiveExtensions.includes(extension) || fileName.toLowerCase().endsWith('.tar.gz');
     if (!isVideo && !isAudio && fileSize > 10 * 1024 * 1024) {
         if (txtExtensions.includes(extension)) {
             showNotification('文件过大，不支持在线预览。', 'info');
             return;
         }
+    }
+    if (isArchive && fileSize > 200 * 1024 * 1024) {
+        showNotification('压缩包超过200MB，不支持在线预览。', 'info');
+        return;
     }
     if (!isVideo && !isAudio && fileSize > 300 * 1024 * 1024) {
         showNotification('文件超过300MB，不支持预览。', 'info');
@@ -45,6 +51,8 @@ async function previewFile(fileKey, fileName, fileSize) {
     if (existingAudioWrapper) existingAudioWrapper.remove();
     const existingTextWrapper = previewModal.querySelector('.preview-text-wrapper');
     if (existingTextWrapper) existingTextWrapper.remove();
+    const existingZipWrapper = previewModal.querySelector('.preview-zip-wrapper');
+    if (existingZipWrapper) existingZipWrapper.remove();
     try {
         const isOfficePreview = officeExtensions.includes(extension);
         const isPdfPreview = pdfExtensions.includes(extension);
@@ -52,17 +60,21 @@ async function previewFile(fileKey, fileName, fileSize) {
         const isVideoPreview = videoExtensions.includes(extension);
         const isAudioPreview = audioExtensions.includes(extension);
         const isTxtPreview = txtExtensions.includes(extension);
-        if (isOfficePreview || isPdfPreview || isImagePreview || isVideoPreview || isAudioPreview || isTxtPreview) {
+        const isArchivePreview = isArchive;
+        if (isOfficePreview || isPdfPreview || isImagePreview || isVideoPreview || isAudioPreview || isTxtPreview || isArchivePreview) {
             const apiUrl = new URL(API_ENDPOINTS.preview, window.location.origin);
             apiUrl.searchParams.append('key', fileKey);
             if (isOfficePreview) {
                 apiUrl.searchParams.append('office', 'true');
             }
-            if (isPdfPreview || isImagePreview || isVideoPreview || isAudioPreview) {
+            if (isPdfPreview || isImagePreview || isVideoPreview || isAudioPreview || isArchivePreview) {
                 apiUrl.searchParams.append('inline', 'true');
             }
             if (isTxtPreview) {
                 apiUrl.searchParams.append('type', 'text');
+            }
+            if (isArchivePreview) {
+                apiUrl.searchParams.append('type', 'zip');
             }
             const response = await fetch(apiUrl.toString(), {
                 headers: {
@@ -130,6 +142,46 @@ async function previewFile(fileKey, fileName, fileSize) {
                 hideLoader();
                 requestAnimationFrame(() => {
                     textPreviewWrapper.style.opacity = '1';
+                });
+            } else if (isArchivePreview) {
+                const previewUrl = data.url;
+                const archiveResponse = await fetch(previewUrl);
+                if (!archiveResponse.ok) {
+                    throw new Error('无法下载压缩包文件');
+                }
+                const archiveBuffer = await archiveResponse.arrayBuffer();
+                const archiveData = await parseArchive(archiveBuffer, fileName);
+                const archivePreviewWrapper = document.createElement('div');
+                archivePreviewWrapper.className = 'preview-zip-wrapper';
+                archivePreviewWrapper.style.opacity = '0';
+                archivePreviewWrapper.style.transition = 'opacity 0.3s ease';
+
+                const archiveHeader = document.createElement('div');
+                archiveHeader.className = 'preview-zip-header';
+                const archiveIcon = document.createElement('i');
+                const archiveType = getArchiveType(fileName);
+                archiveIcon.className = archiveType === 'tar' ? 'fas fa-box-open' : 'fas fa-file-archive';
+                const archiveTitle = document.createElement('span');
+                archiveTitle.textContent = fileName;
+                const archiveInfo = document.createElement('span');
+                archiveInfo.className = 'preview-zip-info';
+                const fileCount = archiveData.filter(e => !e.dir).length;
+                archiveInfo.textContent = `${fileCount} 个文件`;
+                archiveHeader.appendChild(archiveIcon);
+                archiveHeader.appendChild(archiveTitle);
+                archiveHeader.appendChild(archiveInfo);
+                archivePreviewWrapper.appendChild(archiveHeader);
+
+                const archiveTree = buildArchiveTree(archiveData);
+                const archiveTreeContainer = document.createElement('div');
+                archiveTreeContainer.className = 'preview-zip-tree';
+                archiveTreeContainer.appendChild(archiveTree);
+                archivePreviewWrapper.appendChild(archiveTreeContainer);
+
+                previewIframe.parentElement.appendChild(archivePreviewWrapper);
+                hideLoader();
+                requestAnimationFrame(() => {
+                    archivePreviewWrapper.style.opacity = '1';
                 });
             }
             else {
@@ -270,4 +322,225 @@ async function previewFile(fileKey, fileName, fileSize) {
         previewLoader.style.display = 'none';
         previewModal.classList.remove('visible');
     }
+}
+
+function getArchiveType(fileName) {
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith('.tar.gz') || lower.endsWith('.tgz')) return 'tar.gz';
+    if (lower.endsWith('.tar')) return 'tar';
+    if (lower.endsWith('.zip')) return 'zip';
+    const ext = lower.split('.').pop();
+    if (ext === 'gz') return 'tar.gz';
+    return 'zip';
+}
+
+async function decompressGzip(buffer) {
+    const ds = new DecompressionStream('gzip');
+    const writer = ds.writable.getWriter();
+    writer.write(new Uint8Array(buffer));
+    writer.close();
+    const reader = ds.readable.getReader();
+    const chunks = [];
+    let totalLen = 0;
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        totalLen += value.length;
+    }
+    const result = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+    }
+    return result.buffer;
+}
+
+function parseTar(buffer) {
+    const bytes = new Uint8Array(buffer);
+    const entries = [];
+    let offset = 0;
+    while (offset + 512 <= bytes.length) {
+        const header = bytes.subarray(offset, offset + 512);
+        const nameBytes = header.subarray(0, 100);
+        let name = '';
+        for (let i = 0; i < nameBytes.length; i++) {
+            if (nameBytes[i] === 0) break;
+            name += String.fromCharCode(nameBytes[i]);
+        }
+        if (!name) break;
+        const prefixBytes = header.subarray(345, 500);
+        let prefix = '';
+        for (let i = 0; i < prefixBytes.length; i++) {
+            if (prefixBytes[i] === 0) break;
+            prefix += String.fromCharCode(prefixBytes[i]);
+        }
+        if (prefix) name = prefix + name;
+        const sizeField = header.subarray(124, 136);
+        let sizeStr = '';
+        for (let i = 0; i < sizeField.length; i++) {
+            if (sizeField[i] === 0 || sizeField[i] === 32) break;
+            sizeStr += String.fromCharCode(sizeField[i]);
+        }
+        const size = parseInt(sizeStr, 8) || 0;
+        const typeFlag = String.fromCharCode(header[156]);
+        const isDir = typeFlag === '5' || name.endsWith('/');
+        offset += 512;
+        const dataBlocks = Math.ceil(size / 512);
+        offset += dataBlocks * 512;
+        entries.push({ path: name, size, dir: isDir });
+    }
+    return entries;
+}
+
+async function parseArchive(buffer, fileName) {
+    const type = getArchiveType(fileName);
+    if (type === 'zip') {
+        if (typeof JSZip === 'undefined') {
+            throw new Error('JSZip 未加载，请刷新页面重试');
+        }
+        const zip = await JSZip.loadAsync(buffer);
+        const entries = [];
+        Object.keys(zip.files).forEach(path => {
+            const file = zip.files[path];
+            entries.push({
+                path,
+                dir: file.dir,
+                size: file._data ? file._data.uncompressedSize || 0 : 0
+            });
+        });
+        return entries;
+    }
+    if (type === 'tar') {
+        return parseTar(buffer);
+    }
+    if (type === 'tar.gz') {
+        const decompressed = await decompressGzip(buffer);
+        return parseTar(decompressed);
+    }
+    throw new Error('不支持的压缩包格式');
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+}
+
+function buildArchiveTree(entries) {
+    const root = { name: '', children: {}, isDir: true };
+    entries.forEach(entry => {
+        const path = entry.path.replace(/\\/g, '/');
+        const parts = path.split('/').filter(Boolean);
+        if (parts.length === 0) return;
+        let current = root;
+        parts.forEach((part, idx) => {
+            const isLast = idx === parts.length - 1;
+            const isDir = entry.dir || !isLast;
+            if (!current.children[part]) {
+                current.children[part] = {
+                    name: part,
+                    children: {},
+                    isDir: isDir,
+                    size: isDir ? 0 : entry.size
+                };
+            }
+            current = current.children[part];
+        });
+    });
+
+    function getIconClass(name, isDir) {
+        if (isDir) return 'fas fa-folder';
+        const ext = name.split('.').pop().toLowerCase();
+        const iconMap = {
+            'pdf': 'fas fa-file-pdf', 'doc': 'fas fa-file-word', 'docx': 'fas fa-file-word',
+            'xls': 'fas fa-file-excel', 'xlsx': 'fas fa-file-excel', 'csv': 'fas fa-file-csv',
+            'ppt': 'fas fa-file-powerpoint', 'pptx': 'fas fa-file-powerpoint',
+            'zip': 'fas fa-file-archive', 'rar': 'fas fa-file-archive', '7z': 'fas fa-file-archive',
+            'gz': 'fas fa-file-archive', 'tar': 'fas fa-file-archive',
+            'jpg': 'fas fa-file-image', 'jpeg': 'fas fa-file-image', 'png': 'fas fa-file-image',
+            'gif': 'fas fa-file-image', 'bmp': 'fas fa-file-image', 'svg': 'fas fa-file-image',
+            'webp': 'fas fa-file-image', 'ico': 'fas fa-file-image',
+            'mp4': 'fas fa-file-video', 'avi': 'fas fa-file-video', 'mkv': 'fas fa-file-video',
+            'mov': 'fas fa-file-video', 'wmv': 'fas fa-file-video', 'webm': 'fas fa-file-video',
+            'mp3': 'fas fa-file-audio', 'wav': 'fas fa-file-audio', 'flac': 'fas fa-file-audio',
+            'ogg': 'fas fa-file-audio', 'm4a': 'fas fa-file-audio', 'aac': 'fas fa-file-audio',
+            'js': 'fas fa-file-code', 'ts': 'fas fa-file-code', 'py': 'fas fa-file-code',
+            'java': 'fas fa-file-code', 'c': 'fas fa-file-code', 'cpp': 'fas fa-file-code',
+            'h': 'fas fa-file-code', 'go': 'fas fa-file-code', 'rs': 'fas fa-file-code',
+            'html': 'fas fa-file-code', 'css': 'fas fa-file-code', 'json': 'fas fa-file-code',
+            'xml': 'fas fa-file-code', 'sh': 'fas fa-file-code', 'bat': 'fas fa-file-code',
+            'sql': 'fas fa-file-code',
+            'txt': 'fas fa-file-alt', 'md': 'fas fa-file-alt', 'log': 'fas fa-file-alt',
+            'rtf': 'fas fa-file-alt',
+            'exe': 'fas fa-cog', 'dll': 'fas fa-cog', 'so': 'fas fa-cog', 'dylib': 'fas fa-cog',
+        };
+        return iconMap[ext] || 'fas fa-file';
+    }
+
+    function renderNode(node, parentEl, depth) {
+        const keys = Object.keys(node.children).sort((a, b) => {
+            const aDir = node.children[a].isDir;
+            const bDir = node.children[b].isDir;
+            if (aDir !== bDir) return aDir ? -1 : 1;
+            return a.localeCompare(b);
+        });
+
+        keys.forEach(key => {
+            const child = node.children[key];
+            const item = document.createElement('div');
+            item.className = 'zip-item';
+
+            const row = document.createElement('div');
+            row.className = 'zip-item-row';
+            row.style.paddingLeft = (depth * 20 + 8) + 'px';
+
+            const icon = document.createElement('i');
+            icon.className = getIconClass(child.name, child.isDir);
+
+            const name = document.createElement('span');
+            name.className = 'zip-item-name';
+            name.textContent = child.name;
+
+            row.appendChild(icon);
+            row.appendChild(name);
+
+            if (!child.isDir && child.size) {
+                const sizeSpan = document.createElement('span');
+                sizeSpan.className = 'zip-item-size';
+                sizeSpan.textContent = formatFileSize(child.size);
+                row.appendChild(sizeSpan);
+            }
+
+            item.appendChild(row);
+
+            if (child.isDir && Object.keys(child.children).length > 0) {
+                const childContainer = document.createElement('div');
+                childContainer.className = 'zip-item-children zip-item-collapsed';
+                renderNode(child, childContainer, depth + 1);
+                item.appendChild(childContainer);
+
+                row.addEventListener('click', () => {
+                    icon.className = childContainer.classList.contains('zip-item-collapsed')
+                        ? 'fas fa-folder-open'
+                        : getIconClass(child.name, child.isDir);
+                    childContainer.classList.toggle('zip-item-collapsed');
+                    row.classList.toggle('zip-folder-open');
+                });
+                row.classList.add('zip-folder-row');
+            } else if (child.isDir) {
+                row.classList.add('zip-folder-row');
+                row.addEventListener('click', () => {});
+            }
+
+            parentEl.appendChild(item);
+        });
+    }
+
+    const treeRoot = document.createElement('div');
+    treeRoot.className = 'zip-tree-root';
+    renderNode(root, treeRoot, 0);
+    return treeRoot;
 }
