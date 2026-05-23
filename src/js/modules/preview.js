@@ -360,6 +360,18 @@ function findEocd(buffer, searchSize, fileSize) {
     return null;
 }
 
+function decodeZipName(nameBytes, flags) {
+    const isUtf8 = (flags & 0x0800) !== 0;
+    if (isUtf8) {
+        return new TextDecoder('utf-8').decode(nameBytes);
+    }
+    try {
+        return new TextDecoder('gbk').decode(nameBytes);
+    } catch (e) {
+        return new TextDecoder('utf-8').decode(nameBytes);
+    }
+}
+
 function parseCentralDirectory(buffer, cdOffset, cdSize, entryCount) {
     const view = new DataView(buffer);
     const entries = [];
@@ -367,18 +379,14 @@ function parseCentralDirectory(buffer, cdOffset, cdSize, entryCount) {
     for (let i = 0; i < entryCount && offset + 46 <= buffer.byteLength; i++) {
         const sig = view.getUint32(offset, true);
         if (sig !== 0x02014b50) break;
-        const compressionMethod = view.getUint16(offset + 10, true);
-        const compressedSize = view.getUint32(offset + 20, true);
+        const flags = view.getUint16(offset + 8, true);
         const uncompressedSize = view.getUint32(offset + 24, true);
         const nameLen = view.getUint16(offset + 28, true);
         const extraLen = view.getUint16(offset + 30, true);
         const commentLen = view.getUint16(offset + 32, true);
         const externalAttrs = view.getUint32(offset + 38, true);
         const nameBytes = new Uint8Array(buffer, offset + 46, nameLen);
-        let name = '';
-        for (let j = 0; j < nameLen; j++) {
-            name += String.fromCharCode(nameBytes[j]);
-        }
+        const name = decodeZipName(nameBytes, flags);
         const isDir = name.endsWith('/') || ((externalAttrs >> 16) & 0x10) !== 0;
         entries.push({
             path: name,
