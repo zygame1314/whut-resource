@@ -121,6 +121,14 @@
     transform: translateY(0);
 }
 
+.primary-btn.small,
+.secondary-btn.small {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    border-radius: 8px;
+    gap: 0.3rem;
+}
+
 .admin-announcement-actions .secondary-btn:hover {
     background: var(--primary-color);
     color: white;
