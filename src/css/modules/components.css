@@ -5150,6 +5150,7 @@ textarea.form-input {
     border-radius: var(--border-radius-medium);
     color: var(--text-primary);
     cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
 
 .custom-select-trigger:hover {
