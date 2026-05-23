@@ -296,6 +296,15 @@ LazyFolderTree.prototype._getNodeByPath = function(path) {
 
 LazyFolderTree.prototype.expandToPath = function(targetPath) {
     if (!targetPath || !this.container) return;
+    if (this.rootLabel) {
+        var rootItem = this.container.querySelector('.' + this.itemClassName + '[data-path=""]');
+        if (rootItem) {
+            var rootLi = rootItem.closest('.' + this.nodeClassName);
+            if (rootLi && rootItem.dataset.expanded !== 'true' && rootItem.dataset.hasChildren === 'true') {
+                this._toggleNode(rootLi, rootItem);
+            }
+        }
+    }
     var parts = LazyFolderTree._getPathParts(targetPath).filter(function(p) { return p; });
     var currentPath = '';
     for (var i = 0; i < parts.length; i++) {

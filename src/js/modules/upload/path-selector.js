@@ -98,7 +98,7 @@ async function handleAIPathRecommend(e) {
             if (uploadTree) {
                 uploadTree.expandToPath(currentUploadPath);
             }
-            const treeItem = pathTreeContainer.querySelector(`.path-tree-item[data-path="${currentUploadPath}"]`);
+            const treeItem = pathTreeContainer.querySelector(`.path-tree-item[data-path="${CSS.escape(currentUploadPath)}"]`);
             if (treeItem) {
                 pathTreeContainer.querySelectorAll('.path-tree-item').forEach(item => item.classList.remove('selected'));
                 treeItem.classList.add('selected');
