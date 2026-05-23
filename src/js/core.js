@@ -640,6 +640,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
         ]);
         const cleanTerm = searchTerm.trim().toLowerCase().replace(/^\./, '');
         if (blockedExtensions.has(cleanTerm)) {
+            isShowingSearchResults = true;
             fileListElement.innerHTML = `
                 <li class="empty-state">
                     <i class="fas fa-filter u-font-large-icon opacity-medium"></i>
