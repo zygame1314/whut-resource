@@ -171,6 +171,7 @@ CREATE TABLE pending_registrations (
     password_hash TEXT NOT NULL,
     nickname TEXT,
     verify_code TEXT NOT NULL UNIQUE,
+    wrong_sender TEXT,
     expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -185,6 +186,7 @@ CREATE TABLE pending_resets (
     email TEXT NOT NULL,
     new_password_hash TEXT NOT NULL,
     verify_code TEXT NOT NULL UNIQUE,
+    wrong_sender TEXT,
     expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -199,6 +201,7 @@ CREATE TABLE pending_email_changes (
     user_id INTEGER NOT NULL,
     new_email TEXT NOT NULL,
     verify_code TEXT NOT NULL UNIQUE,
+    wrong_sender TEXT,
     expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
