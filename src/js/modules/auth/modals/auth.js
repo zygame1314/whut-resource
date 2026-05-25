@@ -239,6 +239,7 @@ function showAuthModal(mode = 'login') {
                                 </div>
                             </div>
                         </div>
+                        <div class="verify-wrong-sender" id="verify-wrong-sender" style="display:none;"></div>
                         <div class="verify-status" id="verify-status">
                             <i class="fas fa-envelope"></i> 发送邮件后，请点击下方按钮验证
                             <div class="verify-timer">剩余时间：<span id="verify-countdown">30:00</span></div>
@@ -365,7 +366,10 @@ function showAuthModal(mode = 'login') {
                     token = data.token;
                     localStorage.setItem('authToken', token);
                     currentUser = data.user;
+                    window.currentUser = currentUser;
                     updateAuthUI();
+                    document.dispatchEvent(new Event('authSuccess'));
+                    if (window.releaseRequests) window.releaseRequests(true);
                     if (isSso && data.needsActivation) {
                         closeAuthModal(modal);
                         const welcomeModal = document.createElement('div');
@@ -394,7 +398,7 @@ function showAuthModal(mode = 'login') {
                         `;
                         document.body.appendChild(welcomeModal);
                         welcomeModal.querySelector('#skip-welcome-btn').onclick = () => {
-                            closeAuthModal(welcomeModal, () => window.location.reload());
+                            closeAuthModal(welcomeModal);
                         };
                         welcomeModal.querySelector('#go-activate-btn').onclick = () => {
                             closeAuthModal(welcomeModal, () => showForgotPasswordModal(currentUser.email));
@@ -435,7 +439,7 @@ function showAuthModal(mode = 'login') {
                             };
                         }
                     } else {
-                        closeAuthModal(modal, () => window.location.reload());
+                        closeAuthModal(modal);
                     }
                 } else {
                     if (isSso && data.ssoCaptchaRequired) {
@@ -543,8 +547,11 @@ function showAuthModal(mode = 'login') {
                             token = verifyData.token;
                             localStorage.setItem('authToken', token);
                             currentUser = verifyData.user;
+                            window.currentUser = currentUser;
                             updateAuthUI();
-                            closeAuthModal(modal, () => window.location.reload());
+                            document.dispatchEvent(new Event('authSuccess'));
+                            if (window.releaseRequests) window.releaseRequests(true);
+                            closeAuthModal(modal);
                         } else {
                             showNotification(verifyData.error || '通行密钥验证失败', 'error');
                         }
@@ -663,7 +670,13 @@ function showAuthModal(mode = 'login') {
                             action: 'check-register-status',
                             payload: { emailPrefix: currentEmailPrefix },
                             mainCountdownTimer: modal._verificationCountdownTimer,
+                            onWrongSender: (wrongSender) => {
+                                const hintEl = modal.querySelector('#verify-wrong-sender');
+                                hintEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> 检测到使用 <strong>${escapeHtml(wrongSender)}</strong> 发送了邮件，但需要使用 <strong>${escapeHtml(currentEmailPrefix)}@whut.edu.cn</strong> 发送。请用正确的邮箱重新发送验证码。`;
+                                hintEl.style.display = 'block';
+                            },
                             onSuccess: async () => {
+                                modal.querySelector('#verify-wrong-sender').style.display = 'none';
                                 step2Div.style.display = 'none';
                                 step3Div.style.display = 'block';
                                 showNotification('账户激活成功！', 'success');
@@ -690,6 +703,7 @@ function showAuthModal(mode = 'login') {
                                 }
                             },
                             onExpired: () => {
+                                modal.querySelector('#verify-wrong-sender').style.display = 'none';
                                 modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';
                                 checkVerifyBtn.style.display = 'none';
                             }
@@ -731,7 +745,7 @@ function showAuthModal(mode = 'login') {
             }
         };
         goLoginBtn.onclick = () => {
-            closeAuthModal(modal, () => window.location.reload());
+            closeAuthModal(modal);
         };
         const setupPasskeyBtn = modal.querySelector('#setup-passkey-btn');
         if (setupPasskeyBtn) {

@@ -4921,6 +4921,34 @@ textarea.form-input {
     font-family: monospace;
 }
 
+.verify-wrong-sender {
+    display: none;
+    margin-bottom: 1rem;
+    padding: 0.8rem 1rem;
+    background: color-mix(in srgb, var(--error-color, #dc2626) 6%, transparent);
+    border: 1px solid rgba(var(--error-rgb, 220 38 38), 0.2);
+    border-radius: 10px;
+    color: var(--error-color, #dc2626);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.verify-wrong-sender i {
+    margin-right: 0.4rem;
+}
+
+.verify-wrong-sender strong {
+    word-break: break-all;
+    font-family: monospace;
+    background: rgba(220, 38, 38, 0.1);
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
+}
+
+.verify-wrong-sender.visible {
+    display: block;
+}
+
 .success-display {
     text-align: center;
     padding: 2rem;
@@ -4962,6 +4990,16 @@ textarea.form-input {
 
 [data-theme="dark"] .verify-status {
     background: rgba(102, 126, 234, 0.1);
+}
+
+[data-theme="dark"] .verify-wrong-sender {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+}
+
+[data-theme="dark"] .verify-wrong-sender strong {
+    background: rgba(239, 68, 68, 0.15);
 }
 
 .verify-action-btn {

@@ -34,6 +34,7 @@ async function startEmailStatusPolling(btn, options) {
         payload = {},
         onSuccess,
         onExpired,
+        onWrongSender,
         mainCountdownTimer,
         warningMsg = '暂未收到邮件，请检查信息无误后再次点击检查。'
     } = options;
@@ -93,7 +94,11 @@ async function startEmailStatusPolling(btn, options) {
                 return;
             } else if (statusData.wrongSender && statusData.wrongSender !== lastWrongSender) {
                 lastWrongSender = statusData.wrongSender;
-                showNotification(`检测到使用 ${statusData.wrongSender} 发送了邮件，但需要用注册时的邮箱发送验证码，请用正确的邮箱重新发送。`, 'warning', 8000);
+                if (onWrongSender) {
+                    onWrongSender(statusData.wrongSender);
+                } else {
+                    showNotification(`检测到使用 ${statusData.wrongSender} 发送了邮件，但需要用注册时的邮箱发送验证码，请用正确的邮箱重新发送。`, 'warning', 8000);
+                }
             }
             checkCount++;
             if (checkCount < maxChecks) {

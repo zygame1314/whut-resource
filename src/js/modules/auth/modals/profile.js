@@ -160,6 +160,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                             </div>
                         </div>
                     </div>
+                    <div class="verify-wrong-sender" id="reset-wrong-sender" style="display:none;"></div>
                     <div class="verify-status" id="reset-verify-status">
                         <i class="fas fa-envelope"></i> 发送邮件后，请点击下方按钮验证
                         <div class="verify-timer">剩余时间：<span id="reset-countdown">30:00</span></div>
@@ -300,7 +301,13 @@ function showForgotPasswordModal(prefillEmail = '') {
                         action: 'check-reset-status',
                         payload: { email: currentEmail },
                         mainCountdownTimer: modal._verificationCountdownTimer,
+                        onWrongSender: (wrongSender) => {
+                            const hintEl = modal.querySelector('#reset-wrong-sender');
+                            hintEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> 检测到使用 <strong>${escapeHtml(wrongSender)}</strong> 发送了邮件，但需要使用 <strong>${escapeHtml(currentEmail)}</strong> 发送。请用正确的邮箱重新发送验证码。`;
+                            hintEl.style.display = 'block';
+                        },
                         onSuccess: async () => {
+                            modal.querySelector('#reset-wrong-sender').style.display = 'none';
                             step2Div.style.display = 'none';
                             step3Div.style.display = 'block';
                             showNotification('密码重置成功！', 'success');
@@ -319,6 +326,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                             } catch (_) {}
                         },
                         onExpired: () => {
+                            modal.querySelector('#reset-wrong-sender').style.display = 'none';
                             modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请重新获取';
                             checkResetVerifyBtn.style.display = 'none';
                         }
@@ -360,7 +368,7 @@ function showForgotPasswordModal(prefillEmail = '') {
         }
     };
     goLoginBtn.onclick = () => {
-        closeAuthModal(modal, () => window.location.reload());
+        closeAuthModal(modal);
     };
 }
 function showChangePasswordModal() {
@@ -515,6 +523,7 @@ function showChangeEmailModal() {
                             </div>
                         </div>
                     </div>
+                    <div class="verify-wrong-sender" id="change-wrong-sender" style="display:none;"></div>
                     <div class="verify-status" id="change-verify-status">
                         <i class="fas fa-envelope"></i> 发送邮件后，请点击下方按钮验证
                         <div class="verify-timer">剩余时间：<span id="change-countdown">30:00</span></div>
@@ -634,12 +643,19 @@ function showChangeEmailModal() {
                     startEmailStatusPolling(checkBtn, {
                         action: 'check-email-change-status',
                         mainCountdownTimer: modal._verificationCountdownTimer,
+                        onWrongSender: (wrongSender) => {
+                            const hintEl = modal.querySelector('#change-wrong-sender');
+                            hintEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> 检测到使用 <strong>${escapeHtml(wrongSender)}</strong> 发送了邮件，但需要使用 <strong>${escapeHtml(targetNewEmail)}</strong> 发送。请用正确的邮箱重新发送验证码。`;
+                            hintEl.style.display = 'block';
+                        },
                         onSuccess: () => {
+                            modal.querySelector('#change-wrong-sender').style.display = 'none';
                             step2Div.style.display = 'none';
                             step3Div.style.display = 'block';
                             showNotification('邮箱更新成功！', 'success');
                         },
                         onExpired: () => {
+                            modal.querySelector('#change-wrong-sender').style.display = 'none';
                             modal.querySelector('#change-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请重新获取';
                             checkBtn.style.display = 'none';
                         }
