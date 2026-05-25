@@ -113,8 +113,9 @@ export async function onRequestPost({ request, env }) {
           return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请 60 秒后再试。' }), { status: 429, headers: addCorsHeaders() });
         }
       }
-      const nowISO = new Date().toISOString();
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const now = Date.now();
+      const nowISO = new Date(now).toISOString();
+      const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
       await Promise.all([
         env.DB.prepare('DELETE FROM pending_registrations WHERE expires_at < ?').bind(nowISO).run(),
         env.DB.prepare('DELETE FROM downloads WHERE downloaded_at < ?').bind(thirtyDaysAgo).run()
@@ -125,7 +126,7 @@ export async function onRequestPost({ request, env }) {
         randomCode += chars.charAt(Math.floor(Math.random() * chars.length));
       }
       const verifyCode = `Verify-${randomCode}`;
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      const expiresAt = new Date(now + 30 * 60 * 1000).toISOString();
       const passwordHash = await hashPassword(password, env.SALT);
       let sanitizedNickname = nickname ? nickname.trim() : emailPrefix;
       if (sanitizedNickname.length > 20) {
@@ -222,7 +223,8 @@ export async function onRequestPost({ request, env }) {
         randomCode += chars.charAt(Math.floor(Math.random() * chars.length));
       }
       const verifyCode = `Reset-${randomCode}`;
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      const resetNow = Date.now();
+      const expiresAt = new Date(resetNow + 30 * 60 * 1000).toISOString();
       const newPasswordHash = await hashPassword(newPassword, env.SALT);
       await env.DB.prepare('DELETE FROM pending_resets WHERE email = ?').bind(email).run();
       await env.DB.prepare('INSERT INTO pending_resets (email, new_password_hash, verify_code, expires_at) VALUES (?, ?, ?, ?)')
@@ -303,8 +305,8 @@ export async function onRequestPost({ request, env }) {
         success: true,
         verifyCode,
         botEmail,
-        expiresIn: 30,
-        message: '请使用你的【新邮箱】发送验证码到指定地址。'
+        expiresAt,
+        message: '请使用你的学校邮箱发送验证码到指定地址。'
       }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'check-email-change-status') {

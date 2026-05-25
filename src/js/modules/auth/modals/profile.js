@@ -275,15 +275,22 @@ function showForgotPasswordModal(prefillEmail = '') {
                     navigator.clipboard.writeText(data.botEmail);
                     showNotification('收信地址已复制', 'success');
                 };
-                let remainingSeconds = data.expiresIn * 60;
+                if (modal._verificationCountdownTimer) {
+                    clearInterval(modal._verificationCountdownTimer);
+                    modal._verificationCountdownTimer = null;
+                }
+                let remainingSeconds = data.expiresAt
+                    ? Math.max(0, Math.floor((new Date(data.expiresAt) - Date.now()) / 1000))
+                    : (data.expiresIn || 30) * 60;
                 const countdownEl = modal.querySelector('#reset-countdown');
-                const countdownTimer = setInterval(() => {
+                modal._verificationCountdownTimer = setInterval(() => {
                     remainingSeconds--;
                     const mins = Math.floor(remainingSeconds / 60);
                     const secs = remainingSeconds % 60;
                     countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
                     if (remainingSeconds <= 0) {
-                        clearInterval(countdownTimer);
+                        clearInterval(modal._verificationCountdownTimer);
+                        modal._verificationCountdownTimer = null;
                         modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';
                     }
                 }, 1000);
@@ -292,7 +299,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                     startEmailStatusPolling(checkResetVerifyBtn, {
                         action: 'check-reset-status',
                         payload: { email: currentEmail },
-                        mainCountdownTimer: countdownTimer,
+                        mainCountdownTimer: modal._verificationCountdownTimer,
                         onSuccess: async () => {
                             step2Div.style.display = 'none';
                             step3Div.style.display = 'block';
@@ -337,6 +344,11 @@ function showForgotPasswordModal(prefillEmail = '') {
     backBtn.onclick = () => {
         if (window.resetPollingTimer) {
             clearInterval(window.resetPollingTimer);
+            window.resetPollingTimer = null;
+        }
+        if (modal._verificationCountdownTimer) {
+            clearInterval(modal._verificationCountdownTimer);
+            modal._verificationCountdownTimer = null;
         }
         step2Div.style.display = 'none';
         step1Div.style.display = 'block';
@@ -598,15 +610,22 @@ function showChangeEmailModal() {
                     navigator.clipboard.writeText(data.botEmail);
                     showNotification('收信地址已复制', 'success');
                 };
-                let remainingSeconds = data.expiresIn * 60;
+                if (modal._verificationCountdownTimer) {
+                    clearInterval(modal._verificationCountdownTimer);
+                    modal._verificationCountdownTimer = null;
+                }
+                let remainingSeconds = data.expiresAt
+                    ? Math.max(0, Math.floor((new Date(data.expiresAt) - Date.now()) / 1000))
+                    : (data.expiresIn || 30) * 60;
                 const countdownEl = modal.querySelector('#change-countdown');
-                const countdownTimer = setInterval(() => {
+                modal._verificationCountdownTimer = setInterval(() => {
                     remainingSeconds--;
                     const mins = Math.floor(remainingSeconds / 60);
                     const secs = remainingSeconds % 60;
                     countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
                     if (remainingSeconds <= 0) {
-                        clearInterval(countdownTimer);
+                        clearInterval(modal._verificationCountdownTimer);
+                        modal._verificationCountdownTimer = null;
                         modal.querySelector('#change-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请重新获取';
                     }
                 }, 1000);
@@ -614,7 +633,7 @@ function showChangeEmailModal() {
                 checkBtn.onclick = () => {
                     startEmailStatusPolling(checkBtn, {
                         action: 'check-email-change-status',
-                        mainCountdownTimer: countdownTimer,
+                        mainCountdownTimer: modal._verificationCountdownTimer,
                         onSuccess: () => {
                             step2Div.style.display = 'none';
                             step3Div.style.display = 'block';
@@ -638,6 +657,14 @@ function showChangeEmailModal() {
         }
     };
     backBtn.onclick = () => {
+        if (window.changePollingTimer) {
+            clearInterval(window.changePollingTimer);
+            window.changePollingTimer = null;
+        }
+        if (modal._verificationCountdownTimer) {
+            clearInterval(modal._verificationCountdownTimer);
+            modal._verificationCountdownTimer = null;
+        }
         step2Div.style.display = 'none';
         step1Div.style.display = 'block';
         if (window.hcaptcha) hcaptcha.reset(hcaptchaWidgetId);

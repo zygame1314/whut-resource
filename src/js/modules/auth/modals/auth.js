@@ -638,15 +638,22 @@ function showAuthModal(mode = 'login') {
                         navigator.clipboard.writeText(data.botEmail);
                         showNotification('收信地址已复制', 'success');
                     };
-                    let remainingSeconds = data.expiresIn * 60;
+                    if (modal._verificationCountdownTimer) {
+                        clearInterval(modal._verificationCountdownTimer);
+                        modal._verificationCountdownTimer = null;
+                    }
+                    let remainingSeconds = data.expiresAt
+                        ? Math.max(0, Math.floor((new Date(data.expiresAt) - Date.now()) / 1000))
+                        : (data.expiresIn || 30) * 60;
                     const countdownEl = modal.querySelector('#verify-countdown');
-                    const countdownTimer = setInterval(() => {
+                    modal._verificationCountdownTimer = setInterval(() => {
                         remainingSeconds--;
                         const mins = Math.floor(remainingSeconds / 60);
                         const secs = remainingSeconds % 60;
                         countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')} `;
                         if (remainingSeconds <= 0) {
-                            clearInterval(countdownTimer);
+                            clearInterval(modal._verificationCountdownTimer);
+                            modal._verificationCountdownTimer = null;
                             modal.querySelector('#verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';
                         }
                     }, 1000);
@@ -655,7 +662,7 @@ function showAuthModal(mode = 'login') {
                         startEmailStatusPolling(checkVerifyBtn, {
                             action: 'check-register-status',
                             payload: { emailPrefix: currentEmailPrefix },
-                            mainCountdownTimer: countdownTimer,
+                            mainCountdownTimer: modal._verificationCountdownTimer,
                             onSuccess: async () => {
                                 step2Div.style.display = 'none';
                                 step3Div.style.display = 'block';
@@ -708,6 +715,11 @@ function showAuthModal(mode = 'login') {
         backBtn.onclick = () => {
             if (window.registerPollingTimer) {
                 clearInterval(window.registerPollingTimer);
+                window.registerPollingTimer = null;
+            }
+            if (modal._verificationCountdownTimer) {
+                clearInterval(modal._verificationCountdownTimer);
+                modal._verificationCountdownTimer = null;
             }
             step2Div.style.display = 'none';
             step1Div.style.display = 'block';
