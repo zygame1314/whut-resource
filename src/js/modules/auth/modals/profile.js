@@ -123,14 +123,42 @@ function showForgotPasswordModal(prefillEmail = '') {
                     </div>
                     <div class="verify-steps">
                         <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
-                        <ol>
-                            <li>打开你的学校邮箱 <strong id="display-reset-user-email">xxx@whut.edu.cn</strong><br><small class="verify-warning-text">⚠️ 请确保使用注册时的邮箱发送，如有别名请切换</small></li>
-                            <li>新建一封邮件</li>
-                            <li>收件人填写：<span class="copy-target"><strong id="display-reset-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-reset-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span>
-                            </li>
-                            <li>邮件主题填写上方的验证码 <code>Reset-XXXXXX</code></li>
-                            <li>发送邮件，等待系统自动重置密码</li>
-                        </ol>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">1</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">打开学校邮箱</div>
+                                <div class="verify-step-detail">使用 <strong id="display-reset-user-email">xxx@whut.edu.cn</strong> 登录邮箱</div>
+                                <div class="verify-step-warning"><i class="fas fa-exclamation-triangle"></i> 发件人地址必须与上方完全一致，请勿混淆别名邮箱和学号邮箱</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">2</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">新建邮件</div>
+                                <div class="verify-step-detail">点击「写邮件」或「新建邮件」</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">3</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">填写收件人</div>
+                                <div class="verify-step-detail"><span class="copy-target"><strong id="display-reset-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-reset-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span></div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">4</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">邮件主题填验证码</div>
+                                <div class="verify-step-detail">将上方的验证码 <code id="display-reset-code-inline">Reset-XXXXXX</code> 粘贴到邮件主题（标题）栏</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">5</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">发送并等待</div>
+                                <div class="verify-step-detail">邮件正文留空即可，发送后点击下方按钮</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="verify-status" id="reset-verify-status">
                         <i class="fas fa-envelope"></i> 发送邮件后，请点击下方按钮验证
@@ -236,9 +264,9 @@ function showForgotPasswordModal(prefillEmail = '') {
                 step1Div.style.display = 'none';
                 step2Div.style.display = 'block';
                 modal.querySelector('#display-reset-code').textContent = data.verifyCode;
+                modal.querySelector('#display-reset-code-inline').textContent = data.verifyCode;
                 modal.querySelector('#display-reset-user-email').textContent = email;
                 modal.querySelector('#display-reset-bot-email').textContent = data.botEmail;
-                modal.querySelector('.verify-steps ol li:nth-child(4) code').textContent = data.verifyCode;
                 modal.querySelector('#copy-reset-code-btn').onclick = () => {
                     navigator.clipboard.writeText(data.verifyCode);
                     showNotification('验证码已复制', 'success');
@@ -437,15 +465,43 @@ function showChangeEmailModal() {
                             <i class="fas fa-copy"></i> 复制验证码
                         </button>
                     </div>
-                    <div class="verify-steps" style="font-size: 0.9rem;">
+                    <div class="verify-steps">
                         <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
-                        <ol>
-                            <li>登录你的【新邮箱】 <strong id="display-change-new-email">xxx@whut.edu.cn</strong></li>
-                            <li>新建一封邮件</li>
-                            <li>收件人填写：<span class="copy-target"><strong id="display-change-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-change-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span></li>
-                            <li>邮件主题填写上方的验证码 <code>Change-XXXXXX</code></li>
-                            <li>发送邮件，系统将自动核对并解绑旧邮箱</li>
-                        </ol>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">1</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">打开新邮箱</div>
+                                <div class="verify-step-detail">使用 <strong id="display-change-new-email">xxx@whut.edu.cn</strong> 登录邮箱</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">2</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">新建邮件</div>
+                                <div class="verify-step-detail">点击「写邮件」或「新建邮件」</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">3</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">填写收件人</div>
+                                <div class="verify-step-detail"><span class="copy-target"><strong id="display-change-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-change-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span></div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">4</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">邮件主题填验证码</div>
+                                <div class="verify-step-detail">将上方的验证码 <code id="display-change-code-inline">Change-XXXXXX</code> 粘贴到邮件主题（标题）栏</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">5</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">发送并等待</div>
+                                <div class="verify-step-detail">邮件正文留空即可，发送后点击下方按钮</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="verify-status" id="change-verify-status">
                         <i class="fas fa-envelope"></i> 发送邮件后，请点击下方按钮验证
@@ -531,9 +587,9 @@ function showChangeEmailModal() {
                 step1Div.style.display = 'none';
                 step2Div.style.display = 'block';
                 modal.querySelector('#display-change-code').textContent = data.verifyCode;
+                modal.querySelector('#display-change-code-inline').textContent = data.verifyCode;
                 modal.querySelector('#display-change-new-email').textContent = newEmail;
                 modal.querySelector('#display-change-bot-email').textContent = data.botEmail;
-                modal.querySelector('.verify-steps ol li:nth-child(4) code').textContent = data.verifyCode;
                 modal.querySelector('#copy-change-code-btn').onclick = () => {
                     navigator.clipboard.writeText(data.verifyCode);
                     showNotification('验证码已复制', 'success');
