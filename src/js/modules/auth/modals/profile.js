@@ -123,15 +123,44 @@ function showForgotPasswordModal(prefillEmail = '') {
                     </div>
                     <div class="verify-steps">
                         <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
-                        <ol>
-                            <li>打开你的学校邮箱 <strong id="display-reset-user-email">xxx@whut.edu.cn</strong><br><small class="verify-warning-text">⚠️ 请确保使用注册时的邮箱发送，如有别名请切换</small></li>
-                            <li>新建一封邮件</li>
-                            <li>收件人填写：<span class="copy-target"><strong id="display-reset-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-reset-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span>
-                            </li>
-                            <li>邮件主题填写上方的验证码 <code>Reset-XXXXXX</code></li>
-                            <li>发送邮件，等待系统自动重置密码</li>
-                        </ol>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">1</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">打开学校邮箱</div>
+                                <div class="verify-step-detail">使用 <strong id="display-reset-user-email">xxx@whut.edu.cn</strong> 登录邮箱</div>
+                                <div class="verify-step-warning"><i class="fas fa-exclamation-triangle"></i> 发件人地址必须与上方完全一致，请勿混淆别名邮箱和学号邮箱</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">2</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">新建邮件</div>
+                                <div class="verify-step-detail">点击「写邮件」或「新建邮件」</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">3</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">填写收件人</div>
+                                <div class="verify-step-detail"><span class="copy-target"><strong id="display-reset-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-reset-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span></div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">4</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">邮件主题填验证码</div>
+                                <div class="verify-step-detail">将上方的验证码 <code id="display-reset-code-inline">Reset-XXXXXX</code> 粘贴到邮件主题（标题）栏</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">5</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">发送并等待</div>
+                                <div class="verify-step-detail">邮件正文留空即可，发送后点击下方按钮</div>
+                            </div>
+                        </div>
                     </div>
+                    <div class="verify-wrong-sender" id="reset-wrong-sender" style="display:none;"></div>
                     <div class="verify-status" id="reset-verify-status">
                         <i class="fas fa-envelope"></i> 发送邮件后，请点击下方按钮验证
                         <div class="verify-timer">剩余时间：<span id="reset-countdown">30:00</span></div>
@@ -236,9 +265,9 @@ function showForgotPasswordModal(prefillEmail = '') {
                 step1Div.style.display = 'none';
                 step2Div.style.display = 'block';
                 modal.querySelector('#display-reset-code').textContent = data.verifyCode;
+                modal.querySelector('#display-reset-code-inline').textContent = data.verifyCode;
                 modal.querySelector('#display-reset-user-email').textContent = email;
                 modal.querySelector('#display-reset-bot-email').textContent = data.botEmail;
-                modal.querySelector('.verify-steps ol li:nth-child(4) code').textContent = data.verifyCode;
                 modal.querySelector('#copy-reset-code-btn').onclick = () => {
                     navigator.clipboard.writeText(data.verifyCode);
                     showNotification('验证码已复制', 'success');
@@ -247,15 +276,22 @@ function showForgotPasswordModal(prefillEmail = '') {
                     navigator.clipboard.writeText(data.botEmail);
                     showNotification('收信地址已复制', 'success');
                 };
-                let remainingSeconds = data.expiresIn * 60;
+                if (modal._verificationCountdownTimer) {
+                    clearInterval(modal._verificationCountdownTimer);
+                    modal._verificationCountdownTimer = null;
+                }
+                let remainingSeconds = data.expiresAt
+                    ? Math.max(0, Math.floor((new Date(data.expiresAt) - Date.now()) / 1000))
+                    : (data.expiresIn || 30) * 60;
                 const countdownEl = modal.querySelector('#reset-countdown');
-                const countdownTimer = setInterval(() => {
+                modal._verificationCountdownTimer = setInterval(() => {
                     remainingSeconds--;
                     const mins = Math.floor(remainingSeconds / 60);
                     const secs = remainingSeconds % 60;
                     countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
                     if (remainingSeconds <= 0) {
-                        clearInterval(countdownTimer);
+                        clearInterval(modal._verificationCountdownTimer);
+                        modal._verificationCountdownTimer = null;
                         modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请返回重新获取';
                     }
                 }, 1000);
@@ -264,8 +300,14 @@ function showForgotPasswordModal(prefillEmail = '') {
                     startEmailStatusPolling(checkResetVerifyBtn, {
                         action: 'check-reset-status',
                         payload: { email: currentEmail },
-                        mainCountdownTimer: countdownTimer,
+                        mainCountdownTimer: modal._verificationCountdownTimer,
+                        onWrongSender: (wrongSender) => {
+                            const hintEl = modal.querySelector('#reset-wrong-sender');
+                            hintEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> 检测到使用 <strong>${escapeHtml(wrongSender)}</strong> 发送了邮件，但需要使用 <strong>${escapeHtml(currentEmail)}</strong> 发送。请用正确的邮箱重新发送验证码。`;
+                            hintEl.style.display = 'block';
+                        },
                         onSuccess: async () => {
+                            modal.querySelector('#reset-wrong-sender').style.display = 'none';
                             step2Div.style.display = 'none';
                             step3Div.style.display = 'block';
                             showNotification('密码重置成功！', 'success');
@@ -284,6 +326,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                             } catch (_) {}
                         },
                         onExpired: () => {
+                            modal.querySelector('#reset-wrong-sender').style.display = 'none';
                             modal.querySelector('#reset-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请重新获取';
                             checkResetVerifyBtn.style.display = 'none';
                         }
@@ -309,6 +352,11 @@ function showForgotPasswordModal(prefillEmail = '') {
     backBtn.onclick = () => {
         if (window.resetPollingTimer) {
             clearInterval(window.resetPollingTimer);
+            window.resetPollingTimer = null;
+        }
+        if (modal._verificationCountdownTimer) {
+            clearInterval(modal._verificationCountdownTimer);
+            modal._verificationCountdownTimer = null;
         }
         step2Div.style.display = 'none';
         step1Div.style.display = 'block';
@@ -320,7 +368,7 @@ function showForgotPasswordModal(prefillEmail = '') {
         }
     };
     goLoginBtn.onclick = () => {
-        closeAuthModal(modal, () => window.location.reload());
+        closeAuthModal(modal);
     };
 }
 function showChangePasswordModal() {
@@ -437,16 +485,45 @@ function showChangeEmailModal() {
                             <i class="fas fa-copy"></i> 复制验证码
                         </button>
                     </div>
-                    <div class="verify-steps" style="font-size: 0.9rem;">
+                    <div class="verify-steps">
                         <h4><i class="fas fa-envelope-open-text"></i> 操作步骤</h4>
-                        <ol>
-                            <li>登录你的【新邮箱】 <strong id="display-change-new-email">xxx@whut.edu.cn</strong></li>
-                            <li>新建一封邮件</li>
-                            <li>收件人填写：<span class="copy-target"><strong id="display-change-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-change-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span></li>
-                            <li>邮件主题填写上方的验证码 <code>Change-XXXXXX</code></li>
-                            <li>发送邮件，系统将自动核对并解绑旧邮箱</li>
-                        </ol>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">1</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">打开新邮箱</div>
+                                <div class="verify-step-detail">使用 <strong id="display-change-new-email">xxx@whut.edu.cn</strong> 登录邮箱</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">2</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">新建邮件</div>
+                                <div class="verify-step-detail">点击「写邮件」或「新建邮件」</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">3</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">填写收件人</div>
+                                <div class="verify-step-detail"><span class="copy-target"><strong id="display-change-bot-email">email-bot@haoli.site</strong><button type="button" id="copy-change-bot-btn" class="icon-btn" title="复制"><i class="fas fa-copy"></i></button></span></div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">4</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">邮件主题填验证码</div>
+                                <div class="verify-step-detail">将上方的验证码 <code id="display-change-code-inline">Change-XXXXXX</code> 粘贴到邮件主题（标题）栏</div>
+                            </div>
+                        </div>
+                        <div class="verify-step-item">
+                            <div class="verify-step-num">5</div>
+                            <div class="verify-step-body">
+                                <div class="verify-step-title">发送并等待</div>
+                                <div class="verify-step-detail">邮件正文留空即可，发送后点击下方按钮</div>
+                            </div>
+                        </div>
                     </div>
+                    <div class="verify-wrong-sender" id="change-wrong-sender" style="display:none;"></div>
                     <div class="verify-status" id="change-verify-status">
                         <i class="fas fa-envelope"></i> 发送邮件后，请点击下方按钮验证
                         <div class="verify-timer">剩余时间：<span id="change-countdown">30:00</span></div>
@@ -531,9 +608,9 @@ function showChangeEmailModal() {
                 step1Div.style.display = 'none';
                 step2Div.style.display = 'block';
                 modal.querySelector('#display-change-code').textContent = data.verifyCode;
+                modal.querySelector('#display-change-code-inline').textContent = data.verifyCode;
                 modal.querySelector('#display-change-new-email').textContent = newEmail;
                 modal.querySelector('#display-change-bot-email').textContent = data.botEmail;
-                modal.querySelector('.verify-steps ol li:nth-child(4) code').textContent = data.verifyCode;
                 modal.querySelector('#copy-change-code-btn').onclick = () => {
                     navigator.clipboard.writeText(data.verifyCode);
                     showNotification('验证码已复制', 'success');
@@ -542,15 +619,22 @@ function showChangeEmailModal() {
                     navigator.clipboard.writeText(data.botEmail);
                     showNotification('收信地址已复制', 'success');
                 };
-                let remainingSeconds = data.expiresIn * 60;
+                if (modal._verificationCountdownTimer) {
+                    clearInterval(modal._verificationCountdownTimer);
+                    modal._verificationCountdownTimer = null;
+                }
+                let remainingSeconds = data.expiresAt
+                    ? Math.max(0, Math.floor((new Date(data.expiresAt) - Date.now()) / 1000))
+                    : (data.expiresIn || 30) * 60;
                 const countdownEl = modal.querySelector('#change-countdown');
-                const countdownTimer = setInterval(() => {
+                modal._verificationCountdownTimer = setInterval(() => {
                     remainingSeconds--;
                     const mins = Math.floor(remainingSeconds / 60);
                     const secs = remainingSeconds % 60;
                     countdownEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
                     if (remainingSeconds <= 0) {
-                        clearInterval(countdownTimer);
+                        clearInterval(modal._verificationCountdownTimer);
+                        modal._verificationCountdownTimer = null;
                         modal.querySelector('#change-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请重新获取';
                     }
                 }, 1000);
@@ -558,13 +642,20 @@ function showChangeEmailModal() {
                 checkBtn.onclick = () => {
                     startEmailStatusPolling(checkBtn, {
                         action: 'check-email-change-status',
-                        mainCountdownTimer: countdownTimer,
+                        mainCountdownTimer: modal._verificationCountdownTimer,
+                        onWrongSender: (wrongSender) => {
+                            const hintEl = modal.querySelector('#change-wrong-sender');
+                            hintEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> 检测到使用 <strong>${escapeHtml(wrongSender)}</strong> 发送了邮件，但需要使用 <strong>${escapeHtml(targetNewEmail)}</strong> 发送。请用正确的邮箱重新发送验证码。`;
+                            hintEl.style.display = 'block';
+                        },
                         onSuccess: () => {
+                            modal.querySelector('#change-wrong-sender').style.display = 'none';
                             step2Div.style.display = 'none';
                             step3Div.style.display = 'block';
                             showNotification('邮箱更新成功！', 'success');
                         },
                         onExpired: () => {
+                            modal.querySelector('#change-wrong-sender').style.display = 'none';
                             modal.querySelector('#change-verify-status').innerHTML = '<i class="fas fa-exclamation-triangle u-color-error"></i> 验证码已过期，请重新获取';
                             checkBtn.style.display = 'none';
                         }
@@ -582,6 +673,14 @@ function showChangeEmailModal() {
         }
     };
     backBtn.onclick = () => {
+        if (window.changePollingTimer) {
+            clearInterval(window.changePollingTimer);
+            window.changePollingTimer = null;
+        }
+        if (modal._verificationCountdownTimer) {
+            clearInterval(modal._verificationCountdownTimer);
+            modal._verificationCountdownTimer = null;
+        }
         step2Div.style.display = 'none';
         step1Div.style.display = 'block';
         if (window.hcaptcha) hcaptcha.reset(hcaptchaWidgetId);

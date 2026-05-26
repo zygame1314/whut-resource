@@ -201,6 +201,27 @@ export default {
                         'SELECT id FROM pending_email_changes WHERE verify_code = ? AND new_email = ? AND expires_at > ?'
                     ).bind(`Change-${code}`, senderEmail, now).first();
                     if (changePending) { codeType = 'change'; codeValue = code; break; }
+                    const regCodeOnly = await env.DB.prepare(
+                        'SELECT id, email_prefix FROM pending_registrations WHERE verify_code = ? AND expires_at > ?'
+                    ).bind(`Verify-${code}`, now).first();
+                    if (regCodeOnly && regCodeOnly.email_prefix !== emailPrefix) {
+                        await env.DB.prepare('UPDATE pending_registrations SET wrong_sender = ? WHERE id = ?').bind(senderEmail, regCodeOnly.id).run();
+                        console.log(`[Email Worker] 裸验证码匹配但邮箱不匹配(注册)，已记录 wrong_sender: ${senderEmail}`);
+                    }
+                    const resetCodeOnly = await env.DB.prepare(
+                        'SELECT id, email FROM pending_resets WHERE verify_code = ? AND expires_at > ?'
+                    ).bind(`Reset-${code}`, now).first();
+                    if (resetCodeOnly && resetCodeOnly.email !== senderEmail) {
+                        await env.DB.prepare('UPDATE pending_resets SET wrong_sender = ? WHERE id = ?').bind(senderEmail, resetCodeOnly.id).run();
+                        console.log(`[Email Worker] 裸验证码匹配但邮箱不匹配(重置)，已记录 wrong_sender: ${senderEmail}`);
+                    }
+                    const changeCodeOnly = await env.DB.prepare(
+                        'SELECT id, new_email FROM pending_email_changes WHERE verify_code = ? AND expires_at > ?'
+                    ).bind(`Change-${code}`, now).first();
+                    if (changeCodeOnly && changeCodeOnly.new_email !== senderEmail) {
+                        await env.DB.prepare('UPDATE pending_email_changes SET wrong_sender = ? WHERE id = ?').bind(senderEmail, changeCodeOnly.id).run();
+                        console.log(`[Email Worker] 裸验证码匹配但邮箱不匹配(换绑)，已记录 wrong_sender: ${senderEmail}`);
+                    }
                 }
             }
             if (!codeType || !codeValue) {
@@ -231,6 +252,15 @@ export default {
             'SELECT * FROM pending_registrations WHERE verify_code = ? AND email_prefix = ? AND expires_at > ?'
         ).bind(fullCode, emailPrefix, now).first();
         if (!pending) {
+            const codeOnlyPending = await env.DB.prepare(
+                'SELECT * FROM pending_registrations WHERE verify_code = ? AND expires_at > ?'
+            ).bind(fullCode, now).first();
+            if (codeOnlyPending && codeOnlyPending.email_prefix !== emailPrefix) {
+                await env.DB.prepare(
+                    'UPDATE pending_registrations SET wrong_sender = ? WHERE id = ?'
+                ).bind(senderEmail, codeOnlyPending.id).run();
+                console.log(`[Email Worker] 验证码匹配但邮箱不匹配，已记录 wrong_sender: ${senderEmail}, 期望: ${codeOnlyPending.email_prefix}@whut.edu.cn`);
+            }
             console.log(`[Email Worker] 未找到匹配的待激活注册，验证码: ${fullCode}, 前缀: ${emailPrefix}`);
             return;
         }
@@ -263,6 +293,15 @@ export default {
             'SELECT * FROM pending_resets WHERE verify_code = ? AND email = ? AND expires_at > ?'
         ).bind(fullCode, senderEmail, now).first();
         if (!pending) {
+            const codeOnlyPending = await env.DB.prepare(
+                'SELECT * FROM pending_resets WHERE verify_code = ? AND expires_at > ?'
+            ).bind(fullCode, now).first();
+            if (codeOnlyPending && codeOnlyPending.email !== senderEmail) {
+                await env.DB.prepare(
+                    'UPDATE pending_resets SET wrong_sender = ? WHERE id = ?'
+                ).bind(senderEmail, codeOnlyPending.id).run();
+                console.log(`[Email Worker] 重置验证码匹配但邮箱不匹配，已记录 wrong_sender: ${senderEmail}, 期望: ${codeOnlyPending.email}`);
+            }
             console.log(`[Email Worker] 未找到匹配的密码重置请求，验证码: ${fullCode}, 邮箱: ${senderEmail}`);
             return;
         }
@@ -286,6 +325,15 @@ export default {
             'SELECT * FROM pending_email_changes WHERE verify_code = ? AND new_email = ? AND expires_at > ?'
         ).bind(fullCode, senderEmail, now).first();
         if (!pending) {
+            const codeOnlyPending = await env.DB.prepare(
+                'SELECT * FROM pending_email_changes WHERE verify_code = ? AND expires_at > ?'
+            ).bind(fullCode, now).first();
+            if (codeOnlyPending && codeOnlyPending.new_email !== senderEmail) {
+                await env.DB.prepare(
+                    'UPDATE pending_email_changes SET wrong_sender = ? WHERE id = ?'
+                ).bind(senderEmail, codeOnlyPending.id).run();
+                console.log(`[Email Worker] 换绑验证码匹配但邮箱不匹配，已记录 wrong_sender: ${senderEmail}, 期望: ${codeOnlyPending.new_email}`);
+            }
             console.log(`[Email Worker] 未找到匹配的换绑请求，验证码: ${fullCode}, 新邮箱: ${senderEmail}`);
             return;
         }

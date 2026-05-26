@@ -113,8 +113,9 @@ export async function onRequestPost({ request, env }) {
           return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请 60 秒后再试。' }), { status: 429, headers: addCorsHeaders() });
         }
       }
-      const nowISO = new Date().toISOString();
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const now = Date.now();
+      const nowISO = new Date(now).toISOString();
+      const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
       await Promise.all([
         env.DB.prepare('DELETE FROM pending_registrations WHERE expires_at < ?').bind(nowISO).run(),
         env.DB.prepare('DELETE FROM downloads WHERE downloaded_at < ?').bind(thirtyDaysAgo).run()
@@ -125,7 +126,7 @@ export async function onRequestPost({ request, env }) {
         randomCode += chars.charAt(Math.floor(Math.random() * chars.length));
       }
       const verifyCode = `Verify-${randomCode}`;
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      const expiresAt = new Date(now + 30 * 60 * 1000).toISOString();
       const passwordHash = await hashPassword(password, env.SALT);
       let sanitizedNickname = nickname ? nickname.trim() : emailPrefix;
       if (sanitizedNickname.length > 20) {
@@ -163,10 +164,14 @@ export async function onRequestPost({ request, env }) {
       if (user) {
         return new Response(JSON.stringify({ success: true, activated: true, message: '账户已激活，请登录。' }), { status: 200, headers: addCorsHeaders() });
       }
-      const pending = await env.DB.prepare('SELECT expires_at FROM pending_registrations WHERE email_prefix = ? AND expires_at > ?')
+      const pending = await env.DB.prepare('SELECT expires_at, wrong_sender FROM pending_registrations WHERE email_prefix = ? AND expires_at > ?')
         .bind(emailPrefix, new Date().toISOString()).first();
       if (pending) {
-        return new Response(JSON.stringify({ success: true, activated: false, pending: true }), { status: 200, headers: addCorsHeaders() });
+        const result = { success: true, activated: false, pending: true };
+        if (pending.wrong_sender) {
+          result.wrongSender = pending.wrong_sender;
+        }
+        return new Response(JSON.stringify(result), { status: 200, headers: addCorsHeaders() });
       }
       return new Response(JSON.stringify({ success: true, activated: false, pending: false, expired: true }), { status: 200, headers: addCorsHeaders() });
     }
@@ -218,7 +223,8 @@ export async function onRequestPost({ request, env }) {
         randomCode += chars.charAt(Math.floor(Math.random() * chars.length));
       }
       const verifyCode = `Reset-${randomCode}`;
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      const resetNow = Date.now();
+      const expiresAt = new Date(resetNow + 30 * 60 * 1000).toISOString();
       const newPasswordHash = await hashPassword(newPassword, env.SALT);
       await env.DB.prepare('DELETE FROM pending_resets WHERE email = ?').bind(email).run();
       await env.DB.prepare('INSERT INTO pending_resets (email, new_password_hash, verify_code, expires_at) VALUES (?, ?, ?, ?)')
@@ -237,10 +243,14 @@ export async function onRequestPost({ request, env }) {
       if (!email) {
         return new Response(JSON.stringify({ success: false, error: '需要邮箱地址' }), { status: 400, headers: addCorsHeaders() });
       }
-      const pending = await env.DB.prepare('SELECT expires_at FROM pending_resets WHERE email = ? AND expires_at > ?')
+      const pending = await env.DB.prepare('SELECT expires_at, wrong_sender FROM pending_resets WHERE email = ? AND expires_at > ?')
         .bind(email, new Date().toISOString()).first();
       if (pending) {
-        return new Response(JSON.stringify({ success: true, completed: false, pending: true }), { status: 200, headers: addCorsHeaders() });
+        const result = { success: true, completed: false, pending: true };
+        if (pending.wrong_sender) {
+          result.wrongSender = pending.wrong_sender;
+        }
+        return new Response(JSON.stringify(result), { status: 200, headers: addCorsHeaders() });
       }
       return new Response(JSON.stringify({ success: true, completed: true, pending: false, message: '请求已处理或已过期。' }), { status: 200, headers: addCorsHeaders() });
     }
@@ -295,8 +305,8 @@ export async function onRequestPost({ request, env }) {
         success: true,
         verifyCode,
         botEmail,
-        expiresIn: 30,
-        message: '请使用你的【新邮箱】发送验证码到指定地址。'
+        expiresAt,
+        message: '请使用你的学校邮箱发送验证码到指定地址。'
       }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'check-email-change-status') {
@@ -307,10 +317,14 @@ export async function onRequestPost({ request, env }) {
       const token = authHeader.split(' ')[1];
       const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
       if (!payload) return new Response(JSON.stringify({ success: false, error: '无效令牌' }), { status: 401, headers: addCorsHeaders() });
-      const pending = await env.DB.prepare('SELECT id FROM pending_email_changes WHERE user_id = ? AND expires_at > ?')
+      const pending = await env.DB.prepare('SELECT id, wrong_sender FROM pending_email_changes WHERE user_id = ? AND expires_at > ?')
         .bind(payload.id, new Date().toISOString()).first();
       if (pending) {
-        return new Response(JSON.stringify({ success: true, completed: false, pending: true }), { status: 200, headers: addCorsHeaders() });
+        const result = { success: true, completed: false, pending: true };
+        if (pending.wrong_sender) {
+          result.wrongSender = pending.wrong_sender;
+        }
+        return new Response(JSON.stringify(result), { status: 200, headers: addCorsHeaders() });
       }
       return new Response(JSON.stringify({ success: true, completed: true, message: '邮箱换绑完成或请求已过期。' }), { status: 200, headers: addCorsHeaders() });
     }

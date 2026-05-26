@@ -5,6 +5,7 @@ async function previewFile(fileKey, fileName, fileSize) {
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
     const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv'];
     const txtExtensions = ['txt'];
+    const htmlExtensions = ['html', 'htm'];
     const archiveExtensions = ['zip', 'tar', 'gz', 'tgz'];
     const isVideo = videoExtensions.includes(extension);
     const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'];
@@ -34,7 +35,7 @@ async function previewFile(fileKey, fileName, fileSize) {
         return;
     }
     txtExtensions.push(
-        'js', 'css', 'html', 'json', 'xml', 'md', 'py', 'java', 'c', 'cpp', 'h',
+        'js', 'css', 'json', 'xml', 'md', 'py', 'java', 'c', 'cpp', 'h',
         'go', 'rs', 'php', 'sh', 'bat', 'cmd', 'ps1', 'sql', 'ini', 'toml', 'yaml',
         'yml', 'conf', 'log', 'gitignore', 'env'
     );
@@ -53,6 +54,9 @@ async function previewFile(fileKey, fileName, fileSize) {
     if (existingTextWrapper) existingTextWrapper.remove();
     const existingZipWrapper = previewModal.querySelector('.preview-zip-wrapper');
     if (existingZipWrapper) existingZipWrapper.remove();
+    const existingHtmlWrapper = previewModal.querySelector('.preview-html-wrapper');
+    if (existingHtmlWrapper) existingHtmlWrapper.remove();
+    previewIframe.removeAttribute('srcdoc');
     try {
         const isOfficePreview = officeExtensions.includes(extension);
         const isPdfPreview = pdfExtensions.includes(extension);
@@ -60,8 +64,9 @@ async function previewFile(fileKey, fileName, fileSize) {
         const isVideoPreview = videoExtensions.includes(extension);
         const isAudioPreview = audioExtensions.includes(extension);
         const isTxtPreview = txtExtensions.includes(extension);
+        const isHtmlPreview = htmlExtensions.includes(extension);
         const isArchivePreview = isArchive;
-        if (isOfficePreview || isPdfPreview || isImagePreview || isVideoPreview || isAudioPreview || isTxtPreview || isArchivePreview) {
+        if (isOfficePreview || isPdfPreview || isImagePreview || isVideoPreview || isAudioPreview || isTxtPreview || isHtmlPreview || isArchivePreview) {
             const apiUrl = new URL(API_ENDPOINTS.preview, window.location.origin);
             apiUrl.searchParams.append('key', fileKey);
             if (isOfficePreview) {
@@ -71,6 +76,9 @@ async function previewFile(fileKey, fileName, fileSize) {
                 apiUrl.searchParams.append('inline', 'true');
             }
             if (isTxtPreview) {
+                apiUrl.searchParams.append('type', 'text');
+            }
+            if (isHtmlPreview) {
                 apiUrl.searchParams.append('type', 'text');
             }
             if (isArchivePreview) {
@@ -143,6 +151,29 @@ async function previewFile(fileKey, fileName, fileSize) {
                 requestAnimationFrame(() => {
                     textPreviewWrapper.style.opacity = '1';
                 });
+            } else if (isHtmlPreview) {
+                const htmlPreviewWrapper = document.createElement('div');
+                htmlPreviewWrapper.className = 'preview-html-wrapper';
+                htmlPreviewWrapper.style.opacity = '0';
+                htmlPreviewWrapper.style.transition = 'opacity 0.3s ease';
+                const htmlIframe = document.createElement('iframe');
+                htmlIframe.className = 'preview-html-iframe';
+                htmlIframe.setAttribute('sandbox', 'allow-scripts');
+                htmlIframe.srcdoc = data.content;
+                htmlIframe.onload = () => {
+                    hideLoader();
+                    htmlPreviewWrapper.style.opacity = '1';
+                };
+                htmlIframe.onerror = () => {
+                    hideLoader();
+                    showNotification('HTML 渲染失败', 'error');
+                };
+                htmlPreviewWrapper.appendChild(htmlIframe);
+                previewIframe.parentElement.appendChild(htmlPreviewWrapper);
+                setTimeout(() => {
+                    hideLoader();
+                    htmlPreviewWrapper.style.opacity = '1';
+                }, 3000);
             } else if (isArchivePreview) {
                 const previewUrl = data.url;
                 const archiveType = getArchiveType(fileName);
@@ -309,7 +340,11 @@ async function previewFile(fileKey, fileName, fileSize) {
                             previewLoader.style.display = 'none';
                             return;
                         }
-                        previewIframe.removeAttribute('sandbox');
+                        if (isPdfPreview) {
+                            previewIframe.removeAttribute('sandbox');
+                        } else {
+                            previewIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+                        }
                         previewIframe.src = previewUrl;
                     }
                     previewIframe.style.display = 'block';
