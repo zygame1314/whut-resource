@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure } from '../utils.js';
+import { verifyToken, addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText } from '../utils.js';
 const BATCH_SIZE = 50;
 export async function onRequestPost({ request, env }) {
     const authHeader = request.headers.get('Authorization');
@@ -58,7 +58,7 @@ export async function onRequestPost({ request, env }) {
             });
         }
         const filesResult = await DB.prepare(
-            'SELECT id, name, key, is_directory FROM files ORDER BY id LIMIT ? OFFSET ?'
+            'SELECT id, name, key, parent_path, is_directory, description FROM files ORDER BY id LIMIT ? OFFSET ?'
         ).bind(BATCH_SIZE, offset).all();
         const files = filesResult.results || [];
         if (files.length === 0) {
@@ -73,7 +73,7 @@ export async function onRequestPost({ request, env }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
-        const textsToEmbed = files.map(f => f.key);
+        const textsToEmbed = files.map(f => buildRichEmbeddingText(f));
         const embeddings = await generateEmbeddings(env, textsToEmbed);
         if (!embeddings || embeddings.length !== files.length) {
             throw new Error('AI 嵌入生成失败或数量不匹配');
@@ -140,7 +140,7 @@ async function handleRetryFailed(env, DB, VECTORIZE) {
                 retried++;
             } else if (failure.operation === 'create') {
                 const fileRecord = await DB.prepare(
-                    'SELECT id, name, key FROM files WHERE id = ?'
+                    'SELECT id, name, key, parent_path, is_directory, description FROM files WHERE id = ?'
                 ).bind(failure.file_id).first();
                 if (!fileRecord) {
                     await DB.prepare(
@@ -149,7 +149,8 @@ async function handleRetryFailed(env, DB, VECTORIZE) {
                     retried++;
                     continue;
                 }
-                const embeddings = await generateEmbeddings(env, [fileRecord.key]);
+                const richText = buildRichEmbeddingText(fileRecord);
+                const embeddings = await generateEmbeddings(env, [richText]);
                 if (embeddings?.[0]) {
                     await retryWithBackoff(async () => {
                         await VECTORIZE.upsert([{
