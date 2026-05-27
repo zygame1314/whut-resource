@@ -453,15 +453,16 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode)
         };
     }
     const normalizePath = (p) => p ? p.replace(/\/+/g, '/').replace(/^\/|\/$/, '') : '';
-    const resourceList = searchResults.slice(0, 5).map((f, i) => {
+    const resourceList = searchResults.slice(0, 20).map((f, i) => {
         const parentPath = normalizePath(f.parent_path);
         const path = parentPath ? `${parentPath}/${f.name}` : f.name;
-        return `${i + 1}. ${f.name} (路径: ${path}, 相似度: ${(f.similarity_score * 100).toFixed(1)}%)`;
+        const typeTag = (f.is_directory === 1 || f.is_directory === true) ? '📁目录' : '📄文件';
+        return `${i + 1}. [${typeTag}] ${f.name} (路径: ${path}, 相似度: ${(f.similarity_score * 100).toFixed(1)}%)`;
     }).join('\n');
     const secondPrompt = `搜索结果：
 ${resourceList}
 用户留言：${guestbookEntry.content}
-匹配规则：核心学科必须一致，严禁版本错配（如求B不能匹配A），年份需注意。仅文件格式差异可忽略。
+匹配规则：核心学科必须一致，严禁版本错配（如求B不能匹配A），年份需注意。仅文件格式差异可忽略。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。
 - 匹配成功 -> mark_resolved(matched_file_index=序号, note=含资源位置的用户备注, reply=管理员备注)
 - 不匹配 -> keep_pending(note=不匹配原因)`;
     const searchTools = [
