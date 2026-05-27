@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText } from '../utils.js';
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
@@ -26,7 +26,7 @@ async function ensureDirectoryExists(db, fullPath, env) {
         console.log(`在D1中创建目录条目: ${currentPath}`);
         if (env.VECTORIZE && env.SILICONFLOW_API_KEY && insertResult.meta?.last_row_id) {
           try {
-            const embeddings = await generateEmbeddings(env, [currentPath]);
+            const embeddings = await generateEmbeddings(env, [buildRichEmbeddingText({ name: segment, parent_path: parentPathForCurrentDir })]);
             if (embeddings?.[0]) {
               await retryWithBackoff(async () => {
                 await env.VECTORIZE.upsert([{
@@ -157,7 +157,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       ).run();
       if (env.VECTORIZE && env.SILICONFLOW_API_KEY && linkInsertResult.meta?.last_row_id) {
         try {
-          const embeddings = await generateEmbeddings(env, [key]);
+          const embeddings = await generateEmbeddings(env, [buildRichEmbeddingText({ name: sanitizedLinkName, parent_path: parentPath })]);
           if (embeddings?.[0]) {
             await retryWithBackoff(async () => {
               await env.VECTORIZE.upsert([{
@@ -242,7 +242,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
           const keyCopy = key;
           waitUntil((async () => {
             try {
-              const embeddings = await generateEmbeddings(env, [keyCopy]);
+              const embeddings = await generateEmbeddings(env, [buildRichEmbeddingText({ name: fileNameCopy, parent_path: parentPath })]);
               if (embeddings?.[0]) {
                 await retryWithBackoff(async () => {
                   await env.VECTORIZE.upsert([{
