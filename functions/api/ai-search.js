@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, generateEmbeddings, rerankResults, fetchSiliconFlowChat } from '../utils.js';
+import { verifyToken, addCorsHeaders, hybridSearch, fetchSiliconFlowChat } from '../utils.js';
 const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。将用户的【搜索词】转化为【搜索关键词】。
     规则：
     1. 缩写对应示例：
@@ -98,65 +98,19 @@ export async function onRequestGet({ request, env }) {
         } catch (e) {
             console.error('LLM 扩展关键词失败，使用原始查询:', e);
         }
-        const embeddings = await generateEmbeddings(env, [finalKeywords.trim()]);
-        if (!embeddings?.[0]) {
-            throw new Error('AI 嵌入生成失败');
-        }
-        const queryVector = embeddings[0];
-        const vectorResults = await VECTORIZE.query(queryVector, {
-            topK: topK,
-            returnMetadata: 'all'
-        });
-        if (!vectorResults?.matches || vectorResults.matches.length === 0) {
+        const searchResult = await hybridSearch(DB, VECTORIZE, env, finalKeywords, { topK: topK });
+        const filesWithScores = searchResult.results;
+        if (!filesWithScores || filesWithScores.length === 0) {
             return new Response(JSON.stringify({
                 success: true,
                 files: [],
                 directories: [],
                 keywords: finalKeywords,
-                message: '未找到相关文件'
+                message: '未找到相关资源'
             }), {
                 status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
         }
-        const MIN_SCORE = 0.3;
-        const validMatches = vectorResults.matches.filter(m => m.score >= MIN_SCORE);
-        if (validMatches.length === 0) {
-            return new Response(JSON.stringify({
-                success: true,
-                files: [],
-                directories: [],
-                keywords: finalKeywords,
-                message: '未找到足够相关的资源'
-            }), {
-                status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-            });
-        }
-        const fileIds = validMatches.map(m => parseInt(m.id));
-        const vectorScoreMap = {};
-        validMatches.forEach(m => { vectorScoreMap[m.id] = m.score; });
-        const placeholders = fileIds.map(() => '?').join(',');
-        const filesResult = await DB.prepare(
-            `SELECT * FROM files WHERE id IN (${placeholders})`
-        ).bind(...fileIds).all();
-        let filesWithScores = (filesResult.results || []).map(file => ({
-            ...file,
-            similarity_score: vectorScoreMap[file.id] || 0
-        }));
-        const rerankDocs = filesWithScores.map(f => f.key || f.name);
-        const rerankResult = await rerankResults(env, finalKeywords, rerankDocs, topK);
-        if (rerankResult) {
-            const rerankScoreMap = {};
-            rerankResult.forEach(r => {
-                const fileId = fileIds[r.index];
-                if (fileId) rerankScoreMap[fileId] = r.relevance_score;
-            });
-            filesWithScores = filesWithScores.map(f => ({
-                ...f,
-                similarity_score: rerankScoreMap[f.id] ?? f.similarity_score,
-                vector_score: vectorScoreMap[f.id] || 0
-            }));
-        }
-        filesWithScores.sort((a, b) => b.similarity_score - a.similarity_score);
         const directories = filesWithScores.filter(f => f.is_directory);
         const files = filesWithScores.filter(f => !f.is_directory);
         return new Response(JSON.stringify({

@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, rerankResults, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'gemini-3-flash-preview';
 const TOOLS = [
@@ -415,16 +415,9 @@ async function handleSearch(query, env) {
         };
     }
     try {
-        const embeddings = await generateEmbeddings(env, [query.trim()]);
-        if (!embeddings?.[0]) {
-            throw new Error('AI 嵌入生成失败');
-        }
-        const queryVector = embeddings[0];
-        const vectorResults = await VECTORIZE.query(queryVector, {
-            topK: 15,
-            returnMetadata: 'all'
-        });
-        if (!vectorResults?.matches || vectorResults.matches.length === 0) {
+        const searchResult = await hybridSearch(DB, VECTORIZE, env, query, { topK: 15, vectorTopK: 20, ftsLimit: 20 });
+        const filesWithScores = searchResult.results;
+        if (!filesWithScores || filesWithScores.length === 0) {
             return {
                 success: true,
                 action: 'search',
@@ -433,43 +426,6 @@ async function handleSearch(query, env) {
                 query: query
             };
         }
-        const MIN_SCORE = 0.3;
-        const validMatches = vectorResults.matches.filter(m => m.score >= MIN_SCORE);
-        if (validMatches.length === 0) {
-            return {
-                success: true,
-                action: 'search',
-                message: '未找到足够相关的资源',
-                searchResults: [],
-                query: query
-            };
-        }
-        const fileIds = validMatches.map(m => parseInt(m.id));
-        const vectorScoreMap = {};
-        validMatches.forEach(m => { vectorScoreMap[m.id] = m.score; });
-        const placeholders = fileIds.map(() => '?').join(',');
-        const filesResult = await DB.prepare(
-            `SELECT id, name, key, parent_path, is_directory FROM files WHERE id IN (${placeholders})`
-        ).bind(...fileIds).all();
-        let filesWithScores = (filesResult.results || []).map(file => ({
-            ...file,
-            similarity_score: vectorScoreMap[file.id] || 0
-        }));
-        const rerankDocs = filesWithScores.map(f => f.key || f.name);
-        const rerankResult = await rerankResults(env, query, rerankDocs, 15);
-        if (rerankResult) {
-            const rerankScoreMap = {};
-            rerankResult.forEach(r => {
-                const fileId = fileIds[r.index];
-                if (fileId) rerankScoreMap[fileId] = r.relevance_score;
-            });
-            filesWithScores = filesWithScores.map(f => ({
-                ...f,
-                similarity_score: rerankScoreMap[f.id] ?? f.similarity_score,
-                vector_score: vectorScoreMap[f.id] || 0
-            }));
-        }
-        filesWithScores.sort((a, b) => b.similarity_score - a.similarity_score);
         return {
             success: true,
             action: 'search',

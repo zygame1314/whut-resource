@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText } from '../utils.js';
 async function deleteVectorIndexes(env, fileIds) {
     if (!env.VECTORIZE || !fileIds || fileIds.length === 0) return;
     const idsToDelete = fileIds.map(id => id.toString());
@@ -17,7 +17,7 @@ async function deleteVectorIndexes(env, fileIds) {
 async function createVectorIndexes(env, files) {
     if (!env.VECTORIZE || !env.SILICONFLOW_API_KEY || !files || files.length === 0) return;
     try {
-        const textsToEmbed = files.map(f => f.key);
+        const textsToEmbed = files.map(f => buildRichEmbeddingText(f));
         const embeddings = await generateEmbeddings(env, textsToEmbed);
         if (!embeddings || embeddings.length !== files.length) {
             throw new Error('嵌入生成失败或数量不匹配');

@@ -68,6 +68,130 @@ export function addCorsHeaders(headers = {}) {
 export function isAdmin(user) {
   return user && (user.role === 'admin' || user.role === 'super_admin');
 }
+export function buildRichEmbeddingText(file) {
+  const parts = [];
+  if (file.name) parts.push(file.name);
+  if (file.parent_path) {
+    const pathParts = file.parent_path.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
+    parts.push(...pathParts);
+  }
+  if (file.description && file.description.trim()) parts.push(file.description.trim());
+  return [...new Set(parts)].join(' ');
+}
+export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
+  const {
+    topK = 50,
+    vectorTopK = 30,
+    ftsLimit = 30,
+    minVectorScore = 0.3,
+  } = options;
+
+  const embeddings = await generateEmbeddings(env, [query.trim()]);
+  if (!embeddings?.[0]) {
+    throw new Error('AI 嵌入生成失败');
+  }
+
+  const vectorResults = await VECTORIZE.query(embeddings[0], {
+    topK: vectorTopK,
+    returnMetadata: 'all'
+  });
+
+  const candidateIds = new Set();
+  const vectorScoreMap = {};
+
+  if (vectorResults?.matches) {
+    for (const m of vectorResults.matches) {
+      if (m.score >= minVectorScore) {
+        candidateIds.add(parseInt(m.id));
+        vectorScoreMap[m.id] = m.score;
+      }
+    }
+  }
+
+  let ftsResults = [];
+  try {
+    const cleanQuery = query.replace(/"/g, '');
+    const terms = cleanQuery.split(/\s+/).filter(t => t.length > 0);
+    const processedTerms = terms.map(term => {
+      const upperTerm = term.toUpperCase();
+      if (['AND', 'OR', 'NOT'].includes(upperTerm)) return upperTerm;
+      return Array.from(term).join(' ');
+    });
+    const ftsTokenizedQuery = processedTerms.join(' ');
+    const ftsResult = await DB.prepare(
+      `SELECT f.id, f.name, f.key, f.parent_path, f.is_directory, f.description, f.contentType, f.size, f.downloads
+       FROM files f
+       JOIN files_fts ON f.id = files_fts.rowid
+       WHERE files_fts MATCH ?
+       ORDER BY rank
+       LIMIT ?`
+    ).bind(ftsTokenizedQuery, ftsLimit).all();
+    ftsResults = ftsResult.results || [];
+  } catch (e) {
+    console.error('FTS搜索失败:', e);
+  }
+
+  for (const row of ftsResults) {
+    candidateIds.add(row.id);
+    if (!vectorScoreMap[row.id]) {
+      vectorScoreMap[row.id] = 0.1;
+    }
+  }
+
+  if (candidateIds.size === 0) {
+    return { results: [], keywords: query };
+  }
+
+  const idArray = [...candidateIds];
+  const placeholders = idArray.map(() => '?').join(',');
+  const dbResults = await DB.prepare(
+    `SELECT id, name, key, parent_path, is_directory, description, contentType, size, downloads FROM files WHERE id IN (${placeholders})`
+  ).bind(...idArray).all();
+
+  let results = (dbResults.results || []).map(file => ({
+    ...file,
+    vector_score: vectorScoreMap[file.id] || 0
+  }));
+
+  const rerankDocs = results.map(f => {
+    const parts = [];
+    if (f.name) parts.push(f.name);
+    if (f.parent_path) parts.push(f.parent_path.replace(/^\/|\/$/g, ''));
+    if (f.description && f.description.trim()) parts.push(f.description.trim());
+    return parts.join(' | ');
+  });
+
+  const rerankResult = await rerankResults(env, query, rerankDocs, topK);
+  if (rerankResult) {
+    const rerankScoreMap = {};
+    rerankResult.forEach(r => {
+      const fileId = idArray[r.index];
+      if (fileId) rerankScoreMap[fileId] = r.relevance_score;
+    });
+    const maxRerank = Math.max(...Object.values(rerankScoreMap), 0.001);
+    const maxVector = Math.max(...Object.values(vectorScoreMap), 0.001);
+    results = results.map(f => {
+      const rerankScore = rerankScoreMap[f.id] ?? 0;
+      const vscore = vectorScoreMap[f.id] || 0;
+      const combined = (rerankScore / maxRerank) * 0.75 + (vscore / maxVector) * 0.25;
+      return {
+        ...f,
+        similarity_score: combined,
+        vector_score: vscore,
+        rerank_score: rerankScore
+      };
+    });
+  } else {
+    results = results.map(f => ({
+      ...f,
+      similarity_score: f.vector_score,
+      rerank_score: 0
+    }));
+  }
+
+  results.sort((a, b) => b.similarity_score - a.similarity_score);
+  return { results: results.slice(0, topK), keywords: query };
+}
 export function isSuperAdmin(user) {
   return user && user.role === 'super_admin';
 }
