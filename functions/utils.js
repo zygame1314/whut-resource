@@ -83,7 +83,7 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     topK = 50,
     vectorTopK = 30,
     ftsLimit = 30,
-    minVectorScore = 0.3,
+    minVectorScore = 0.2,
   } = options;
 
   const embeddings = await generateEmbeddings(env, [query.trim()]);
@@ -98,6 +98,7 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
 
   const candidateIds = new Set();
   const vectorScoreMap = {};
+  const ftsHitSet = new Set();
 
   if (vectorResults?.matches) {
     for (const m of vectorResults.matches) {
@@ -133,8 +134,9 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
 
   for (const row of ftsResults) {
     candidateIds.add(row.id);
+    ftsHitSet.add(row.id);
     if (!vectorScoreMap[row.id]) {
-      vectorScoreMap[row.id] = 0.1;
+      vectorScoreMap[row.id] = 0;
     }
   }
 
@@ -150,10 +152,33 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
 
   let results = (dbResults.results || []).map(file => ({
     ...file,
-    vector_score: vectorScoreMap[file.id] || 0
+    vector_score: vectorScoreMap[file.id] || 0,
+    fts_hit: ftsHitSet.has(file.id)
   }));
 
-  const rerankDocs = results.map(f => {
+  const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+  results = results.map(f => {
+    let nameMatchBonus = 0;
+    if (f.name) {
+      const nameLower = f.name.toLowerCase();
+      let matchCount = 0;
+      for (const term of queryTerms) {
+        if (nameLower.includes(term)) matchCount++;
+      }
+      nameMatchBonus = matchCount / queryTerms.length;
+    }
+    return { ...f, name_match: nameMatchBonus };
+  });
+
+  results.sort((a, b) => {
+    const scoreA = a.vector_score + (a.fts_hit ? 0.5 : 0) + a.name_match * 0.3;
+    const scoreB = b.vector_score + (b.fts_hit ? 0.5 : 0) + b.name_match * 0.3;
+    return scoreB - scoreA;
+  });
+
+  const RERANK_MAX_DOCS = 20;
+  const rerankCandidates = results.slice(0, RERANK_MAX_DOCS);
+  const rerankDocs = rerankCandidates.map(f => {
     const parts = [];
     if (f.name) parts.push(f.name);
     if (f.parent_path) parts.push(f.parent_path.replace(/^\/|\/$/g, ''));
@@ -161,33 +186,40 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     return parts.join(' | ');
   });
 
-  const rerankResult = await rerankResults(env, query, rerankDocs, topK);
+  const rerankResult = await rerankResults(env, query, rerankDocs, RERANK_MAX_DOCS);
+  const rerankScoreMap = {};
   if (rerankResult) {
-    const rerankScoreMap = {};
     rerankResult.forEach(r => {
-      const fileId = idArray[r.index];
-      if (fileId) rerankScoreMap[fileId] = r.relevance_score;
+      const originalIndex = r.index;
+      if (originalIndex >= 0 && originalIndex < rerankCandidates.length) {
+        const fileId = rerankCandidates[originalIndex].id;
+        rerankScoreMap[fileId] = r.relevance_score;
+      }
     });
-    const maxRerank = Math.max(...Object.values(rerankScoreMap), 0.001);
-    const maxVector = Math.max(...Object.values(vectorScoreMap), 0.001);
-    results = results.map(f => {
-      const rerankScore = rerankScoreMap[f.id] ?? 0;
-      const vscore = vectorScoreMap[f.id] || 0;
-      const combined = (rerankScore / maxRerank) * 0.75 + (vscore / maxVector) * 0.25;
-      return {
-        ...f,
-        similarity_score: combined,
-        vector_score: vscore,
-        rerank_score: rerankScore
-      };
-    });
-  } else {
-    results = results.map(f => ({
-      ...f,
-      similarity_score: f.vector_score,
-      rerank_score: 0
-    }));
   }
+
+  results = results.map(f => ({ ...f, rerank_score: rerankScoreMap[f.id] ?? 0 }));
+
+  const maxRerank = Math.max(...Object.values(rerankScoreMap), 0.001);
+  const maxVector = Math.max(...results.map(f => f.vector_score), 0.001);
+
+  results = results.map(f => {
+    const rn = f.rerank_score > 0 ? f.rerank_score / maxRerank : 0;
+    const vs = f.vector_score > 0 ? f.vector_score / maxVector : 0;
+    const ft = f.fts_hit ? 1 : 0;
+    const nm = f.name_match || 0;
+
+    let combined;
+    if (f.rerank_score > 0) {
+      combined = 0.60 * rn + 0.20 * vs + 0.20 * nm;
+    } else {
+      combined = 0.35 * vs + 0.35 * ft + 0.30 * nm;
+    }
+    return {
+      ...f,
+      similarity_score: combined
+    };
+  });
 
   results.sort((a, b) => b.similarity_score - a.similarity_score);
   return { results: results.slice(0, topK), keywords: query };
