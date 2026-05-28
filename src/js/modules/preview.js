@@ -179,9 +179,6 @@ async function previewFile(fileKey, fileName, fileSize) {
                 }, 3000);
             } else if (isArchivePreview) {
                 const previewUrl = data.url;
-                if (typeof refreshQuotaFromServer === 'function') {
-                    refreshQuotaFromServer();
-                }
                 const archiveType = getArchiveType(fileName);
                 let archiveData;
                 if (archiveType === 'zip') {
@@ -194,6 +191,7 @@ async function previewFile(fileKey, fileName, fileSize) {
                     const archiveBuffer = await archiveResponse.arrayBuffer();
                     archiveData = await parseArchive(archiveBuffer, fileName);
                 }
+                if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
                 const archivePreviewWrapper = document.createElement('div');
                 archivePreviewWrapper.className = 'preview-zip-wrapper';
                 archivePreviewWrapper.style.opacity = '0';
@@ -228,9 +226,6 @@ async function previewFile(fileKey, fileName, fileSize) {
             }
             else {
                 const previewUrl = data.url;
-                if (typeof refreshQuotaFromServer === 'function') {
-                    refreshQuotaFromServer();
-                }
                 if (isImagePreview) {
                     const previewContent = previewIframe.parentElement;
                     const imageWrapper = document.createElement('div');
@@ -244,6 +239,7 @@ async function previewFile(fileKey, fileName, fileSize) {
                         hideLoader();
                         img.style.display = 'block';
                         imageWrapper.style.opacity = '1';
+                        if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
                     };
                     img.onerror = () => {
                         hideLoader();
@@ -265,6 +261,7 @@ async function previewFile(fileKey, fileName, fileSize) {
                     const showVideoPlayer = () => {
                         hideLoader();
                         videoWrapper.style.opacity = '1';
+                        if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
                     };
                     video.onloadeddata = showVideoPlayer;
                     video.onerror = (e) => {
@@ -305,6 +302,7 @@ async function previewFile(fileKey, fileName, fileSize) {
                     const showAudioPlayer = () => {
                         hideLoader();
                         audioWrapper.style.opacity = '1';
+                        if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
                     };
                     audio.onloadedmetadata = showAudioPlayer;
                     audio.onerror = (e) => {
@@ -324,6 +322,7 @@ async function previewFile(fileKey, fileName, fileSize) {
                     const showIframe = () => {
                         hideLoader();
                         previewIframe.style.opacity = '1';
+                        if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
                     };
                     previewIframe.onload = showIframe;
                     previewIframe.onerror = () => {

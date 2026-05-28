@@ -80,13 +80,14 @@ function updateAuthUI() {
                 <span class="user-info">
                     <i class="fas fa-user"></i>
                     <span class="user-info-name" title="${escapeHtml(currentUser.nickname || currentUser.email)}">${escapeHtml(currentUser.nickname || currentUser.email)}</span>
-                    <span class="quota" title="今日配额：已用 / 总限额&#10;• 每次下载或预览扣除 1 次&#10;• 文件下载在30秒内重复操作不扣次数&#10;• 每日北京时间 00:00 自动重置">(${quotaDisplay})</span>
+                    <span class="quota"><span class="quota-text">(${quotaDisplay})</span></span>
                 </span>
                 ${requestButton}
                 ${dropdownHtml}
                 <button id="logout-btn" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>
             `;
             document.getElementById('logout-btn').addEventListener('click', logout);
+            initQuotaPopup();
             if (isMainPage) {
                 const toggleBtn = document.getElementById('admin-tools-toggle');
                 const menu = document.getElementById('admin-tools-menu');
@@ -166,10 +167,27 @@ function updateQuotaDisplay(quotaUsed, quotaLimit) {
     window.currentUser = currentUser;
     const quotaEl = document.querySelector('.user-info .quota');
     if (!quotaEl) return;
+    const used = currentUser.quota_used || 0;
+    const limit = currentUser.quota_limit || 0;
     if (isAdmin(currentUser)) {
         quotaEl.textContent = '(无限)';
     } else {
-        quotaEl.textContent = `(${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次)`;
+        let textNode = quotaEl.querySelector('.quota-text');
+        if (!textNode) {
+            quotaEl.textContent = '';
+            textNode = document.createElement('span');
+            textNode.className = 'quota-text';
+            quotaEl.prepend(textNode);
+        }
+        textNode.textContent = `(${used} / ${limit} 次)`;
+        const popup = document.getElementById('quota-popup');
+        if (popup) {
+            const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+            const barColor = pct >= 90 ? '#e74c3c' : pct >= 70 ? '#f39c12' : '#007bff';
+            popup.querySelector('.quota-popup-detail').innerHTML = `已用 <strong>${used}</strong> / <strong>${limit}</strong> 次`;
+            popup.querySelector('.quota-popup-bar-fill').style.width = pct + '%';
+            popup.querySelector('.quota-popup-bar-fill').style.background = barColor;
+        }
     }
 }
 function incrementQuotaDisplay() {
@@ -190,4 +208,54 @@ function refreshQuotaFromServer() {
             updateQuotaDisplay(data.user.quota_used, data.user.quota_limit);
         }
     }).catch(() => {});
+}
+function initQuotaPopup() {
+    const quotaEl = document.querySelector('.user-info .quota');
+    if (!quotaEl) return;
+    let popup = document.getElementById('quota-popup');
+    if (!popup) {
+        const used = currentUser.quota_used || 0;
+        const limit = currentUser.quota_limit || 0;
+        const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+        const barColor = pct >= 90 ? '#e74c3c' : pct >= 70 ? '#f39c12' : '#007bff';
+        popup = document.createElement('div');
+        popup.id = 'quota-popup';
+        popup.className = 'quota-popup';
+        popup.innerHTML = `
+            <div class="quota-popup-title">今日下载配额</div>
+            <div class="quota-popup-detail">已用 <strong>${used}</strong> / <strong>${limit}</strong> 次</div>
+            <div class="quota-popup-bar"><div class="quota-popup-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+            <ul class="quota-popup-rules">
+                <li>每次下载或预览扣除 1 次</li>
+                <li>30 秒内重复操作不扣次数</li>
+                <li>每日北京时间 00:00 自动重置</li>
+            </ul>
+        `;
+        document.body.appendChild(popup);
+    }
+    function positionPopup() {
+        const rect = quotaEl.getBoundingClientRect();
+        popup.style.top = (rect.bottom + 8) + 'px';
+        popup.style.right = (window.innerWidth - rect.right) + 'px';
+    }
+    const toggle = (e) => {
+        e.stopPropagation();
+        const isVisible = popup.classList.contains('visible');
+        if (isVisible) {
+            popup.classList.remove('visible');
+        } else {
+            positionPopup();
+            popup.classList.add('visible');
+        }
+    };
+    quotaEl.addEventListener('click', toggle);
+    quotaEl.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        toggle(e);
+    });
+    document.addEventListener('click', (e) => {
+        if (!quotaEl.contains(e.target) && !popup.contains(e.target)) {
+            popup.classList.remove('visible');
+        }
+    });
 }

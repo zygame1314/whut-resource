@@ -3529,18 +3529,103 @@
     gap: 0.3rem;
     margin-left: 0.5rem;
     padding: 0.3rem 0.8rem;
-    background: rgba(0, 123, 255, 0.1);
-    border-radius: 12px;
+    background: var(--primary-light-trans);
+    border-radius: var(--border-radius-medium);
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--primary-dark);
-    border: 1px solid rgba(0, 123, 255, 0.2);
+    border: 1px solid rgba(var(--primary-rgb), 0.2);
     transition: background 0.3s ease, transform 0.3s ease;
+    cursor: pointer;
 }
 
 .user-info .quota:hover {
-    background: rgba(0, 123, 255, 0.15);
+    background: rgba(var(--primary-rgb), 0.15);
     transform: scale(1.05);
+}
+
+[data-theme="dark"] .user-info .quota {
+    color: var(--primary-light);
+    border-color: rgba(var(--primary-rgb), 0.25);
+}
+
+.quota-popup {
+    position: fixed;
+    background: var(--background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-medium);
+    box-shadow: var(--shadow-heavy);
+    padding: 14px 18px;
+    z-index: 9999;
+    min-width: 220px;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+    pointer-events: none;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.quota-popup.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.quota-popup-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.quota-popup-detail {
+    color: var(--text-secondary);
+}
+
+.quota-popup-detail strong {
+    color: var(--primary-dark);
+}
+
+[data-theme="dark"] .quota-popup-detail strong {
+    color: var(--primary-light);
+}
+
+.quota-popup-bar {
+    height: 6px;
+    background: rgba(var(--primary-rgb), 0.1);
+    border-radius: 3px;
+    margin: 8px 0;
+    overflow: hidden;
+}
+
+.quota-popup-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.quota-popup-rules {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0 0;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+}
+
+.quota-popup-rules li {
+    padding: 2px 0;
+}
+
+.quota-popup-rules li::before {
+    content: '•';
+    margin-right: 6px;
+    color: var(--primary-dark);
+}
+
+[data-theme="dark"] .quota-popup-rules li::before {
+    color: var(--primary-light);
 }
 
 

@@ -233,7 +233,12 @@
                 signal: task.abortController.signal
             });
             if (!response.ok) {
-                throw new Error(`下载失败: ${response.status}`);
+                let errMsg = `下载失败: ${response.status}`;
+                try {
+                    const errData = await response.json();
+                    if (errData && errData.error) errMsg = errData.error;
+                } catch (_) {}
+                throw new Error(errMsg);
             }
             if (response.status === 200 && fileInfo.savedSize > 0) {
                 fileInfo.chunks = [];
