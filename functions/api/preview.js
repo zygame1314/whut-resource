@@ -113,9 +113,13 @@ export async function onRequest(context) {
         }
       })());
       const textContent = await object.text();
+      const updatedQuota = shouldCountThisDownload ? await env.DB.prepare('SELECT quota_used, quota_limit FROM users WHERE id = ?').bind(user.id).first() : null;
       return new Response(JSON.stringify({
         success: true,
-        content: textContent
+        content: textContent,
+        quota_deducted: shouldCountThisDownload && quotaUpdated,
+        quota_used: updatedQuota ? updatedQuota.quota_used : userInfo.quota_used,
+        quota_remaining: updatedQuota ? updatedQuota.quota_limit - updatedQuota.quota_used : userInfo.quota_limit - userInfo.quota_used
       }), {
         status: 200,
         headers: addCorsHeaders({

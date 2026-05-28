@@ -95,6 +95,9 @@
     function onTaskCompleted({ task }) {
         updateTaskItem(task);
         updateFabBadge();
+        if (typeof refreshQuotaFromServer === 'function') {
+            refreshQuotaFromServer();
+        }
     }
     function onTaskRemoved({ taskId }) {
         const item = document.getElementById(`dm-task-${taskId}`);

@@ -73,6 +73,9 @@ async function downloadFileLegacy(fileKey, downloadBtn) {
             a.click();
             document.body.removeChild(a);
             showNotification('已开始下载。', 'success');
+            if (typeof refreshQuotaFromServer === 'function') {
+                setTimeout(refreshQuotaFromServer, 1000);
+            }
         } else {
             throw new Error(result.error || '获取下载链接失败');
         }

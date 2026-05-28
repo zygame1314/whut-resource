@@ -159,3 +159,35 @@ function updateAuthUI() {
         if (uploadLink) uploadLink.style.display = 'none';
     }
 }
+function updateQuotaDisplay(quotaUsed, quotaLimit) {
+    if (!currentUser) return;
+    if (quotaUsed !== undefined) currentUser.quota_used = quotaUsed;
+    if (quotaLimit !== undefined) currentUser.quota_limit = quotaLimit;
+    window.currentUser = currentUser;
+    const quotaEl = document.querySelector('.user-info .quota');
+    if (!quotaEl) return;
+    if (isAdmin(currentUser)) {
+        quotaEl.textContent = '(无限)';
+    } else {
+        quotaEl.textContent = `(${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次)`;
+    }
+}
+function incrementQuotaDisplay() {
+    if (!currentUser || isAdmin(currentUser)) return;
+    const newUsed = (currentUser.quota_used || 0) + 1;
+    if (newUsed <= (currentUser.quota_limit || 0)) {
+        updateQuotaDisplay(newUsed);
+    }
+}
+function refreshQuotaFromServer() {
+    if (!currentUser) return;
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) return;
+    fetch(AUTH_API_URL, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+    }).then(r => r.json()).then(data => {
+        if (data.success && data.user) {
+            updateQuotaDisplay(data.user.quota_used, data.user.quota_limit);
+        }
+    }).catch(() => {});
+}

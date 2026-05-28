@@ -348,6 +348,9 @@ async function handleBatchDownloadLegacy(fileKeys, directoryKeys, linkKeys, down
         } else {
             showNotification(`所有 ${totalFiles} 个文件已成功开始下载。`, 'success');
         }
+        if (typeof refreshQuotaFromServer === 'function') {
+            setTimeout(refreshQuotaFromServer, 2000);
+        }
         if (isSelectionMode) {
             toggleSelectionMode();
         }

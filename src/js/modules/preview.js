@@ -93,6 +93,9 @@ async function previewFile(fileKey, fileName, fileSize) {
             if (!response.ok || !data.success) {
                 throw new Error(data.error || '无法获取文件预览链接');
             }
+            if (data.quota_deducted && typeof updateQuotaDisplay === 'function') {
+                updateQuotaDisplay(data.quota_used, undefined);
+            }
             const hideLoader = () => {
                 previewLoader.style.display = 'none';
                 previewLoader.style.pointerEvents = 'none';
@@ -176,6 +179,9 @@ async function previewFile(fileKey, fileName, fileSize) {
                 }, 3000);
             } else if (isArchivePreview) {
                 const previewUrl = data.url;
+                if (typeof refreshQuotaFromServer === 'function') {
+                    refreshQuotaFromServer();
+                }
                 const archiveType = getArchiveType(fileName);
                 let archiveData;
                 if (archiveType === 'zip') {
@@ -222,6 +228,9 @@ async function previewFile(fileKey, fileName, fileSize) {
             }
             else {
                 const previewUrl = data.url;
+                if (typeof refreshQuotaFromServer === 'function') {
+                    refreshQuotaFromServer();
+                }
                 if (isImagePreview) {
                     const previewContent = previewIframe.parentElement;
                     const imageWrapper = document.createElement('div');

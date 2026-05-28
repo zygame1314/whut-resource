@@ -327,6 +327,10 @@ function showAuthModal(mode = 'login') {
             e.preventDefault();
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn.classList.contains('loading')) return;
+            let ssoPasskeyAvailable = false;
+            if (isSso && window.PublicKeyCredential) {
+                PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(ok => { ssoPasskeyAvailable = ok; });
+            }
             const identifier = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
             const captchaContainer = modal.querySelector('#login-captcha-container');
@@ -404,10 +408,8 @@ function showAuthModal(mode = 'login') {
                             closeAuthModal(welcomeModal, () => showForgotPasswordModal(currentUser.email));
                         };
                         const ssoPasskeyBtn = welcomeModal.querySelector('#setup-passkey-sso-btn');
-                        if (ssoPasskeyBtn && window.PublicKeyCredential) {
-                            PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(ok => {
-                                if (ok) ssoPasskeyBtn.style.display = '';
-                            });
+                        if (ssoPasskeyBtn && ssoPasskeyAvailable) {
+                            ssoPasskeyBtn.style.display = '';
                             ssoPasskeyBtn.onclick = async () => {
                                 ssoPasskeyBtn.disabled = true;
                                 ssoPasskeyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 设置中...';
@@ -633,6 +635,12 @@ function showAuthModal(mode = 'login') {
                     currentEmailPrefix = emailPrefix;
                     step1Div.style.display = 'none';
                     step2Div.style.display = 'block';
+                    modal._passkeyAvailable = false;
+                    if (window.PublicKeyCredential) {
+                        PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(ok => {
+                            modal._passkeyAvailable = ok;
+                        });
+                    }
                     modal.querySelector('#display-verify-code').textContent = data.verifyCode;
                     modal.querySelector('#display-user-email').textContent = `${emailPrefix}@whut.edu.cn`;
                     modal.querySelector('#display-bot-email').textContent = data.botEmail;
@@ -693,13 +701,9 @@ function showAuthModal(mode = 'login') {
                                         if (window.releaseRequests) window.releaseRequests(true);
                                     }
                                 } catch (_) {}
-                                if (token && window.PublicKeyCredential) {
-                                    PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(ok => {
-                                        if (ok) {
-                                            const prompt = modal.querySelector('#passkey-setup-prompt');
-                                            if (prompt) prompt.style.display = 'block';
-                                        }
-                                    });
+                                if (token && modal._passkeyAvailable) {
+                                    const prompt = modal.querySelector('#passkey-setup-prompt');
+                                    if (prompt) prompt.style.display = 'block';
                                 }
                             },
                             onExpired: () => {

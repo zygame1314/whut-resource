@@ -1,4 +1,10 @@
 import { verifyToken, addCorsHeaders } from '../../utils.js';
+const INLINE_CONTENT_TYPES = {
+  pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+  gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp', svg: 'image/svg+xml',
+  mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+  mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', flac: 'audio/flac', aac: 'audio/aac',
+};
 export async function onRequest(context) {
   const { request, env, params } = context;
   const path = params.path;
@@ -213,6 +219,8 @@ export async function onRequest(context) {
     })());
   }
   try {
+    const isInline = url.searchParams.get('inline') === 'true';
+    const filename = key.split('/').pop();
     const rangeHeader = request.headers.get('Range');
     if (rangeHeader) {
       const object = await env.R2_bucket.get(key);
@@ -256,12 +264,16 @@ export async function onRequest(context) {
       }
       const headers = new Headers();
       rangeObject.writeHttpMetadata(headers);
+      if (isInline) {
+        const ext = key.split('.').pop().toLowerCase();
+        if (INLINE_CONTENT_TYPES[ext]) {
+          headers.set('Content-Type', INLINE_CONTENT_TYPES[ext]);
+        }
+      }
       headers.set('Content-Range', `bytes ${start}-${end}/${fileSize}`);
       headers.set('Content-Length', String(end - start + 1));
       headers.set('Accept-Ranges', 'bytes');
       headers.set('Cache-Control', 'no-store');
-      const isInline = url.searchParams.get('inline') === 'true';
-      const filename = key.split('/').pop();
       if (isInline) {
         headers.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
       } else {
@@ -286,6 +298,12 @@ export async function onRequest(context) {
       for (const [k, v] of Object.entries(corsHeaders)) {
         responseHeaders.set(k, v);
       }
+      if (isInline) {
+        const ext = key.split('.').pop().toLowerCase();
+        if (INLINE_CONTENT_TYPES[ext]) {
+          responseHeaders.set('Content-Type', INLINE_CONTENT_TYPES[ext]);
+        }
+      }
       return new Response(cachedResponse.body, {
         status: cachedResponse.status,
         headers: responseHeaders,
@@ -300,10 +318,14 @@ export async function onRequest(context) {
     }
     const headers = new Headers();
     object.writeHttpMetadata(headers);
+    if (isInline) {
+      const ext = key.split('.').pop().toLowerCase();
+      if (INLINE_CONTENT_TYPES[ext]) {
+        headers.set('Content-Type', INLINE_CONTENT_TYPES[ext]);
+      }
+    }
     headers.set('etag', object.httpEtag);
     headers.set('Accept-Ranges', 'bytes');
-    const isInline = url.searchParams.get('inline') === 'true';
-    const filename = key.split('/').pop();
     if (isInline) {
       headers.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
     } else {
