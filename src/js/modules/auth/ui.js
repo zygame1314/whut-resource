@@ -214,23 +214,34 @@ function initQuotaPopup() {
     if (!quotaEl) return;
     let popup = document.getElementById('quota-popup');
     if (!popup) {
-        const used = currentUser.quota_used || 0;
-        const limit = currentUser.quota_limit || 0;
-        const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
-        const barColor = pct >= 90 ? '#e74c3c' : pct >= 70 ? '#f39c12' : '#007bff';
+        const isAdminUser = isAdmin(currentUser);
         popup = document.createElement('div');
         popup.id = 'quota-popup';
         popup.className = 'quota-popup';
-        popup.innerHTML = `
-            <div class="quota-popup-title">今日下载配额</div>
-            <div class="quota-popup-detail">已用 <strong>${used}</strong> / <strong>${limit}</strong> 次</div>
-            <div class="quota-popup-bar"><div class="quota-popup-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
-            <ul class="quota-popup-rules">
-                <li>每次下载或预览扣除 1 次</li>
-                <li>30 秒内重复操作不扣次数</li>
-                <li>每日北京时间 00:00 自动重置</li>
-            </ul>
-        `;
+        if (isAdminUser) {
+            popup.innerHTML = `
+                <div class="quota-popup-title" style="text-align:center">
+                    <span style="font-size:2rem;display:block;margin-bottom:4px">&#x221E;</span>
+                    管理员无限下载
+                </div>
+                <div class="quota-popup-detail" style="text-align:center;color:var(--text-secondary)">你拥有无限下载权限，无需担心次数限制</div>
+            `;
+        } else {
+            const used = currentUser.quota_used || 0;
+            const limit = currentUser.quota_limit || 0;
+            const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+            const barColor = pct >= 90 ? '#e74c3c' : pct >= 70 ? '#f39c12' : '#007bff';
+            popup.innerHTML = `
+                <div class="quota-popup-title">今日下载配额</div>
+                <div class="quota-popup-detail">已用 <strong>${used}</strong> / <strong>${limit}</strong> 次</div>
+                <div class="quota-popup-bar"><div class="quota-popup-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+                <ul class="quota-popup-rules">
+                    <li>每次下载或预览扣除 1 次</li>
+                    <li>30 秒内重复操作不扣次数</li>
+                    <li>每日北京时间 00:00 自动重置</li>
+                </ul>
+            `;
+        }
         document.body.appendChild(popup);
     }
     function positionPopup() {
