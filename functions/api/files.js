@@ -458,6 +458,11 @@ export async function onRequestPut({ request, env }) {
                 return new Response(JSON.stringify({ success: false, error: '未找到该文件夹。' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
             }
             await DB.prepare('UPDATE files SET description = ? WHERE key = ?').bind(description || null, key).run();
+            await deleteVectorIndexes(env, [fileRecord.id]);
+            const updatedRecord = await DB.prepare('SELECT id, name, key, parent_path, is_directory, description FROM files WHERE key = ?').bind(key).first();
+            if (updatedRecord) {
+                await createVectorIndexes(env, [updatedRecord]);
+            }
             return new Response(JSON.stringify({ success: true, message: '描述已更新' }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const { key, newName } = body;
