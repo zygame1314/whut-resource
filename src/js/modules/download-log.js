@@ -1,5 +1,6 @@
 (function () {
     const CONTAINER_ID = 'download-log-container';
+    const PREF_KEY = 'hideDownloadLog';
     let socket;
     let reconnectInterval = 1000;
     let heartbeatTimer;
@@ -16,16 +17,53 @@
     const messageQueue = [];
     const activeToasts = new Map();
     let isProcessingQueue = false;
-    function init() {
+    function isEnabled() {
+        return localStorage.getItem(PREF_KEY) !== 'true';
+    }
+    function ensureContainer() {
         if (!document.getElementById(CONTAINER_ID)) {
             const container = document.createElement('div');
             container.id = CONTAINER_ID;
             container.className = 'download-log-container';
             document.body.appendChild(container);
         }
+    }
+    function init() {
+        if (!isEnabled()) return;
+        ensureContainer();
         initVisibilityHandler();
         connect();
     }
+    window.toggleDownloadLog = function (enabled) {
+        if (enabled) {
+            localStorage.removeItem(PREF_KEY);
+            ensureContainer();
+            if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+                reconnectInterval = 1000;
+                connect();
+            }
+        } else {
+            localStorage.setItem(PREF_KEY, 'true');
+            activeToasts.forEach((_, filename) => {
+                const toastData = activeToasts.get(filename);
+                if (toastData && toastData.element && toastData.element.parentNode) {
+                    toastData.element.parentNode.removeChild(toastData.element);
+                }
+            });
+            activeToasts.clear();
+            messageQueue.length = 0;
+            if (socket) {
+                if (socket.readyState === WebSocket.OPEN) {
+                    intentionalClose = true;
+                    socket.close();
+                } else if (socket.readyState === WebSocket.CONNECTING) {
+                    intentionalClose = true;
+                    socket.close();
+                }
+            }
+        }
+    };
+    window.isDownloadLogEnabled = isEnabled;
     function initVisibilityHandler() {
         document.addEventListener('visibilitychange', () => {
             isPageVisible = !document.hidden;
@@ -77,6 +115,9 @@
         if (!isPageVisible) {
             return;
         }
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+            return;
+        }
         const maintenanceOverlay = document.getElementById('maintenance-overlay');
         if (maintenanceOverlay && getComputedStyle(maintenanceOverlay).display !== 'none') {
             console.log('维护模式开启中，暂停下载日志连接');
@@ -121,11 +162,13 @@
             reconnectInterval = Math.min(reconnectInterval * 2, MAX_RECONNECT_INTERVAL);
         };
         socket.onerror = (error) => {
+            if (intentionalClose) return;
             console.error('WebSocket 发生错误:', error);
             socket.close();
         };
     }
     function queueDownloadToast(filename) {
+        if (!isEnabled()) return;
         if (activeToasts.has(filename)) {
             const toastData = activeToasts.get(filename);
             toastData.count++;
@@ -179,7 +222,7 @@
             countBadge.classList.add('count-bump');
         }
     }
-    function showDownloadToast(filename, initialCount = 1) {
+    function showDownloadToast(filename, initialCount = 1, persist = false) {
         const container = document.getElementById(CONTAINER_ID);
         if (!container) return;
         const item = document.createElement('div');
@@ -210,13 +253,23 @@
         const toastData = {
             element: item,
             count: initialCount,
-            filename
+            filename,
+            persist
         };
         activeToasts.set(filename, toastData);
-        setTimeout(() => {
-            removeToast(filename);
-        }, TOAST_DURATION);
+        if (!persist) {
+            setTimeout(() => {
+                removeToast(filename);
+            }, TOAST_DURATION);
+        }
     }
+    window._showTutorialDownloadToast = function () {
+        ensureContainer();
+        showDownloadToast('教程.pdf', 1, true);
+    };
+    window._removeTutorialDownloadToast = function () {
+        removeToast('教程.pdf');
+    };
     function removeToast(filename) {
         const toastData = activeToasts.get(filename);
         if (toastData && toastData.element.parentNode) {

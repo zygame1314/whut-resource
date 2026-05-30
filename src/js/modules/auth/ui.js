@@ -26,50 +26,47 @@ function updateAuthUI() {
             ? '无限'
             : `${currentUser.quota_used || 0} / ${currentUser.quota_limit || 0} 次`;
         if (authSection) {
-            const requestButton = (isSuperAdmin(currentUser) && isMainPage) ? `
-                <button id="admin-requests-btn" class="secondary-btn" title="审批请求">
-                    <i class="fas fa-clipboard-check"></i> 审批
-                    <span id="pending-requests-badge" class="badge u-hidden">0</span>
-                </button>
-            ` : '';
             let dropdownItems = '';
             if (isSuperAdmin(currentUser)) {
                 dropdownItems += `
+                    <div class="dropdown-section-label">管理工具</div>
+                    <button id="admin-requests-btn" class="dropdown-item" title="审批请求">
+                        <i class="fas fa-clipboard-check"></i> 审批请求
+                        <span id="pending-requests-badge" class="badge u-hidden">0</span>
+                    </button>
                     <button id="maintenance-toggle-btn" class="dropdown-item"><i class="fas fa-hard-hat"></i> 维护模式</button>
                     <button id="user-role-btn" class="dropdown-item"><i class="fas fa-users-cog"></i> 用户管理</button>
                     <button id="sync-btn" class="dropdown-item"><i class="fas fa-sync"></i> 同步R2文件</button>
                     <button id="vector-sync-btn" class="dropdown-item"><i class="fas fa-brain"></i> 同步向量索引</button>
+                    <button id="admin-logs-btn" class="dropdown-item"><i class="fas fa-history"></i> 系统操作日志</button>
                     <div class="dropdown-divider"></div>
                 `;
-            }
-            if (isAdmin(currentUser)) {
+            } else if (isAdmin(currentUser)) {
                 dropdownItems += `
+                    <div class="dropdown-section-label">管理工具</div>
                     <button id="admin-logs-btn" class="dropdown-item"><i class="fas fa-history"></i> 系统操作日志</button>
-                `;
-                if (!isSuperAdmin(currentUser)) {
-                    dropdownItems += `
-                        <button id="my-requests-btn" class="dropdown-item">
-                            <i class="fas fa-tasks"></i> 我的审批请求
-                            <span id="my-requests-badge" class="badge u-hidden">0</span>
-                        </button>
-                    `;
-                }
-                dropdownItems += `
+                    <button id="my-requests-btn" class="dropdown-item">
+                        <i class="fas fa-tasks"></i> 我的审批请求
+                        <span id="my-requests-badge" class="badge u-hidden">0</span>
+                    </button>
                     <div class="dropdown-divider"></div>
                 `;
             }
             dropdownItems += `
-                <button id="change-nickname-btn" class="dropdown-item"><i class="fas fa-id-card"></i> 修改昵称</button>
-                <button id="change-pwd-btn" class="dropdown-item"><i class="fas fa-key"></i> 修改密码</button>
-                <button id="change-email-btn" class="dropdown-item"><i class="fas fa-envelope"></i> 修改邮箱</button>
-                <button id="manage-passkeys-btn" class="dropdown-item"><i class="fas fa-fingerprint"></i> 通行密钥管理</button>
+                    <div class="dropdown-section-label">账号设置</div>
+                    <button id="change-nickname-btn" class="dropdown-item"><i class="fas fa-id-card"></i> 修改昵称</button>
+                    <button id="change-pwd-btn" class="dropdown-item"><i class="fas fa-key"></i> 修改密码</button>
+                    <button id="change-email-btn" class="dropdown-item"><i class="fas fa-envelope"></i> 修改邮箱</button>
+                    <button id="manage-passkeys-btn" class="dropdown-item"><i class="fas fa-fingerprint"></i> 通行密钥管理</button>
             `;
             let dropdownHtml = '';
             if (isMainPage) {
                 dropdownHtml = `
                 <div class="dropdown-container">
                     <button id="admin-tools-toggle" class="secondary-btn" title="工具菜单">
-                        <i class="fas fa-tools"></i> 管理 <i class="fas fa-chevron-down u-font-small u-margin-left-small"></i>
+                        <i class="fas fa-tools"></i> 管理
+                        <span id="toggle-requests-badge" class="badge u-hidden">0</span>
+                        <i class="fas fa-chevron-down u-font-small u-margin-left-small"></i>
                     </button>
                     <div id="admin-tools-menu" class="dropdown-menu">
                         ${dropdownItems}
@@ -82,7 +79,6 @@ function updateAuthUI() {
                     <span class="user-info-name" title="${escapeHtml(currentUser.nickname || currentUser.email)}">${escapeHtml(currentUser.nickname || currentUser.email)}</span>
                     <span class="quota"><span class="quota-text">(${quotaDisplay})</span></span>
                 </span>
-                ${requestButton}
                 ${dropdownHtml}
                 <button id="logout-btn" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> 退出</button>
             `;
@@ -225,6 +221,13 @@ function initQuotaPopup() {
                     管理员无限下载
                 </div>
                 <div class="quota-popup-detail" style="text-align:center;color:var(--text-secondary)">你拥有无限下载权限，无需担心次数限制</div>
+                <div class="quota-popup-setting">
+                    <span class="quota-popup-setting-label">下载通知</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="download-log-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
             `;
         } else {
             const used = currentUser.quota_used || 0;
@@ -240,25 +243,63 @@ function initQuotaPopup() {
                     <li>30 秒内重复操作不扣次数</li>
                     <li>每日北京时间 00:00 自动重置</li>
                 </ul>
+                <div class="quota-popup-setting">
+                    <span class="quota-popup-setting-label">下载通知</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="download-log-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
             `;
         }
         document.body.appendChild(popup);
+        const downloadLogToggle = document.getElementById('download-log-toggle');
+        if (downloadLogToggle) {
+            downloadLogToggle.checked = typeof isDownloadLogEnabled === 'function' ? isDownloadLogEnabled() : true;
+            downloadLogToggle.addEventListener('change', (e) => {
+                if (typeof toggleDownloadLog === 'function') {
+                    toggleDownloadLog(e.target.checked);
+                }
+            });
+        }
     }
     function positionPopup() {
         const rect = quotaEl.getBoundingClientRect();
         popup.style.top = (rect.bottom + 8) + 'px';
         popup.style.right = (window.innerWidth - rect.right) + 'px';
     }
+    const hasHover = window.matchMedia('(hover: hover)').matches;
+    let hideTimer = null;
+    const showPopup = () => {
+        clearTimeout(hideTimer);
+        hideTimer = null;
+        positionPopup();
+        popup.classList.add('visible');
+    };
+    const hidePopup = () => {
+        hideTimer = setTimeout(() => {
+            popup.classList.remove('visible');
+        }, 150);
+    };
+    const cancelHide = () => {
+        clearTimeout(hideTimer);
+        hideTimer = null;
+    };
     const toggle = (e) => {
         e.stopPropagation();
         const isVisible = popup.classList.contains('visible');
         if (isVisible) {
-            popup.classList.remove('visible');
+            hidePopup();
         } else {
-            positionPopup();
-            popup.classList.add('visible');
+            showPopup();
         }
     };
+    if (hasHover) {
+        quotaEl.addEventListener('mouseenter', showPopup);
+        quotaEl.addEventListener('mouseleave', hidePopup);
+        popup.addEventListener('mouseenter', cancelHide);
+        popup.addEventListener('mouseleave', hidePopup);
+    }
     quotaEl.addEventListener('click', toggle);
     quotaEl.addEventListener('touchend', (e) => {
         e.preventDefault();
@@ -266,7 +307,13 @@ function initQuotaPopup() {
     });
     document.addEventListener('click', (e) => {
         if (!quotaEl.contains(e.target) && !popup.contains(e.target)) {
-            popup.classList.remove('visible');
+            hidePopup();
         }
+    });
+    popup.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    popup.addEventListener('touchend', (e) => {
+        e.stopPropagation();
     });
 }

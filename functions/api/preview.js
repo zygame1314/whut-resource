@@ -108,6 +108,24 @@ export async function onRequest(context) {
           await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
             .bind(user.id, key, ip, object.size)
             .run();
+          try {
+            if (env.DOWNLOAD_LOGGER) {
+              const id = env.DOWNLOAD_LOGGER.idFromName("global");
+              const stub = env.DOWNLOAD_LOGGER.get(id);
+              const filename = key.split('/').pop();
+              await stub.fetch("http://do/broadcast", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  type: 'download',
+                  filename: filename,
+                  timestamp: Date.now()
+                })
+              });
+            }
+          } catch (err) {
+            console.error("广播下载信息失败:", err);
+          }
         } catch (e) {
           console.error("更新统计信息时出错:", e);
         }

@@ -1,3 +1,70 @@
+let _mobilePreviewRefreshed = false;
+
+function setupMobilePreviewVisibilityListener() {
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && _mobilePreviewRefreshed) {
+            _mobilePreviewRefreshed = false;
+            if (typeof refreshQuotaFromServer === 'function') {
+                refreshQuotaFromServer();
+            }
+        }
+    });
+}
+setupMobilePreviewVisibilityListener();
+
+function getFileTypeLabel(extension) {
+    const map = {
+        'pdf': 'PDF 文档', 'doc': 'Word 文档', 'docx': 'Word 文档',
+        'ppt': 'PowerPoint 演示文稿', 'pptx': 'PowerPoint 演示文稿',
+        'xls': 'Excel 表格', 'xlsx': 'Excel 表格',
+    };
+    return map[extension] || `${extension.toUpperCase()} 文件`;
+}
+
+function getFileTypeIcon(extension) {
+    const map = {
+        'pdf': 'fas fa-file-pdf', 'doc': 'fas fa-file-word', 'docx': 'fas fa-file-word',
+        'ppt': 'fas fa-file-powerpoint', 'pptx': 'fas fa-file-powerpoint',
+        'xls': 'fas fa-file-excel', 'xlsx': 'fas fa-file-excel',
+    };
+    return map[extension] || 'fas fa-file';
+}
+
+async function showMobilePreviewConfirm(fileName, extension, fileSize) {
+    const sizeStr = typeof formatFileSize === 'function' ? formatFileSize(fileSize) : '';
+    const typeLabel = getFileTypeLabel(extension);
+    const iconClass = getFileTypeIcon(extension);
+    const isOffice = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(extension);
+    const safeFileName = typeof escapeHtml === 'function' ? escapeHtml(fileName) : fileName;
+
+    const message = `
+        <div class="link-confirm-modern">
+            <div class="link-confirm-visual preview-confirm-visual">
+                <i class="${iconClass}"></i>
+            </div>
+            <h3 class="link-confirm-headline">即将在新页面预览文件</h3>
+            <p class="link-confirm-description">${isOffice ? '移动端不支持内嵌预览 Office 文档，将使用在线查看器打开。' : '移动端不支持内嵌预览此文件，将跳转至新页面查看。'}</p>
+            <div class="link-confirm-card">
+                <div class="link-favicon preview-filetype-icon">
+                    <i class="${iconClass}"></i>
+                </div>
+                <div class="link-info">
+                    <div class="link-title has-title">${safeFileName}</div>
+                    ${sizeStr ? `<div class="link-description">${typeLabel} · ${sizeStr}</div>` : `<div class="link-description">${typeLabel}</div>`}
+                </div>
+            </div>
+        </div>
+    `;
+
+    return await showConfirmation({
+        title: '移动端文件预览',
+        message: message,
+        confirmText: '打开预览',
+        confirmClass: 'confirm-btn-primary',
+        cancelText: '取消'
+    });
+}
+
 async function previewFile(fileKey, fileName, fileSize) {
     const extension = fileName.split('.').pop().toLowerCase();
     const officeExtensions = ['docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls'];
@@ -333,9 +400,12 @@ async function previewFile(fileKey, fileName, fileSize) {
                     if (isOfficePreview) {
                         const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(previewUrl)}`;
                         if (isMobile) {
-                            window.open(officeViewerUrl, '_blank');
+                            hideLoader();
                             previewModal.classList.remove('visible');
-                            previewLoader.style.display = 'none';
+                            const confirmed = await showMobilePreviewConfirm(fileName, extension, fileSize);
+                            if (!confirmed) return;
+                            _mobilePreviewRefreshed = true;
+                            window.open(officeViewerUrl, '_blank');
                             return;
                         } else {
                             previewIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
@@ -343,9 +413,12 @@ async function previewFile(fileKey, fileName, fileSize) {
                         }
                     } else {
                         if (isMobile) {
-                            window.open(previewUrl, '_blank');
+                            hideLoader();
                             previewModal.classList.remove('visible');
-                            previewLoader.style.display = 'none';
+                            const confirmed = await showMobilePreviewConfirm(fileName, extension, fileSize);
+                            if (!confirmed) return;
+                            _mobilePreviewRefreshed = true;
+                            window.open(previewUrl, '_blank');
                             return;
                         }
                         if (isPdfPreview) {

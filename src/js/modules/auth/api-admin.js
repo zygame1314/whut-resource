@@ -120,7 +120,8 @@ async function fetchPendingRequestsCount() {
             const displayCount = count > 99 ? '99+' : count;
             const badges = [
                 document.getElementById('pending-requests-badge'),
-                document.getElementById('my-requests-badge')
+                document.getElementById('my-requests-badge'),
+                document.getElementById('toggle-requests-badge')
             ];
             badges.forEach(badge => {
                 if (badge) {
@@ -132,6 +133,14 @@ async function fetchPendingRequestsCount() {
                     }
                 }
             });
+            const mobileBadge = document.getElementById('mobile-menu-badge');
+            if (mobileBadge) {
+                if (count > 0) {
+                    mobileBadge.classList.remove('u-hidden');
+                } else {
+                    mobileBadge.classList.add('u-hidden');
+                }
+            }
         }
     } catch (e) {
         console.error('获取待审批数量失败:', e);

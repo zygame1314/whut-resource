@@ -8,6 +8,29 @@
     border: 1px solid var(--border-color);
 }
 
+@media (max-width: 480px) {
+    .shepherd-custom-theme.shepherd-element {
+        max-width: calc(100vw - 2rem);
+    }
+    .shepherd-custom-theme .shepherd-footer {
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+    .shepherd-custom-theme .shepherd-progress {
+        width: 100%;
+        justify-content: center;
+        order: -1;
+        margin-bottom: 0.3rem;
+    }
+    .shepherd-custom-theme .shepherd-button {
+        font-size: 0.82rem;
+        padding: 0.45rem 0.9rem;
+        flex: 1;
+        text-align: center;
+        min-width: 0;
+    }
+}
+
 .shepherd-custom-theme.shepherd-enabled.shepherd-element {
     opacity: 1;
     visibility: visible;
@@ -209,6 +232,10 @@
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
     transition: opacity 0.4s ease, backdrop-filter 0.4s ease, -webkit-backdrop-filter 0.4s ease, height 0s 0s;
+}
+
+[data-theme="dark"] .shepherd-modal-overlay-container.shepherd-modal-is-visible {
+    background: rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="dark"] .shepherd-custom-theme.shepherd-element {

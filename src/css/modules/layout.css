@@ -81,6 +81,18 @@
 
 #mobile-menu-toggle {
     display: none;
+    position: relative;
+}
+
+.mobile-menu-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    border: 2px solid var(--background);
 }
 
 .main-content {
@@ -300,7 +312,8 @@
     .nav-actions #auth-section {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
         width: 100%;
     }
 
@@ -328,10 +341,6 @@
         justify-content: center;
         padding: 0.6rem 0.4rem;
         font-size: 0.85rem;
-    }
-
-    .nav-actions #auth-section {
-        flex-wrap: wrap;
     }
 
     .nav-actions #auth-section .primary-btn {

@@ -1,4 +1,7 @@
 function startTutorial() {
+    const announcementViewModal = document.getElementById('announcement-view-modal');
+    if (announcementViewModal) announcementViewModal.classList.remove('visible');
+    window._tutorialActive = true;
     const isAuthenticated = !!localStorage.getItem('authToken');
     const tour = new Shepherd.Tour({
         useModalOverlay: true,
@@ -39,7 +42,44 @@ function startTutorial() {
         };
     }
 
+    const _origRemoveNavActive = () => {
+        const navActions = document.querySelector('.nav-actions');
+        if (navActions) navActions.classList.remove('active');
+    };
+    if (!window._tutorialNavGuardInstalled) {
+        window._tutorialNavGuardInstalled = true;
+        window._tutorialKeepNavOpen = false;
+        let navObserver = null;
+        window._setTutorialKeepNavOpen = function (keepOpen) {
+            window._tutorialKeepNavOpen = keepOpen;
+            const navActions = document.querySelector('.nav-actions');
+            if (!navActions) return;
+            if (keepOpen) {
+                navActions.classList.add('active');
+                if (!navObserver) {
+                    navObserver = new MutationObserver(() => {
+                        if (window._tutorialKeepNavOpen && !navActions.classList.contains('active')) {
+                            navActions.classList.add('active');
+                        }
+                    });
+                    navObserver.observe(navActions, { attributes: true, attributeFilter: ['class'] });
+                }
+            } else {
+                if (navObserver) {
+                    navObserver.disconnect();
+                    navObserver = null;
+                }
+                navActions.classList.remove('active');
+            }
+        };
+    }
+
     let steps = [];
+
+    const navActions = document.querySelector('.nav-actions');
+    if (navActions && navActions.classList.contains('active')) {
+        navActions.classList.remove('active');
+    }
 
     steps.push({
         id: 'intro',
@@ -69,7 +109,7 @@ function startTutorial() {
             steps.push({
                 id: 'auth',
                 title: '第一步：登录/注册',
-                text: '要访问热门文件夹、最近上传以及下载文件，你需要使用 @whut.edu.cn 邮箱进行登录。<br>这是为了保护我们的共享资源！',
+                text: '要访问热门文件夹、最近上传以及下载文件，你需要使用 @whut.edu.cn 邮箱进行登录。<br>这是为了保护我们的资源！',
                 attachTo: {
                     element: '#auth-section',
                     on: 'bottom'
@@ -77,16 +117,58 @@ function startTutorial() {
             });
         }
     } else {
-        if (!isMobileNav) {
-            steps.push({
-                id: 'theme-toggle',
-                title: '个性化主题',
-                text: '点击这里可以在明亮和暗黑模式之间自由切换，<br>选择你最喜欢的阅读体验！',
+        const themeStep = {
+            id: 'theme-toggle',
+            title: '个性化主题',
+            text: '点击这里可以在明亮和暗黑模式之间自由切换，<br>选择你最喜欢的阅读体验！',
+            attachTo: {
+                element: '#theme-toggle',
+                on: 'bottom'
+            }
+        };
+        if (isMobileNav) {
+            themeStep.beforeShowPromise = function () {
+                return new Promise(resolve => {
+                    window._setTutorialKeepNavOpen(true);
+                    requestAnimationFrame(() => requestAnimationFrame(resolve));
+                });
+            };
+            themeStep.when = {
+                hide() {
+                    window._setTutorialKeepNavOpen(false);
+                }
+            };
+        }
+        steps.push(themeStep);
+        const quotaEl = document.querySelector('.user-info .quota');
+        if (quotaEl) {
+            const hasHover = window.matchMedia('(hover: hover)').matches;
+            const quotaTriggerText = !hasHover
+                ? '点击这里的配额文字，<br>即可弹出配额详情弹窗。'
+                : '鼠标悬浮在配额文字上，<br>即可查看配额详情弹窗；也可以点击触发。';
+            const quotaStep = {
+                id: 'quota-popup',
+                title: '下载配额',
+                text: `${quotaTriggerText}<br>弹窗内还可以开关<strong>「下载通知」</strong>，开启后会实时显示其他同学的下载动态。`,
                 attachTo: {
-                    element: '#theme-toggle',
+                    element: '.user-info .quota',
                     on: 'bottom'
                 }
-            });
+            };
+            if (isMobileNav) {
+                quotaStep.beforeShowPromise = function () {
+                    return new Promise(resolve => {
+                        window._setTutorialKeepNavOpen(true);
+                        requestAnimationFrame(() => requestAnimationFrame(resolve));
+                    });
+                };
+                quotaStep.when = {
+                    hide() {
+                        window._setTutorialKeepNavOpen(false);
+                    }
+                };
+            }
+            steps.push(quotaStep);
         }
         steps.push({
             id: 'search',
@@ -99,7 +181,7 @@ function startTutorial() {
         });
         steps.push({
             id: 'ai-search',
-            title: '✨ AI 智能搜索',
+            title: 'AI 智能搜索',
             text: '开启这个开关，即可体验基于语义的 AI 搜索！<br>即使记不清文件名，描述内容也能找到相关资料。',
             attachTo: {
                 element: '.ai-search-toggle',
@@ -130,10 +212,21 @@ function startTutorial() {
             steps.push({
                 id: 'folder-nav-mobile',
                 title: '文件夹导航',
-                text: '在移动端，文件夹导航是收起来的。<br>点击这个按钮可以随时打开或关闭它！',
+                text: '这是文件夹导航树，你可以点击文件夹名称展开或折叠，<br>点击右侧的箭头按钮进入文件夹。<br><br>点击导航栏的菜单按钮可随时打开或关闭此侧边栏。',
                 attachTo: {
-                    element: '#mobile-sidebar-toggle',
+                    element: '#folder-tree',
                     on: 'bottom'
+                },
+                beforeShowPromise: function () {
+                    return new Promise(resolve => {
+                        document.body.classList.add('mobile-sidebar-visible');
+                        setTimeout(resolve, 350);
+                    });
+                },
+                when: {
+                    hide() {
+                        document.body.classList.remove('mobile-sidebar-visible');
+                    }
                 }
             });
         } else {
@@ -142,13 +235,13 @@ function startTutorial() {
                 title: '文件夹导航',
                 text: '左侧是文件夹导航树，你可以点击文件夹名称展开或折叠，<br>点击右侧的箭头按钮进入文件夹。',
                 attachTo: {
-                    element: '#folder-tree-container',
+                    element: '#folder-tree',
                     on: 'right'
                 }
             });
             steps.push({
                 id: 'knowledge-graph',
-                title: '🚀 知识图谱',
+                title: '知识图谱',
                 text: '探索可视化知识网络！<br>点击这里查看文件之间的关联，发现更多有趣的知识连接。',
                 attachTo: {
                     element: '#open-graph-btn',
@@ -161,7 +254,7 @@ function startTutorial() {
             title: '留言板',
             text: '有什么想说的？<br>在这里分享你的看法，或者向管理员反馈问题。',
             attachTo: {
-                element: '.guestbook-form-container',
+                element: '.guestbook-header-section',
                 on: 'bottom'
             }
         });
@@ -179,7 +272,7 @@ function startTutorial() {
             steps.push({
                 id: 'upload-path',
                 title: '上传到哪里？',
-                text: '面包屑导航显示了你当前所在的目录。上传的文件会传到这个位置，<br>所以上传前请先进入目标文件夹！',
+                text: '面包屑导航显示了你当前所在的目录。上传的文件会传到这个位置，<br>当然，你也可以在上传页面选择其他文件夹！',
                 attachTo: {
                     element: '#breadcrumb-nav',
                     on: 'bottom'
@@ -188,13 +281,43 @@ function startTutorial() {
         }
         steps.push({
             id: 'storage-limit',
-            title: '关于存储容量 (´･ω･`)',
+            title: '关于存储容量',
             text: '我们有大约 10GB 的免费存储空间，这个进度条会显示使用情况。<br>超出后站长要自掏腰包了... 请大家珍惜空间！',
             attachTo: {
                 element: '.size-progress-container',
                 on: 'bottom'
             }
         });
+        {
+            const hasHoverNotif = window.matchMedia('(hover: hover)').matches;
+            const notifTriggerText = !hasHoverNotif
+                ? '点击配额文字 → 弹窗中找到「下载通知」开关'
+                : '悬浮/点击配额文字 → 弹窗中找到「下载通知」开关';
+            steps.push({
+                id: 'download-notification',
+                title: '实时下载通知',
+                text: '就像这样！开启后，页面右下角会实时弹出其他同学的下载动态。<br>开启方式：' + notifTriggerText + ' 即可开启或关闭。',
+                attachTo: {
+                    element: '.download-log-item:last-child',
+                    on: 'top'
+                },
+                beforeShowPromise: function () {
+                    return new Promise(resolve => {
+                        if (typeof window._showTutorialDownloadToast === 'function') {
+                            window._showTutorialDownloadToast();
+                        }
+                        setTimeout(resolve, 350);
+                    });
+                },
+                when: {
+                    hide() {
+                        if (typeof window._removeTutorialDownloadToast === 'function') {
+                            window._removeTutorialDownloadToast();
+                        }
+                    }
+                }
+            });
+        }
         if (document.querySelector('.download-button')) {
             steps.push({
                 id: 'download',
@@ -211,10 +334,10 @@ function startTutorial() {
         if (isTouchDevice) {
             steps.push({
                 id: 'mobile-actions',
-                title: '📱 移动端操作提示',
+                title: '移动端操作提示',
                 text: '在移动端，文件的操作菜单（下载、删除、重命名等）<br>通过点击文件条目右侧的<strong>「⋮」折叠按钮</strong>展开哦！',
                 attachTo: {
-                    element: '.file-list',
+                    element: '.mobile-actions-toggle',
                     on: 'top'
                 }
             });
@@ -252,10 +375,22 @@ function startTutorial() {
                 ...fileActionStepHooks('.rename-button')
             });
         }
+        if (document.querySelector('.edit-desc-button')) {
+            steps.push({
+                id: 'admin-edit-description',
+                title: '管理员功能：编辑属性',
+                text: '点击此按钮可以为文件夹编辑描述或公告，<br>支持 Markdown 格式，方便你为文件夹添加说明。',
+                attachTo: {
+                    element: '.edit-desc-button',
+                    on: 'bottom'
+                },
+                ...fileActionStepHooks('.edit-desc-button')
+            });
+        }
         steps.push({
             id: 'finish',
             title: '教程结束！',
-            text: '你已了解所有基本功能！开始探索吧！<br>如果需要，可以再次点击帮助按钮回顾。<br>祝你使用愉快！(ﾉ>ω<)ﾉ'
+            text: '你已了解所有基本功能！开始探索吧！<br>如果需要，可以再次点击帮助按钮回顾。<br>祝你使用愉快！'
         });
     }
 
@@ -404,6 +539,12 @@ function startTutorial() {
 
     tour.on('cancel', () => {
         document.querySelectorAll('li.actions-visible').forEach(li => li.classList.remove('actions-visible'));
+        window._setTutorialKeepNavOpen(false);
+        window._tutorialActive = false;
+        if (typeof window._removeTutorialDownloadToast === 'function') {
+            window._removeTutorialDownloadToast();
+        }
+        document.body.classList.remove('mobile-sidebar-visible');
     });
     tour.addSteps(steps);
     tour.start();

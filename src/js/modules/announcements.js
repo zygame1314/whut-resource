@@ -337,6 +337,7 @@ function initAnnouncementManager() {
 }
 function maybeShowEntryAnnouncementPopup() {
     if (hasTriedEntryPopup) return;
+    if (window._tutorialActive) return;
     hasTriedEntryPopup = true;
     const latestAnnouncement = getLatestAnnouncement();
     if (!latestAnnouncement) return;
