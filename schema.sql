@@ -273,6 +273,8 @@ CREATE TABLE IF NOT EXISTS admin_logs (
 CREATE INDEX IF NOT EXISTS idx_admin_logs_action ON admin_logs(action);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_operator ON admin_logs(operator_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_target_created ON admin_logs(target_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_action_created ON admin_logs(action, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_target ON admin_logs(target_type, target_id);
 
 DROP TABLE IF EXISTS guestbook_stats;

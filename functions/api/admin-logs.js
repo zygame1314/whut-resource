@@ -69,6 +69,7 @@ async function getUser(request, env) {
 async function handleGetLogs(request, env) {
     const url = new URL(request.url);
     const cursor = url.searchParams.get('cursor');
+    const filter = url.searchParams.get('filter') || '';
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
     let query = `
         SELECT l.*,
@@ -78,10 +79,20 @@ async function handleGetLogs(request, env) {
         FROM admin_logs l
         LEFT JOIN users op ON l.operator_id = op.id
     `;
+    let conditions = [];
     let params = [];
     if (cursor) {
-        query += ' WHERE l.created_at < ?';
+        conditions.push('l.created_at < ?');
         params.push(cursor);
+    }
+    if (filter === 'ai_') {
+        conditions.push("l.action LIKE 'ai_%'");
+    } else if (filter) {
+        conditions.push('l.target_type = ?');
+        params.push(filter);
+    }
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
     }
     query += ' ORDER BY l.created_at DESC LIMIT ?';
     params.push(limit + 1);

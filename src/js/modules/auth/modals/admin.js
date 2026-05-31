@@ -232,15 +232,7 @@ async function showAdminLogsModal() {
     const renderLogs = () => {
         const container = modal.querySelector('#logs-container');
         const pagination = modal.querySelector('#logs-pagination');
-        let filtered = allLogsCache;
-        if (currentFilter) {
-            if (currentFilter === 'ai_') {
-                filtered = allLogsCache.filter(l => l.action && l.action.startsWith('ai_'));
-            } else {
-                filtered = allLogsCache.filter(l => l.target_type === currentFilter);
-            }
-        }
-        if (filtered.length === 0) {
+        if (allLogsCache.length === 0) {
             container.innerHTML = '<div class="admin-empty-state">暂无日志</div>';
             pagination.innerHTML = '';
             return;
@@ -306,22 +298,18 @@ async function showAdminLogsModal() {
                     </div>
                 `;
             }).join('');
-        const cachePage = getFiltered().length > 0
-            ? Math.min(currentPage, Math.ceil(getFiltered().length / LOGS_PER_PAGE))
-            : 0;
-        const totalLoaded = getFiltered().length;
-        const hasServerMore = hasMoreLogs;
-        const canGoNext = (currentPage * LOGS_PER_PAGE) < totalLoaded || hasServerMore;
+        const totalLoaded = allLogsCache.length;
+        const canGoNext = (currentPage * LOGS_PER_PAGE) < totalLoaded || hasMoreLogs;
         let paginationHtml = '';
         if (currentPage > 1) paginationHtml += `<button class="pagination-button" id="logs-prev-page"><i class="fas fa-chevron-left"></i> <span class="pagination-btn-text">上一页</span></button>`;
-        paginationHtml += `<span class="pagination-info">第 ${currentPage} 页${hasServerMore ? `（已加载 ${totalLoaded} 条）` : `（共 ${totalLoaded} 条）`}</span>`;
+        paginationHtml += `<span class="pagination-info">第 ${currentPage} 页${hasMoreLogs ? `（已加载 ${totalLoaded} 条）` : `（共 ${totalLoaded} 条）`}</span>`;
         if (canGoNext) paginationHtml += `<button class="pagination-button" id="logs-next-page"><span class="pagination-btn-text">下一页</span> <i class="fas fa-chevron-right"></i></button>`;
         pagination.innerHTML = paginationHtml;
         const nextBtn = pagination.querySelector('#logs-next-page');
         const prevBtn = pagination.querySelector('#logs-prev-page');
         if (nextBtn) nextBtn.onclick = async () => {
             if (isLoadingMore) return;
-            if ((currentPage * LOGS_PER_PAGE) >= getFiltered().length && hasMoreLogs) {
+            if ((currentPage * LOGS_PER_PAGE) >= totalLoaded && hasMoreLogs) {
                 isLoadingMore = true;
                 const loaded = await loadLogs();
                 isLoadingMore = false;
@@ -333,17 +321,12 @@ async function showAdminLogsModal() {
         };
         if (prevBtn) prevBtn.onclick = () => { currentPage--; renderLogs(); };
     };
-    const getFiltered = () => {
-        if (!currentFilter) return allLogsCache;
-        if (currentFilter === 'ai_') return allLogsCache.filter(l => l.action && l.action.startsWith('ai_'));
-        return allLogsCache.filter(l => l.target_type === currentFilter);
-    };
     const loadLogs = async () => {
-        if (isLoadingMore) return false;
         const container = modal.querySelector('#logs-container');
         container.innerHTML = '<div class="loading-spinner"></div>';
         try {
             let url = `${API_BASE}/api/admin-logs?limit=${LOGS_PER_PAGE}`;
+            if (currentFilter) url += `&filter=${encodeURIComponent(currentFilter)}`;
             if (allLogsCursor) url += `&cursor=${encodeURIComponent(allLogsCursor)}`;
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
