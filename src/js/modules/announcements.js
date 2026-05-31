@@ -705,15 +705,18 @@ window.deleteAnnouncement = async function (id) {
             }
         });
         if (response.ok) {
+            showNotification('公告已删除', 'success');
             allAnnouncementsCache = [];
             await fetchAndDisplayAnnouncements(1);
             renderAdminAnnouncementList();
         } else {
-            alert('删除失败');
+            let errorData = {};
+            try { errorData = await response.json(); } catch (e) {}
+            showNotification(errorData.error || '删除失败', 'error');
         }
     } catch (error) {
         console.error('Error deleting announcement:', error);
-        alert('删除出错');
+        showNotification('删除出错', 'error');
     }
 };
 async function saveAnnouncement() {
@@ -722,7 +725,7 @@ async function saveAnnouncement() {
     const content = announcementTextInput.value.trim();
     const isPublished = announcementPublishedInput.checked;
     if (!title || !content) {
-        alert('标题和内容不能为空');
+        showNotification('标题和内容不能为空', 'warning');
         return;
     }
     const method = id ? 'PUT' : 'POST';
@@ -741,13 +744,16 @@ async function saveAnnouncement() {
         if (response.ok) {
             allAnnouncementsCache = [];
             announcementModal.classList.remove('visible');
+            showNotification(id ? '公告已保存' : '公告已发布', 'success');
             await fetchAndDisplayAnnouncements(1);
         } else {
-            alert('保存失败');
+            let errorData = {};
+            try { errorData = await response.json(); } catch (e) {}
+            showNotification(errorData.error || '保存失败', 'error');
         }
     } catch (error) {
         console.error('Error saving announcement:', error);
-        alert('保存出错');
+        showNotification('保存出错', 'error');
     }
 }
 function formatAnnouncementDateLocal(dateString) {
