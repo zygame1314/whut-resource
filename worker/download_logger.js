@@ -88,11 +88,9 @@ export class DownloadLogger {
     async webSocketMessage(ws, message) {
     }
     async webSocketClose(ws, code, reason, wasClean) {
-        ws.close(code, reason);
         this.broadcastOnlineCount();
     }
     async webSocketError(ws, error) {
-        ws.close(1011, 'Connection error');
         this.broadcastOnlineCount();
     }
 }

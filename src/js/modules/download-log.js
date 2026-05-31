@@ -293,4 +293,10 @@
     } else {
         init();
     }
+    document.addEventListener('authSuccess', function () {
+        if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+            reconnectInterval = 1000;
+            connect();
+        }
+    });
 })();

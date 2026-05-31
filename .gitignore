@@ -19,6 +19,7 @@ dist/
 /download-log.js
 /download-manager.js
 /download-manager-ui.js
+/site-stats.js
 
 # ==========================================
 # 开发模式生成的 CSS 合并文件
