@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, logAdminAction } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, fetchSiliconFlowChat, logAdminAction } from '../utils.js';
 const MAX_CONTENT_LENGTH = 200;
 const DAILY_LIMIT = 5;
 const MODERATION_PROMPT = `你是大学资源分享网站的评论审核助手。审核用户对文件资源的简短评论（最多200字）。
@@ -237,10 +237,19 @@ export async function onRequestDelete({ request, env }) {
             });
         }
         if (boost.user_id !== user.id && !isAdmin(user)) {
-            return new Response(JSON.stringify({ success: false, error: '无权删除此评论' }), {
+            return new Response(JSON.stringify({ error: '无权删除此评论' }), {
                 status: 403,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
+        }
+        if (boost.user_id !== user.id && isAdmin(user) && !isSuperAdmin(user)) {
+            const boostAuthor = await DB.prepare('SELECT role FROM users WHERE id = ?').bind(boost.user_id).first();
+            if (boostAuthor && boostAuthor.role === 'super_admin') {
+                return new Response(JSON.stringify({ error: '普通管理员不能删除超级管理员的评论' }), {
+                    status: 403,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+                });
+            }
         }
         await DB.prepare('DELETE FROM file_boosts WHERE id = ?').bind(id).run();
         if (boost.user_id !== user.id && isAdmin(user)) {
