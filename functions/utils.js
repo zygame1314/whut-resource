@@ -227,11 +227,11 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
 export function isSuperAdmin(user) {
   return user && user.role === 'super_admin';
 }
-export async function logAdminAction(env, action, targetType, targetId, reason, details) {
+export async function logAdminAction(env, operatorId, action, targetType, targetId, reason, details) {
   try {
     await env.DB.prepare(
-      'INSERT INTO admin_logs (action, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)'
-    ).bind(action, targetType, targetId || null, reason || null, details || null).run();
+      'INSERT INTO admin_logs (action, target_type, target_id, reason, details, operator_id) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(action, targetType, targetId || null, reason || null, details || null, operatorId || null).run();
     await env.DB.prepare("DELETE FROM admin_logs WHERE created_at < date('now', '-3 days')").run();
   } catch (e) {
     console.error('记录管理员操作失败:', e);

@@ -1,4 +1,40 @@
 import { verifyToken, addCorsHeaders, isAdmin, logAdminAction } from '../utils.js';
+
+const ACTION_LABELS = {
+    create_announcement: '创建公告',
+    update_announcement: '编辑公告',
+    delete_announcement: '删除公告',
+    delete_guestbook: '删除留言',
+    edit_guestbook: '编辑留言',
+    hide: '隐藏留言',
+    unhide: '取消隐藏留言',
+    pin: '置顶留言',
+    unpin: '取消置顶留言',
+    resolve: '标记为已解决',
+    unresolve: '标记为未解决',
+    reject: '驳回留言',
+    unreject: '取消驳回留言',
+    ban_user: '封禁用户',
+    unban_user: '解封用户',
+    promote_admin: '提升为管理员',
+    demote_admin: '降级为普通用户',
+    approve_request: '批准请求',
+    reject_request: '拒绝请求',
+    update_link_url: '更新链接地址',
+    update_description: '更新文件夹描述',
+    delete_folder: '删除文件夹',
+    delete_file: '删除文件',
+    delete_link: '删除链接',
+    delete_boost: '删除评论',
+    enable_maintenance: '开启维护模式',
+    disable_maintenance: '关闭维护模式',
+    cleanup_logs: '清理审计日志',
+    ai_reject: 'AI自动驳回',
+    ai_ban_user: 'AI自动封禁',
+    ai_delete: 'AI自动删除',
+    ai_resolve: 'AI自动解决',
+};
+
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -12,7 +48,7 @@ export async function onRequest(context) {
         if (request.method === 'GET') {
             return await handleGetLogs(request, env);
         } else if (request.method === 'DELETE') {
-            return await handleCleanupLogs(request, env);
+            return await handleCleanupLogs(request, env, user);
         } else {
             return new Response('方法不被允许', { status: 405, headers: addCorsHeaders() });
         }
@@ -32,16 +68,35 @@ async function getUser(request, env) {
 }
 async function handleGetLogs(request, env) {
     const MAX_LIMIT = 500;
-    const logs = await env.DB.prepare('SELECT * FROM admin_logs ORDER BY created_at DESC LIMIT ?').bind(MAX_LIMIT).all();
+    const { results } = await env.DB.prepare(`
+        SELECT l.*,
+               op.nickname as operator_nickname,
+               op.email as operator_email,
+               op.role as operator_role
+        FROM admin_logs l
+        LEFT JOIN users op ON l.operator_id = op.id
+        ORDER BY l.created_at DESC
+        LIMIT ?
+    `).bind(MAX_LIMIT).all();
+    const data = results.map(log => ({
+        ...log,
+        label: ACTION_LABELS[log.action] || log.action,
+        operator: log.operator_id ? {
+            id: log.operator_id,
+            nickname: log.operator_nickname || '已注销',
+            email: log.operator_email,
+            role: log.operator_role
+        } : null
+    }));
     return new Response(JSON.stringify({
         success: true,
-        data: logs.results,
-        totalItems: logs.results.length
+        data,
+        totalItems: data.length
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
-async function handleCleanupLogs(request, env) {
+async function handleCleanupLogs(request, env, user) {
     const result = await env.DB.prepare("DELETE FROM admin_logs WHERE created_at < date('now', '-3 days')").run();
-    await logAdminAction(env, 'cleanup_logs', 'system', null, '清理审计日志', JSON.stringify({ deleted_count: result.meta.changes }));
+    await logAdminAction(env, user.id, 'cleanup_logs', 'system', null, '清理审计日志', JSON.stringify({ deleted_count: result.meta.changes }));
     return new Response(JSON.stringify({
         success: true,
         message: `清理完成。删除了 ${result.meta.changes} 条旧日志。`,

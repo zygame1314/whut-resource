@@ -7677,38 +7677,83 @@ input#prompt-input {
 .admin-log-entry-header {
     display: flex;
     justify-content: space-between;
-    align-items: start;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
 .admin-log-action {
     font-weight: bold;
+    font-size: 0.9em;
 }
 
-.admin-log-action.action-delete,
-.admin-log-action.action-ban {
+.admin-log-action[class*="action-delete"],
+.admin-log-action[class*="action-ban"] {
     color: var(--error, #ff4d4f);
 }
 
-.admin-log-action.action-reject,
-.admin-log-action.action-hide {
+.admin-log-action[class*="action-reject"],
+.admin-log-action[class*="action-hide"] {
     color: var(--warning, #faad14);
 }
 
-.admin-log-action.action-resolve {
+.admin-log-action[class*="action-unhide"],
+.admin-log-action[class*="action-resolve"],
+.admin-log-action[class*="action-approve"] {
     color: var(--success, #52c41a);
 }
 
-.admin-log-action.action-default {
+.admin-log-action[class*="action-edit"],
+.admin-log-action[class*="action-update"],
+.admin-log-action[class*="action-enable"],
+.admin-log-action[class*="action-disable"] {
     color: var(--primary);
+}
+
+.admin-log-action[class*="action-create"],
+.admin-log-action[class*="action-promote"] {
+    color: var(--success, #52c41a);
+}
+
+.admin-log-action[class*="action-demote"],
+.admin-log-action[class*="action-cleanup"] {
+    color: var(--text-secondary);
+}
+
+.admin-log-operator {
+    font-weight: 600;
+    font-size: 0.9em;
+    color: var(--text-primary);
+    background: var(--background-secondary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.admin-log-operator.operator-ai {
+    color: var(--primary);
+    background: rgba(var(--primary-rgb, 59, 130, 246), 0.1);
+}
+
+.admin-log-target {
+    font-size: 0.8em;
+    color: var(--text-tertiary);
+    background: var(--background-alt);
+    padding: 1px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
 }
 
 .admin-log-timestamp {
     font-size: 0.8em;
     color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 .admin-log-reason {
     margin: 5px 0;
+    font-size: 0.9em;
+    color: var(--text-secondary);
 }
 
 .admin-log-details {

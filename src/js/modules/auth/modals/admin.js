@@ -182,28 +182,47 @@ async function showAdminLogsModal() {
                         detailsHtml += `<div class="admin-log-resource-path">资源路径: ${escapeHtml(details.resource_path)}</div>`;
                     }
                     if (details.nickname) {
-                        detailsHtml += `<div class="admin-log-user-info">用户昵称: ${escapeHtml(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
+                        detailsHtml += `<div class="admin-log-user-info">目标用户: ${escapeHtml(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
+                    }
+                    if (details.reject_reason) {
+                        detailsHtml += `<div class="admin-log-user-info">驳回原因: ${escapeHtml(details.reject_reason)}</div>`;
+                    }
+                    if (details.title) {
+                        detailsHtml += `<div class="admin-log-user-info">公告标题: ${escapeHtml(details.title)}</div>`;
+                    }
+                    if (details.key) {
+                        detailsHtml += `<div class="admin-log-user-info">路径: ${escapeHtml(details.key)}</div>`;
+                    }
+                    if (details.deleted_count) {
+                        detailsHtml += `<div class="admin-log-user-info">删除数量: ${details.deleted_count}</div>`;
+                    }
+                    if (details.new_url) {
+                        detailsHtml += `<div class="admin-log-user-info">新链接: ${escapeHtml(details.new_url)}</div>`;
+                    }
+                    if (details.target_email) {
+                        detailsHtml += `<div class="admin-log-user-info">目标邮箱: ${escapeHtml(details.target_email)}</div>`;
                     }
                 } catch (e) {
                     detailsHtml = `<div class="admin-log-user-info">${escapeHtml(log.details)}</div>`;
                 }
-                const actionClassMap = {
-                    'ai_delete': 'action-delete',
-                    'ai_ban_user': 'action-ban',
-                    'ai_reject': 'action-reject',
-                    'ai_hide': 'action-hide',
-                    'ai_resolve': 'action-resolve'
-                };
-                const actionClass = actionClassMap[log.action] || 'action-default';
+                const actionClass = `action-${(log.action || '').replace(/_/g, '-')}`;
                 const utcDate = log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z';
                 const date = new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+                const operatorHtml = log.operator
+                    ? `<span class="admin-log-operator"><i class="fas fa-user-circle"></i> ${escapeHtml(log.operator.nickname)}</span>`
+                    : `<span class="admin-log-operator operator-ai"><i class="fas fa-robot"></i> 系统自动</span>`;
+                const targetInfo = log.target_type && log.target_id
+                    ? `<span class="admin-log-target">${log.target_type}#${log.target_id}</span>`
+                    : '';
                 return `
                     <div class="admin-log-entry">
                         <div class="admin-log-entry-header">
-                            <span class="admin-log-action ${actionClass}">${log.action}</span>
+                            ${operatorHtml}
+                            <span class="admin-log-action ${actionClass}">${escapeHtml(log.label || log.action)}</span>
+                            ${targetInfo}
                             <span class="admin-log-timestamp">${date}</span>
                         </div>
-                        <div class="admin-log-reason">${escapeHtml(log.reason)}</div>
+                        ${log.reason ? `<div class="admin-log-reason"><i class="fas fa-info-circle"></i> ${escapeHtml(log.reason)}</div>` : ''}
                         ${detailsHtml}
                     </div>
                 `;

@@ -73,7 +73,7 @@ async function handlePost(request, env) {
     const result = await env.DB.prepare(
         'INSERT INTO announcements (title, content, is_published, author_id) VALUES (?, ?, ?, ?)'
     ).bind(title.trim(), content.trim(), is_published ? 1 : 0, user.id).run();
-    await logAdminAction(env, 'create_announcement', 'announcement', result.meta.last_row_id, '创建公告', JSON.stringify({ operator_id: user.id, title: title.trim() }));
+    await logAdminAction(env, user.id, 'create_announcement', 'announcement', result.meta.last_row_id, '创建公告', JSON.stringify({ title: title.trim() }));
     return new Response(JSON.stringify({ success: true, id: result.meta.last_row_id }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePut(request, env) {
@@ -112,7 +112,7 @@ async function handlePut(request, env) {
     await env.DB.prepare(
         'UPDATE announcements SET title = ?, content = ?, is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
     ).bind(title.trim(), content.trim(), is_published ? 1 : 0, id).run();
-    await logAdminAction(env, 'update_announcement', 'announcement', id, '更新公告', JSON.stringify({ operator_id: user.id, title: title.trim() }));
+    await logAdminAction(env, user.id, 'update_announcement', 'announcement', id, '更新公告', JSON.stringify({ title: title.trim() }));
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handleDelete(request, env) {
@@ -134,6 +134,6 @@ async function handleDelete(request, env) {
         return new Response(JSON.stringify({ error: '普通管理员不能删除超级管理员发布的公告' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     await env.DB.prepare('DELETE FROM announcements WHERE id = ?').bind(id).run();
-    await logAdminAction(env, 'delete_announcement', 'announcement', id, '删除公告', JSON.stringify({ operator_id: user.id }));
+    await logAdminAction(env, user.id, 'delete_announcement', 'announcement', id, '删除公告', JSON.stringify({}));
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }

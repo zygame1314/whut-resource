@@ -110,7 +110,7 @@ export async function onRequestPost({ request, env }) {
                 'UPDATE system_stats SET maintenance_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1'
             ).bind(maintenance ? 1 : 0).run();
         }
-        await logAdminAction(env, maintenance ? 'enable_maintenance' : 'disable_maintenance', 'system', 1, maintenance ? '开启维护' : '关闭维护', JSON.stringify({ message: message || null }));
+        await logAdminAction(env, user.id, maintenance ? 'enable_maintenance' : 'disable_maintenance', 'system', 1, maintenance ? '开启维护' : '关闭维护', JSON.stringify({ message: message || null }));
         return new Response(JSON.stringify({
             success: true,
             message: maintenance ? '维护已开启' : '维护已关闭'

@@ -265,11 +265,14 @@ CREATE TABLE IF NOT EXISTS admin_logs (
     target_id INTEGER,
     reason TEXT,
     details TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    operator_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (operator_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_admin_logs_action ON admin_logs(action);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_operator ON admin_logs(operator_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_target ON admin_logs(target_type, target_id);
 
 DROP TABLE IF EXISTS guestbook_stats;

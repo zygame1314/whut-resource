@@ -200,7 +200,7 @@ async function handlePut(request, env, user) {
                 });
             }
             await env.DB.prepare("UPDATE users SET role = 'admin' WHERE id = ?").bind(user_id).run();
-            await logAdminAction(env, 'promote_admin', 'user', user_id, '提升为管理员', JSON.stringify({ operator_id: user.id, target_email: targetUser.email }));
+            await logAdminAction(env, user.id, 'promote_admin', 'user', user_id, '提升为管理员', JSON.stringify({ target_email: targetUser.email }));
         } else if (action === 'demote') {
             if (targetUser.role === 'user') {
                 return new Response(JSON.stringify({ error: '该用户已是普通用户' }), {
@@ -209,7 +209,7 @@ async function handlePut(request, env, user) {
                 });
             }
             await env.DB.prepare("UPDATE users SET role = 'user' WHERE id = ?").bind(user_id).run();
-            await logAdminAction(env, 'demote_admin', 'user', user_id, '降级为普通用户', JSON.stringify({ operator_id: user.id, target_email: targetUser.email }));
+            await logAdminAction(env, user.id, 'demote_admin', 'user', user_id, '降级为普通用户', JSON.stringify({ target_email: targetUser.email }));
         }
         return new Response(JSON.stringify({ success: true }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
@@ -243,7 +243,7 @@ async function handlePut(request, env, user) {
             });
         }
         await env.DB.prepare('UPDATE users SET is_banned = TRUE WHERE id = ?').bind(user_id).run();
-        await logAdminAction(env, 'ban_user', 'user', user_id, '封禁用户', JSON.stringify({ operator_id: user.id, target_email: targetUser.email }));
+        await logAdminAction(env, user.id, 'ban_user', 'user', user_id, '封禁用户', JSON.stringify({ target_email: targetUser.email }));
         return new Response(JSON.stringify({ success: true }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
@@ -263,7 +263,7 @@ async function handlePut(request, env, user) {
             });
         }
         await env.DB.prepare('UPDATE users SET is_banned = FALSE WHERE id = ?').bind(user_id).run();
-        await logAdminAction(env, 'unban_user', 'user', user_id, '解封用户', JSON.stringify({ operator_id: user.id }));
+        await logAdminAction(env, user.id, 'unban_user', 'user', user_id, '解封用户', JSON.stringify({}));
         return new Response(JSON.stringify({ success: true }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
@@ -315,7 +315,7 @@ async function handlePut(request, env, user) {
                     SET status = ?, reviewed_by = ?, review_note = ?, reviewed_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 `).bind(newStatus, user.id, review_note || null, id).run();
-                await logAdminAction(env, action === 'approve' ? 'approve_request' : 'reject_request', 'admin_request', id, action === 'approve' ? '批准请求' : '拒绝请求', JSON.stringify({ operator_id: user.id, request_type: adminRequest.request_type }));
+                await logAdminAction(env, user.id, action === 'approve' ? 'approve_request' : 'reject_request', 'admin_request', id, action === 'approve' ? '批准请求' : '拒绝请求', JSON.stringify({ request_type: adminRequest.request_type }));
                 if (action === 'approve') {
                     try {
                         const execResult = await executeApprovedRequest(adminRequest, env);

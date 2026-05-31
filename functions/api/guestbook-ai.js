@@ -308,7 +308,7 @@ async function handleReject(entry, reason, env, autoMode) {
         await env.DB.prepare(
             'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
         ).bind('rejected', reason, entry.id).run();
-        await logAdminAction(env, 'ai_reject', 'guestbook', entry.id, reason, JSON.stringify({
+        await logAdminAction(env, null, 'ai_reject', 'guestbook', entry.id, reason, JSON.stringify({
             content: entry.content,
             nickname: entry.nickname,
             user_id: entry.user_id
@@ -344,7 +344,7 @@ async function handleBanUser(guestbookEntry, reason, env, autoMode) {
             env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id),
             env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(guestbookEntry.id)
         ]);
-        await logAdminAction(env, 'ai_ban_user', 'user', guestbookEntry.user_id, reason, JSON.stringify({
+        await logAdminAction(env, null, 'ai_ban_user', 'user', guestbookEntry.user_id, reason, JSON.stringify({
             deleted_guestbook_id: guestbookEntry.id,
             snapshot_content: guestbookEntry.content,
             nickname: guestbookEntry.nickname,
@@ -371,7 +371,7 @@ async function handleDelete(entry, reason, env, autoMode) {
         await env.DB.prepare(
             'DELETE FROM guestbook WHERE id = ?'
         ).bind(entry.id).run();
-        await logAdminAction(env, 'ai_delete', 'guestbook', entry.id, reason, JSON.stringify({
+        await logAdminAction(env, null, 'ai_delete', 'guestbook', entry.id, reason, JSON.stringify({
             snapshot_content: entry.content,
             nickname: entry.nickname,
             user_id: entry.user_id,
@@ -575,7 +575,7 @@ async function handleResolve(entry, reply, searchResults = null, resourcePath = 
         await env.DB.prepare(
             'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?'
         ).bind('resolved', resolveValue, entry.id).run();
-        await logAdminAction(env, 'ai_resolve', 'guestbook', entry.id, reply, JSON.stringify({
+        await logAdminAction(env, null, 'ai_resolve', 'guestbook', entry.id, reply, JSON.stringify({
             content: entry.content,
             nickname: entry.nickname,
             user_id: entry.user_id,
@@ -764,7 +764,7 @@ ${parentContext ? `原留言内容：${parentContext}` : ''}
                 await env.DB.prepare(
                     'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
                 ).bind('rejected', reason, replyEntry.id).run();
-                await logAdminAction(env, 'ai_reject', 'guestbook', replyEntry.id, reason, JSON.stringify({
+                await logAdminAction(env, null, 'ai_reject', 'guestbook', replyEntry.id, reason, JSON.stringify({
                     content: replyEntry.content,
                     nickname: replyEntry.nickname,
                     user_id: replyEntry.user_id,
@@ -786,7 +786,7 @@ ${parentContext ? `原留言内容：${parentContext}` : ''}
                     env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(replyEntry.user_id),
                     env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(replyEntry.id)
                 ]);
-                await logAdminAction(env, 'ai_ban_user', 'user', replyEntry.user_id, reason, JSON.stringify({
+                await logAdminAction(env, null, 'ai_ban_user', 'user', replyEntry.user_id, reason, JSON.stringify({
                     deleted_guestbook_id: replyEntry.id,
                     content: replyEntry.content,
                     nickname: replyEntry.nickname
