@@ -29,12 +29,6 @@ export class DownloadLogger {
     constructor(state, env) {
         this.state = state;
         this.env = env;
-        this.state.setWebSocketAutoResponse(
-            new WebSocketRequestResponsePair(
-                JSON.stringify({ type: 'ping' }),
-                JSON.stringify({ type: 'pong' })
-            )
-        );
     }
     async fetch(request) {
         const url = new URL(request.url);
@@ -51,8 +45,8 @@ export class DownloadLogger {
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
             this.state.acceptWebSocket(server);
-            const onlineCount = this.state.getWebSockets().length;
             server.send(JSON.stringify({ type: 'welcome', message: '已成功连接到实时下载日志' }));
+            const onlineCount = this.state.getWebSockets().length;
             server.send(JSON.stringify({ type: 'online_count', count: onlineCount }));
             this.broadcastOnlineCount();
             return new Response(null, { status: 101, webSocket: client });
@@ -86,12 +80,20 @@ export class DownloadLogger {
         this.broadcast({ type: 'online_count', count: onlineCount });
     }
     async webSocketMessage(ws, message) {
+        try {
+            const data = JSON.parse(message);
+            if (data.type === 'ping') {
+                ws.send(JSON.stringify({ type: 'pong' }));
+            }
+        } catch (e) {}
     }
     async webSocketClose(ws, code, reason, wasClean) {
-        this.broadcastOnlineCount();
+        ws.close(code, reason);
+        setTimeout(() => this.broadcastOnlineCount(), 100);
     }
     async webSocketError(ws, error) {
-        this.broadcastOnlineCount();
+        ws.close(1011, 'Connection error');
+        setTimeout(() => this.broadcastOnlineCount(), 100);
     }
 }
 export default {
