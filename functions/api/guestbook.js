@@ -264,6 +264,12 @@ async function handlePut(request, env, context) {
         if (!isAdmin(user) && guestbookEntry.user_id !== user.id) {
             return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
+        if (isAdmin(user) && guestbookEntry.user_id !== user.id) {
+            const entryAuthor = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(guestbookEntry.user_id).first();
+            if (entryAuthor && entryAuthor.role === 'super_admin' && !isSuperAdmin(user)) {
+                return new Response(JSON.stringify({ error: '普通管理员不能修改超级管理员的留言' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            }
+        }
         if (isAdmin(user)) {
             await env.DB.prepare('UPDATE guestbook SET content = ? WHERE id = ?').bind(content.trim(), id).run();
         } else {
@@ -335,17 +341,44 @@ async function handlePut(request, env, context) {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
+        if (!isSuperAdmin(user)) {
+            const entryOwner = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
+            if (entryOwner) {
+                const entryAuthor = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(entryOwner.user_id).first();
+                if (entryAuthor && entryAuthor.role === 'super_admin') {
+                    return new Response(JSON.stringify({ error: '普通管理员不能操作超级管理员的留言' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+                }
+            }
+        }
         const isHidden = action === 'hide';
         await env.DB.prepare('UPDATE guestbook SET is_hidden = ? WHERE id = ?').bind(isHidden ? 1 : 0, id).run();
     } else if (action === 'pin' || action === 'unpin') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
+        if (!isSuperAdmin(user)) {
+            const entryOwner = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
+            if (entryOwner) {
+                const entryAuthor = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(entryOwner.user_id).first();
+                if (entryAuthor && entryAuthor.role === 'super_admin') {
+                    return new Response(JSON.stringify({ error: '普通管理员不能操作超级管理员的留言' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+                }
+            }
+        }
         const isPinned = action === 'pin';
         await env.DB.prepare('UPDATE guestbook SET is_pinned = ? WHERE id = ?').bind(isPinned ? 1 : 0, id).run();
     } else if (action === 'resolve' || action === 'unresolve') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (!isSuperAdmin(user)) {
+            const entryOwner = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
+            if (entryOwner) {
+                const entryAuthor = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(entryOwner.user_id).first();
+                if (entryAuthor && entryAuthor.role === 'super_admin') {
+                    return new Response(JSON.stringify({ error: '普通管理员不能操作超级管理员的留言' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+                }
+            }
         }
         const status = action === 'resolve' ? 'resolved' : 'unresolved';
         const resolveNote = action === 'resolve' ? (body.resolve_note || null) : null;
@@ -359,6 +392,15 @@ async function handlePut(request, env, context) {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
+        if (!isSuperAdmin(user)) {
+            const entryOwner = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
+            if (entryOwner) {
+                const entryAuthor = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(entryOwner.user_id).first();
+                if (entryAuthor && entryAuthor.role === 'super_admin') {
+                    return new Response(JSON.stringify({ error: '普通管理员不能操作超级管理员的留言' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+                }
+            }
+        }
         const rejectReason = body.reject_reason || '';
         if (!rejectReason || rejectReason.trim().length === 0) {
             return new Response(JSON.stringify({ error: '请填写驳回原因' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -370,6 +412,15 @@ async function handlePut(request, env, context) {
     } else if (action === 'unreject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (!isSuperAdmin(user)) {
+            const entryOwner = await env.DB.prepare('SELECT user_id FROM guestbook WHERE id = ?').bind(id).first();
+            if (entryOwner) {
+                const entryAuthor = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(entryOwner.user_id).first();
+                if (entryAuthor && entryAuthor.role === 'super_admin') {
+                    return new Response(JSON.stringify({ error: '普通管理员不能操作超级管理员的留言' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+                }
+            }
         }
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, is_hidden = 0 WHERE id = ?').bind('unresolved', id).run();
     } else if (action === 'ban_user') {

@@ -88,6 +88,14 @@ async function handlePut(request, env) {
     if (!id) {
         return new Response(JSON.stringify({ error: '缺少ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    const announcement = await env.DB.prepare('SELECT author_id FROM announcements WHERE id = ?').bind(id).first();
+    if (!announcement) {
+        return new Response(JSON.stringify({ error: '公告不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    const author = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(announcement.author_id).first();
+    if (author && author.role === 'super_admin' && !isSuperAdmin(user)) {
+        return new Response(JSON.stringify({ error: '普通管理员不能修改超级管理员发布的公告' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     if (!title || title.trim().length === 0) {
         return new Response(JSON.stringify({ error: '标题不能为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
