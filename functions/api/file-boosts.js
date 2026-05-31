@@ -153,6 +153,7 @@ export async function onRequestPost({ request, env }) {
         }
         const todayStart = new Date(new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0] + 'T00:00:00Z').getTime() - 8 * 3600000;
         const todayStartISO = new Date(todayStart).toISOString();
+        if (!isAdmin(user)) {
         const dailyCount = await DB.prepare(
             'SELECT COUNT(*) as count FROM file_boosts WHERE user_id = ? AND file_key = ? AND created_at >= ?'
         ).bind(user.id, key, todayStartISO).first();
@@ -161,6 +162,7 @@ export async function onRequestPost({ request, env }) {
                 status: 429,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
+        }
         }
         const dbUser = await DB.prepare('SELECT nickname, email FROM users WHERE id = ?').bind(user.id).first();
         const emailPrefix = dbUser?.email ? dbUser.email.split('@')[0] : '';

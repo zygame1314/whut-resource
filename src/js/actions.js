@@ -798,13 +798,11 @@ async function sendBoostAction(fileKey, content) {
         if (response.ok && result.success) {
             return result;
         } else {
-            showNotification(result.error || '发送失败', 'error');
-            return null;
+            return { success: false, error: result.error || '发送失败' };
         }
     } catch (error) {
         console.error('Send boost error:', error);
-        showNotification('发送失败', 'error');
-        return null;
+        return { success: false, error: '发送失败' };
     }
 }
 async function deleteBoostAction(boostId) {
