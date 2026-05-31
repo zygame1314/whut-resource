@@ -803,8 +803,7 @@ function toggleBoostPanel(li, item, boostBtn) {
             <span class="boost-panel-count"></span>
             <button class="boost-panel-close" title="关闭评论"><i class="fas fa-times"></i></button>
         </div>
-        <div class="boost-load-more" style="display:none;text-align:center;padding:6px 0;cursor:pointer;color:var(--text-secondary);font-size:0.85em;"><i class="fas fa-chevron-up"></i> 加载更早的评论</div>
-        <div class="boost-list"><div class="boost-loading">加载中...</div></div>
+        <div class="boost-list"><div class="boost-load-more"><i class="fas fa-chevron-up"></i> 加载更早的评论</div><div class="boost-loading">加载中...</div></div>
         <div class="boost-input-area">
             <input type="text" class="boost-input" placeholder="说点什么..." maxlength="200" />
             <span class="boost-char-count">0/200</span>
@@ -870,13 +869,13 @@ function toggleBoostPanel(li, item, boostBtn) {
             const result = await fetchBoosts(item.key, 20, append ? boostsCursor : null);
             if (result && result.success) {
                 if (append) {
-                    renderBoostListAppend(boostList, result.boosts, item);
+                    renderBoostListAppend(boostList, result.boosts, item, boostLoadMore);
                 } else {
-                    renderBoostList(boostList, result.boosts, item);
+                    renderBoostList(boostList, result.boosts, item, boostLoadMore);
                 }
                 boostsCursor = result.nextCursor;
                 boostsHasMore = result.hasMore;
-                boostLoadMore.style.display = boostsHasMore ? 'block' : 'none';
+                boostLoadMore.classList.toggle('visible', boostsHasMore);
                 updatePanelCount(item.boost_count || result.boosts.length);
             } else {
                 if (!append) boostList.innerHTML = '<div class="boost-empty">暂无评论，来说点什么吧</div>';
@@ -942,9 +941,14 @@ function toggleBoostPanel(li, item, boostBtn) {
             }, 250);
         };
     }
-    boostLoadMore.onclick = (e) => {
+    boostLoadMore.onclick = async (e) => {
         e.stopPropagation();
-        loadBoosts(true);
+        if (boostLoadMore.classList.contains('loading')) return;
+        boostLoadMore.classList.add('loading');
+        boostLoadMore.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+        await loadBoosts(true);
+        boostLoadMore.classList.remove('loading');
+        boostLoadMore.innerHTML = '<i class="fas fa-chevron-up"></i> 加载更早的评论';
     };
     loadBoosts();
 }
@@ -977,18 +981,20 @@ function bindBoostDeleteButtons(container, item) {
         };
     });
 }
-function renderBoostList(container, boosts, item) {
+function renderBoostList(container, boosts, item, loadMoreEl) {
     if (!boosts || boosts.length === 0) {
         container.innerHTML = '<div class="boost-empty">暂无评论，来说点什么吧</div>';
+        if (loadMoreEl) container.insertBefore(loadMoreEl, container.firstChild);
         return;
     }
     const currentUserId = typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null;
     const isAdminUser = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
     container.innerHTML = createBoostBubblesHTML(boosts, currentUserId, isAdminUser);
+    if (loadMoreEl) container.insertBefore(loadMoreEl, container.firstChild);
     container.scrollTop = container.scrollHeight;
     bindBoostDeleteButtons(container, item);
 }
-function renderBoostListAppend(container, boosts, item) {
+function renderBoostListAppend(container, boosts, item, loadMoreEl) {
     const emptyMsg = container.querySelector('.boost-empty');
     if (emptyMsg) emptyMsg.remove();
     const currentUserId = typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null;
@@ -1015,7 +1021,11 @@ function renderBoostListAppend(container, boosts, item) {
         `;
     }).join('');
     while (tempDiv.firstChild) fragment.appendChild(tempDiv.firstChild);
-    container.insertBefore(fragment, container.firstChild);
+    if (loadMoreEl && loadMoreEl.parentNode === container) {
+        container.insertBefore(fragment, loadMoreEl);
+    } else {
+        container.insertBefore(fragment, container.firstChild);
+    }
     container.scrollTop += container.scrollHeight - prevScrollHeight;
     bindBoostDeleteButtons(container, item);
 }

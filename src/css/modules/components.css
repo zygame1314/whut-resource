@@ -8886,6 +8886,47 @@ input#prompt-input {
     background: rgba(52, 152, 219, 0.4);
 }
 
+.boost-load-more {
+    display: none;
+    text-align: center;
+    padding: 8px 0 10px;
+    cursor: pointer;
+    color: #3498db;
+    font-size: 0.8rem;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    order: -1;
+    animation: loadMoreIn 0.3s ease;
+}
+@keyframes loadMoreIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.boost-load-more.visible {
+    display: block;
+}
+.boost-load-more:hover {
+    color: #2980b9;
+}
+.boost-load-more:hover i {
+    transform: translateY(-2px);
+}
+.boost-load-more i {
+    display: inline-block;
+    transition: transform 0.3s ease;
+}
+.boost-load-more.loading {
+    pointer-events: none;
+    color: var(--text-muted);
+}
+[data-theme="dark"] .boost-load-more {
+    color: #5dade2;
+}
+[data-theme="dark"] .boost-load-more:hover {
+    color: #85c1e9;
+}
+
 .boost-loading,
 .boost-empty {
     text-align: center;
