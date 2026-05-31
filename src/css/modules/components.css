@@ -209,9 +209,12 @@
 }
 
 .site-stats {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 0.6rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.4s ease;
