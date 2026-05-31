@@ -22,8 +22,8 @@
 
     function showStats() {
         const stats = document.getElementById('site-stats');
-        if (stats) {
-            stats.style.display = '';
+        if (stats && !stats.classList.contains('visible')) {
+            stats.classList.add('visible');
         }
     }
 

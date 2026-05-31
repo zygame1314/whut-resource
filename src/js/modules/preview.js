@@ -326,17 +326,22 @@ async function previewFile(fileKey, fileName, fileSize) {
                     video.controls = true;
                     video.autoplay = false;
                     const showVideoPlayer = () => {
+                        if (showVideoPlayer._called) return;
+                        showVideoPlayer._called = true;
+                        clearTimeout(showVideoPlayer._timer);
                         hideLoader();
                         videoWrapper.style.opacity = '1';
                         if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
                     };
                     video.onloadeddata = showVideoPlayer;
                     video.onerror = (e) => {
+                        if (showVideoPlayer._called) return;
+                        clearTimeout(showVideoPlayer._timer);
                         hideLoader();
                         showNotification('视频加载失败', 'error');
                         console.error('视频加载错误:', e);
                     };
-                    setTimeout(showVideoPlayer, 3000);
+                    showVideoPlayer._timer = setTimeout(showVideoPlayer, 3000);
                     videoWrapper.appendChild(video);
                     previewContent.appendChild(videoWrapper);
                 } else if (isAudioPreview) {
@@ -367,17 +372,22 @@ async function previewFile(fileKey, fileName, fileSize) {
                     audio.controls = true;
                     audio.autoplay = false;
                     const showAudioPlayer = () => {
+                        if (showAudioPlayer._called) return;
+                        showAudioPlayer._called = true;
+                        clearTimeout(showAudioPlayer._timer);
                         hideLoader();
                         audioWrapper.style.opacity = '1';
                         if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
                     };
                     audio.onloadedmetadata = showAudioPlayer;
                     audio.onerror = (e) => {
+                        if (showAudioPlayer._called) return;
+                        clearTimeout(showAudioPlayer._timer);
                         hideLoader();
                         showNotification('音频加载失败', 'error');
                         console.error('音频加载错误:', e);
                     };
-                    setTimeout(showAudioPlayer, 2000);
+                    showAudioPlayer._timer = setTimeout(showAudioPlayer, 2000);
                     audioCard.appendChild(iconWrapper);
                     audioCard.appendChild(infoWrapper);
                     audioCard.appendChild(audio);
@@ -387,12 +397,17 @@ async function previewFile(fileKey, fileName, fileSize) {
                     previewIframe.style.opacity = '0';
                     previewIframe.style.transition = 'opacity 0.3s ease';
                     const showIframe = () => {
+                        if (showIframe._called) return;
+                        showIframe._called = true;
+                        clearTimeout(showIframe._timer);
                         hideLoader();
                         previewIframe.style.opacity = '1';
                         if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
                     };
                     previewIframe.onload = showIframe;
                     previewIframe.onerror = () => {
+                        if (showIframe._called) return;
+                        clearTimeout(showIframe._timer);
                         hideLoader();
                         showNotification('预览加载失败', 'error');
                     };
@@ -429,7 +444,7 @@ async function previewFile(fileKey, fileName, fileSize) {
                         previewIframe.src = previewUrl;
                     }
                     previewIframe.style.display = 'block';
-                    setTimeout(showIframe, 5000);
+                    showIframe._timer = setTimeout(showIframe, 5000);
                 }
             }
         } else {

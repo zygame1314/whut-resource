@@ -193,10 +193,13 @@ function incrementQuotaDisplay() {
         updateQuotaDisplay(newUsed);
     }
 }
+let _quotaRefreshTimer = null;
 function refreshQuotaFromServer() {
+    if (_quotaRefreshTimer) return;
     if (!currentUser) return;
     const authToken = localStorage.getItem('authToken');
     if (!authToken) return;
+    _quotaRefreshTimer = setTimeout(() => { _quotaRefreshTimer = null; }, 2000);
     fetch(AUTH_API_URL, {
         headers: { 'Authorization': `Bearer ${authToken}` }
     }).then(r => r.json()).then(data => {

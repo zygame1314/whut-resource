@@ -212,6 +212,14 @@
     display: inline-flex;
     align-items: center;
     gap: 0.6rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+
+.site-stats.visible {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .stat-badge {
