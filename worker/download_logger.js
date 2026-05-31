@@ -29,9 +29,11 @@ export class DownloadLogger {
     constructor(state, env) {
         this.state = state;
         this.env = env;
+        this.onlineCount = null;
     }
     async fetch(request) {
         const url = new URL(request.url);
+        this._ensureCounter();
         if (request.headers.get("Upgrade") === "websocket") {
             const token = url.searchParams.get('token');
             if (!token) {
@@ -45,10 +47,10 @@ export class DownloadLogger {
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
             this.state.acceptWebSocket(server);
+            this.onlineCount++;
             server.send(JSON.stringify({ type: 'welcome', message: '已成功连接到实时下载日志' }));
-            const onlineCount = this.state.getWebSockets().length;
-            server.send(JSON.stringify({ type: 'online_count', count: onlineCount }));
-            this.broadcastOnlineCount();
+            server.send(JSON.stringify({ type: 'online_count', count: this.onlineCount }));
+            this.broadcast({ type: 'online_count', count: this.onlineCount });
             return new Response(null, { status: 101, webSocket: client });
         }
         if (url.pathname === "/broadcast" && request.method === "POST") {
@@ -57,13 +59,17 @@ export class DownloadLogger {
             return new Response("OK", { status: 200 });
         }
         if (url.pathname === "/stats" && request.method === "GET") {
-            const onlineCount = this.state.getWebSockets().length;
-            return new Response(JSON.stringify({ online: onlineCount }), {
+            return new Response(JSON.stringify({ online: this.onlineCount }), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
         }
         return new Response("未找到", { status: 404 });
+    }
+    _ensureCounter() {
+        if (this.onlineCount === null) {
+            this.onlineCount = this.state.getWebSockets().length;
+        }
     }
     broadcast(data) {
         const msg = JSON.stringify(data);
@@ -75,25 +81,25 @@ export class DownloadLogger {
             }
         }
     }
-    broadcastOnlineCount() {
-        const onlineCount = this.state.getWebSockets().length;
-        this.broadcast({ type: 'online_count', count: onlineCount });
-    }
     async webSocketMessage(ws, message) {
         try {
             const data = JSON.parse(message);
             if (data.type === 'ping') {
                 ws.send(JSON.stringify({ type: 'pong' }));
+            } else if (data.type === 'disconnect') {
+                ws.close(1000, 'client');
             }
         } catch (e) {}
     }
     async webSocketClose(ws, code, reason, wasClean) {
-        ws.close(code, reason);
-        setTimeout(() => this.broadcastOnlineCount(), 100);
+        this._ensureCounter();
+        this.onlineCount = Math.max(0, this.onlineCount - 1);
+        this.broadcast({ type: 'online_count', count: this.onlineCount });
     }
     async webSocketError(ws, error) {
-        ws.close(1011, 'Connection error');
-        setTimeout(() => this.broadcastOnlineCount(), 100);
+        this._ensureCounter();
+        this.onlineCount = Math.max(0, this.onlineCount - 1);
+        this.broadcast({ type: 'online_count', count: this.onlineCount });
     }
 }
 export default {

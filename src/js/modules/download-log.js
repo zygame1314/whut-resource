@@ -73,6 +73,12 @@
                 onPageHidden();
             }
         });
+        window.addEventListener('beforeunload', () => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                intentionalClose = true;
+                socket.send(JSON.stringify({ type: 'disconnect' }));
+            }
+        });
     }
     function onPageVisible() {
         if (visibilityDisconnectTimer) {
