@@ -227,6 +227,16 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
 export function isSuperAdmin(user) {
   return user && user.role === 'super_admin';
 }
+export async function logAdminAction(env, action, targetType, targetId, reason, details) {
+  try {
+    await env.DB.prepare(
+      'INSERT INTO admin_logs (action, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)'
+    ).bind(action, targetType, targetId || null, reason || null, details || null).run();
+    await env.DB.prepare("DELETE FROM admin_logs WHERE created_at < date('now', '-3 days')").run();
+  } catch (e) {
+    console.error('记录管理员操作失败:', e);
+  }
+}
 const EMBEDDING_MODEL = 'Qwen/Qwen3-Embedding-0.6B';
 const EMBEDDING_DIMENSIONS = 256;
 const SILICONFLOW_EMBEDDING_URL = 'https://api.siliconflow.cn/v1/embeddings';

@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, logAdminAction } from '../utils.js';
 export async function onRequestGet({ request, env }) {
     const authHeader = request.headers.get('Authorization');
     let user = null;
@@ -110,14 +110,7 @@ export async function onRequestPost({ request, env }) {
                 'UPDATE system_stats SET maintenance_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1'
             ).bind(maintenance ? 1 : 0).run();
         }
-        await DB.prepare(`
-            INSERT INTO admin_logs (action, target_type, target_id, reason, details)
-            VALUES (?, 'system', 1, ?, ?)
-        `).bind(
-            maintenance ? 'enable_maintenance' : 'disable_maintenance',
-            maintenance ? '开启维护' : '关闭维护',
-            JSON.stringify({ message: message || null })
-        ).run();
+        await logAdminAction(env, maintenance ? 'enable_maintenance' : 'disable_maintenance', 'system', 1, maintenance ? '开启维护' : '关闭维护', JSON.stringify({ message: message || null }));
         return new Response(JSON.stringify({
             success: true,
             message: maintenance ? '维护已开启' : '维护已关闭'

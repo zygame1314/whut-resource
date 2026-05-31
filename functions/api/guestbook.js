@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction } from '../utils.js';
 import { processWithAIAgent, processReplyWithAI, preFilterWithSmallModel } from './guestbook-ai.js';
 const CLEANUP_DAYS = 7;
 export async function onRequest(context) {
@@ -232,6 +232,9 @@ async function handleDelete(request, env) {
         }
     }
     await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(id).run();
+    if (isAdmin(user) && entry.user_id !== user.id) {
+        await logAdminAction(env, 'delete_guestbook', 'guestbook', id, '管理员删除留言', JSON.stringify({ operator_id: user.id, entry_user_id: entry.user_id }));
+    }
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePut(request, env, context) {
@@ -272,6 +275,9 @@ async function handlePut(request, env, context) {
         }
         if (isAdmin(user)) {
             await env.DB.prepare('UPDATE guestbook SET content = ? WHERE id = ?').bind(content.trim(), id).run();
+            if (guestbookEntry.user_id !== user.id) {
+                await logAdminAction(env, 'edit_guestbook', 'guestbook', id, '管理员编辑留言', JSON.stringify({ operator_id: user.id, entry_user_id: guestbookEntry.user_id }));
+            }
         } else {
             await env.DB.prepare('UPDATE guestbook SET content = ?, status = ?, reject_reason = NULL, is_hidden = 1 WHERE id = ?').bind(content.trim(), 'unresolved', id).run();
         }
@@ -352,6 +358,7 @@ async function handlePut(request, env, context) {
         }
         const isHidden = action === 'hide';
         await env.DB.prepare('UPDATE guestbook SET is_hidden = ? WHERE id = ?').bind(isHidden ? 1 : 0, id).run();
+        await logAdminAction(env, action, 'guestbook', id, action === 'hide' ? '隐藏留言' : '取消隐藏留言', JSON.stringify({ operator_id: user.id }));
     } else if (action === 'pin' || action === 'unpin') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -367,6 +374,7 @@ async function handlePut(request, env, context) {
         }
         const isPinned = action === 'pin';
         await env.DB.prepare('UPDATE guestbook SET is_pinned = ? WHERE id = ?').bind(isPinned ? 1 : 0, id).run();
+        await logAdminAction(env, action, 'guestbook', id, action === 'pin' ? '置顶留言' : '取消置顶留言', JSON.stringify({ operator_id: user.id }));
     } else if (action === 'resolve' || action === 'unresolve') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -388,6 +396,7 @@ async function handlePut(request, env, context) {
         } else {
             await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?').bind(status, resolveNote, id).run();
         }
+        await logAdminAction(env, action, 'guestbook', id, action === 'resolve' ? '标记留言为已解决' : '标记留言为未解决', JSON.stringify({ operator_id: user.id, resolve_note: resolveNote }));
     } else if (action === 'reject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -409,6 +418,7 @@ async function handlePut(request, env, context) {
             return new Response(JSON.stringify({ error: '驳回原因过长（最多200字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?').bind('rejected', rejectReason.trim(), id).run();
+        await logAdminAction(env, 'reject', 'guestbook', id, '驳回留言', JSON.stringify({ operator_id: user.id, reject_reason: rejectReason.trim() }));
     } else if (action === 'unreject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -423,6 +433,7 @@ async function handlePut(request, env, context) {
             }
         }
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, is_hidden = 0 WHERE id = ?').bind('unresolved', id).run();
+        await logAdminAction(env, 'unreject', 'guestbook', id, '取消驳回留言', JSON.stringify({ operator_id: user.id }));
     } else if (action === 'ban_user') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -437,6 +448,7 @@ async function handlePut(request, env, context) {
         }
         if (isSuperAdmin(user)) {
             await env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id).run();
+            await logAdminAction(env, 'ban_user', 'user', guestbookEntry.user_id, '封禁用户', JSON.stringify({ operator_id: user.id, guestbook_id: id, nickname: targetUser ? targetUser.nickname : null }));
         } else {
             const requestData = {
                 guestbook_id: id,
@@ -462,6 +474,7 @@ async function handlePut(request, env, context) {
         if (guestbookEntry) {
             if (isSuperAdmin(user)) {
                 await env.DB.prepare('UPDATE users SET is_banned = 0 WHERE id = ?').bind(guestbookEntry.user_id).run();
+                await logAdminAction(env, 'unban_user', 'user', guestbookEntry.user_id, '解封用户', JSON.stringify({ operator_id: user.id, guestbook_id: id }));
             } else {
                 const targetUser = await env.DB.prepare('SELECT nickname FROM users WHERE id = ?').bind(guestbookEntry.user_id).first();
                 const requestData = {

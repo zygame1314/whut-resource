@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, logAdminAction } from '../utils.js';
 const MAX_CONTENT_LENGTH = 200;
 const DAILY_LIMIT = 5;
 const MODERATION_PROMPT = `你是大学资源分享网站的评论审核助手。审核用户对文件资源的简短评论（最多200字）。
@@ -235,6 +235,9 @@ export async function onRequestDelete({ request, env }) {
             });
         }
         await DB.prepare('DELETE FROM file_boosts WHERE id = ?').bind(id).run();
+        if (boost.user_id !== user.id && isAdmin(user)) {
+            await logAdminAction(env, 'delete_boost', 'file_boost', id, '管理员删除评论', JSON.stringify({ operator_id: user.id, file_key: boost.file_key }));
+        }
         const stats = await DB.prepare('SELECT boost_count FROM files WHERE key = ?').bind(boost.file_key).first();
         return new Response(JSON.stringify({
             success: true,
