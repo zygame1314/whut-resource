@@ -67,18 +67,27 @@ async function getUser(request, env) {
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }
 async function handleGetLogs(request, env) {
-    const MAX_LIMIT = 500;
-    const { results } = await env.DB.prepare(`
+    const url = new URL(request.url);
+    const cursor = url.searchParams.get('cursor');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
+    let query = `
         SELECT l.*,
                op.nickname as operator_nickname,
                op.email as operator_email,
                op.role as operator_role
         FROM admin_logs l
         LEFT JOIN users op ON l.operator_id = op.id
-        ORDER BY l.created_at DESC
-        LIMIT ?
-    `).bind(MAX_LIMIT).all();
-    const data = results.map(log => ({
+    `;
+    let params = [];
+    if (cursor) {
+        query += ' WHERE l.created_at < ?';
+        params.push(cursor);
+    }
+    query += ' ORDER BY l.created_at DESC LIMIT ?';
+    params.push(limit + 1);
+    const { results } = await env.DB.prepare(query).bind(...params).all();
+    const hasMore = results.length > limit;
+    const data = results.slice(0, limit).map(log => ({
         ...log,
         label: ACTION_LABELS[log.action] || log.action,
         operator: log.operator_id ? {
@@ -88,10 +97,12 @@ async function handleGetLogs(request, env) {
             role: log.operator_role
         } : null
     }));
+    const nextCursor = hasMore ? data[data.length - 1].created_at : null;
     return new Response(JSON.stringify({
         success: true,
         data,
-        totalItems: data.length
+        nextCursor,
+        hasMore
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handleCleanupLogs(request, env, user) {

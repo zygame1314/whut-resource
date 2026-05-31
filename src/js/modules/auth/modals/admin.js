@@ -132,8 +132,27 @@ async function showAdminLogsModal() {
     modal.className = 'auth-modal admin-logs-modal';
     modal.innerHTML = `
         <div class="auth-box">
-            <div class="admin-modal-header">
-                <h2 class="auth-title">系统操作日志</h2>
+             <div class="admin-modal-header">
+                <h2 class="auth-title"><i class="fas fa-clipboard-list u-margin-right-small"></i>操作日志</h2>
+                 <div class="admin-logs-toolbar">
+                     <div class="custom-select-container" id="log-filter-dropdown">
+                         <button class="custom-select-trigger" type="button">
+                             <span class="selected-text">全部操作</span>
+                             <i class="fas fa-chevron-down"></i>
+                         </button>
+                         <div class="custom-select-options dropdown-menu">
+                             <div class="dropdown-item selected" data-value="">全部操作</div>
+                             <div class="dropdown-item" data-value="announcement">公告</div>
+                             <div class="dropdown-item" data-value="guestbook">留言</div>
+                             <div class="dropdown-item" data-value="user">用户</div>
+                             <div class="dropdown-item" data-value="file">文件</div>
+                             <div class="dropdown-item" data-value="system">系统</div>
+                             <div class="dropdown-item" data-value="ai_">AI 自动</div>
+                         </div>
+                         <input type="hidden" id="log-filter-action" value="">
+                     </div>
+                    <button id="logs-refresh-btn" class="admin-log-refresh-btn" title="刷新"><i class="fas fa-sync-alt"></i></button>
+                </div>
                 <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             </div>
             <div id="logs-container" class="admin-scrollable-container">
@@ -147,32 +166,92 @@ async function showAdminLogsModal() {
     closeBtn.onclick = () => closeAuthModal(modal);
     let currentPage = 1;
     let allLogsCache = [];
+    let allLogsCursor = null;
+    let hasMoreLogs = true;
+    let isLoadingMore = false;
+    let currentFilter = '';
     const LOGS_PER_PAGE = 20;
-    const loadLogs = async (page) => {
+    const filterDropdown = modal.querySelector('#log-filter-dropdown');
+    const filterHiddenInput = modal.querySelector('#log-filter-action');
+    const refreshBtn = modal.querySelector('#logs-refresh-btn');
+    const applyFilter = (value) => {
+        currentFilter = value;
+        filterHiddenInput.value = value;
+        const triggerText = filterDropdown.querySelector('.selected-text');
+        const items = filterDropdown.querySelectorAll('.dropdown-item');
+        items.forEach(item => item.classList.toggle('selected', item.dataset.value === value));
+        if (triggerText) {
+            const selectedItem = filterDropdown.querySelector('.dropdown-item.selected');
+            if (selectedItem) triggerText.textContent = selectedItem.textContent;
+        }
+        currentPage = 1;
+        resetAndReload();
+    };
+    const resetAndReload = async () => {
+        allLogsCache = [];
+        allLogsCursor = null;
+        hasMoreLogs = true;
+        currentPage = 1;
+        await loadLogs();
+        renderLogs();
+    };
+    if (filterDropdown) {
+        const trigger = filterDropdown.querySelector('.custom-select-trigger');
+        const optionsMenu = filterDropdown.querySelector('.custom-select-options');
+        const items = filterDropdown.querySelectorAll('.dropdown-item');
+        const arrow = trigger.querySelector('.fa-chevron-down');
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = optionsMenu.classList.contains('show');
+            document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+                if (m !== optionsMenu) m.classList.remove('show');
+            });
+            document.querySelectorAll('.custom-select-trigger.active').forEach(t => {
+                if (t !== trigger) t.classList.remove('active');
+            });
+            if (!isOpen) {
+                const rect = trigger.getBoundingClientRect();
+                optionsMenu.style.position = 'fixed';
+                optionsMenu.style.top = (rect.bottom + 4) + 'px';
+                optionsMenu.style.left = rect.left + 'px';
+            }
+            optionsMenu.classList.toggle('show');
+            trigger.classList.toggle('active');
+        });
+        items.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                applyFilter(item.dataset.value);
+                optionsMenu.classList.remove('show');
+                trigger.classList.remove('active');
+                arrow.style.transform = '';
+            });
+        });
+    }
+    refreshBtn.addEventListener('click', resetAndReload);
+    const renderLogs = () => {
         const container = modal.querySelector('#logs-container');
         const pagination = modal.querySelector('#logs-pagination');
-        container.innerHTML = '<div class="loading-spinner"></div>';
-        try {
-            if (allLogsCache.length === 0) {
-                const res = await fetch(`${API_BASE}/api/admin-logs`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                if (!data.success) throw new Error(data.error);
-                allLogsCache = data.data || [];
+        let filtered = allLogsCache;
+        if (currentFilter) {
+            if (currentFilter === 'ai_') {
+                filtered = allLogsCache.filter(l => l.action && l.action.startsWith('ai_'));
+            } else {
+                filtered = allLogsCache.filter(l => l.target_type === currentFilter);
             }
-            if (allLogsCache.length === 0) {
-                container.innerHTML = '<div class="admin-empty-state">暂无日志</div>';
-                pagination.innerHTML = '';
-                return;
-            }
-            const totalPages = Math.ceil(allLogsCache.length / LOGS_PER_PAGE);
-            const startIndex = (page - 1) * LOGS_PER_PAGE;
-            const endIndex = startIndex + LOGS_PER_PAGE;
-            const logsToShow = allLogsCache.slice(startIndex, endIndex);
-            container.innerHTML = logsToShow.map(log => {
-                let detailsHtml = '';
-                try {
+        }
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="admin-empty-state">暂无日志</div>';
+            pagination.innerHTML = '';
+            return;
+        }
+        const totalPages = Math.ceil(filtered.length / LOGS_PER_PAGE);
+        const startIndex = (currentPage - 1) * LOGS_PER_PAGE;
+        const endIndex = startIndex + LOGS_PER_PAGE;
+        const logsToShow = filtered.slice(startIndex, endIndex);
+        container.innerHTML = logsToShow.map(log => {
+            let detailsHtml = '';
+            try {
                     const details = JSON.parse(log.details);
                     const originalContent = details.snapshot_content || details.content;
                     if (originalContent) {
@@ -227,20 +306,59 @@ async function showAdminLogsModal() {
                     </div>
                 `;
             }).join('');
-            let paginationHtml = '';
-            if (page > 1) paginationHtml += `<button class="pagination-button" id="logs-prev-page"><i class="fas fa-chevron-left"></i> <span class="pagination-btn-text">上一页</span></button>`;
-            paginationHtml += `<span class="pagination-info">${page} / ${totalPages}</span>`;
-            if (page < totalPages) paginationHtml += `<button class="pagination-button" id="logs-next-page"><span class="pagination-btn-text">下一页</span> <i class="fas fa-chevron-right"></i></button>`;
-            pagination.innerHTML = paginationHtml;
-            const nextBtn = pagination.querySelector('#logs-next-page');
-            const prevBtn = pagination.querySelector('#logs-prev-page');
-            if (nextBtn) nextBtn.onclick = () => loadLogs(page + 1);
-            if (prevBtn) prevBtn.onclick = () => loadLogs(page - 1);
+        const cachePage = getFiltered().length > 0
+            ? Math.min(currentPage, Math.ceil(getFiltered().length / LOGS_PER_PAGE))
+            : 0;
+        const totalLoaded = getFiltered().length;
+        const hasServerMore = hasMoreLogs;
+        const canGoNext = (currentPage * LOGS_PER_PAGE) < totalLoaded || hasServerMore;
+        let paginationHtml = '';
+        if (currentPage > 1) paginationHtml += `<button class="pagination-button" id="logs-prev-page"><i class="fas fa-chevron-left"></i> <span class="pagination-btn-text">上一页</span></button>`;
+        paginationHtml += `<span class="pagination-info">第 ${currentPage} 页${hasServerMore ? `（已加载 ${totalLoaded} 条）` : `（共 ${totalLoaded} 条）`}</span>`;
+        if (canGoNext) paginationHtml += `<button class="pagination-button" id="logs-next-page"><span class="pagination-btn-text">下一页</span> <i class="fas fa-chevron-right"></i></button>`;
+        pagination.innerHTML = paginationHtml;
+        const nextBtn = pagination.querySelector('#logs-next-page');
+        const prevBtn = pagination.querySelector('#logs-prev-page');
+        if (nextBtn) nextBtn.onclick = async () => {
+            if (isLoadingMore) return;
+            if ((currentPage * LOGS_PER_PAGE) >= getFiltered().length && hasMoreLogs) {
+                isLoadingMore = true;
+                const loaded = await loadLogs();
+                isLoadingMore = false;
+                if (loaded) { currentPage++; renderLogs(); }
+            } else {
+                currentPage++;
+                renderLogs();
+            }
+        };
+        if (prevBtn) prevBtn.onclick = () => { currentPage--; renderLogs(); };
+    };
+    const getFiltered = () => {
+        if (!currentFilter) return allLogsCache;
+        if (currentFilter === 'ai_') return allLogsCache.filter(l => l.action && l.action.startsWith('ai_'));
+        return allLogsCache.filter(l => l.target_type === currentFilter);
+    };
+    const loadLogs = async () => {
+        if (isLoadingMore) return false;
+        const container = modal.querySelector('#logs-container');
+        container.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            let url = `${API_BASE}/api/admin-logs?limit=${LOGS_PER_PAGE}`;
+            if (allLogsCursor) url += `&cursor=${encodeURIComponent(allLogsCursor)}`;
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error);
+            const newItems = data.data || [];
+            allLogsCursor = data.nextCursor;
+            hasMoreLogs = data.hasMore;
+            allLogsCache = allLogsCache.concat(newItems);
+            return newItems.length > 0;
         } catch (e) {
             container.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
+            return false;
         }
     };
-    loadLogs(currentPage);
+    loadLogs().then(() => renderLogs());
 }
 async function showAdminManagementModal(initialTab = 'roles') {
     const modal = document.createElement('div');

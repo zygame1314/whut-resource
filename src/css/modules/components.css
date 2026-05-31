@@ -7670,99 +7670,132 @@ input#prompt-input {
 }
 
 .admin-log-entry {
-    border-bottom: 1px solid var(--border-color);
-    padding: 10px 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    background: var(--background-secondary);
+    transition: border-color 0.2s;
+}
+.admin-log-entry:hover {
+    border-color: var(--primary);
 }
 
 .admin-log-entry-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
+    margin-bottom: 4px;
 }
 
 .admin-log-action {
-    font-weight: bold;
-    font-size: 0.9em;
+    font-weight: 600;
+    font-size: 0.85em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
 }
 
 .admin-log-action[class*="action-delete"],
 .admin-log-action[class*="action-ban"] {
-    color: var(--error, #ff4d4f);
+    color: #fff;
+    background: rgba(255, 77, 79, 0.85);
 }
 
 .admin-log-action[class*="action-reject"],
 .admin-log-action[class*="action-hide"] {
-    color: var(--warning, #faad14);
+    color: #fff;
+    background: rgba(250, 173, 20, 0.85);
 }
 
 .admin-log-action[class*="action-unhide"],
 .admin-log-action[class*="action-resolve"],
 .admin-log-action[class*="action-approve"] {
-    color: var(--success, #52c41a);
+    color: #fff;
+    background: rgba(82, 196, 26, 0.85);
 }
 
 .admin-log-action[class*="action-edit"],
 .admin-log-action[class*="action-update"],
 .admin-log-action[class*="action-enable"],
 .admin-log-action[class*="action-disable"] {
-    color: var(--primary);
+    color: #fff;
+    background: rgba(59, 130, 246, 0.85);
 }
 
 .admin-log-action[class*="action-create"],
-.admin-log-action[class*="action-promote"] {
-    color: var(--success, #52c41a);
+.admin-log-action[class*="action-promote"],
+.admin-log-action[class*="action-pin"] {
+    color: #fff;
+    background: rgba(82, 196, 26, 0.8);
 }
 
 .admin-log-action[class*="action-demote"],
-.admin-log-action[class*="action-cleanup"] {
+.admin-log-action[class*="action-cleanup"],
+.admin-log-action[class*="action-unpin"],
+.admin-log-action[class*="action-unresolve"] {
     color: var(--text-secondary);
+    background: rgba(128, 128, 128, 0.15);
 }
 
 .admin-log-operator {
     font-weight: 600;
-    font-size: 0.9em;
+    font-size: 0.82em;
     color: var(--text-primary);
-    background: var(--background-secondary);
-    padding: 2px 8px;
-    border-radius: 4px;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    padding: 1px 8px;
+    border-radius: 12px;
     white-space: nowrap;
 }
 
+.admin-log-operator i {
+    margin-right: 3px;
+    font-size: 0.9em;
+}
+
 .admin-log-operator.operator-ai {
-    color: var(--primary);
-    background: rgba(var(--primary-rgb, 59, 130, 246), 0.1);
+    color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.08);
+    border-color: rgba(139, 92, 246, 0.25);
 }
 
 .admin-log-target {
-    font-size: 0.8em;
+    font-size: 0.78em;
+    font-family: 'Courier New', monospace;
     color: var(--text-tertiary);
-    background: var(--background-alt);
-    padding: 1px 6px;
+    background: rgba(128, 128, 128, 0.08);
+    border: 1px solid rgba(128, 128, 128, 0.15);
+    padding: 0 6px;
     border-radius: 3px;
     white-space: nowrap;
 }
 
 .admin-log-timestamp {
-    font-size: 0.8em;
-    color: var(--text-secondary);
+    font-size: 0.78em;
+    color: var(--text-tertiary);
     white-space: nowrap;
+    margin-left: auto;
 }
 
 .admin-log-reason {
-    margin: 5px 0;
-    font-size: 0.9em;
+    margin: 4px 0 2px;
+    font-size: 0.85em;
     color: var(--text-secondary);
 }
 
 .admin-log-details {
-    margin-top: 5px;
-    font-size: 0.9em;
+    margin-top: 6px;
+    font-size: 0.85em;
     color: var(--text-secondary);
-    background: var(--background-secondary);
-    padding: 5px;
-    border-radius: 4px;
+    background: rgba(128, 128, 128, 0.06);
+    border-left: 3px solid var(--primary, #3b82f6);
+    padding: 6px 10px;
+    border-radius: 0 4px 4px 0;
+    max-height: 120px;
+    overflow-y: auto;
+    word-break: break-all;
 }
 
 .admin-log-details strong {
@@ -7771,12 +7804,59 @@ input#prompt-input {
 
 .admin-log-resource-path {
     font-size: 0.8em;
-    color: var(--success);
+    color: var(--success, #52c41a);
 }
 
 .admin-log-user-info {
     font-size: 0.8em;
     color: var(--text-secondary);
+    padding: 2px 0;
+}
+
+.admin-logs-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    margin-right: 8px;
+}
+
+.admin-logs-toolbar .custom-select-container {
+    width: auto;
+}
+
+.admin-logs-toolbar .custom-select-trigger {
+    min-width: 90px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85em;
+    border-radius: 12px;
+}
+
+.admin-logs-toolbar .custom-select-options.dropdown-menu {
+    min-width: auto !important;
+    width: max-content;
+}
+
+.admin-log-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    background: var(--background);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.9em;
+}
+
+.admin-log-refresh-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: rotate(90deg);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
 }
 
 .admin-empty-state {
