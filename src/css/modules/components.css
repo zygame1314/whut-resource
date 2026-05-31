@@ -256,6 +256,28 @@
     background: rgba(99, 102, 241, 0.18);
 }
 
+.stat-badge-uptime {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    animation-delay: 1s;
+}
+
+.stat-badge-uptime:hover {
+    background: rgba(245, 158, 11, 0.18);
+}
+
+.stat-badge-update {
+    background: rgba(6, 182, 212, 0.1);
+    color: #06b6d4;
+    border: 1px solid rgba(6, 182, 212, 0.25);
+    animation-delay: 1.2s;
+}
+
+.stat-badge-update:hover {
+    background: rgba(6, 182, 212, 0.18);
+}
+
 .stat-pulse {
     display: inline-block;
     width: 8px;
@@ -295,6 +317,18 @@
     background: rgba(129, 140, 248, 0.12);
     color: #a5b4fc;
     border-color: rgba(129, 140, 248, 0.3);
+}
+
+[data-theme="dark"] .stat-badge-uptime {
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.3);
+}
+
+[data-theme="dark"] .stat-badge-update {
+    background: rgba(34, 211, 238, 0.12);
+    color: #22d3ee;
+    border-color: rgba(34, 211, 238, 0.3);
 }
 
 [data-theme="dark"] .stat-pulse {
