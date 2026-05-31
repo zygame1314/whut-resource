@@ -5589,8 +5589,8 @@ textarea.form-input {
 #admin-tools-toggle .badge {
     margin-left: 4px;
     margin-right: 4px;
-    min-width: 16px;
-    height: 16px;
+    min-width: 18px;
+    height: 18px;
     font-size: 0.65rem;
     padding: 0 4px;
 }
