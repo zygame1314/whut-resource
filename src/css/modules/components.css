@@ -300,10 +300,13 @@
     }
     .site-stats {
         gap: 0.4rem;
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: 100%;
     }
     .stat-badge {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.78rem;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.72rem;
     }
 }
 
