@@ -199,6 +199,98 @@
     animation: heartbeat 1.5s ease infinite;
 }
 
+.hero-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.site-stats {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    animation: fadeInUp 0.8s ease 0.6s both;
+}
+
+.stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.stat-badge-online {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.stat-badge-online:hover {
+    background: rgba(16, 185, 129, 0.18);
+}
+
+.stat-badge-registered {
+    background: rgba(99, 102, 241, 0.1);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.stat-badge-registered:hover {
+    background: rgba(99, 102, 241, 0.18);
+}
+
+.stat-pulse {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    animation: stat-pulse-anim 2s ease-in-out infinite;
+}
+
+@keyframes stat-pulse-anim {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+
+@media (max-width: 768px) {
+    .hero-badges {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .site-stats {
+        gap: 0.4rem;
+    }
+    .stat-badge {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.78rem;
+    }
+}
+
+[data-theme="dark"] .stat-badge-online {
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+[data-theme="dark"] .stat-badge-registered {
+    background: rgba(129, 140, 248, 0.12);
+    color: #a5b4fc;
+    border-color: rgba(129, 140, 248, 0.3);
+}
+
+[data-theme="dark"] .stat-pulse {
+    background: #34d399;
+}
+
 .view-btn {
     width: 35px;
     height: 35px;

@@ -10,7 +10,7 @@ export async function onRequest(context) {
     if (request.method === 'OPTIONS') {
         return next();
     }
-    if (url.pathname.startsWith('/api/maintenance') || url.pathname.startsWith('/api/auth')) {
+    if (url.pathname.startsWith('/api/maintenance') || url.pathname.startsWith('/api/auth') || url.pathname.startsWith('/api/site-stats')) {
         return next();
     }
     try {

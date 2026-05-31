@@ -51,13 +51,23 @@ export class DownloadLogger {
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
             this.state.acceptWebSocket(server);
+            const onlineCount = this.state.getWebSockets().length;
             server.send(JSON.stringify({ type: 'welcome', message: '已成功连接到实时下载日志' }));
+            server.send(JSON.stringify({ type: 'online_count', count: onlineCount }));
+            this.broadcastOnlineCount();
             return new Response(null, { status: 101, webSocket: client });
         }
         if (url.pathname === "/broadcast" && request.method === "POST") {
             const data = await request.json();
             this.broadcast(data);
             return new Response("OK", { status: 200 });
+        }
+        if (url.pathname === "/stats" && request.method === "GET") {
+            const onlineCount = this.state.getWebSockets().length;
+            return new Response(JSON.stringify({ online: onlineCount }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
         }
         return new Response("未找到", { status: 404 });
     }
@@ -71,11 +81,19 @@ export class DownloadLogger {
             }
         }
     }
+    broadcastOnlineCount() {
+        const onlineCount = this.state.getWebSockets().length;
+        this.broadcast({ type: 'online_count', count: onlineCount });
+    }
     async webSocketMessage(ws, message) {
     }
     async webSocketClose(ws, code, reason, wasClean) {
+        ws.close(code, reason);
+        this.broadcastOnlineCount();
     }
     async webSocketError(ws, error) {
+        ws.close(1011, 'Connection error');
+        this.broadcastOnlineCount();
     }
 }
 export default {

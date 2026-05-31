@@ -140,6 +140,8 @@
                 const data = JSON.parse(event.data);
                 if (data.type === 'download') {
                     queueDownloadToast(data.filename);
+                } else if (data.type === 'online_count') {
+                    document.dispatchEvent(new CustomEvent('siteOnlineCount', { detail: { count: data.count } }));
                 } else if (data.type === 'welcome' || data.type === 'pong') {
                 }
             } catch (e) {

@@ -95,9 +95,22 @@
                 <h1 class="main-heading">
                     <span class="text-gradient">学习资料共享平台</span>
                 </h1>
-                <div class="memory-badge">
-                    <i class="fas fa-heart"></i>
-                    <span>以一灯传诸灯，终至灯火通明。</span>
+                <div class="hero-badges">
+                    <div class="memory-badge">
+                        <i class="fas fa-heart"></i>
+                        <span>以一灯传诸灯，终至灯火通明。</span>
+                    </div>
+                    <div class="site-stats" id="site-stats" style="display:none;">
+                        <div class="stat-badge stat-badge-online">
+                            <span class="stat-pulse"></span>
+                            <i class="fas fa-circle" style="font-size:0.5rem;"></i>
+                            <span id="online-count">0</span> 人在线
+                        </div>
+                        <div class="stat-badge stat-badge-registered">
+                            <i class="fas fa-users"></i>
+                            <span id="registered-count">0</span> 人已注册
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="hero-visual">
@@ -825,6 +838,7 @@
     <script src="download-manager.js"></script>
     <script src="download-manager-ui.js"></script>
     <script src="download-log.js"></script>
+    <script src="site-stats.js"></script>
 </body>
 
 </html>

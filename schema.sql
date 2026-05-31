@@ -217,11 +217,14 @@ CREATE TABLE IF NOT EXISTS system_stats (
     total_size INTEGER DEFAULT 0,
     maintenance_mode BOOLEAN DEFAULT FALSE,
     maintenance_msg TEXT DEFAULT '系统正在进行升级维护，请稍候访问...',
+    registered_users INTEGER DEFAULT 0,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT OR REPLACE INTO system_stats (id, total_files, total_size, maintenance_mode, maintenance_msg)
-SELECT 1, COUNT(*), COALESCE(SUM(size), 0), FALSE, '系统正在进行升级维护，请稍候访问...' FROM files;
+INSERT OR REPLACE INTO system_stats (id, total_files, total_size, maintenance_mode, maintenance_msg, registered_users)
+SELECT 1, COUNT(*), COALESCE(SUM(size), 0), FALSE, '系统正在进行升级维护，请稍候访问...',
+       COALESCE((SELECT registered_users FROM system_stats WHERE id = 1), (SELECT COUNT(*) FROM users))
+FROM files;
 
 DROP TRIGGER IF EXISTS update_stats_after_insert;
 CREATE TRIGGER update_stats_after_insert
@@ -412,3 +415,17 @@ CREATE TABLE IF NOT EXISTS user_passkeys (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_passkeys_user ON user_passkeys(user_id, created_at DESC);
+
+DROP TRIGGER IF EXISTS update_registered_users_after_insert;
+CREATE TRIGGER update_registered_users_after_insert
+AFTER INSERT ON users
+BEGIN
+    UPDATE system_stats SET registered_users = registered_users + 1, updated_at = CURRENT_TIMESTAMP WHERE id = 1;
+END;
+
+DROP TRIGGER IF EXISTS update_registered_users_after_delete;
+CREATE TRIGGER update_registered_users_after_delete
+AFTER DELETE ON users
+BEGIN
+    UPDATE system_stats SET registered_users = registered_users - 1, updated_at = CURRENT_TIMESTAMP WHERE id = 1;
+END;

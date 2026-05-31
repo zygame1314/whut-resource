@@ -68,7 +68,8 @@ const jsBundles = {
     'tutorial.js': ['modules/tutorial.js'],
     'download-manager.js': ['modules/download-manager.js'],
     'download-manager-ui.js': ['modules/download-manager-ui.js'],
-    'download-log.js': ['modules/download-log.js']
+    'download-log.js': ['modules/download-log.js'],
+    'site-stats.js': ['modules/site-stats.js']
 };
 const cssBundles = {
     'css/style.css': [
