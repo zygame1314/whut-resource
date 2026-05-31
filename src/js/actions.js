@@ -752,7 +752,7 @@ async function toggleReaction(fileKey, btnElement) {
         if (btnElement) btnElement.disabled = false;
     }
 }
-async function fetchBoosts(fileKey, limit = 20, offset = 0) {
+async function fetchBoosts(fileKey, limit = 20, cursor = null) {
     const token = localStorage.getItem('authToken');
     if (!token) {
         showNotification("请先登录。", 'error');
@@ -760,7 +760,9 @@ async function fetchBoosts(fileKey, limit = 20, offset = 0) {
     }
     try {
         const BOOSTS_API_URL = API_ENDPOINTS.boosts;
-        const response = await fetch(`${BOOSTS_API_URL}?key=${encodeURIComponent(fileKey)}&limit=${limit}&offset=${offset}`, {
+        let url = `${BOOSTS_API_URL}?key=${encodeURIComponent(fileKey)}&limit=${limit}`;
+        if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+        const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` },
         });
         const result = await response.json();

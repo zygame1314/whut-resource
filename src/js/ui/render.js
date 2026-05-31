@@ -803,6 +803,7 @@ function toggleBoostPanel(li, item, boostBtn) {
             <span class="boost-panel-count"></span>
             <button class="boost-panel-close" title="关闭评论"><i class="fas fa-times"></i></button>
         </div>
+        <div class="boost-load-more" style="display:none;text-align:center;padding:6px 0;cursor:pointer;color:var(--text-secondary);font-size:0.85em;"><i class="fas fa-chevron-up"></i> 加载更早的评论</div>
         <div class="boost-list"><div class="boost-loading">加载中...</div></div>
         <div class="boost-input-area">
             <input type="text" class="boost-input" placeholder="说点什么..." maxlength="200" />
@@ -845,11 +846,14 @@ function toggleBoostPanel(li, item, boostBtn) {
         li.appendChild(panel);
         panel.onclick = (e) => e.stopPropagation();
     }
+    const boostLoadMore = panel.querySelector('.boost-load-more');
     const boostList = panel.querySelector('.boost-list');
     const boostInput = panel.querySelector('.boost-input');
     const boostSendBtn = panel.querySelector('.boost-send-btn');
     const charCount = panel.querySelector('.boost-char-count');
     const panelCount = panel.querySelector('.boost-panel-count');
+    let boostsCursor = null;
+    let boostsHasMore = false;
     const updatePanelCount = (total) => {
         if (panelCount) panelCount.textContent = total > 0 ? `${total}条` : '';
     };
@@ -861,17 +865,24 @@ function toggleBoostPanel(li, item, boostBtn) {
         }
     };
     boostInput.oninput = updateCharCount;
-    const loadBoosts = async () => {
+    const loadBoosts = async (append = false) => {
         try {
-            const result = await fetchBoosts(item.key, 20, 0);
+            const result = await fetchBoosts(item.key, 20, append ? boostsCursor : null);
             if (result && result.success) {
-                renderBoostList(boostList, result.boosts, item);
-                updatePanelCount(result.total);
+                if (append) {
+                    renderBoostListAppend(boostList, result.boosts, item);
+                } else {
+                    renderBoostList(boostList, result.boosts, item);
+                }
+                boostsCursor = result.nextCursor;
+                boostsHasMore = result.hasMore;
+                boostLoadMore.style.display = boostsHasMore ? 'block' : 'none';
+                updatePanelCount(item.boost_count || result.boosts.length);
             } else {
-                boostList.innerHTML = '<div class="boost-empty">暂无评论，来说点什么吧</div>';
+                if (!append) boostList.innerHTML = '<div class="boost-empty">暂无评论，来说点什么吧</div>';
             }
         } catch (e) {
-            boostList.innerHTML = '<div class="boost-empty">加载失败</div>';
+            if (!append) boostList.innerHTML = '<div class="boost-empty">加载失败</div>';
         }
     };
     const sendBoost = async () => {
@@ -898,12 +909,12 @@ function toggleBoostPanel(li, item, boostBtn) {
                 `;
                 const emptyMsg = boostList.querySelector('.boost-empty');
                 if (emptyMsg) emptyMsg.remove();
-                boostList.insertBefore(newBoost, boostList.firstChild);
+                boostList.appendChild(newBoost);
                 newBoost.querySelector('.boost-delete-btn').onclick = async (e) => {
                     e.stopPropagation();
                     await handleDeleteBoost(e, newBoost, item, boostBtn);
                 };
-                boostList.scrollTop = 0;
+                boostList.scrollTop = boostList.scrollHeight;
                 updatePanelCount(item.boost_count);
             } else {
                 showNotification(result?.error || '发送失败', 'error');
@@ -931,16 +942,15 @@ function toggleBoostPanel(li, item, boostBtn) {
             }, 250);
         };
     }
+    boostLoadMore.onclick = (e) => {
+        e.stopPropagation();
+        loadBoosts(true);
+    };
     loadBoosts();
 }
-function renderBoostList(container, boosts, item) {
-    if (!boosts || boosts.length === 0) {
-        container.innerHTML = '<div class="boost-empty">暂无评论，来说点什么吧</div>';
-        return;
-    }
-    const currentUserId = typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null;
-    const isAdminUser = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
-    container.innerHTML = boosts.map(b => {
+function createBoostBubblesHTML(boosts, currentUserId, isAdminUser) {
+    const sorted = [...boosts].reverse();
+    return sorted.map(b => {
         const isSelf = currentUserId && b.user_id === currentUserId;
         const bubbleClass = isSelf ? 'boost-bubble boost-self' : 'boost-bubble boost-other';
         const nickname = b.nickname || '匿名用户';
@@ -957,6 +967,8 @@ function renderBoostList(container, boosts, item) {
             </div>
         `;
     }).join('');
+}
+function bindBoostDeleteButtons(container, item) {
     container.querySelectorAll('.boost-delete-btn').forEach(btn => {
         btn.onclick = async (e) => {
             e.stopPropagation();
@@ -964,6 +976,48 @@ function renderBoostList(container, boosts, item) {
             await handleDeleteBoost(e, bubble, item, null);
         };
     });
+}
+function renderBoostList(container, boosts, item) {
+    if (!boosts || boosts.length === 0) {
+        container.innerHTML = '<div class="boost-empty">暂无评论，来说点什么吧</div>';
+        return;
+    }
+    const currentUserId = typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null;
+    const isAdminUser = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
+    container.innerHTML = createBoostBubblesHTML(boosts, currentUserId, isAdminUser);
+    container.scrollTop = container.scrollHeight;
+    bindBoostDeleteButtons(container, item);
+}
+function renderBoostListAppend(container, boosts, item) {
+    const emptyMsg = container.querySelector('.boost-empty');
+    if (emptyMsg) emptyMsg.remove();
+    const currentUserId = typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null;
+    const isAdminUser = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
+    const prevScrollHeight = container.scrollHeight;
+    const sorted = [...boosts].reverse();
+    const fragment = document.createDocumentFragment();
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = sorted.map(b => {
+        const isSelf = currentUserId && b.user_id === currentUserId;
+        const bubbleClass = isSelf ? 'boost-bubble boost-self' : 'boost-bubble boost-other';
+        const nickname = b.nickname || '匿名用户';
+        const timeStr = formatBoostTime(b.created_at);
+        const deleteBtn = (isSelf || isAdminUser) ? `<button class="boost-delete-btn" title="删除" data-id="${b.id}"><i class="fas fa-times"></i></button>` : '';
+        return `
+            <div class="${bubbleClass}" data-boost-id="${b.id}">
+                <div class="boost-bubble-header">
+                    <span class="boost-nickname" title="${escapeHtml(nickname)}">${escapeHtml(nickname)}</span>
+                    <span class="boost-time">${timeStr}</span>
+                    ${deleteBtn}
+                </div>
+                <div class="boost-bubble-content">${escapeHtml(b.content)}</div>
+            </div>
+        `;
+    }).join('');
+    while (tempDiv.firstChild) fragment.appendChild(tempDiv.firstChild);
+    container.insertBefore(fragment, container.firstChild);
+    container.scrollTop += container.scrollHeight - prevScrollHeight;
+    bindBoostDeleteButtons(container, item);
 }
 async function handleDeleteBoost(e, bubbleEl, item, boostBtn) {
     const boostId = parseInt(bubbleEl.querySelector('.boost-delete-btn')?.dataset?.id || bubbleEl.dataset?.boostId);

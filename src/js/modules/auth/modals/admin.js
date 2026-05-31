@@ -151,7 +151,8 @@ async function showAdminLogsModal() {
                          </div>
                          <input type="hidden" id="log-filter-action" value="">
                      </div>
-                    <button id="logs-refresh-btn" class="admin-log-refresh-btn" title="刷新"><i class="fas fa-sync-alt"></i></button>
+                     <button id="logs-refresh-btn" class="admin-log-refresh-btn" title="刷新"><i class="fas fa-sync-alt"></i></button>
+                     ${currentUser && currentUser.role === 'super_admin' ? '<button id="logs-cleanup-btn" class="admin-log-cleanup-btn" title="清理3天前的日志"><i class="fas fa-trash-alt"></i></button>' : ''}
                 </div>
                 <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             </div>
@@ -229,6 +230,40 @@ async function showAdminLogsModal() {
         });
     }
     refreshBtn.addEventListener('click', resetAndReload);
+    const cleanupBtn = modal.querySelector('#logs-cleanup-btn');
+    if (cleanupBtn) {
+        cleanupBtn.addEventListener('click', async () => {
+        if (isLoadingMore) return;
+        if (currentUser && currentUser.role !== 'super_admin') {
+            showNotification('只有超级管理员可以清理审计日志', 'warning');
+            return;
+        }
+        const confirmed = await showConfirmation({
+            title: '清理审计日志',
+            message: '确定清理3天前的所有审计日志吗？<br><br>此操作不可撤销。',
+            confirmText: '确认清理',
+            confirmClass: 'danger'
+        });
+        if (!confirmed) return;
+        isLoadingMore = true;
+        try {
+            const res = await fetch(`${API_BASE}/api/admin-logs`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                showNotification(data.message || '清理成功', 'success');
+            } else {
+                showNotification(data.error || '清理失败', 'error');
+            }
+        } catch (e) {
+            showNotification('清理出错', 'error');
+        }
+            isLoadingMore = false;
+            await resetAndReload();
+        });
+    }
     const renderLogs = () => {
         const container = modal.querySelector('#logs-container');
         const pagination = modal.querySelector('#logs-pagination');
@@ -237,10 +272,9 @@ async function showAdminLogsModal() {
             pagination.innerHTML = '';
             return;
         }
-        const totalPages = Math.ceil(filtered.length / LOGS_PER_PAGE);
         const startIndex = (currentPage - 1) * LOGS_PER_PAGE;
         const endIndex = startIndex + LOGS_PER_PAGE;
-        const logsToShow = filtered.slice(startIndex, endIndex);
+        const logsToShow = allLogsCache.slice(startIndex, endIndex);
         container.innerHTML = logsToShow.map(log => {
             let detailsHtml = '';
             try {

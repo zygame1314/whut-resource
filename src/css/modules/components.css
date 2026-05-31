@@ -7859,6 +7859,27 @@ input#prompt-input {
     box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
 }
 
+.admin-log-cleanup-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--background);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.8em;
+}
+
+.admin-log-cleanup-btn:hover {
+    border-color: var(--error, #ff4d4f);
+    color: var(--error, #ff4d4f);
+    background: rgba(255, 77, 79, 0.06);
+}
+
 .admin-empty-state {
     text-align: center;
     color: var(--text-secondary);

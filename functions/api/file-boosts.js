@@ -76,21 +76,29 @@ export async function onRequestGet({ request, env }) {
             });
         }
         const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
-        const offset = parseInt(url.searchParams.get('offset') || '0');
-        const countResult = await DB.prepare('SELECT COUNT(*) as total FROM file_boosts WHERE file_key = ?').bind(fileKey).first();
-        const total = countResult ? countResult.total : 0;
-        const { results } = await DB.prepare(`
+        const cursor = url.searchParams.get('cursor');
+        let query = `
             SELECT fb.id, fb.file_key, fb.user_id, fb.content, fb.created_at, u.nickname
             FROM file_boosts fb
             LEFT JOIN users u ON fb.user_id = u.id
             WHERE fb.file_key = ?
-            ORDER BY fb.created_at DESC
-            LIMIT ? OFFSET ?
-        `).bind(fileKey, limit, offset).all();
+        `;
+        const params = [fileKey];
+        if (cursor) {
+            query += ' AND fb.created_at < ?';
+            params.push(cursor);
+        }
+        query += ' ORDER BY fb.created_at DESC LIMIT ?';
+        params.push(limit + 1);
+        const { results } = await DB.prepare(query).bind(...params).all();
+        const hasMore = results.length > limit;
+        const boosts = hasMore ? results.slice(0, limit) : results;
+        const nextCursor = hasMore && boosts.length > 0 ? boosts[boosts.length - 1].created_at : null;
         return new Response(JSON.stringify({
             success: true,
-            boosts: results,
-            total
+            boosts,
+            nextCursor,
+            hasMore
         }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     } catch (error) {
         console.error('获取boosts失败:', error);
