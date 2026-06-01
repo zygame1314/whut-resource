@@ -136,6 +136,7 @@
         if (!authToken) {
             return;
         }
+        wasEverConnected = false;
         const wsUrl = `${API_ENDPOINTS.downloadLog}?token=${encodeURIComponent(authToken)}`;
         socket = new WebSocket(wsUrl);
         socket.onopen = () => {
