@@ -76,31 +76,42 @@ async function handleGet(request, env) {
     let query;
     let params = [];
     let results;
-    const adminSelect = `SELECT g.*, u.nickname, u.email, u.is_banned, u.role,
-        EXISTS(SELECT 1 FROM guestbook_likes WHERE guestbook_likes.guestbook_id = g.id AND guestbook_likes.user_id = ?) as has_liked
+    const adminSelect = `SELECT g.*, u.nickname, u.email, u.is_banned, u.role
         FROM guestbook g
         LEFT JOIN users u ON g.user_id = u.id`;
-    const userSelect = `SELECT g.*, u.nickname, u.email, u.role,
-        EXISTS(SELECT 1 FROM guestbook_likes WHERE guestbook_likes.guestbook_id = g.id AND guestbook_likes.user_id = ?) as has_liked
+    const userSelect = `SELECT g.*, u.nickname, u.email, u.role
         FROM guestbook g
         LEFT JOIN users u ON g.user_id = u.id`;
     if (isAdminUser) {
         query = `${adminSelect} ${orderByClause} LIMIT ?`;
-        params = [currentUserId, MAX_LIMIT];
+        params = [MAX_LIMIT];
         const q = await env.DB.prepare(query).bind(...params).all();
         results = q.results;
     } else {
         if (currentUserId) {
             query = `${userSelect} WHERE (g.is_hidden = FALSE OR g.user_id = ?) ${orderByClause} LIMIT ?`;
-            params = [currentUserId, currentUserId, MAX_LIMIT];
+            params = [currentUserId, MAX_LIMIT];
             const q = await env.DB.prepare(query).bind(...params).all();
             results = q.results;
         } else {
             query = `${userSelect} WHERE g.is_hidden = FALSE ${orderByClause} LIMIT ?`;
-            params = [null, MAX_LIMIT];
+            params = [MAX_LIMIT];
             const q = await env.DB.prepare(query).bind(...params).all();
             results = q.results;
         }
+    }
+    let likedIds = new Set();
+    if (currentUserId) {
+        const likeRows = results.map(r => r.id);
+        if (likeRows.length > 0) {
+            const placeholders = likeRows.map(() => '?').join(',');
+            const likeQuery = `SELECT guestbook_id FROM guestbook_likes WHERE user_id = ? AND guestbook_id IN (${placeholders})`;
+            const likeResult = await env.DB.prepare(likeQuery).bind(currentUserId, ...likeRows).all();
+            likedIds = new Set(likeResult.results.map(r => r.guestbook_id));
+        }
+    }
+    for (const msg of results) {
+        msg.has_liked = likedIds.has(msg.id);
     }
     const sanitizedResults = results.map(msg => {
         if (msg.role === 'admin' || msg.role === 'super_admin') {

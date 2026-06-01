@@ -1,9 +1,10 @@
 import { verifyToken, isAdmin, addCorsHeaders } from '../utils.js';
-let maintenanceCache = {
-    status: null,
-    lastChecked: 0,
-    TTL: 30000
-};
+const MAINTENANCE_CACHE_TTL = 60000;
+let maintenanceCache = { status: null, lastChecked: 0 };
+export function invalidateMaintenanceCache() {
+    maintenanceCache.status = null;
+    maintenanceCache.lastChecked = 0;
+}
 export async function onRequest(context) {
     const { request, env, next } = context;
     const url = new URL(request.url);
@@ -18,7 +19,7 @@ export async function onRequest(context) {
         if (!DB) return next();
         let status;
         const now = Date.now();
-        if (maintenanceCache.status && (now - maintenanceCache.lastChecked < maintenanceCache.TTL)) {
+        if (maintenanceCache.status && (now - maintenanceCache.lastChecked < MAINTENANCE_CACHE_TTL)) {
             status = maintenanceCache.status;
         } else {
             status = await DB.prepare('SELECT maintenance_mode, maintenance_msg FROM system_stats WHERE id = 1').first();
