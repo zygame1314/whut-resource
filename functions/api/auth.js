@@ -491,7 +491,8 @@ export async function onRequestPost({ request, env }) {
           }
         }
         if (!user) {
-          const defaultPasswordHash = await hashPassword(Math.random().toString(36), env.SALT);
+          const rawDefaultPassword = Math.random().toString(36).slice(2, 12);
+          const defaultPasswordHash = await hashPassword(rawDefaultPassword, env.SALT);
           const finalNickname = ssoResult.nickname || `学生_${studentId}`;
           const collision = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(ssoEmail).first();
           if (collision) {
@@ -539,7 +540,7 @@ export async function onRequestPost({ request, env }) {
           env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(ip, 'ip').run(),
           env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(studentId, 'email').run()
         ]);
-        return new Response(JSON.stringify({
+        const responseData = {
           success: true,
           token,
           needsActivation: isNewSsoUser,
@@ -552,7 +553,11 @@ export async function onRequestPost({ request, env }) {
             quota_used: user.quota_used,
             quota_remaining: user.quota_limit - user.quota_used
           }
-        }), { status: 200, headers: addCorsHeaders() });
+        };
+        if (isNewSsoUser) {
+          responseData.initialPassword = rawDefaultPassword;
+        }
+        return new Response(JSON.stringify(responseData), { status: 200, headers: addCorsHeaders() });
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: 'SSO 登录集成维护中: ' + e.message }), { status: 500, headers: addCorsHeaders() });
       }

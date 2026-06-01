@@ -376,6 +376,7 @@ function showAuthModal(mode = 'login') {
                     if (window.releaseRequests) window.releaseRequests(true);
                     if (isSso && data.needsActivation) {
                         closeAuthModal(modal);
+                        const initPwd = data.initialPassword || '';
                         const welcomeModal = document.createElement('div');
                         welcomeModal.className = 'auth-modal';
                         welcomeModal.innerHTML = `
@@ -386,7 +387,12 @@ function showAuthModal(mode = 'login') {
                                     <div class="info-card">
                                         <p><i class="fas fa-id-card"></i> 你的学号/工号: <code>${currentUser.school_id}</code></p>
                                         <p><i class="fas fa-envelope"></i> 系统邮箱: <code>${currentUser.email}</code></p>
+                                        ${initPwd ? `<p><i class="fas fa-key"></i> 系统初始密码: <code class="initial-password">${escapeHtml(initPwd)}</code></p>` : ''}
                                     </div>
+                                    ${initPwd ? `<div class="security-warning">
+                                        <h4><i class="fas fa-exclamation-triangle"></i> 安全提醒</h4>
+                                        <p>上方是你在本站的系统初始密码，<strong>请立即修改</strong>。此密码为随机生成，仅此次显示，之后将无法再次查看。建议你尽快设置一个自己容易记住的安全密码。</p>
+                                    </div>` : ''}
                                     <div class="activation-notice">
                                         <h4><i class="fas fa-unlock-alt"></i> 激活本站独立登录</h4>
                                         <p>你已通过 SSO 成功登录。为了方便以后直接使用邮箱登录（无需跳转 SSO），建议你现在去<strong>激活邮箱并设置一个本站密码</strong>。</p>

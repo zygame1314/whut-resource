@@ -104,8 +104,8 @@ async function handleGetLogs(request, env) {
         operator: log.operator_id ? {
             id: log.operator_id,
             nickname: log.operator_nickname || '已注销',
-            email: log.operator_email,
-            role: log.operator_role
+            email: log.operator_email || 'N/A',
+            role: log.operator_role || 'unknown'
         } : null
     }));
     const nextCursor = hasMore ? data[data.length - 1].created_at : null;
