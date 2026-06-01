@@ -444,6 +444,7 @@ export async function onRequestPost({ request, env }) {
       }
       let ssoResult;
       let isNewSsoUser = false;
+      let rawDefaultPassword = '';
       try {
         if (ssoSmsCode && ssoCookies) {
           ssoResult = await verifySsoSmsCode(ssoSmsCode, ssoCookies, body.ssoSmsHtml);
@@ -491,7 +492,7 @@ export async function onRequestPost({ request, env }) {
           }
         }
         if (!user) {
-          const rawDefaultPassword = Math.random().toString(36).slice(2, 12);
+          rawDefaultPassword = Math.random().toString(36).slice(2, 12);
           const defaultPasswordHash = await hashPassword(rawDefaultPassword, env.SALT);
           const finalNickname = ssoResult.nickname || `学生_${studentId}`;
           const collision = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(ssoEmail).first();
