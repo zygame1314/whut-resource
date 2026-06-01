@@ -227,6 +227,15 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
 export function isSuperAdmin(user) {
   return user && user.role === 'super_admin';
 }
+export async function getUserFromRequest(request, env) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  const token = authHeader.split(' ')[1];
+  const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+  if (!payload) return null;
+  const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
+  return user;
+}
 export async function logAdminAction(env, operatorId, action, targetType, targetId, reason, details) {
   try {
     await env.DB.prepare(

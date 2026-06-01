@@ -1,12 +1,7 @@
-import { verifyToken, addCorsHeaders, isSuperAdmin } from '../utils.js';
+import { addCorsHeaders, isSuperAdmin, getUserFromRequest } from '../utils.js';
 export async function onRequestPost({ request, env }) {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
-    }
-    const token = authHeader.substring(7);
-    const user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    if (!isSuperAdmin(user)) {
+    const user = await getUserFromRequest(request, env);
+    if (!user || !isSuperAdmin(user)) {
         return new Response(JSON.stringify({ success: false, error: '需要超级管理员权限' }), { status: 403, headers: addCorsHeaders() });
     }
     const R2 = env.R2_bucket;

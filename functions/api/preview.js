@@ -1,4 +1,4 @@
-import { verifyToken } from '../utils.js';
+import { getUserFromRequest } from '../utils.js';
 const addCorsHeaders = (headers = {}) => {
   return {
     ...headers,
@@ -21,20 +21,14 @@ export async function onRequest(context) {
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
-  const authHeader = request.headers.get('Authorization');
-  let user = null;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    user = await verifyToken(token, env.JWT_SECRET || 'secret');
-  }
+  const user = await getUserFromRequest(request, env);
   if (!user) {
     return new Response(JSON.stringify({ success: false, error: '未授权' }), {
       status: 401,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
-  const userInfo = await env.DB.prepare('SELECT is_banned FROM users WHERE id = ?').bind(user.id).first();
-  if (userInfo && userInfo.is_banned) {
+  if (user.is_banned) {
     return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法访问文件。' }), {
       status: 403,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

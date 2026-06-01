@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText } from '../utils.js';
+import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, getUserFromRequest } from '../utils.js';
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
@@ -79,13 +79,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
-    }
-    const token = authHeader.substring(7);
-    const user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    if (!isAdmin(user)) {
+    const user = await getUserFromRequest(request, env);
+    if (!user || !isAdmin(user)) {
       return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), { status: 403, headers: addCorsHeaders() });
     }
     const contentType = request.headers.get('Content-Type') || '';

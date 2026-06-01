@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, fetchSiliconFlowChat } from '../utils.js';
+import { addCorsHeaders, isAdmin, hybridSearch, fetchSiliconFlowChat, getUserFromRequest } from '../utils.js';
 const KEYWORD_PROMPT = `你是一个大学课程目录推荐助手。用户上传了一些文件名，你需要提取出文件所属的课程全称。
     规则：
     1. 识别并扩展缩写（严格映射）：
@@ -32,13 +32,8 @@ const PICK_PROMPT = `你是文件归档助手。根据用户要上传的文件�
 const THINK_REGEX = /<think>[\s\S]*?<\/think>/gi;
 export async function onRequestPost({ request, env }) {
     try {
-        const authHeader = request.headers.get('Authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-        }
-        const token = authHeader.substring(7);
-        const user = await verifyToken(token, env.JWT_SECRET || 'secret');
-        if (!isAdmin(user)) {
+        const user = await getUserFromRequest(request, env);
+        if (!user || !isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const { fileNames } = await request.json();

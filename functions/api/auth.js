@@ -1,4 +1,4 @@
-import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat } from '../utils.js';
+import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
 const NICKNAME_MODERATION_PROMPT = `你是严格的昵称审核助手。逐条检查以下规则，命中任意一条即 REJECT。
 
@@ -256,14 +256,9 @@ export async function onRequestPost({ request, env }) {
     }
     if (action === 'prepare-change-email') {
       const { newEmail, cfToken } = body;
-      const authHeader = request.headers.get('Authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      const user = await getUserFromRequest(request, env);
+      if (!user) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
-      }
-      const token = authHeader.split(' ')[1];
-      const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
-      if (!payload) {
-        return new Response(JSON.stringify({ success: false, error: '无效令牌' }), { status: 401, headers: addCorsHeaders() });
       }
       if (env.HCAPTCHA_SECRET_KEY) {
         if (!cfToken) {
@@ -296,9 +291,9 @@ export async function onRequestPost({ request, env }) {
       }
       const verifyCode = `Change-${randomCode}`;
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-      await env.DB.prepare('DELETE FROM pending_email_changes WHERE user_id = ?').bind(payload.id).run();
+      await env.DB.prepare('DELETE FROM pending_email_changes WHERE user_id = ?').bind(user.id).run();
       await env.DB.prepare('INSERT INTO pending_email_changes (user_id, new_email, verify_code, expires_at) VALUES (?, ?, ?, ?)')
-        .bind(payload.id, newEmail, verifyCode, expiresAt)
+        .bind(user.id, newEmail, verifyCode, expiresAt)
         .run();
       const botEmail = env.BOT_EMAIL || 'email-bot@haoli.site';
       return new Response(JSON.stringify({
@@ -310,15 +305,10 @@ export async function onRequestPost({ request, env }) {
       }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'check-email-change-status') {
-      const authHeader = request.headers.get('Authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
-      }
-      const token = authHeader.split(' ')[1];
-      const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
-      if (!payload) return new Response(JSON.stringify({ success: false, error: '无效令牌' }), { status: 401, headers: addCorsHeaders() });
+      const user = await getUserFromRequest(request, env);
+      if (!user) return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
       const pending = await env.DB.prepare('SELECT id, wrong_sender FROM pending_email_changes WHERE user_id = ? AND expires_at > ?')
-        .bind(payload.id, new Date().toISOString()).first();
+        .bind(user.id, new Date().toISOString()).first();
       if (pending) {
         const result = { success: true, completed: false, pending: true };
         if (pending.wrong_sender) {
@@ -330,14 +320,9 @@ export async function onRequestPost({ request, env }) {
     }
     if (action === 'change-nickname') {
       const { newNickname } = body;
-      const authHeader = request.headers.get('Authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      const currentUser = await getUserFromRequest(request, env);
+      if (!currentUser) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
-      }
-      const token = authHeader.split(' ')[1];
-      const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
-      if (!payload) {
-        return new Response(JSON.stringify({ success: false, error: '无效令牌' }), { status: 401, headers: addCorsHeaders() });
       }
       if (!newNickname || newNickname.trim().length === 0) {
         return new Response(JSON.stringify({ success: false, error: '昵称不能为空。' }), { status: 400, headers: addCorsHeaders() });
@@ -345,7 +330,6 @@ export async function onRequestPost({ request, env }) {
       if (newNickname.length > 20) {
         return new Response(JSON.stringify({ success: false, error: '昵称过长（最多20字符）。' }), { status: 400, headers: addCorsHeaders() });
       }
-      const currentUser = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(payload.id).first();
       if (!isAdmin(currentUser)) {
         const nicknameModeration = await moderateNickname(newNickname, env);
         if (!nicknameModeration.pass) {
@@ -353,7 +337,7 @@ export async function onRequestPost({ request, env }) {
         }
       }
       await env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?')
-        .bind(newNickname, payload.id)
+        .bind(newNickname, currentUser.id)
         .run();
       return new Response(JSON.stringify({ success: true, message: '昵称修改成功。' }), { status: 200, headers: addCorsHeaders() });
     }

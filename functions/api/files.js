@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction } from '../utils.js';
+import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest } from '../utils.js';
 async function fetchLikedFileKeys(DB, userId) {
     try {
         const { results } = await DB.prepare('SELECT file_key FROM file_reactions WHERE user_id = ?').bind(userId).all();
@@ -63,7 +63,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
         if (env.AI_BOT_TOKEN && token === env.AI_BOT_TOKEN) {
             user = { id: 0, role: 'bot', username: 'AI_BOT' };
         } else {
-            user = await verifyToken(token, env.JWT_SECRET || 'secret');
+            user = await getUserFromRequest(request, env);
         }
     }
     if (!user) {
@@ -499,13 +499,8 @@ export async function onRequestGet({ request, env, waitUntil }) {
     }
 }
 export async function onRequestPut({ request, env }) {
-    const authHeader = request.headers.get('Authorization');
-    let user = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    }
-    if (!isAdmin(user)) {
+    const user = await getUserFromRequest(request, env);
+    if (!user || !isAdmin(user)) {
         return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -703,15 +698,10 @@ export async function onRequestPut({ request, env }) {
     }
 }
 export async function onRequestPost({ request, env }) {
-    const authHeader = request.headers.get('Authorization');
-    let user = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    }
+    const user = await getUserFromRequest(request, env);
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
-    if (!isAdmin(user) && action !== 'toggleReaction') {
+    if (!user || (!isAdmin(user) && action !== 'toggleReaction')) {
         return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -930,13 +920,8 @@ export async function onRequestPost({ request, env }) {
     }
 }
 export async function onRequestDelete({ request, env }) {
-    const authHeader = request.headers.get('Authorization');
-    let user = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    }
-    if (!isAdmin(user)) {
+    const user = await getUserFromRequest(request, env);
+    if (!user || !isAdmin(user)) {
         return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

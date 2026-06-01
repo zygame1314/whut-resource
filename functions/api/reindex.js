@@ -1,13 +1,8 @@
-import { verifyToken, addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText } from '../utils.js';
+import { addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, getUserFromRequest } from '../utils.js';
 const BATCH_SIZE = 50;
 export async function onRequestPost({ request, env }) {
-    const authHeader = request.headers.get('Authorization');
-    let user = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    }
-    if (!isSuperAdmin(user)) {
+    const user = await getUserFromRequest(request, env);
+    if (!user || !isSuperAdmin(user)) {
         return new Response(JSON.stringify({ success: false, error: '需要超级管理员权限' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -186,13 +181,8 @@ async function handleRetryFailed(env, DB, VECTORIZE) {
     });
 }
 export async function onRequestGet({ request, env }) {
-    const authHeader = request.headers.get('Authorization');
-    let user = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    }
-    if (!isSuperAdmin(user)) {
+    const user = await getUserFromRequest(request, env);
+    if (!user || !isSuperAdmin(user)) {
         return new Response(JSON.stringify({ success: false, error: '需要超级管理员权限' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

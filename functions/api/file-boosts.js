@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, fetchSiliconFlowChat, logAdminAction } from '../utils.js';
+import { addCorsHeaders, isAdmin, isSuperAdmin, fetchSiliconFlowChat, logAdminAction, getUserFromRequest } from '../utils.js';
 const MAX_CONTENT_LENGTH = 200;
 const DAILY_LIMIT = 5;
 const MODERATION_PROMPT = `你是大学资源分享网站的评论审核助手。审核用户对文件资源的简短评论（最多200字）。
@@ -47,12 +47,7 @@ async function moderateContent(content, nickname, env) {
     }
 }
 export async function onRequestGet({ request, env }) {
-    const authHeader = request.headers.get('Authorization');
-    let user = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    }
+    const user = await getUserFromRequest(request, env);
     if (!user) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), {
             status: 401,
@@ -109,12 +104,7 @@ export async function onRequestGet({ request, env }) {
     }
 }
 export async function onRequestPost({ request, env }) {
-    const authHeader = request.headers.get('Authorization');
-    let user = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    }
+    const user = await getUserFromRequest(request, env);
     if (!user) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), {
             status: 401,
@@ -203,12 +193,7 @@ export async function onRequestPost({ request, env }) {
     }
 }
 export async function onRequestDelete({ request, env }) {
-    const authHeader = request.headers.get('Authorization');
-    let user = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
-    }
+    const user = await getUserFromRequest(request, env);
     if (!user) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), {
             status: 401,

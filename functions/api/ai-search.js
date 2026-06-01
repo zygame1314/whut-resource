@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, hybridSearch, fetchSiliconFlowChat } from '../utils.js';
+import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest } from '../utils.js';
 const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。将用户的【搜索词】转化为【搜索关键词】。
     规则：
     1. 缩写对应示例：
@@ -47,7 +47,7 @@ export async function onRequestGet({ request, env }) {
         if (env.AI_BOT_TOKEN && token === env.AI_BOT_TOKEN) {
             user = { id: 0, role: 'bot', username: 'AI_BOT' };
         } else {
-            user = await verifyToken(token, env.JWT_SECRET || 'secret');
+            user = await getUserFromRequest(request, env);
         }
     }
     if (!user) {
