@@ -7,10 +7,9 @@
     let visibilityDisconnectTimer;
     let isPageVisible = !document.hidden;
     let intentionalClose = false;
-    let wasEverConnected = false;
     let connectFailCount = 0;
     const MAX_RECONNECT_INTERVAL = 30000;
-    const MAX_INITIAL_RETRIES = 3;
+    const MAX_RETRIES = 3;
     const HEARTBEAT_INTERVAL = 30000;
     const VISIBILITY_DISCONNECT_DELAY = 60000;
     const isMobile = window.innerWidth <= 768;
@@ -136,15 +135,12 @@
         if (!authToken) {
             return;
         }
-        wasEverConnected = false;
         const wsUrl = `${API_ENDPOINTS.downloadLog}?token=${encodeURIComponent(authToken)}`;
         socket = new WebSocket(wsUrl);
         socket.onopen = () => {
             console.log('已成功连接到下载日志');
-            reconnectInterval = 1000;
-            wasEverConnected = true;
-            connectFailCount = 0;
             intentionalClose = false;
+            connectFailCount = 0;
             startHeartbeat();
         };
         socket.onmessage = (event) => {
@@ -171,18 +167,12 @@
                 console.log('检测到维护模式，停止自动重连');
                 return;
             }
-            if (!wasEverConnected) {
-                connectFailCount++;
-                if (connectFailCount > MAX_INITIAL_RETRIES) {
-                    console.log('WebSocket 建立失败（鉴权或网络问题），停止重连');
-                    return;
-                }
-                console.log(`WebSocket 连接失败，${MAX_INITIAL_RETRIES - connectFailCount + 1} 次重试机会，${reconnectInterval}ms 后重连`);
-                setTimeout(connect, reconnectInterval);
-                reconnectInterval = Math.min(reconnectInterval * 2, MAX_RECONNECT_INTERVAL);
+            connectFailCount++;
+            if (connectFailCount > MAX_RETRIES) {
+                console.log('WebSocket 重连次数已达上限，停止重连');
                 return;
             }
-            console.log('下载日志链接已断开。', reconnectInterval, 'ms 后尝试重连');
+            console.log(`下载日志链接已断开，第 ${connectFailCount}/${MAX_RETRIES} 次重连，${reconnectInterval}ms 后重连`);
             setTimeout(connect, reconnectInterval);
             reconnectInterval = Math.min(reconnectInterval * 2, MAX_RECONNECT_INTERVAL);
         };
