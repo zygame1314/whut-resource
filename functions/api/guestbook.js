@@ -40,8 +40,11 @@ async function handleGet(request, env) {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
-        await env.DB.prepare('INSERT OR IGNORE INTO guestbook_stats (id, total_messages_all_time, current_messages_count) SELECT 1, COUNT(*), COUNT(*) FROM guestbook').run();
-        const stats = await env.DB.prepare('SELECT * FROM guestbook_stats WHERE id = 1').first();
+        let stats = await env.DB.prepare('SELECT * FROM guestbook_stats WHERE id = 1').first();
+        if (!stats) {
+            await env.DB.prepare('INSERT OR IGNORE INTO guestbook_stats (id, total_messages_all_time, current_messages_count) SELECT 1, COUNT(*), COUNT(*) FROM guestbook').run();
+            stats = await env.DB.prepare('SELECT * FROM guestbook_stats WHERE id = 1').first();
+        }
         return new Response(JSON.stringify({
             success: true,
             stats: {
@@ -56,6 +59,19 @@ async function handleGet(request, env) {
     const user = await getUser(request, env);
     const currentUserId = user ? user.id : null;
     const isAdminUser = isAdmin(user);
+
+    const etagRow = await env.DB.prepare(
+        'SELECT MAX(created_at) as max_created, COUNT(*) as cnt, SUM(is_hidden) as hidden_cnt, SUM(is_pinned) as pinned_cnt FROM guestbook'
+    ).first();
+    const etagSource = `${etagRow?.max_created || ''}_${etagRow?.cnt || 0}_${etagRow?.hidden_cnt || 0}_${etagRow?.pinned_cnt || 0}_${currentUserId}_${isAdminUser}`;
+    const encoder = new TextEncoder();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(etagSource));
+    const etag = '"' + Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16) + '"';
+    const ifNoneMatch = request.headers.get('If-None-Match');
+    if (ifNoneMatch && ifNoneMatch === etag) {
+        return new Response(null, { status: 304, headers: addCorsHeaders({ 'ETag': etag }) });
+    }
+
     const orderByClause = 'ORDER BY g.is_pinned DESC, g.created_at DESC';
     let query;
     let params = [];
@@ -112,7 +128,7 @@ async function handleGet(request, env) {
     return new Response(JSON.stringify({
         data: organizedData,
         totalItems: organizedData.length
-    }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }), { headers: addCorsHeaders({ 'Content-Type': 'application/json', 'ETag': etag }) });
 }
 async function handlePost(request, env, context) {
     const user = await getUser(request, env);

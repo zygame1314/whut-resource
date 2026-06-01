@@ -1,4 +1,18 @@
 import { verifyToken, addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction } from '../utils.js';
+async function fetchLikedFileKeys(DB, userId) {
+    try {
+        const { results } = await DB.prepare('SELECT file_key FROM file_reactions WHERE user_id = ?').bind(userId).all();
+        return new Set(results.map(r => r.file_key));
+    } catch {
+        return new Set();
+    }
+}
+function annotateIsLiked(items, likedSet) {
+    for (const item of items) {
+        item.is_liked = likedSet.has(item.key) ? 1 : 0;
+    }
+    return items;
+}
 async function deleteVectorIndexes(env, fileIds) {
     if (!env.VECTORIZE || !fileIds || fileIds.length === 0) return;
     const idsToDelete = fileIds.map(id => id.toString());
@@ -67,6 +81,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
     }
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
+    const likedSet = user ? await fetchLikedFileKeys(DB, user.id) : new Set();
     try {
         if (action === 'stats') {
             const stmt = DB.prepare('SELECT total_files as fileCount, total_size as totalSize FROM system_stats WHERE id = 1');
@@ -276,14 +291,14 @@ export async function onRequestGet({ request, env, waitUntil }) {
         if (action === 'recentUploads') {
             const limit = parseInt(url.searchParams.get('limit') || '6');
             const stmt = DB.prepare(`
-                SELECT *,
-                ${user ? `(SELECT COUNT(*) FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as is_liked` : '0 as is_liked'}
+                SELECT *
                 FROM files
                 WHERE is_directory = FALSE
                 ORDER BY uploaded DESC
                 LIMIT ?
             `);
             const { results } = await stmt.bind(limit).all();
+            annotateIsLiked(results, likedSet);
             return new Response(JSON.stringify({ success: true, files: results }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'downloadHistory') {
@@ -297,8 +312,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
             const offset = Math.max(parseInt(url.searchParams.get('offset') || '0') || 0, 0);
             const stmt = DB.prepare(`
                 SELECT f.key, f.name, f.parent_path, f.is_directory, f.is_link, f.link_url, f.size, f.downloads, f.contentType,
-                       d.downloaded_at,
-                       ${user ? `(SELECT COUNT(*) FROM file_reactions WHERE file_key = f.key AND user_id = ${user.id}) as is_liked` : '0 as is_liked'}
+                       d.downloaded_at
                 FROM downloads d
                 JOIN files f ON d.file_key = f.key
                 WHERE d.user_id = ?
@@ -308,6 +322,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
             const { results } = await stmt.bind(user.id, limit, offset + 1).all();
             const hasMore = results.length > limit;
             if (hasMore) results.pop();
+            annotateIsLiked(results, likedSet);
             return new Response(JSON.stringify({
                 success: true,
                 files: results,
@@ -360,8 +375,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
         let itemsResult;
         if (search) {
             const ftsQuery = `
-                SELECT files.*,
-                ${user ? `(SELECT COUNT(*) FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as is_liked` : '0 as is_liked'}
+                SELECT files.*
                 FROM files
                 JOIN files_fts ON files.id = files_fts.rowid
                 WHERE files_fts MATCH ?
@@ -395,8 +409,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
             let c_key = url.searchParams.get('c_key');
             let hasCursor = c_is_dir !== null && c_is_link !== null && c_name !== null && c_key !== null;
             const selectClause = `
-                SELECT *,
-                ${user ? `(SELECT COUNT(*) FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as is_liked` : '0 as is_liked'}
+                SELECT *
                 FROM files
             `;
             const countQuery = `SELECT COUNT(*) as total FROM files WHERE parent_path = ?`;
@@ -432,11 +445,13 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 itemsResult = await DB.prepare(combinedQuery).bind(searchPath, MAX_LIMIT).all();
             }
             const items = itemsResult.results || [];
+            annotateIsLiked(items, likedSet);
             const directories = items.filter(item => item.is_directory);
             const files = items.filter(item => !item.is_directory);
             let currentFolder = null;
             if (!hasCursor && prefix) {
                 currentFolder = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(prefix).first();
+                if (currentFolder) annotateIsLiked([currentFolder], likedSet);
             }
             const lastItem = items.length > 0 ? items[items.length - 1] : null;
             const hasMore = items.length >= MAX_LIMIT;
@@ -461,8 +476,10 @@ export async function onRequestGet({ request, env, waitUntil }) {
         let currentFolder = null;
         if (!search && prefix) {
             currentFolder = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(prefix).first();
+            if (currentFolder) annotateIsLiked([currentFolder], likedSet);
         }
         const items = itemsResult.results || [];
+        annotateIsLiked(items, likedSet);
         const directories = items.filter(item => item.is_directory);
         const files = items.filter(item => !item.is_directory);
         const totalItems = items.length;

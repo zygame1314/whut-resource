@@ -548,6 +548,12 @@ async function loadMoreFiles() {
             currentRawData.files.push(...newFiles);
             currentCursor = result.cursor || null;
             currentHasMore = result.hasMore || false;
+            if (directoryCache[currentPrefix]) {
+                directoryCache[currentPrefix].data.directories.push(...newDirs);
+                directoryCache[currentPrefix].data.files.push(...newFiles);
+                directoryCache[currentPrefix].cursor = currentCursor;
+                directoryCache[currentPrefix].hasMore = currentHasMore;
+            }
             applyLocalSortAndFilter();
         } else {
             throw new Error(result?.error || '加载更多失败');
@@ -563,6 +569,7 @@ function renderLoadMoreButton(loading) {
     const existing = document.getElementById('load-more-container');
     if (existing) existing.remove();
     if (!currentHasMore && !loading) return;
+    if (!loading && (!currentHasMore || currentPage < totalPages)) return;
     const container = document.createElement('div');
     container.id = 'load-more-container';
     container.className = 'load-more-container';
