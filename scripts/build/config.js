@@ -69,7 +69,8 @@ const jsBundles = {
     'download-manager.js': ['modules/download-manager.js'],
     'download-manager-ui.js': ['modules/download-manager-ui.js'],
     'download-log.js': ['modules/download-log.js'],
-    'site-stats.js': ['modules/site-stats.js']
+    'site-stats.js': ['modules/site-stats.js'],
+    'browser-guide.js': ['modules/browser-guide.js']
 };
 const cssBundles = {
     'css/style.css': [
@@ -79,7 +80,8 @@ const cssBundles = {
         'modules/components.css',
         'modules/pages.css',
         'modules/dynamic.css',
-        'modules/tutorial.css'
+        'modules/tutorial.css',
+        'modules/browser-guide.css'
     ],
     'css/graph.css': ['modules/graph.css']
 };
