@@ -40,3 +40,6 @@ let highlightKey = null;
 let currentSortOption = 'name-asc';
 let currentFolderSearchTerm = '';
 let currentRawData = null;
+let currentCursor = null;
+let currentHasMore = false;
+let isLoadingMore = false;

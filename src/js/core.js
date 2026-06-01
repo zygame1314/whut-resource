@@ -522,6 +522,64 @@ async function fetchFileStats() {
         showNotification(`请求统计信息出错: ${error.message}`, 'error');
     }
 }
+async function loadMoreFiles() {
+    if (!currentHasMore || !currentCursor || isLoadingMore) return;
+    isLoadingMore = true;
+    renderLoadMoreButton(true);
+    const token = localStorage.getItem('authToken');
+    if (!token) { isLoadingMore = false; return; }
+    try {
+        const urlParams = new URLSearchParams();
+        urlParams.append('prefix', currentPrefix);
+        urlParams.append('c_is_dir', currentCursor.is_dir);
+        urlParams.append('c_is_link', currentCursor.is_link);
+        urlParams.append('c_name', currentCursor.name);
+        urlParams.append('c_key', currentCursor.key);
+        const url = `${FILES_API_URL}?${urlParams.toString()}`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            const newFiles = result.files || [];
+            const newDirs = result.directories || [];
+            currentRawData.directories.push(...newDirs);
+            currentRawData.files.push(...newFiles);
+            currentCursor = result.cursor || null;
+            currentHasMore = result.hasMore || false;
+            applyLocalSortAndFilter();
+        } else {
+            throw new Error(result?.error || '加载更多失败');
+        }
+    } catch (error) {
+        console.error('加载更多文件失败:', error);
+        showNotification(`加载更多失败: ${error.message}`, 'error');
+    }
+    isLoadingMore = false;
+    renderLoadMoreButton(false);
+}
+function renderLoadMoreButton(loading) {
+    const existing = document.getElementById('load-more-container');
+    if (existing) existing.remove();
+    if (!currentHasMore && !loading) return;
+    const container = document.createElement('div');
+    container.id = 'load-more-container';
+    container.className = 'load-more-container';
+    container.innerHTML = loading
+        ? `<button class="load-more-button loading" disabled><i class="fas fa-spinner fa-pulse"></i> 加载中...</button>`
+        : `<button class="load-more-button" id="load-more-btn"><i class="fas fa-chevron-down"></i> 加载更多内容</button>`;
+    const paginationEl = document.getElementById('pagination-controls');
+    if (paginationEl && paginationEl.parentNode) {
+        paginationEl.parentNode.insertBefore(container, paginationEl);
+    } else if (fileListElement && fileListElement.parentNode) {
+        fileListElement.parentNode.appendChild(container);
+    }
+    if (!loading) {
+        const btn = container.querySelector('#load-more-btn');
+        if (btn) btn.onclick = loadMoreFiles;
+    }
+}
 function applyLocalSortAndFilter() {
     if (!currentRawData) return;
     let processedData = sortData(currentRawData, currentSortOption);
@@ -575,6 +633,7 @@ function reRenderWithData(data, isGlobalSearch, searchTerm) {
     );
     updateUploadButtonLink();
     updateSelectAllButtonState();
+    renderLoadMoreButton(false);
 }
 function updateUploadButtonLink() {
     const uploadBtn = document.getElementById('upload-btn-link');
@@ -969,9 +1028,11 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                     if (directoryCache[prefix] && directoryCache[prefix].timestamp > Date.now() - 300000) {
                         console.log(`命中目录缓存: "${prefix || '根目录'}"`);
                         receivedData = directoryCache[prefix].data;
+                        currentCursor = directoryCache[prefix].cursor || null;
+                        currentHasMore = directoryCache[prefix].hasMore || false;
                         isCacheHit = true;
                     } else {
-                        console.log(`加载目录(全量): "${prefix || '根目录'}"`);
+                        console.log(`加载目录: "${prefix || '根目录'}"`);
                         let urlParams = new URLSearchParams();
                         urlParams.append('prefix', prefix);
                         isShowingSearchResults = false;
@@ -991,8 +1052,12 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                                 directories: result.directories || [],
                                 currentFolder: result.currentFolder || null
                             };
+                            currentCursor = result.cursor || null;
+                            currentHasMore = result.hasMore || false;
                             directoryCache[prefix] = {
                                 data: receivedData,
+                                cursor: result.cursor || null,
+                                hasMore: result.hasMore || false,
                                 timestamp: Date.now()
                             };
                         } else {
@@ -1034,6 +1099,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                     fileListElement.style.minHeight = '';
                     updateUploadButtonLink();
                     updateSelectAllButtonState();
+                    renderLoadMoreButton(false);
                     return;
                 }
             }

@@ -334,7 +334,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
-        const MAX_LIMIT = 1000;
+        const MAX_LIMIT = 50;
         const search = url.searchParams.get('search') || '';
         if (search) {
             const blockedExtensions = new Set([
@@ -389,17 +389,74 @@ export async function onRequestGet({ request, env, waitUntil }) {
             if (searchPath && !searchPath.endsWith('/')) {
                 searchPath += '/';
             }
-            const combinedQuery = `
+            let c_is_dir = url.searchParams.get('c_is_dir');
+            let c_is_link = url.searchParams.get('c_is_link');
+            let c_name = url.searchParams.get('c_name');
+            let c_key = url.searchParams.get('c_key');
+            let hasCursor = c_is_dir !== null && c_is_link !== null && c_name !== null && c_key !== null;
+            const selectClause = `
                 SELECT *,
                 ${user ? `(SELECT COUNT(*) FROM file_reactions WHERE file_key = files.key AND user_id = ${user.id}) as is_liked` : '0 as is_liked'}
                 FROM files
-                WHERE parent_path = ?
-                ORDER BY is_directory DESC,
-                        is_link DESC,
-                        name ASC
-                LIMIT ?
             `;
-            itemsResult = await DB.prepare(combinedQuery).bind(searchPath, MAX_LIMIT).all();
+            const countQuery = `SELECT COUNT(*) as total FROM files WHERE parent_path = ?`;
+            const countResult = await DB.prepare(countQuery).bind(searchPath).first();
+            const totalItems = countResult ? countResult.total : 0;
+            if (hasCursor) {
+                const cursorQuery = `
+                    ${selectClause}
+                    WHERE parent_path = ?1
+                      AND (
+                        is_directory < ?2
+                        OR (is_directory = ?2 AND is_link < ?3)
+                        OR (is_directory = ?2 AND is_link = ?3 AND name > ?4)
+                        OR (is_directory = ?2 AND is_link = ?3 AND name = ?4 AND key > ?5)
+                      )
+                    ORDER BY is_directory DESC,
+                            is_link DESC,
+                            name ASC,
+                            key ASC
+                    LIMIT ?6
+                `;
+                itemsResult = await DB.prepare(cursorQuery).bind(searchPath, parseInt(c_is_dir), parseInt(c_is_link), c_name, c_key, MAX_LIMIT).all();
+            } else {
+                const combinedQuery = `
+                    ${selectClause}
+                    WHERE parent_path = ?
+                    ORDER BY is_directory DESC,
+                            is_link DESC,
+                            name ASC,
+                            key ASC
+                    LIMIT ?
+                `;
+                itemsResult = await DB.prepare(combinedQuery).bind(searchPath, MAX_LIMIT).all();
+            }
+            const items = itemsResult.results || [];
+            const directories = items.filter(item => item.is_directory);
+            const files = items.filter(item => !item.is_directory);
+            let currentFolder = null;
+            if (!hasCursor && prefix) {
+                currentFolder = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(prefix).first();
+            }
+            const lastItem = items.length > 0 ? items[items.length - 1] : null;
+            const hasMore = items.length >= MAX_LIMIT;
+            let responseData = {
+                success: true,
+                files,
+                directories,
+                totalItems,
+                hasMore,
+                currentFolder
+            };
+            if (hasMore && lastItem) {
+                responseData.cursor = {
+                    is_dir: lastItem.is_directory === 1 || lastItem.is_directory === true ? 1 : 0,
+                    is_link: lastItem.is_link === 1 || lastItem.is_link === true ? 1 : 0,
+                    name: lastItem.name || '',
+                    key: lastItem.key || ''
+                };
+            }
+            return new Response(JSON.stringify(responseData), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         let currentFolder = null;
         if (!search && prefix) {

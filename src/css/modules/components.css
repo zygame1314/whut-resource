@@ -6632,6 +6632,59 @@ input#prompt-input {
     padding-top: 0;
 }
 
+.load-more-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem 0;
+    margin-top: -0.5rem;
+}
+
+.load-more-button {
+    background: var(--background-alt);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1.5rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-weight: 600;
+}
+
+.load-more-button:hover {
+    transform: translateY(-2px);
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+}
+
+.load-more-button:active {
+    transform: translateY(0);
+}
+
+.load-more-button.loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.load-more-button.loading:hover {
+    transform: none;
+    background: var(--background-alt);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+@media (max-width: 768px) {
+    .load-more-button {
+        width: 80%;
+        justify-content: center;
+    }
+}
+
 .upload-hero {
     padding: 2rem 1rem;
 }
