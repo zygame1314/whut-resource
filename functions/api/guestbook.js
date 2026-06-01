@@ -57,7 +57,10 @@ async function handleGet(request, env) {
     }
     const MAX_LIMIT = 500;
     const user = await getUser(request, env);
-    const currentUserId = user ? user.id : null;
+    if (!user) {
+        return new Response(JSON.stringify({ error: '请先登录' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    const currentUserId = user.id;
     const isAdminUser = isAdmin(user);
 
     const etagRow = await env.DB.prepare(
@@ -88,27 +91,18 @@ async function handleGet(request, env) {
         const q = await env.DB.prepare(query).bind(...params).all();
         results = q.results;
     } else {
-        if (currentUserId) {
-            query = `${userSelect} WHERE (g.is_hidden = FALSE OR g.user_id = ?) ${orderByClause} LIMIT ?`;
-            params = [currentUserId, MAX_LIMIT];
-            const q = await env.DB.prepare(query).bind(...params).all();
-            results = q.results;
-        } else {
-            query = `${userSelect} WHERE g.is_hidden = FALSE ${orderByClause} LIMIT ?`;
-            params = [MAX_LIMIT];
-            const q = await env.DB.prepare(query).bind(...params).all();
-            results = q.results;
-        }
+        query = `${userSelect} WHERE (g.is_hidden = FALSE OR g.user_id = ?) ${orderByClause} LIMIT ?`;
+        params = [currentUserId, MAX_LIMIT];
+        const q = await env.DB.prepare(query).bind(...params).all();
+        results = q.results;
     }
     let likedIds = new Set();
-    if (currentUserId) {
-        const likeRows = results.map(r => r.id);
-        if (likeRows.length > 0) {
-            const placeholders = likeRows.map(() => '?').join(',');
-            const likeQuery = `SELECT guestbook_id FROM guestbook_likes WHERE user_id = ? AND guestbook_id IN (${placeholders})`;
-            const likeResult = await env.DB.prepare(likeQuery).bind(currentUserId, ...likeRows).all();
-            likedIds = new Set(likeResult.results.map(r => r.guestbook_id));
-        }
+    const likeRows = results.map(r => r.id);
+    if (likeRows.length > 0) {
+        const placeholders = likeRows.map(() => '?').join(',');
+        const likeQuery = `SELECT guestbook_id FROM guestbook_likes WHERE user_id = ? AND guestbook_id IN (${placeholders})`;
+        const likeResult = await env.DB.prepare(likeQuery).bind(currentUserId, ...likeRows).all();
+        likedIds = new Set(likeResult.results.map(r => r.guestbook_id));
     }
     for (const msg of results) {
         msg.has_liked = likedIds.has(msg.id);

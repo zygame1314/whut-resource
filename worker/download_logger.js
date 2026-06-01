@@ -44,6 +44,10 @@ export class DownloadLogger {
             if (!user) {
                 return new Response('未授权：无效或过期的令牌', { status: 401 });
             }
+            const dbUser = await this.env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(user.id).first();
+            if (!dbUser) {
+                return new Response('未授权：用户不存在', { status: 401 });
+            }
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
             this.state.acceptWebSocket(server);
