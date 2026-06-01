@@ -8006,6 +8006,8 @@ input#prompt-input {
     font-size: 0.8em;
     color: var(--text-secondary);
     padding: 2px 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .admin-logs-toolbar {
@@ -8028,8 +8030,8 @@ input#prompt-input {
 }
 
 .admin-logs-toolbar .custom-select-options.dropdown-menu {
-    min-width: auto !important;
-    width: max-content;
+    min-width: 0;
+    width: auto;
 }
 
 .admin-log-refresh-btn {
@@ -8261,6 +8263,82 @@ input#prompt-input {
         padding: 1.5rem;
     }
 
+    .admin-modal-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .admin-modal-header .auth-title {
+        font-size: 1.1rem;
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    .admin-logs-toolbar {
+        order: 3;
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .admin-logs-toolbar .custom-select-container {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .admin-logs-toolbar .custom-select-trigger {
+        width: 100%;
+    }
+
+    .admin-modal-header .close-modal-btn {
+        order: 2;
+        margin-left: auto;
+    }
+
+    .admin-log-entry {
+        padding: 10px 12px;
+    }
+
+    .admin-log-entry-header {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .admin-log-timestamp {
+        margin-left: 0;
+    }
+
+    .admin-log-details {
+        padding: 5px 8px;
+        max-height: 100px;
+        font-size: 0.82em;
+    }
+
+    .admin-logs-modal .logs-pagination {
+        flex-wrap: wrap;
+    }
+
+    .admin-tab {
+        font-size: 0.82rem;
+        padding: 0.6rem 0.5rem;
+    }
+
+    .admin-tab-content {
+        max-height: calc(85vh - 180px);
+    }
+
+    .role-search-bar {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .role-search-bar .primary-btn {
+        width: 100%;
+    }
+
     .requests-header {
         flex-direction: column;
         gap: 0.75rem;
@@ -8300,6 +8378,65 @@ input#prompt-input {
 
     .banned-user-action button {
         width: 100%;
+    }
+
+    .role-user-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .role-user-item .banned-user-action {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .role-user-item .banned-user-action button {
+        flex: 1;
+        min-width: 0;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-logs-modal .auth-box,
+    .banned-users-modal .auth-box,
+    #admin-requests-modal .auth-box {
+        width: 98%;
+        padding: 1rem;
+        border-radius: 16px;
+    }
+
+    .admin-modal-header .auth-title {
+        font-size: 1rem;
+    }
+
+    .admin-log-entry-header {
+        gap: 4px;
+    }
+
+    .admin-log-operator {
+        font-size: 0.78em;
+        padding: 1px 6px;
+    }
+
+    .admin-log-action {
+        font-size: 0.78em;
+        padding: 2px 6px;
+    }
+
+    .admin-log-timestamp {
+        font-size: 0.72em;
+    }
+
+    .admin-tab {
+        font-size: 0.78rem;
+        padding: 0.5rem 0.4rem;
+    }
+
+    .admin-scrollable-container {
+        padding: 8px;
     }
 }
 

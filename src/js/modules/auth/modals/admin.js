@@ -215,9 +215,18 @@ async function showAdminLogsModal() {
                 optionsMenu.style.position = 'fixed';
                 optionsMenu.style.top = (rect.bottom + 4) + 'px';
                 optionsMenu.style.left = rect.left + 'px';
+                optionsMenu.style.width = rect.width + 'px';
+                optionsMenu.style.zIndex = '10001';
+                requestAnimationFrame(() => {
+                    optionsMenu.classList.add('show');
+                });
+                arrow.style.transform = 'rotate(180deg)';
+                trigger.classList.add('active');
+            } else {
+                optionsMenu.classList.remove('show');
+                arrow.style.transform = 'rotate(0deg)';
+                trigger.classList.remove('active');
             }
-            optionsMenu.classList.toggle('show');
-            trigger.classList.toggle('active');
         });
         items.forEach(item => {
             item.addEventListener('click', (e) => {
@@ -225,8 +234,15 @@ async function showAdminLogsModal() {
                 applyFilter(item.dataset.value);
                 optionsMenu.classList.remove('show');
                 trigger.classList.remove('active');
-                arrow.style.transform = '';
+                arrow.style.transform = 'rotate(0deg)';
             });
+        });
+        document.addEventListener('click', (e) => {
+            if (!filterDropdown.contains(e.target) && !optionsMenu.contains(e.target)) {
+                optionsMenu.classList.remove('show');
+                arrow.style.transform = 'rotate(0deg)';
+                trigger.classList.remove('active');
+            }
         });
     }
     refreshBtn.addEventListener('click', resetAndReload);
@@ -791,7 +807,9 @@ async function showAdminRequestsModal(mode = 'all') {
                 optionsMenu.style.left = rect.left + 'px';
                 optionsMenu.style.width = rect.width + 'px';
                 optionsMenu.style.zIndex = '10001';
-                optionsMenu.classList.add('show');
+                requestAnimationFrame(() => {
+                    optionsMenu.classList.add('show');
+                });
                 arrow.style.transform = 'rotate(180deg)';
                 trigger.classList.add('active');
             } else {
