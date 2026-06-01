@@ -383,26 +383,22 @@ function showAuthModal(mode = 'login') {
                             <div class="auth-box welcome-box">
                                 <h2 class="auth-title"><i class="fas fa-check-circle"></i> 登录成功</h2>
                                 <div class="welcome-content">
-                                    <p>欢迎回来，<strong>${escapeHtml(currentUser.nickname)}</strong>！</p>
+                                    <p>欢迎回来，<strong>${escapeHtml(currentUser.nickname)}</strong>！你已通过学校统一身份认证登录本站。</p>
                                     <div class="info-card">
                                         <p><i class="fas fa-id-card"></i> 你的学号/工号: <code>${currentUser.school_id}</code></p>
                                         <p><i class="fas fa-envelope"></i> 系统邮箱: <code>${currentUser.email}</code></p>
                                         ${initPwd ? `<p><i class="fas fa-key"></i> 系统初始密码: <code class="initial-password">${escapeHtml(initPwd)}</code></p>` : ''}
                                     </div>
-                                    ${initPwd ? `<div class="security-warning">
-                                        <h4><i class="fas fa-exclamation-triangle"></i> 安全提醒</h4>
-                                        <p>上方是你在本站的系统初始密码，<strong>请立即修改</strong>。此密码为随机生成，仅此次显示，之后将无法再次查看。建议你尽快设置一个自己容易记住的安全密码。</p>
-                                    </div>` : ''}
                                     <div class="activation-notice">
-                                        <h4><i class="fas fa-unlock-alt"></i> 激活本站独立登录</h4>
-                                        <p>你已通过 SSO 成功登录。为了方便以后直接使用邮箱登录（无需跳转 SSO），建议你现在去<strong>激活邮箱并设置一个本站密码</strong>。</p>
-                                        <p class="small-text">我们已经为你准备好了重置链接，只需点击下方按钮并发送验证邮件即可。</p>
+                                        <h4><i class="fas fa-exclamation-triangle"></i> 请尽快修改初始密码</h4>
+                                        ${initPwd ? `<p>上方初始密码为系统随机生成，<strong class="highlight-danger">仅此次显示，之后无法再查看</strong>。请立即修改为你自己容易记住的安全密码，修改时将初始密码作为旧密码输入即可。</p>` : `<p>你的账号已创建，当前使用的是系统生成的随机密码。请立即设置一个自己容易记住的安全密码。</p>`}
+                                        <p class="small-text">修改密码需先验证邮箱，点击下方按钮发送验证邮件即可开始。</p>
                                     </div>
                                 </div>
                                 <div class="welcome-actions">
-                                    <button id="go-activate-btn" class="primary-btn full-width">立即去激活/设密</button>
+                                    <button id="go-activate-btn" class="primary-btn full-width">立即修改密码</button>
                                     <button id="setup-passkey-sso-btn" class="secondary-btn full-width" style="display:none;"><i class="fas fa-fingerprint"></i> 设置通行密钥</button>
-                                    <button id="skip-welcome-btn" class="secondary-btn full-width">暂不激活，直接进入</button>
+                                    <button id="skip-welcome-btn" class="secondary-btn full-width">暂不修改，直接进入</button>
                                 </div>
                             </div>
                         `;
@@ -411,7 +407,7 @@ function showAuthModal(mode = 'login') {
                             closeAuthModal(welcomeModal);
                         };
                         welcomeModal.querySelector('#go-activate-btn').onclick = () => {
-                            closeAuthModal(welcomeModal, () => showForgotPasswordModal(currentUser.email));
+                            closeAuthModal(welcomeModal, () => showChangePasswordModal());
                         };
                         const ssoPasskeyBtn = welcomeModal.querySelector('#setup-passkey-sso-btn');
                         if (ssoPasskeyBtn && ssoPasskeyAvailable) {
