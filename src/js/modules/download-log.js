@@ -7,6 +7,7 @@
     let visibilityDisconnectTimer;
     let isPageVisible = !document.hidden;
     let intentionalClose = false;
+    let wasEverConnected = false;
     const MAX_RECONNECT_INTERVAL = 30000;
     const HEARTBEAT_INTERVAL = 30000;
     const VISIBILITY_DISCONNECT_DELAY = 60000;
@@ -133,11 +134,13 @@
         if (!authToken) {
             return;
         }
+        wasEverConnected = false;
         const wsUrl = `${API_ENDPOINTS.downloadLog}?token=${encodeURIComponent(authToken)}`;
         socket = new WebSocket(wsUrl);
         socket.onopen = () => {
             console.log('已成功连接到下载日志');
             reconnectInterval = 1000;
+            wasEverConnected = true;
             intentionalClose = false;
             startHeartbeat();
         };
@@ -163,6 +166,10 @@
             const maintenanceOverlay = document.getElementById('maintenance-overlay');
             if (maintenanceOverlay && getComputedStyle(maintenanceOverlay).display !== 'none') {
                 console.log('检测到维护模式，停止自动重连');
+                return;
+            }
+            if (!wasEverConnected) {
+                console.log('WebSocket 建立失败（鉴权或网络问题），停止重连');
                 return;
             }
             console.log('下载日志链接已断开。', reconnectInterval, 'ms 后尝试重连');
