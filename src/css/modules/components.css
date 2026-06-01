@@ -1449,7 +1449,29 @@
     border-radius: 4px;
     font-weight: 700;
     letter-spacing: 0.5px;
-    user-select: all;
+}
+
+.info-card .copy-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    margin-left: 6px;
+    transition: all 0.2s;
+    vertical-align: middle;
+}
+
+.info-card .copy-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: rgba(0, 123, 255, 0.06);
+}
+
+.info-card .copy-btn .fa-check {
+    color: #27ae60;
 }
 
 .activation-notice h4 i.fa-exclamation-triangle {

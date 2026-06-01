@@ -387,7 +387,7 @@ function showAuthModal(mode = 'login') {
                                     <div class="info-card">
                                         <p><i class="fas fa-id-card"></i> 你的学号/工号: <code>${currentUser.school_id}</code></p>
                                         <p><i class="fas fa-envelope"></i> 系统邮箱: <code>${currentUser.email}</code></p>
-                                        ${initPwd ? `<p><i class="fas fa-key"></i> 系统初始密码: <code class="initial-password">${escapeHtml(initPwd)}</code></p>` : ''}
+                                        ${initPwd ? `<p><i class="fas fa-key"></i> 系统初始密码: <code class="initial-password">${escapeHtml(initPwd)}</code><button id="copy-init-pwd-btn" class="copy-btn" title="复制密码"><i class="fas fa-copy"></i></button></p>` : ''}
                                     </div>
                                     <div class="activation-notice">
                                         <h4><i class="fas fa-exclamation-triangle"></i> 请尽快修改初始密码</h4>
@@ -409,6 +409,18 @@ function showAuthModal(mode = 'login') {
                         welcomeModal.querySelector('#go-activate-btn').onclick = () => {
                             closeAuthModal(welcomeModal, () => showChangePasswordModal());
                         };
+                        const copyPwdBtn = welcomeModal.querySelector('#copy-init-pwd-btn');
+                        if (copyPwdBtn) {
+                            copyPwdBtn.onclick = async () => {
+                                try {
+                                    await navigator.clipboard.writeText(initPwd);
+                                    copyPwdBtn.innerHTML = '<i class="fas fa-check"></i>';
+                                    setTimeout(() => { copyPwdBtn.innerHTML = '<i class="fas fa-copy"></i>'; }, 1500);
+                                } catch (e) {
+                                    showNotification('复制失败，请手动复制', 'error');
+                                }
+                            };
+                        }
                         const ssoPasskeyBtn = welcomeModal.querySelector('#setup-passkey-sso-btn');
                         if (ssoPasskeyBtn && ssoPasskeyAvailable) {
                             ssoPasskeyBtn.style.display = '';

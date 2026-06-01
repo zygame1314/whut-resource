@@ -147,10 +147,23 @@ async function handleAIPathRecommend(e) {
 async function initUploadPathSelector() {
     const selector = document.getElementById('upload-path-selector');
     if (!selector) return;
-    let waitTime = 0;
-    while (!window.currentUser && waitTime < 3000) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        waitTime += 100;
+    if (!localStorage.getItem('authToken')) {
+        showNoPermissionUI();
+        return;
+    }
+    if (!window.currentUser) {
+        await new Promise((resolve) => {
+            const onAuthSuccess = () => {
+                document.removeEventListener('authSuccess', onAuthSuccess);
+                clearTimeout(timeout);
+                resolve();
+            };
+            const timeout = setTimeout(() => {
+                document.removeEventListener('authSuccess', onAuthSuccess);
+                resolve();
+            }, 5000);
+            document.addEventListener('authSuccess', onAuthSuccess);
+        });
     }
     const isAdmin = window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'super_admin');
     if (!isAdmin) {
