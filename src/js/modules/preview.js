@@ -793,7 +793,7 @@ function buildArchiveTree(entries) {
                 row.classList.add('zip-folder-row');
             } else if (child.isDir) {
                 row.classList.add('zip-folder-row');
-                row.addEventListener('click', () => {});
+                row.addEventListener('click', () => { });
             }
 
             parentEl.appendChild(item);

@@ -323,7 +323,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                                     document.dispatchEvent(new Event('authSuccess'));
                                     if (window.releaseRequests) window.releaseRequests(true);
                                 }
-                            } catch (_) {}
+                            } catch (_) { }
                         },
                         onExpired: () => {
                             modal.querySelector('#reset-wrong-sender').style.display = 'none';
@@ -771,21 +771,23 @@ function showPasskeyManageModal() {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 请验证身份...';
         try {
-            const b64ToAb = (s) => { const b = atob(s.replace(/-/g,'+').replace(/_/g,'/')); const a = new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; };
-            const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+            const b64ToAb = (s) => { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/')); const a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a.buffer; };
+            const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
             const optRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-options' }) });
             const optData = await optRes.json();
             if (!optData.success) throw new Error(optData.error);
             const opts = optData.options;
-            const cred = await navigator.credentials.create({ publicKey: {
-                rp: opts.rp,
-                user: { id: new Uint8Array(b64ToAb(opts.user.id)), name: opts.user.name, displayName: opts.user.displayName },
-                challenge: new Uint8Array(b64ToAb(opts.challenge)),
-                pubKeyCredParams: opts.pubKeyCredParams,
-                authenticatorSelection: opts.authenticatorSelection,
-                timeout: opts.timeout,
-                attestation: opts.attestation
-            }});
+            const cred = await navigator.credentials.create({
+                publicKey: {
+                    rp: opts.rp,
+                    user: { id: new Uint8Array(b64ToAb(opts.user.id)), name: opts.user.name, displayName: opts.user.displayName },
+                    challenge: new Uint8Array(b64ToAb(opts.challenge)),
+                    pubKeyCredParams: opts.pubKeyCredParams,
+                    authenticatorSelection: opts.authenticatorSelection,
+                    timeout: opts.timeout,
+                    attestation: opts.attestation
+                }
+            });
             const verifyRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-verify', challengeToken: optData.challengeToken, credential: { id: cred.id, rawId: abToB64(cred.rawId), response: { attestationObject: abToB64(cred.response.attestationObject), clientDataJSON: abToB64(cred.response.clientDataJSON) }, type: cred.type }, deviceName: getDeviceName() }) });
             const verifyData = await verifyRes.json();
             if (verifyData.success) { showNotification('通行密钥添加成功！', 'success'); loadPasskeys(); }

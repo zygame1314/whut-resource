@@ -206,7 +206,7 @@ function refreshQuotaFromServer() {
         if (data.success && data.user) {
             updateQuotaDisplay(data.user.quota_used, data.user.quota_limit);
         }
-    }).catch(() => {});
+    }).catch(() => { });
 }
 function initQuotaPopup() {
     const quotaEl = document.querySelector('.user-info .quota');

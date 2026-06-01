@@ -432,7 +432,7 @@ function startTutorial() {
         animating = true;
         const el = tour.getCurrentStep()?.el;
         const overlay = document.querySelector('.shepherd-modal-overlay-container.shepherd-modal-is-visible');
-        animateOut(el, () => {});
+        animateOut(el, () => { });
         if (overlay) {
             overlay.style.transition = 'opacity 0.3s ease, backdrop-filter 0.3s ease, -webkit-backdrop-filter 0.3s ease';
             overlay.style.opacity = '0';

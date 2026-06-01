@@ -414,21 +414,23 @@ function showAuthModal(mode = 'login') {
                                 ssoPasskeyBtn.disabled = true;
                                 ssoPasskeyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 设置中...';
                                 try {
-                                    const b64ToAb = (s) => { const b = atob(s.replace(/-/g,'+').replace(/_/g,'/')); const a = new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; };
-                                    const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+                                    const b64ToAb = (s) => { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/')); const a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a.buffer; };
+                                    const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
                                     const optRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-options' }) });
                                     const optData = await optRes.json();
                                     if (!optData.success) throw new Error(optData.error);
                                     const opts = optData.options;
-                                    const cred = await navigator.credentials.create({ publicKey: {
-                                        rp: opts.rp,
-                                        user: { id: new Uint8Array(b64ToAb(opts.user.id)), name: opts.user.name, displayName: opts.user.displayName },
-                                        challenge: new Uint8Array(b64ToAb(opts.challenge)),
-                                        pubKeyCredParams: opts.pubKeyCredParams,
-                                        authenticatorSelection: opts.authenticatorSelection,
-                                        timeout: opts.timeout,
-                                        attestation: opts.attestation
-                                    }});
+                                    const cred = await navigator.credentials.create({
+                                        publicKey: {
+                                            rp: opts.rp,
+                                            user: { id: new Uint8Array(b64ToAb(opts.user.id)), name: opts.user.name, displayName: opts.user.displayName },
+                                            challenge: new Uint8Array(b64ToAb(opts.challenge)),
+                                            pubKeyCredParams: opts.pubKeyCredParams,
+                                            authenticatorSelection: opts.authenticatorSelection,
+                                            timeout: opts.timeout,
+                                            attestation: opts.attestation
+                                        }
+                                    });
                                     const verifyRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-verify', challengeToken: optData.challengeToken, credential: { id: cred.id, rawId: abToB64(cred.rawId), response: { attestationObject: abToB64(cred.response.attestationObject), clientDataJSON: abToB64(cred.response.clientDataJSON) }, type: cred.type }, deviceName: getDeviceName() }) });
                                     const verifyData = await verifyRes.json();
                                     if (verifyData.success) { showNotification('通行密钥设置成功！', 'success'); ssoPasskeyBtn.innerHTML = '<i class="fas fa-check"></i> 已设置'; }
@@ -540,8 +542,8 @@ function showAuthModal(mode = 'login') {
                         const optRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login-options' }) });
                         const optData = await optRes.json();
                         if (!optData.success) throw new Error(optData.error);
-                        const b64ToAb = (s) => { const b = atob(s.replace(/-/g,'+').replace(/_/g,'/')); const a = new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; };
-                        const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+                        const b64ToAb = (s) => { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/')); const a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a.buffer; };
+                        const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
                         const cred = await navigator.credentials.get({ publicKey: { ...optData.options, challenge: new Uint8Array(b64ToAb(optData.options.challenge)) } });
                         const verifyRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login-verify', challengeToken: optData.challengeToken, credential: { id: cred.id, rawId: abToB64(cred.rawId), response: { authenticatorData: abToB64(cred.response.authenticatorData), clientDataJSON: abToB64(cred.response.clientDataJSON), signature: abToB64(cred.response.signature) }, type: cred.type } }) });
                         const verifyData = await verifyRes.json();
@@ -700,7 +702,7 @@ function showAuthModal(mode = 'login') {
                                         document.dispatchEvent(new Event('authSuccess'));
                                         if (window.releaseRequests) window.releaseRequests(true);
                                     }
-                                } catch (_) {}
+                                } catch (_) { }
                                 if (token && modal._passkeyAvailable) {
                                     const prompt = modal.querySelector('#passkey-setup-prompt');
                                     if (prompt) prompt.style.display = 'block';
@@ -758,21 +760,23 @@ function showAuthModal(mode = 'login') {
                 setupPasskeyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 设置中...';
                 try {
                     if (!token) throw new Error('请先登录');
-                    const b64ToAb = (s) => { const b = atob(s.replace(/-/g,'+').replace(/_/g,'/')); const a = new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; };
-                    const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+                    const b64ToAb = (s) => { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/')); const a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a.buffer; };
+                    const abToB64 = (ab) => btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
                     const optRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-options' }) });
                     const optData = await optRes.json();
                     if (!optData.success) throw new Error(optData.error);
                     const opts = optData.options;
-                    const cred = await navigator.credentials.create({ publicKey: {
-                        rp: opts.rp,
-                        user: { id: new Uint8Array(b64ToAb(opts.user.id)), name: opts.user.name, displayName: opts.user.displayName },
-                        challenge: new Uint8Array(b64ToAb(opts.challenge)),
-                        pubKeyCredParams: opts.pubKeyCredParams,
-                        authenticatorSelection: opts.authenticatorSelection,
-                        timeout: opts.timeout,
-                        attestation: opts.attestation
-                    }});
+                    const cred = await navigator.credentials.create({
+                        publicKey: {
+                            rp: opts.rp,
+                            user: { id: new Uint8Array(b64ToAb(opts.user.id)), name: opts.user.name, displayName: opts.user.displayName },
+                            challenge: new Uint8Array(b64ToAb(opts.challenge)),
+                            pubKeyCredParams: opts.pubKeyCredParams,
+                            authenticatorSelection: opts.authenticatorSelection,
+                            timeout: opts.timeout,
+                            attestation: opts.attestation
+                        }
+                    });
                     const verifyRes = await fetch(API_ENDPOINTS.passkey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ action: 'register-verify', challengeToken: optData.challengeToken, credential: { id: cred.id, rawId: abToB64(cred.rawId), response: { attestationObject: abToB64(cred.response.attestationObject), clientDataJSON: abToB64(cred.response.clientDataJSON) }, type: cred.type }, deviceName: getDeviceName() }) });
                     const verifyData = await verifyRes.json();
                     if (verifyData.success) {

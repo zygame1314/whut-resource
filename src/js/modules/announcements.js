@@ -711,7 +711,7 @@ window.deleteAnnouncement = async function (id) {
             renderAdminAnnouncementList();
         } else {
             let errorData = {};
-            try { errorData = await response.json(); } catch (e) {}
+            try { errorData = await response.json(); } catch (e) { }
             showNotification(errorData.error || '删除失败', 'error');
         }
     } catch (error) {
@@ -748,7 +748,7 @@ async function saveAnnouncement() {
             await fetchAndDisplayAnnouncements(1);
         } else {
             let errorData = {};
-            try { errorData = await response.json(); } catch (e) {}
+            try { errorData = await response.json(); } catch (e) { }
             showNotification(errorData.error || '保存失败', 'error');
         }
     } catch (error) {

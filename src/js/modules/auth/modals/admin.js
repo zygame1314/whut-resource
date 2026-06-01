@@ -233,33 +233,33 @@ async function showAdminLogsModal() {
     const cleanupBtn = modal.querySelector('#logs-cleanup-btn');
     if (cleanupBtn) {
         cleanupBtn.addEventListener('click', async () => {
-        if (isLoadingMore) return;
-        if (currentUser && currentUser.role !== 'super_admin') {
-            showNotification('只有超级管理员可以清理审计日志', 'warning');
-            return;
-        }
-        const confirmed = await showConfirmation({
-            title: '清理审计日志',
-            message: '确定清理3天前的所有审计日志吗？<br><br>此操作不可撤销。',
-            confirmText: '确认清理',
-            confirmClass: 'danger'
-        });
-        if (!confirmed) return;
-        isLoadingMore = true;
-        try {
-            const res = await fetch(`${API_BASE}/api/admin-logs`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-                showNotification(data.message || '清理成功', 'success');
-            } else {
-                showNotification(data.error || '清理失败', 'error');
+            if (isLoadingMore) return;
+            if (currentUser && currentUser.role !== 'super_admin') {
+                showNotification('只有超级管理员可以清理审计日志', 'warning');
+                return;
             }
-        } catch (e) {
-            showNotification('清理出错', 'error');
-        }
+            const confirmed = await showConfirmation({
+                title: '清理审计日志',
+                message: '确定清理3天前的所有审计日志吗？<br><br>此操作不可撤销。',
+                confirmText: '确认清理',
+                confirmClass: 'danger'
+            });
+            if (!confirmed) return;
+            isLoadingMore = true;
+            try {
+                const res = await fetch(`${API_BASE}/api/admin-logs`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification(data.message || '清理成功', 'success');
+                } else {
+                    showNotification(data.error || '清理失败', 'error');
+                }
+            } catch (e) {
+                showNotification('清理出错', 'error');
+            }
             isLoadingMore = false;
             await resetAndReload();
         });
@@ -278,48 +278,48 @@ async function showAdminLogsModal() {
         container.innerHTML = logsToShow.map(log => {
             let detailsHtml = '';
             try {
-                    const details = JSON.parse(log.details);
-                    const originalContent = details.snapshot_content || details.content;
-                    if (originalContent) {
-                        detailsHtml += `<div class="admin-log-details"><strong>原始内容:</strong> ${escapeHtml(originalContent)}</div>`;
-                    }
-                    if (details.resource_path) {
-                        detailsHtml += `<div class="admin-log-resource-path">资源路径: ${escapeHtml(details.resource_path)}</div>`;
-                    }
-                    if (details.nickname) {
-                        detailsHtml += `<div class="admin-log-user-info">目标用户: ${escapeHtml(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
-                    }
-                    if (details.reject_reason) {
-                        detailsHtml += `<div class="admin-log-user-info">驳回原因: ${escapeHtml(details.reject_reason)}</div>`;
-                    }
-                    if (details.title) {
-                        detailsHtml += `<div class="admin-log-user-info">公告标题: ${escapeHtml(details.title)}</div>`;
-                    }
-                    if (details.key) {
-                        detailsHtml += `<div class="admin-log-user-info">路径: ${escapeHtml(details.key)}</div>`;
-                    }
-                    if (details.deleted_count) {
-                        detailsHtml += `<div class="admin-log-user-info">删除数量: ${details.deleted_count}</div>`;
-                    }
-                    if (details.new_url) {
-                        detailsHtml += `<div class="admin-log-user-info">新链接: ${escapeHtml(details.new_url)}</div>`;
-                    }
-                    if (details.target_email) {
-                        detailsHtml += `<div class="admin-log-user-info">目标邮箱: ${escapeHtml(details.target_email)}</div>`;
-                    }
-                } catch (e) {
-                    detailsHtml = `<div class="admin-log-user-info">${escapeHtml(log.details)}</div>`;
+                const details = JSON.parse(log.details);
+                const originalContent = details.snapshot_content || details.content;
+                if (originalContent) {
+                    detailsHtml += `<div class="admin-log-details"><strong>原始内容:</strong> ${escapeHtml(originalContent)}</div>`;
                 }
-                const actionClass = `action-${(log.action || '').replace(/_/g, '-')}`;
-                const utcDate = log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z';
-                const date = new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
-                const operatorHtml = log.operator
-                    ? `<span class="admin-log-operator"><i class="fas fa-user-circle"></i> ${escapeHtml(log.operator.nickname)}</span>`
-                    : `<span class="admin-log-operator operator-ai"><i class="fas fa-robot"></i> 系统自动</span>`;
-                const targetInfo = log.target_type && log.target_id
-                    ? `<span class="admin-log-target">${log.target_type}#${log.target_id}</span>`
-                    : '';
-                return `
+                if (details.resource_path) {
+                    detailsHtml += `<div class="admin-log-resource-path">资源路径: ${escapeHtml(details.resource_path)}</div>`;
+                }
+                if (details.nickname) {
+                    detailsHtml += `<div class="admin-log-user-info">目标用户: ${escapeHtml(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
+                }
+                if (details.reject_reason) {
+                    detailsHtml += `<div class="admin-log-user-info">驳回原因: ${escapeHtml(details.reject_reason)}</div>`;
+                }
+                if (details.title) {
+                    detailsHtml += `<div class="admin-log-user-info">公告标题: ${escapeHtml(details.title)}</div>`;
+                }
+                if (details.key) {
+                    detailsHtml += `<div class="admin-log-user-info">路径: ${escapeHtml(details.key)}</div>`;
+                }
+                if (details.deleted_count) {
+                    detailsHtml += `<div class="admin-log-user-info">删除数量: ${details.deleted_count}</div>`;
+                }
+                if (details.new_url) {
+                    detailsHtml += `<div class="admin-log-user-info">新链接: ${escapeHtml(details.new_url)}</div>`;
+                }
+                if (details.target_email) {
+                    detailsHtml += `<div class="admin-log-user-info">目标邮箱: ${escapeHtml(details.target_email)}</div>`;
+                }
+            } catch (e) {
+                detailsHtml = `<div class="admin-log-user-info">${escapeHtml(log.details)}</div>`;
+            }
+            const actionClass = `action-${(log.action || '').replace(/_/g, '-')}`;
+            const utcDate = log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z';
+            const date = new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+            const operatorHtml = log.operator
+                ? `<span class="admin-log-operator"><i class="fas fa-user-circle"></i> ${escapeHtml(log.operator.nickname)}</span>`
+                : `<span class="admin-log-operator operator-ai"><i class="fas fa-robot"></i> 系统自动</span>`;
+            const targetInfo = log.target_type && log.target_id
+                ? `<span class="admin-log-target">${log.target_type}#${log.target_id}</span>`
+                : '';
+            return `
                     <div class="admin-log-entry">
                         <div class="admin-log-entry-header">
                             ${operatorHtml}
@@ -331,7 +331,7 @@ async function showAdminLogsModal() {
                         ${detailsHtml}
                     </div>
                 `;
-            }).join('');
+        }).join('');
         const totalLoaded = allLogsCache.length;
         const canGoNext = (currentPage * LOGS_PER_PAGE) < totalLoaded || hasMoreLogs;
         let paginationHtml = '';

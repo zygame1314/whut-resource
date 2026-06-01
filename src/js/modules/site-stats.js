@@ -4,6 +4,11 @@
     function updateOnlineCount(count) {
         const el = document.getElementById('online-count');
         if (el) {
+            if (!window.currentUser) {
+                el.textContent = '--';
+                showStats();
+                return;
+            }
             const num = parseInt(count, 10);
             el.textContent = isNaN(num) ? count : (num > 999 ? (num / 1000).toFixed(1) + 'k' : num);
         }

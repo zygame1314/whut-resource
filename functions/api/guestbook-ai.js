@@ -797,7 +797,7 @@ ${parentContext ? `原留言内容：${parentContext}` : ''}
                     message: `用户已封禁: ${reason}`,
                     reason: reason
                 };
-                        }
+            }
             return { success: true, action: 'no_action', message: '内容通过审核' };
         }
         return { success: true, action: 'no_action', message: 'AI未决定采取行动', ai_response: message.content };

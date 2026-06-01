@@ -47,6 +47,12 @@ export class DownloadLogger {
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
             this.state.acceptWebSocket(server);
+            this.state.setWebSocketAutoResponse(
+                new WebSocketRequestResponsePair(
+                    JSON.stringify({ type: 'ping' }),
+                    JSON.stringify({ type: 'pong' })
+                )
+            );
             this.onlineCount++;
             server.send(JSON.stringify({ type: 'welcome', message: '已成功连接到实时下载日志' }));
             server.send(JSON.stringify({ type: 'online_count', count: this.onlineCount }));
@@ -84,9 +90,7 @@ export class DownloadLogger {
     async webSocketMessage(ws, message) {
         try {
             const data = JSON.parse(message);
-            if (data.type === 'ping') {
-                ws.send(JSON.stringify({ type: 'pong' }));
-            } else if (data.type === 'disconnect') {
+            if (data.type === 'disconnect') {
                 ws.close(1000, 'client');
             }
         } catch (e) {}

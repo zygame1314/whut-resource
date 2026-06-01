@@ -237,7 +237,7 @@
                 try {
                     const errData = await response.json();
                     if (errData && errData.error) errMsg = errData.error;
-                } catch (_) {}
+                } catch (_) { }
                 throw new Error(errMsg);
             }
             if (response.status === 200 && fileInfo.savedSize > 0) {

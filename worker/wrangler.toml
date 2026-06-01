@@ -1,6 +1,7 @@
 name = "whut-resource-do"
 main = "download_logger.js"
 compatibility_date = "2024-10-22"
+account_id = "f78fada5fe63d8a55e2b2405879203bf"
 
 [observability]
 enabled = true
