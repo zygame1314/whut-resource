@@ -392,7 +392,7 @@ function showAuthModal(mode = 'login') {
                                     <div class="activation-notice">
                                         <h4><i class="fas fa-exclamation-triangle"></i> 请尽快修改初始密码</h4>
                                         ${initPwd ? `<p>上方初始密码为系统随机生成，<strong class="highlight-danger">仅此次显示，之后无法再查看</strong>。请立即修改为你自己容易记住的安全密码，修改时将初始密码作为旧密码输入即可。</p>` : `<p>你的账号已创建，当前使用的是系统生成的随机密码。请立即设置一个自己容易记住的安全密码。</p>`}
-                                        <p class="small-text">修改密码需先验证邮箱，点击下方按钮发送验证邮件即可开始。</p>
+                                        <p class="small-text">点击下方按钮直接进入修改密码。</p>
                                     </div>
                                 </div>
                                 <div class="welcome-actions">
