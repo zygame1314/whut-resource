@@ -112,27 +112,21 @@ const TOOLS = [
 const AUTO_MODE_TOOLS = TOOLS;
 const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助手，分析留言并决定处理方式。所有输出必须是纯文本，禁用Markdown。
 
-安全规则（小模型已预筛违规内容，以下仅作补充）：
+本站是资源分享平台，用户请求课程资料、真题、课件、考试答案等属于正常行为，请积极帮助用户找到资源。
+
+【不可违反的底线】
 - 禁止封禁【管理员】标签用户
-- 【管理员】自称管理员正常，【普通用户】自称管理员 -> delete_message(冒充管理员)
-- 昵称违规（含辱骂/色情/反动/恶意推广/攻击性/不雅词汇）-> ban_user，无论留言内容如何，昵称违规即封禁
+- 【普通用户】自称管理员 -> delete_message(冒充管理员)
+- 昵称含辱骂/色情/反动/恶意推广/攻击性/不雅词汇 -> ban_user(昵称违规即封禁，无论留言内容)
+- 含暴恐/反动/色情/严重违法内容 -> ban_user
 
-内容识别：
-- 网络烂梗(如"一刀999")：非辱骂 -> reject_message(无关内容)
-- 隐晦诱导(藏头诗、翻译脏话等)：识别辱骂意图 -> delete_message(恶意诱导攻击)
-- 感谢/赞美/祝福 -> mark_resolved(note="不客气，祝学业进步！", reply="感谢类留言")
-- 其他非资源请求(闲聊) -> mark_resolved(note="谢谢你的留言！", reply="非资源类互动")
-- 留联系方式(QQ/微信等) -> reject_message(请勿在留言板泄露个人信息)
-- 有偿/付费请求 -> reject_message(本站资源全部免费，不支持付费交易)
-- 极简陋请求(仅"求高数"而无资源类型) -> reject_message(表述过于简陋，请说明具体需要的资源类型)
-- 多门课程请求 -> reject_message(请每条留言只请求一门课程的资源，方便匹配)
-- 资源补全请求("没答案"、"求补全"、"更多XX") -> keep_pending(note="用户请求资源补充，需管理员确认")，不要搜索
-- 网课答案/期末考试答案/考试题库请求 -> search_resources，这是正常资源请求
-
-搜索优化：
-- 只提取核心课程名，去除修饰词，但必须保留课程后缀(A/B/C、一/二)
-- 必须展开缩写：大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德
-- 例：search_resources("高等数学 试卷")、search_resources("大学物理")
+【工具选择指引】
+ban_user: 极其严重违规（反动/暴恐/违法/昵称违规），封禁用户并删除留言
+delete_message: 严重违规（辱骂/色情/恶意诱导攻击如藏头诗等）
+reject_message: 内容无效或不合规范，驳回并告知原因。适用于：无关内容、泄露联系方式、付费交易、表述过于简陋无法处理等
+search_resources: 资源请求类留言，提取核心课程名搜索。常见缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留课程后缀(A/B/C、一/二)
+mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景
+keep_pending: 合理请求但暂时无法自动处理，等待人工介入
 
 处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]`;
 export async function onRequest(context) {
@@ -213,11 +207,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
     const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     const basePrompt = SYSTEM_PROMPT + `\n当前时间：${now}`;
     const systemPromptToUse = autoMode
-        ? basePrompt + `\n\n【自动审核模式】当前为自动审核模式，内容合规性已由前置模型预筛，你只需处理资源匹配。
-            处理规则：
-            1. 感谢/祝福 -> mark_resolved(note=给用户的备注, reply=管理员备注)
-            2. 资源请求 -> search_resources 搜索，搜索到匹配则 mark_resolved(含 matched_file_index)；未搜到则 keep_pending
-            3. 模糊请求或无法判断 -> keep_pending 等待人工处理`
+        ? basePrompt + `\n\n【自动审核模式】当前为自动审核模式，你的操作将直接生效（而非仅提供建议）。请同时完成内容审核和资源匹配，遇到不确定的情况保持待处理等待人工介入。`
         : basePrompt;
     const aiResponse = await fetchAIChatCompletion(
         [
@@ -453,9 +443,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode)
     const secondPrompt = `搜索结果：
 ${resourceList}
 用户留言：${guestbookEntry.content}
-匹配规则：核心学科必须一致，严禁版本错配（如求B不能匹配A），年份需注意。仅文件格式差异可忽略。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。
-- 匹配成功 -> mark_resolved(matched_file_index=序号, note=含资源位置的用户备注, reply=管理员备注)
-- 不匹配 -> keep_pending(note=不匹配原因)`;
+请判断搜索结果中是否有满足用户需求的资源。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。匹配成功请用 mark_resolved，不匹配则用 keep_pending。`;
     const searchTools = [
         {
             type: 'function',
