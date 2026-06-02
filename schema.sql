@@ -174,8 +174,9 @@ CREATE TABLE pending_registrations (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_pending_reg_code ON pending_registrations(verify_code);
-CREATE INDEX IF NOT EXISTS idx_pending_reg_prefix ON pending_registrations(email_prefix);
+CREATE INDEX IF NOT EXISTS idx_pending_reg_student ON pending_registrations(email_prefix);
 CREATE INDEX IF NOT EXISTS idx_pending_reg_expires ON pending_registrations(expires_at);
+CREATE INDEX IF NOT EXISTS idx_pending_reg_student_expires ON pending_registrations(email_prefix, expires_at);
 
 
 DROP TABLE IF EXISTS pending_resets;
@@ -191,6 +192,7 @@ CREATE TABLE pending_resets (
 CREATE INDEX IF NOT EXISTS idx_pending_reset_code ON pending_resets(verify_code);
 CREATE INDEX IF NOT EXISTS idx_pending_reset_email ON pending_resets(email);
 CREATE INDEX IF NOT EXISTS idx_pending_reset_expires ON pending_resets(expires_at);
+CREATE INDEX IF NOT EXISTS idx_pending_reset_email_expires ON pending_resets(email, expires_at);
 
 
 DROP TABLE IF EXISTS pending_email_changes;
@@ -379,7 +381,7 @@ CREATE TABLE IF NOT EXISTS user_passkeys (
     last_used_at DATETIME,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_passkeys_user ON user_passkeys(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_passkeys_user ON user_passkeys(user_id);
 
 DROP TRIGGER IF EXISTS update_registered_users_after_insert;
 CREATE TRIGGER update_registered_users_after_insert
