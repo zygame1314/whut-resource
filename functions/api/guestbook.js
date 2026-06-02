@@ -1,5 +1,5 @@
 import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction } from '../utils.js';
-import { processWithAIAgent, processReplyWithAI, preFilterWithSmallModel } from './guestbook-ai.js';
+import { processWithAIAgent, processReplyWithAI } from './guestbook-ai.js';
 const CLEANUP_DAYS = 7;
 export async function onRequest(context) {
     const { request, env } = context;
@@ -199,25 +199,9 @@ async function handlePost(request, env, context) {
                             await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
                         }
                     } else {
-                        const preFilterResult = await preFilterWithSmallModel(newEntry, env);
-                        if (!preFilterResult.passed) {
-                            if (preFilterResult.action === 'ban_user') {
-                                if (newEntry.role !== 'admin' && newEntry.role !== 'super_admin') {
-                                    await env.DB.batch([
-                                        env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(newEntry.user_id),
-                                        env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(newId)
-                                    ]);
-                                }
-                            } else {
-                                await env.DB.prepare(
-                                    'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
-                                ).bind('rejected', preFilterResult.reason, newId).run();
-                            }
-                        } else {
-                            const aiResult = await processWithAIAgent(newEntry, env, true);
-                            if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
-                                await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
-                            }
+                        const aiResult = await processWithAIAgent(newEntry, env, true);
+                        if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
+                            await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
                         }
                     }
                 }
@@ -317,25 +301,9 @@ async function handlePut(request, env, context) {
                                 await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
                             }
                         } else {
-                            const preFilterResult = await preFilterWithSmallModel(updatedEntry, env);
-                            if (!preFilterResult.passed) {
-                                if (preFilterResult.action === 'ban_user') {
-                                    if (updatedEntry.role !== 'admin' && updatedEntry.role !== 'super_admin') {
-                                        await env.DB.batch([
-                                            env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(updatedEntry.user_id),
-                                            env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(id)
-                                        ]);
-                                    }
-                                } else {
-                                    await env.DB.prepare(
-                                        'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
-                                    ).bind('rejected', preFilterResult.reason, id).run();
-                                }
-                            } else {
-                                const aiResult = await processWithAIAgent(updatedEntry, env, true);
-                                if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
-                                    await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
-                                }
+                            const aiResult = await processWithAIAgent(updatedEntry, env, true);
+                            if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
+                                await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
                             }
                         }
                     }

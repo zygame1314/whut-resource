@@ -127,6 +127,7 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助�
 - 极简陋请求(仅"求高数"而无资源类型) -> reject_message(表述过于简陋，请说明具体需要的资源类型)
 - 多门课程请求 -> reject_message(请每条留言只请求一门课程的资源，方便匹配)
 - 资源补全请求("没答案"、"求补全"、"更多XX") -> keep_pending(note="用户请求资源补充，需管理员确认")，不要搜索
+- 网课答案/期末考试答案/考试题库请求 -> search_resources，这是正常资源请求
 
 搜索优化：
 - 只提取核心课程名，去除修饰词，但必须保留课程后缀(A/B/C、一/二)
@@ -667,7 +668,7 @@ const REPLY_SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板
 判断标准（按优先级）：
 1. 昵称含辱骂/色情/反动/恶意推广/攻击性/不雅词汇 -> ban_user，reason 写明昵称违规类型（无论留言内容如何，必须封禁）
 2. 含暴恐/反动/色情/违法/辱骂/人身攻击 -> reject，reason 写明违规类型
-3. 含广告/刷屏/无意义内容 -> reject，reason 写明原因（注意：求课程资料、求真题等资源请求不是广告，必须approve）
+3. 含广告/刷屏/无意义内容 -> reject，reason 写明原因（注意：求课程资料、求真题、求考试答案、求网课答案等资源请求不是广告，应该approve）
 4. 留联系方式(QQ/微信/邮箱/手机号) -> reject，reason: 请勿在留言板泄露个人信息
 5. 其他正常内容（包括资源请求、感谢等） -> approve
 所有输出必须是纯文本，禁用Markdown。`;
@@ -807,61 +808,4 @@ ${parentContext ? `原留言内容：${parentContext}` : ''}
     }
 }
 
-export async function preFilterWithSmallModel(entry, env) {
-    if (!env.SILICONFLOW_API_KEY) {
-        return { passed: true };
-    }
-    if (entry.role === 'admin' || entry.role === 'super_admin') {
-        return { passed: true };
-    }
-    const roleTag = (entry.role === 'admin' || entry.role === 'super_admin') ? '【管理员】' : '【普通用户】';
-    const userMessage = `用户身份：${roleTag}
-用户昵称：${entry.nickname || '匿名用户'}
-留言内容：${entry.content}`;
 
-    try {
-        const aiResponse = await fetchSiliconFlowChat(env, {
-            messages: [
-                { role: 'system', content: REPLY_SYSTEM_PROMPT },
-                { role: 'user', content: userMessage }
-            ],
-            tools: REPLY_TOOLS,
-            toolChoice: 'auto',
-            temperature: 0.3,
-            model: 'Qwen/Qwen3-8B'
-        });
-        const message = aiResponse.choices?.[0]?.message;
-        if (!message || !message.tool_calls || message.tool_calls.length === 0) {
-            return { passed: true };
-        }
-        const toolCall = message.tool_calls[0];
-        const functionName = toolCall.function.name;
-        let functionArgs;
-        try {
-            functionArgs = JSON.parse(toolCall.function.arguments || '{}');
-        } catch (e) {
-            console.error('小模型预筛参数解析失败:', e);
-            return { passed: true };
-        }
-        if (functionName === 'ban_user') {
-            const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim() || '昵称违规';
-            return {
-                passed: false,
-                action: 'ban_user',
-                reason: reason
-            };
-        }
-        if (functionName === 'reject') {
-            const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim() || '内容违规';
-            return {
-                passed: false,
-                action: 'reject',
-                reason: reason
-            };
-        }
-        return { passed: true };
-    } catch (error) {
-        console.error('小模型预筛选失败:', error);
-        return { passed: true };
-    }
-}
