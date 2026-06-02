@@ -11,6 +11,7 @@ let currentGuestbookSort = 'time';
 let currentGuestbookFilter = 'all';
 let currentGuestbookStatus = 'all';
 const GUESTBOOK_PER_PAGE = 5;
+const MAX_CURSOR_STACK_PAGES = 10;
 const REJECT_PRESETS = [
     '无关内容',
     '重复提交',

@@ -59,7 +59,10 @@ function guestbookGoNext() {
     if (guestbookList) guestbookList.innerHTML = '<div class="loading-spinner"></div>';
     guestbookFetchPage(currentPage.nextCursor).then(page => {
         guestbookCursorStack.push(page);
-        guestbookPageIndex++;
+        if (guestbookCursorStack.length > MAX_CURSOR_STACK_PAGES) {
+            guestbookCursorStack.shift();
+        }
+        guestbookPageIndex = Math.min(guestbookPageIndex + 1, guestbookCursorStack.length - 1);
         renderGuestbook(page.messages);
         renderGuestbookPagination(page.hasMore, true);
     }).catch(error => {
@@ -119,15 +122,19 @@ async function handleGuestbookSubmit(e) {
             };
             const page = guestbookCursorStack[0];
             if (page && page.messages) {
-                page.messages.unshift(newMessage);
-                if (!page.messages[page.messages.length - 1].replies) {
-                    page.messages[page.messages.length - 1].replies = [];
+                let insertIdx = 0;
+                for (let i = 0; i < page.messages.length; i++) {
+                    if (!page.messages[i].is_pinned) { insertIdx = i; break; }
+                    insertIdx = i + 1;
                 }
-                renderGuestbook(guestbookCursorStack[guestbookPageIndex].messages);
-                renderGuestbookPagination(
-                    guestbookCursorStack[guestbookPageIndex].hasMore,
-                    guestbookPageIndex > 0
-                );
+                page.messages.splice(insertIdx, 0, newMessage);
+                if (page.messages.length > GUESTBOOK_PER_PAGE) {
+                    page.messages.pop();
+                }
+                if (guestbookPageIndex === 0) {
+                    renderGuestbook(page.messages);
+                    renderGuestbookPagination(page.hasMore, false);
+                }
             }
         } else {
             showNotification(d.error || '发布失败', 'error');

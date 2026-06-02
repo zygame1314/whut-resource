@@ -546,11 +546,38 @@ async function loadMoreFiles() {
             const newDirs = result.directories || [];
             currentRawData.directories.push(...newDirs);
             currentRawData.files.push(...newFiles);
+            const totalRaw = currentRawData.directories.length + currentRawData.files.length;
+            if (totalRaw > 500) {
+                const toTrim = totalRaw - 500;
+                let trimmed = 0;
+                while (trimmed < toTrim && currentRawData.directories.length > 0) {
+                    currentRawData.directories.shift();
+                    trimmed++;
+                }
+                while (trimmed < toTrim && currentRawData.files.length > 0) {
+                    currentRawData.files.shift();
+                    trimmed++;
+                }
+                currentPage = Math.max(1, currentPage - Math.ceil(toTrim / itemsPerPage));
+            }
             currentCursor = result.cursor || null;
             currentHasMore = result.hasMore || false;
             if (directoryCache[currentPrefix]) {
                 directoryCache[currentPrefix].data.directories.push(...newDirs);
                 directoryCache[currentPrefix].data.files.push(...newFiles);
+                const cacheTotal = directoryCache[currentPrefix].data.directories.length + directoryCache[currentPrefix].data.files.length;
+                if (cacheTotal > 500) {
+                    const cacheTrim = cacheTotal - 500;
+                    let cTrimmed = 0;
+                    while (cTrimmed < cacheTrim && directoryCache[currentPrefix].data.directories.length > 0) {
+                        directoryCache[currentPrefix].data.directories.shift();
+                        cTrimmed++;
+                    }
+                    while (cTrimmed < cacheTrim && directoryCache[currentPrefix].data.files.length > 0) {
+                        directoryCache[currentPrefix].data.files.shift();
+                        cTrimmed++;
+                    }
+                }
                 directoryCache[currentPrefix].cursor = currentCursor;
                 directoryCache[currentPrefix].hasMore = currentHasMore;
             }

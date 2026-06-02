@@ -172,6 +172,7 @@ async function showAdminLogsModal() {
     let isLoadingMore = false;
     let currentFilter = '';
     const LOGS_PER_PAGE = 20;
+    const MAX_LOGS_CACHE = 200;
     const filterDropdown = modal.querySelector('#log-filter-dropdown');
     const filterHiddenInput = modal.querySelector('#log-filter-action');
     const refreshBtn = modal.querySelector('#logs-refresh-btn');
@@ -385,6 +386,11 @@ async function showAdminLogsModal() {
             allLogsCursor = data.nextCursor;
             hasMoreLogs = data.hasMore;
             allLogsCache = allLogsCache.concat(newItems);
+            if (allLogsCache.length > MAX_LOGS_CACHE) {
+                const excess = allLogsCache.length - MAX_LOGS_CACHE;
+                allLogsCache.splice(0, excess);
+                currentPage = Math.max(1, currentPage - Math.ceil(excess / LOGS_PER_PAGE));
+            }
             return newItems.length > 0;
         } catch (e) {
             container.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
