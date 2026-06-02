@@ -72,16 +72,18 @@ function updateGuestbookCache(id, updates) {
     if (cur && cur.messages) renderGuestbook(cur.messages);
 }
 function removeFromGuestbookCache(id) {
+    let found = false;
     for (const page of guestbookCursorStack) {
         if (!page.messages) continue;
         const mi = page.messages.findIndex(m => m.id === id);
-        if (mi !== -1) { page.messages.splice(mi, 1); break; }
+        if (mi !== -1) { page.messages.splice(mi, 1); found = true; break; }
         for (const m of page.messages) {
             if (m.replies) {
                 const ri = m.replies.findIndex(r => r.id === id);
-                if (ri !== -1) { m.replies.splice(ri, 1); return; }
+                if (ri !== -1) { m.replies.splice(ri, 1); found = true; break; }
             }
         }
+        if (found) break;
     }
     const cur = guestbookCursorStack[guestbookPageIndex];
     if (cur && cur.messages) renderGuestbook(cur.messages);

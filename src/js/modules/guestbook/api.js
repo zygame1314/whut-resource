@@ -258,7 +258,43 @@ async function handleReplySubmit(parentId, content) {
             body: JSON.stringify({ content, parent_id: parentId })
         });
         if (response.ok) {
-            showNotification(isGuestbookAdmin(window.currentUser) ? '回复发布成功！' : '回复发布成功！审核后将显示', 'success');
+            const d = await response.json();
+            const isAdmin = isGuestbookAdmin(window.currentUser);
+            const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
+            showNotification(isAdmin ? '回复发布成功！' : '回复发布成功！审核后将显示', 'success');
+            const newReply = {
+                id: d.id,
+                user_id: window.currentUser.id,
+                nickname: window.currentUser.nickname || '匿名用户',
+                content: content,
+                parent_id: parentId,
+                likes: 0,
+                has_liked: false,
+                is_hidden: isAdmin ? 0 : 1,
+                status: 'unresolved',
+                reject_reason: null,
+                resolve_note: null,
+                created_at: new Date().toISOString(),
+                role: window.currentUser.role,
+                isAdmin: isAdmin,
+                isSuperAdmin: isSuperAdmin
+            };
+            for (const page of guestbookCursorStack) {
+                if (!page.messages) continue;
+                const parent = page.messages.find(m => m.id === parentId);
+                if (parent) {
+                    if (!parent.replies) parent.replies = [];
+                    parent.replies.push(newReply);
+                    break;
+                }
+            }
+            if (guestbookPageIndex >= 0) {
+                const currentPage = guestbookCursorStack[guestbookPageIndex];
+                if (currentPage && currentPage.messages) {
+                    renderGuestbook(currentPage.messages);
+                    renderGuestbookPagination(currentPage.hasMore, guestbookPageIndex > 0);
+                }
+            }
         } else {
             const d = await response.json();
             showNotification(d.error || '回复失败', 'error');
