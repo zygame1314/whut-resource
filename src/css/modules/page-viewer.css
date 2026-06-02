@@ -254,15 +254,6 @@
 .page-viewer-loader .page-viewer-skeleton-block:nth-child(4)::after { animation-delay: 0.45s; }
 .page-viewer-loader .page-viewer-skeleton-block:nth-child(5)::after { animation-delay: 0.6s; }
 
-@keyframes pvSkeletonSlideIn {
-    to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes pvSkeletonShimmer {
-    0% { transform: translateX(-25%); }
-    100% { transform: translateX(75%); }
-}
-
 .page-viewer-error {
     display: flex;
     flex-direction: column;

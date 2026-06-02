@@ -31,17 +31,6 @@
     position: relative;
 }
 
-@keyframes browser-guide-pop {
-    from {
-        opacity: 0;
-        transform: scale(0.85) translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
 .browser-guide-icon {
     width: 72px;
     height: 72px;
@@ -195,15 +184,6 @@
 .browser-guide-arrow svg {
     width: 48px;
     height: 48px;
-}
-
-@keyframes browser-guide-arrow-bounce {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(10px);
-    }
 }
 
 [data-theme="dark"] .browser-guide-icon {
