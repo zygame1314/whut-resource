@@ -1,4 +1,4 @@
-/** DEV MODE - Generated at 00:00:09 */
+/** DEV MODE - Generated at 00:06:23 */
 // --- Module: modules/page-viewer.js ---
 (function () {
     'use strict';
@@ -175,8 +175,7 @@
         try {
             var html = await fetchPage(href);
             var content = extractContent(html);
-            bodyEl.innerHTML = '';
-            bodyEl.appendChild(content);
+            bodyEl.replaceChildren(content);
             interceptLinksInViewer(bodyEl);
         } catch (err) {
             bodyEl.innerHTML =

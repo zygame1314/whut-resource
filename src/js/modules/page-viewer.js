@@ -173,8 +173,7 @@
         try {
             var html = await fetchPage(href);
             var content = extractContent(html);
-            bodyEl.innerHTML = '';
-            bodyEl.appendChild(content);
+            bodyEl.replaceChildren(content);
             interceptLinksInViewer(bodyEl);
         } catch (err) {
             bodyEl.innerHTML =
