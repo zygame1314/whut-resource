@@ -131,7 +131,6 @@ CREATE INDEX IF NOT EXISTS idx_downloads_user_history ON downloads(user_id, down
 CREATE INDEX IF NOT EXISTS idx_guestbook_cursor_time ON guestbook(parent_id, is_pinned DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_cursor_likes ON guestbook(parent_id, is_pinned DESC, likes DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_user_daily_limit ON guestbook(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_guestbook_cleanup ON guestbook(created_at, is_pinned);
 CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(is_published, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_announcements_created ON announcements(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_files_recent_uploads ON files(is_directory, uploaded DESC);
@@ -278,11 +277,6 @@ CREATE INDEX IF NOT EXISTS idx_admin_logs_operator ON admin_logs(operator_id, cr
 CREATE INDEX IF NOT EXISTS idx_admin_logs_target_created ON admin_logs(target_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_action_created ON admin_logs(action, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_target ON admin_logs(target_type, target_id);
-
-CREATE TABLE IF NOT EXISTS guestbook_cleanup (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    last_cleanup_at DATETIME
-);
 
 DROP TRIGGER IF EXISTS update_guestbook_stats_insert;
 CREATE TRIGGER update_guestbook_stats_insert

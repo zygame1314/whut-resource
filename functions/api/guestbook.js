@@ -1,6 +1,5 @@
 import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction } from '../utils.js';
 import { processWithAIAgent, processReplyWithAI } from './guestbook-ai.js';
-const CLEANUP_DAYS = 7;
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -259,7 +258,6 @@ async function handlePost(request, env, context) {
                 console.error('自动AI处理失败:', err);
             }
         })());
-        context.waitUntil(checkAndCleanup(env));
     }
     return new Response(JSON.stringify({ success: true, id: newId }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
@@ -538,24 +536,4 @@ async function handlePut(request, env, context) {
         return new Response(JSON.stringify({ error: '无效操作' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-}
-async function checkAndCleanup(env) {
-    try {
-        const row = await env.DB.prepare('SELECT last_cleanup_at FROM guestbook_cleanup WHERE id = 1').first();
-        const lastCleanup = row?.last_cleanup_at ? new Date(row.last_cleanup_at + 'Z').getTime() : 0;
-        const now = Date.now();
-        if (now - lastCleanup < 86400000 && lastCleanup !== 0) return;
-        const result = await env.DB.prepare(
-            `DELETE FROM guestbook WHERE created_at < datetime('now', '-${CLEANUP_DAYS} days') AND is_pinned = 0`
-        ).run();
-        await env.DB.prepare(`
-            INSERT INTO guestbook_cleanup (id, last_cleanup_at) VALUES (1, datetime('now'))
-            ON CONFLICT(id) DO UPDATE SET last_cleanup_at = datetime('now')
-        `).run();
-        if (result.meta.changes > 0) {
-            console.log(`自动清理：已删除 ${result.meta.changes} 条超过 ${CLEANUP_DAYS} 天的留言。`);
-        }
-    } catch (err) {
-        console.error('自动清理失败：', err);
-    }
 }
