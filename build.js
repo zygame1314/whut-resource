@@ -1,5 +1,6 @@
-const { srcDir } = require('./scripts/build/config');
-const { cleanDist } = require('./scripts/build/utils');
+const path = require('path');
+const { srcDir, distDir } = require('./scripts/build/config');
+const { cleanDist, copyDir } = require('./scripts/build/utils');
 const {
     processAssetsAndBuildMap,
     buildScripts,
@@ -16,6 +17,7 @@ async function build() {
         await processAssetsAndBuildMap(srcDir, fileHashMap);
         await buildScripts(fileHashMap);
         await buildCss(fileHashMap);
+        copyDir(path.join(srcDir, 'lib'), path.join(distDir, 'lib'));
         await processHtmlAndOthers(srcDir, fileHashMap);
         await processServiceWorker(fileHashMap);
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);

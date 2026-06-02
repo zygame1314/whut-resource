@@ -113,7 +113,7 @@ function renderAnnouncements(announcements) {
         let html = announcements.map((a, index) => `
             <div class="announcement-item" data-announcement-index="${index}" ${index === currentAnnouncementItemIndex ? '' : 'style="display:none;"'}>
                 <span class="announcement-title">${escapeHtml(a.title)}</span>
-                <div class="announcement-text markdown-body">${typeof renderMarkdown === 'function' ? renderMarkdown(a.content) : DOMPurify.sanitize(marked.parse(a.content, { breaks: true }))}</div>
+                <div class="announcement-text markdown-body" data-raw-content="${escapeHtml(a.content)}"></div>
                 <div class="announcement-meta">
                     <span><i class="far fa-clock"></i> 发布时间：${formatAnnouncementDateLocal(a.created_at)}</span>
                     <button class="announcement-detail-btn" onclick="openAnnouncementDetail(${a.id})">
@@ -151,6 +151,12 @@ function renderAnnouncements(announcements) {
             `;
         }
         announcementContent.innerHTML = html;
+        announcementContent.querySelectorAll('.announcement-text[data-raw-content]').forEach(el => {
+            const raw = el.getAttribute('data-raw-content');
+            if (raw && typeof renderMarkdown === 'function') {
+                renderMarkdown(raw).then(html => { el.innerHTML = html; });
+            }
+        });
         updateAnnouncementItemView();
     }
 }
@@ -369,16 +375,13 @@ function openAnnouncementViewModal(announcement, options = {}) {
     currentViewedAnnouncement = announcement;
     const titleText = fromEntry ? '网站公告' : '公告详情';
     announcementViewTitle.textContent = titleText;
-    const bodyHtml = typeof renderMarkdown === 'function'
-        ? renderMarkdown(announcement.content || '')
-        : DOMPurify.sanitize(marked.parse(announcement.content || '', { breaks: true }));
     announcementViewContent.innerHTML = `
         <h3 class="announcement-title">${escapeHtml(announcement.title || '未命名公告')}</h3>
         <div class="announcement-meta" style="margin-bottom: 0.75rem;">
             <span><i class="far fa-clock"></i> 发布时间：${formatAnnouncementDateLocal(announcement.created_at)}</span>
         </div>
-        <div class="announcement-text markdown-body" style="max-height: none;">
-            ${bodyHtml}
+        <div class="announcement-text markdown-body" style="max-height: none;" id="announcement-view-body">
+            <div class="loading-spinner"></div>
         </div>
     `;
     if (announcementHideWrap) {
@@ -391,6 +394,12 @@ function openAnnouncementViewModal(announcement, options = {}) {
     announcementViewModal.dataset.fromEntry = fromEntry ? '1' : '0';
     announcementViewModal.classList.add('visible');
     markAnnouncementInteracted();
+    if (typeof renderMarkdown === 'function') {
+        renderMarkdown(announcement.content || '').then(html => {
+            const bodyEl = document.getElementById('announcement-view-body');
+            if (bodyEl) bodyEl.innerHTML = html;
+        });
+    }
 }
 function switchAnnouncementInView(direction) {
     if (!currentViewedAnnouncement || !Array.isArray(allAnnouncementsCache) || allAnnouncementsCache.length <= 1) return;
@@ -607,8 +616,12 @@ function switchTab(mode) {
         const content = announcementTextInput.value;
         if (!content) {
             previewArea.innerHTML = '<p class="text-muted">无内容可预览</p>';
+        } else if (typeof renderMarkdown === 'function') {
+            previewArea.innerHTML = '<div class="loading-spinner"></div>';
+            previewArea.classList.add('markdown-body');
+            renderMarkdown(content).then(html => { previewArea.innerHTML = html; });
         } else {
-            previewArea.innerHTML = typeof renderMarkdown === 'function' ? renderMarkdown(content) : DOMPurify.sanitize(marked.parse(content, { breaks: true }));
+            previewArea.innerHTML = `<div style="white-space: pre-wrap;">${escapeHtml(content)}</div>`;
             previewArea.classList.add('markdown-body');
         }
     }

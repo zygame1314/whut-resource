@@ -103,7 +103,9 @@ function showPrompt({
         if (showPreview && useTextarea) {
             const updatePreview = () => {
                 if (typeof renderMarkdown === 'function') {
-                    previewEl.innerHTML = renderMarkdown(input.value) || '<p style="color: var(--text-secondary); font-style: italic;">暂无内容预览...</p>';
+                    renderMarkdown(input.value).then(html => {
+                        previewEl.innerHTML = html || '<p style="color: var(--text-secondary); font-style: italic;">暂无内容预览...</p>';
+                    });
                 } else {
                     previewEl.textContent = input.value;
                 }

@@ -65,10 +65,7 @@ async function addWatermarkToPDF(file) {
     const subText = match ? (match[1] + "无偿") : "无偿分享";
     const mainText = "武理资源共享平台";
     try {
-        if (typeof PDFLib === 'undefined') {
-            console.warn('PDFLib未加载，跳过水印添加');
-            return file;
-        }
+        await window.LazyLoader.loadPDFLib();
         showNotification(`正在为 "${file.name}" 添加水印...`, 'info');
         const arrayBuffer = await file.arrayBuffer();
         const { PDFDocument } = PDFLib;

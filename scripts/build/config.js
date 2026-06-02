@@ -12,9 +12,11 @@ const excludeDirs = [
     '.agent',
     '.idea',
     'src',
-    'scripts'
+    'scripts',
+    'lib'
 ];
 const scriptModules = [
+    'modules/lazy-loader.js',
     'globals.js',
     'utils.js',
     'ui/modals.js',
@@ -27,6 +29,7 @@ const scriptModules = [
     'main.js'
 ];
 const uploadModules = [
+    'modules/lazy-loader.js',
     'utils.js',
     'ui/folder-tree-lazy.js',
     'modules/upload/ui.js',
@@ -47,6 +50,7 @@ const authModules = [
     'modules/auth/init.js'
 ];
 const guestbookModules = [
+    'modules/lazy-loader.js',
     'modules/guestbook/state.js',
     'modules/guestbook/utils.js',
     'ui/folder-tree-lazy.js',
@@ -63,10 +67,10 @@ const jsBundles = {
     'auth.js': authModules,
     'guestbook.js': guestbookModules,
     'config.js': ['config.js'],
-    'announcements.js': ['modules/announcements.js'],
+    'announcements.js': ['modules/lazy-loader.js', 'modules/announcements.js'],
     'graph.js': ['modules/graph.js'],
-    'tutorial.js': ['modules/tutorial.js'],
-    'download-manager.js': ['modules/download-manager.js'],
+    'tutorial.js': ['modules/lazy-loader.js', 'modules/tutorial.js'],
+    'download-manager.js': ['modules/lazy-loader.js', 'modules/download-manager.js'],
     'download-manager-ui.js': ['modules/download-manager-ui.js'],
     'download-log.js': ['modules/download-log.js'],
     'site-stats.js': ['modules/site-stats.js'],

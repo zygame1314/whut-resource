@@ -354,9 +354,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    if (typeof hljs !== 'undefined') {
-        hljs.highlightAll();
-    }
 });
 if (searchButton && searchInput) {
     const clearSearchBtn = document.getElementById('clear-search-btn');

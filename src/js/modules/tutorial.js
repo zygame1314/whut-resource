@@ -1,4 +1,5 @@
-function startTutorial() {
+async function startTutorial() {
+    await window.LazyLoader.loadShepherd();
     const announcementViewModal = document.getElementById('announcement-view-modal');
     if (announcementViewModal) announcementViewModal.classList.remove('visible');
     window._tutorialActive = true;

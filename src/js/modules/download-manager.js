@@ -335,9 +335,7 @@
             return total;
         }
         async _createZip(files, task) {
-            if (typeof JSZip === 'undefined') {
-                throw new Error('JSZip 未加载，请刷新页面重试');
-            }
+            await window.LazyLoader.loadJSZip();
             const zip = new JSZip();
             for (const file of files) {
                 zip.file(file.filename, file.data);

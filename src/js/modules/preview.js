@@ -183,7 +183,9 @@ async function previewFile(fileKey, fileName, fileSize) {
                     mdContent.className = 'preview-markdown';
                     mdContent.style.padding = '20px';
                     mdContent.style.lineHeight = '1.6';
-                    mdContent.innerHTML = renderMarkdown(data.content);
+                    renderMarkdown(data.content).then(html => {
+                        mdContent.innerHTML = html;
+                    });
                     textPreviewWrapper.appendChild(mdContent);
                 } else {
                     const pre = document.createElement('pre');
@@ -194,8 +196,11 @@ async function previewFile(fileKey, fileName, fileSize) {
                     const code = document.createElement('code');
                     code.style.display = 'block';
                     code.style.backgroundColor = 'transparent';
-                    if (typeof hljs !== 'undefined') {
+                    if (typeof hljs !== 'undefined' || (window.LazyLoader)) {
                         try {
+                            if (typeof hljs === 'undefined') {
+                                await window.LazyLoader.loadHighlight();
+                            }
                             let highlighted;
                             if (hljs.getLanguage(extension)) {
                                 code.className = `language-${extension}`;
@@ -580,9 +585,7 @@ async function parseZipViaRange(url) {
 }
 
 async function parseZipFallback(url) {
-    if (typeof JSZip === 'undefined') {
-        throw new Error('JSZip 未加载，请刷新页面重试');
-    }
+    await window.LazyLoader.loadJSZip();
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('无法下载压缩包文件');
     const buf = await resp.arrayBuffer();
@@ -658,9 +661,7 @@ function parseTar(buffer) {
 async function parseArchive(buffer, fileName) {
     const type = getArchiveType(fileName);
     if (type === 'zip') {
-        if (typeof JSZip === 'undefined') {
-            throw new Error('JSZip 未加载，请刷新页面重试');
-        }
+        await window.LazyLoader.loadJSZip();
         const zip = await JSZip.loadAsync(buffer);
         const entries = [];
         Object.keys(zip.files).forEach(path => {

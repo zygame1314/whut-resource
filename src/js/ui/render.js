@@ -369,14 +369,12 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
     const descBadge = fileItemDiv.querySelector('.folder-desc-badge.clickable-badge');
     if (descBadge) {
-        descBadge.addEventListener('click', (e) => {
+        descBadge.addEventListener('click', async (e) => {
             e.stopPropagation();
             try {
                 let parsedContent = '';
                 if (typeof renderMarkdown === 'function') {
-                    parsedContent = renderMarkdown(item.description);
-                } else if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
-                    parsedContent = DOMPurify.sanitize(marked.parse(item.description, { breaks: true, gfm: true }));
+                    parsedContent = await renderMarkdown(item.description);
                 } else {
                     parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(item.description)}</div>`;
                 }
@@ -571,13 +569,11 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
             descLi.className = 'folder-description-card';
             let parsedContent = '';
             if (typeof renderMarkdown === 'function') {
-                parsedContent = renderMarkdown(currentFolder.description);
-            } else if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
-                try {
-                    parsedContent = DOMPurify.sanitize(marked.parse(currentFolder.description, { breaks: true, gfm: true }));
-                } catch (e) {
-                    parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(currentFolder.description)}</div>`;
-                }
+                parsedContent = `<div class="loading-spinner"></div>`;
+                renderMarkdown(currentFolder.description).then(html => {
+                    const body = descLi.querySelector('.folder-desc-body');
+                    if (body) body.innerHTML = html;
+                });
             } else {
                 parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(currentFolder.description)}</div>`;
             }

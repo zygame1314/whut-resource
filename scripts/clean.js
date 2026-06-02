@@ -11,6 +11,8 @@ const pathsToRemove = [
     'guestbook.js',
     'graph.js',
     'tutorial.js',
+    'browser-guide.js',
+    'site-stats.js',
     'download-log.js',
     'download-manager.js',
     'download-manager-ui.js',

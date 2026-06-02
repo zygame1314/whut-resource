@@ -279,11 +279,11 @@ function filterTreeByKeyword(container, keyword, options = {}) {
         }
     });
 }
-function renderMarkdown(content) {
+async function renderMarkdown(content) {
     if (!content) return '';
     try {
-        if (typeof marked === 'undefined') {
-            return `<div style="white-space: pre-wrap;">${escapeHtml(content)}</div>`;
+        if (typeof marked === 'undefined' || !marked.__baseLoaded) {
+            await window.LazyLoader.loadMarkdownBase();
         }
         if (!marked.customConfigured) {
             marked.customConfigured = true;
@@ -334,18 +334,13 @@ function renderMarkdown(content) {
                 headerIds: false,
                 renderer: renderer
             });
-            const katexExt = window.markedKatex || window.markedKatexExtension;
-            if (typeof katexExt === 'function') {
-                marked.use(katexExt({
-                    throwOnError: false,
-                    nonStandard: true,
-                    katex: window.katex
-                }));
-            }
             const footnoteExt = window.markedFootnote || window.markedFootnotes;
             if (typeof footnoteExt === 'function') {
                 marked.use(footnoteExt());
             }
+        }
+        if (/```/.test(content) && !marked.__highlightConfigured) {
+            await window.LazyLoader.loadHighlight();
             if (typeof window.markedHighlight !== 'undefined' && typeof hljs !== 'undefined') {
                 const mh = window.markedHighlight.markedHighlight || window.markedHighlight;
                 marked.use(mh({
@@ -357,6 +352,19 @@ function renderMarkdown(content) {
                         return hljs.highlightAuto(code).value;
                     }
                 }));
+                marked.__highlightConfigured = true;
+            }
+        }
+        if (/\$/.test(content) && !marked.__katexConfigured) {
+            await window.LazyLoader.loadKatex();
+            const katexExt = window.markedKatex || window.markedKatexExtension;
+            if (typeof katexExt === 'function') {
+                marked.use(katexExt({
+                    throwOnError: false,
+                    nonStandard: true,
+                    katex: window.katex
+                }));
+                marked.__katexConfigured = true;
             }
         }
         let processed = content.trim()
