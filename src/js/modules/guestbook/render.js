@@ -7,7 +7,6 @@ function renderGuestbook(messages) {
     const isAdmin = isGuestbookAdmin(window.currentUser);
     const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
     const currentUserId = window.currentUser ? window.currentUser.id : null;
-    console.log('[GB render]', { currentUser: window.currentUser, currentUserId, firstMsgUserId: messages[0]?.user_id, msgCount: messages.length });
     guestbookList.innerHTML = messages.map(msg => {
         const isAuthor = currentUserId === msg.user_id;
         const likedClass = msg.has_liked ? 'active' : '';

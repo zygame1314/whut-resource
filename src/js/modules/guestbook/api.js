@@ -20,10 +20,8 @@ async function guestbookFetchPage(cursor) {
 }
 
 async function guestbookLoadInitial() {
-    console.log('[GB] guestbookLoadInitial called');
     if (!guestbookSection) return;
     const token = localStorage.getItem('authToken');
-    console.log('[GB] token exists:', !!token);
     if (!token) {
         if (guestbookForm) guestbookForm.style.display = 'none';
         const loginPrompt = document.getElementById('guestbook-login-prompt');
@@ -32,7 +30,8 @@ async function guestbookLoadInitial() {
         if (guestbookPagination) guestbookPagination.style.display = 'none';
         return;
     }
-    if (guestbookList) guestbookList.innerHTML = '<div class="loading-spinner"></div>';
+    const gbLoader = '<div class="guestbook-loading"><div class="guestbook-loading-icon"><i class="fas fa-comment-dots"></i></div><div class="guestbook-loading-dots"><span></span><span></span><span></span></div><div class="guestbook-loading-text">加载留言中...</div></div>';
+    if (guestbookList) guestbookList.innerHTML = gbLoader;
     try {
         const page = await guestbookFetchPage(null);
         guestbookCursorStack = [page];
@@ -58,7 +57,7 @@ function guestbookGoNext() {
         renderGuestbookPagination(page.hasMore, true);
         return;
     }
-    if (guestbookList) guestbookList.innerHTML = '<div class="loading-spinner"></div>';
+    if (guestbookList) guestbookList.innerHTML = '<div class="guestbook-loading"><div class="guestbook-loading-icon"><i class="fas fa-comment-dots"></i></div><div class="guestbook-loading-dots"><span></span><span></span><span></span></div><div class="guestbook-loading-text">加载留言中...</div></div>';
     guestbookFetchPage(currentPage.nextCursor).then(page => {
         guestbookCursorStack.push(page);
         if (guestbookCursorStack.length > MAX_CURSOR_STACK_PAGES) {

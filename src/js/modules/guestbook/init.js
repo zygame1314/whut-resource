@@ -4,7 +4,7 @@ function initGuestbook() {
     if (!token) {
         refreshGuestbook();
     } else if (guestbookList) {
-        guestbookLoadInitial();
+        guestbookList.innerHTML = '<div class="guestbook-loading"><div class="guestbook-loading-icon"><i class="fas fa-comment-dots"></i></div><div class="guestbook-loading-dots"><span></span><span></span><span></span></div><div class="guestbook-loading-text">加载留言中...</div></div>';
     }
     if (guestbookList) {
         guestbookList.addEventListener('keydown', function(e) {
@@ -24,5 +24,5 @@ function initGuestbook() {
 }
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
-    document.addEventListener('authSuccess', () => { console.log('[GB] authSuccess fired, currentUser:', window.currentUser); refreshGuestbook(); });
+    document.addEventListener('authSuccess', () => refreshGuestbook());
 });
