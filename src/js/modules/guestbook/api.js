@@ -91,12 +91,45 @@ async function handleGuestbookSubmit(e) {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ content })
         });
+        const d = await response.json();
         if (response.ok) {
+            const result = d;
             guestbookContentInput.value = '';
-            showNotification(isGuestbookAdmin(window.currentUser) ? '留言发布成功！' : '留言已提交，请耐心等待审核', 'success');
-            refreshGuestbook();
+            const isAdmin = isGuestbookAdmin(window.currentUser);
+            const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
+            showNotification(isAdmin ? '留言发布成功！' : '留言已提交，请耐心等待审核', 'success');
+            const newMessage = {
+                id: result.id,
+                user_id: window.currentUser.id,
+                nickname: window.currentUser.nickname || '匿名用户',
+                content: content,
+                parent_id: null,
+                likes: 0,
+                has_liked: false,
+                is_hidden: isAdmin ? 0 : 1,
+                is_pinned: 0,
+                status: 'unresolved',
+                reject_reason: null,
+                resolve_note: null,
+                created_at: new Date().toISOString(),
+                role: window.currentUser.role,
+                isAdmin: isAdmin,
+                isSuperAdmin: isSuperAdmin,
+                replies: []
+            };
+            const page = guestbookCursorStack[0];
+            if (page && page.messages) {
+                page.messages.unshift(newMessage);
+                if (!page.messages[page.messages.length - 1].replies) {
+                    page.messages[page.messages.length - 1].replies = [];
+                }
+                renderGuestbook(guestbookCursorStack[guestbookPageIndex].messages);
+                renderGuestbookPagination(
+                    guestbookCursorStack[guestbookPageIndex].hasMore,
+                    guestbookPageIndex > 0
+                );
+            }
         } else {
-            const d = await response.json();
             showNotification(d.error || '发布失败', 'error');
         }
     } catch (error) {

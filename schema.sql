@@ -278,25 +278,6 @@ CREATE INDEX IF NOT EXISTS idx_admin_logs_target_created ON admin_logs(target_ty
 CREATE INDEX IF NOT EXISTS idx_admin_logs_action_created ON admin_logs(action, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_target ON admin_logs(target_type, target_id);
 
-DROP TRIGGER IF EXISTS update_guestbook_stats_insert;
-CREATE TRIGGER update_guestbook_stats_insert
-AFTER INSERT ON guestbook
-BEGIN
-    UPDATE guestbook_stats 
-    SET total_messages_all_time = total_messages_all_time + 1,
-        current_messages_count = current_messages_count + 1
-    WHERE id = 1;
-END;
-
-DROP TRIGGER IF EXISTS update_guestbook_stats_delete;
-CREATE TRIGGER update_guestbook_stats_delete
-AFTER DELETE ON guestbook
-BEGIN
-    UPDATE guestbook_stats 
-    SET current_messages_count = current_messages_count - 1
-    WHERE id = 1;
-END;
-
 DROP TABLE IF EXISTS system_cache;
 CREATE TABLE IF NOT EXISTS system_cache (
     id INTEGER PRIMARY KEY,

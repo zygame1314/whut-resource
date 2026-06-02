@@ -275,9 +275,15 @@ function renderResolveNote(note) {
 }
 function renderGuestbookPagination(hasMore, hasPrev) {
     if (!guestbookPagination) return;
-    if (!hasMore && !hasPrev) {
-        guestbookPagination.innerHTML = '';
-        guestbookPagination.style.display = 'none';
+    let totalLoaded = 0;
+    for (const page of guestbookCursorStack) {
+        if (page.messages) totalLoaded += page.messages.length;
+    }
+    if (!hasMore && !hasPrev && totalLoaded <= GUESTBOOK_PER_PAGE) {
+        guestbookPagination.innerHTML = totalLoaded > 0
+            ? `<span class="guestbook-loaded-count" style="color:var(--text-secondary);font-size:0.85rem;">已加载 ${totalLoaded} 条</span>`
+            : '';
+        guestbookPagination.style.display = totalLoaded > 0 ? 'flex' : 'none';
         return;
     }
     guestbookPagination.style.display = 'flex';
@@ -285,6 +291,7 @@ function renderGuestbookPagination(hasMore, hasPrev) {
         <button class="secondary-btn small" onclick="changeGuestbookPage('prev')" ${!hasPrev ? 'disabled' : ''}>
             <i class="fas fa-chevron-left"></i> 上一页
         </button>
+        <span class="guestbook-loaded-count" style="color:var(--text-secondary);font-size:0.85rem;">已加载 ${totalLoaded} 条</span>
         <button class="secondary-btn small" onclick="changeGuestbookPage('next')" ${!hasMore ? 'disabled' : ''}>
             下一页 <i class="fas fa-chevron-right"></i>
         </button>
