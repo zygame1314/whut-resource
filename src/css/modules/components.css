@@ -6755,7 +6755,7 @@ input#prompt-input {
     background: var(--background);
     border-radius: 20px;
     box-shadow: var(--shadow-heavy);
-    overflow: hidden;
+    overflow: visible;
     margin-bottom: 2rem;
 }
 
@@ -6764,6 +6764,7 @@ input#prompt-input {
     padding: 2rem;
     text-align: center;
     border-bottom: 1px solid var(--border-color);
+    border-radius: 20px 20px 0 0;
 }
 
 .upload-description {
