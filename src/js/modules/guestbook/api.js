@@ -20,8 +20,10 @@ async function guestbookFetchPage(cursor) {
 }
 
 async function guestbookLoadInitial() {
+    console.log('[GB] guestbookLoadInitial called');
     if (!guestbookSection) return;
     const token = localStorage.getItem('authToken');
+    console.log('[GB] token exists:', !!token);
     if (!token) {
         if (guestbookForm) guestbookForm.style.display = 'none';
         const loginPrompt = document.getElementById('guestbook-login-prompt');

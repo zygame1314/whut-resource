@@ -530,6 +530,7 @@ export async function onRequestPost({ request, env }) {
           token,
           needsActivation: isNewSsoUser,
           user: {
+            id: user.id,
             email: user.email,
             nickname: user.nickname,
             role: user.role,
@@ -630,7 +631,7 @@ export async function onRequestPost({ request, env }) {
         user.quota_used = 0;
       }
       const quota_remaining = user.quota_limit - user.quota_used;
-      return new Response(JSON.stringify({ success: true, token, user: { email: user.email, nickname: user.nickname, role: user.role, quota_limit: user.quota_limit, quota_used: user.quota_used, quota_remaining } }), { status: 200, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: true, token, user: { id: user.id, email: user.email, nickname: user.nickname, role: user.role, quota_limit: user.quota_limit, quota_used: user.quota_used, quota_remaining } }), { status: 200, headers: addCorsHeaders() });
     }
     return new Response(JSON.stringify({ success: false, error: '无效操作' }), { status: 400, headers: addCorsHeaders() });
   } catch (e) {
