@@ -2,9 +2,10 @@ import { addCorsHeaders } from '../utils.js';
 
 const SITE_LAUNCH_DATE = '2025-12-01';
 const GITHUB_REPO = 'zygame1314/whut-resource';
-
-const cache = { data: null, lastChecked: 0, TTL: 60000 };
-const commitCache = { data: null, lastChecked: 0, TTL: 300000 };
+const STATS_CACHE_KEY = 'https://whut-resource-stats.internal/stats';
+const STATS_CACHE_TTL = 60;
+const COMMIT_CACHE_KEY = 'https://whut-resource-stats.internal/commit';
+const COMMIT_CACHE_TTL = 300;
 
 function getUptimeDays() {
     const launch = new Date(SITE_LAUNCH_DATE);
@@ -13,26 +14,62 @@ function getUptimeDays() {
     return Math.max(0, Math.floor(diffMs / 86400000));
 }
 
-async function fetchLastCommitTime() {
-    const now = Date.now();
-    if (commitCache.data && (now - commitCache.lastChecked < commitCache.TTL)) {
-        return commitCache.data;
-    }
+async function getEdgeCache(request, cacheKey) {
     try {
-        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/commits?per_page=1`, {
-            headers: { 'User-Agent': 'whut-resource-site-stats' }
+        const cache = caches.default;
+        const cached = await cache.match(new Request(cacheKey));
+        if (cached) {
+            const maxAge = parseInt(cached.headers.get('X-Cache-Max-age') || '0');
+            const cachedAt = parseInt(cached.headers.get('X-Cached-At') || '0');
+            if (Date.now() - cachedAt < maxAge * 1000) {
+                return await cached.json();
+            }
+        }
+    } catch (e) { }
+    return null;
+}
+
+async function setEdgeCache(request, cacheKey, data, ttl) {
+    try {
+        const cache = caches.default;
+        const response = new Response(JSON.stringify(data), {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Cached-At': String(Date.now()),
+                'X-Cache-Max-age': String(ttl),
+                'Cache-Control': 'public, max-age=1'
+            }
         });
-        if (!res.ok) return commitCache.data;
+        await cache.put(new Request(cacheKey), response);
+    } catch (e) { }
+}
+
+async function fetchLastCommitTime(env) {
+    const cached = await getEdgeCache(null, COMMIT_CACHE_KEY);
+    if (cached) return cached.date || null;
+
+    try {
+        const headers = { 'User-Agent': 'whut-resource-site-stats' };
+        if (env?.GITHUB_TOKEN) {
+            headers['Authorization'] = `token ${env.GITHUB_TOKEN}`;
+        }
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/commits?per_page=1`, { headers });
+        if (!res.ok) {
+            console.error(`GitHub API 返回 ${res.status}: ${await res.text().catch(() => '')}`);
+            return null;
+        }
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0 && data[0].commit) {
-            commitCache.data = data[0].commit.committer.date;
-            commitCache.lastChecked = now;
-            return commitCache.data;
+            const date = data[0].commit.author?.date || data[0].commit.committer?.date || null;
+            if (date) {
+                await setEdgeCache(null, COMMIT_CACHE_KEY, { date }, COMMIT_CACHE_TTL);
+            }
+            return date;
         }
     } catch (e) {
         console.error('获取 GitHub 提交时间失败:', e);
     }
-    return commitCache.data;
+    return null;
 }
 
 export async function onRequestGet({ request, env }) {
@@ -43,9 +80,9 @@ export async function onRequestGet({ request, env }) {
                 headers: addCorsHeaders()
             });
         }
-        const now = Date.now();
-        if (cache.data && (now - cache.lastChecked < cache.TTL)) {
-            return new Response(JSON.stringify({ success: true, stats: cache.data }), {
+        const cached = await getEdgeCache(request, STATS_CACHE_KEY);
+        if (cached) {
+            return new Response(JSON.stringify({ success: true, stats: cached }), {
                 status: 200,
                 headers: addCorsHeaders({ 'Cache-Control': 'public, max-age=60' })
             });
@@ -54,14 +91,13 @@ export async function onRequestGet({ request, env }) {
             'SELECT registered_users FROM system_stats WHERE id = 1'
         ).first();
         const registeredUsers = stats?.registered_users ?? 0;
-        const lastCommitTime = await fetchLastCommitTime();
+        const lastCommitTime = await fetchLastCommitTime(env);
         const result = {
             registeredUsers,
             uptimeDays: getUptimeDays(),
-            lastCommitTime: lastCommitTime || null
+            lastCommitTime
         };
-        cache.data = result;
-        cache.lastChecked = now;
+        await setEdgeCache(request, STATS_CACHE_KEY, result, STATS_CACHE_TTL);
         return new Response(JSON.stringify({ success: true, stats: result }), {
             status: 200,
             headers: addCorsHeaders({ 'Cache-Control': 'public, max-age=60' })
