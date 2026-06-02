@@ -17,6 +17,31 @@ const uploadTypeLinkBtn = document.getElementById('upload-type-link');
 const linkUploadZone = document.getElementById('link-upload-zone');
 const watermarkOption = document.getElementById('watermark-option');
 const watermarkToggle = document.getElementById('watermark-toggle');
+
+function animateShow(el, displayValue) {
+    if (!el) return;
+    el.style.display = displayValue || 'block';
+    el.classList.remove('leaving');
+    el.classList.add('entering');
+    const onEnd = () => {
+        el.classList.remove('entering');
+    };
+    el.removeEventListener('animationend', onEnd);
+    el.addEventListener('animationend', onEnd, { once: true });
+}
+
+function animateHide(el) {
+    if (!el) return;
+    el.classList.remove('entering');
+    el.classList.add('leaving');
+    const onEnd = () => {
+        el.style.display = 'none';
+        el.classList.remove('leaving');
+    };
+    el.removeEventListener('animationend', onEnd);
+    el.addEventListener('animationend', onEnd, { once: true });
+}
+
 function createParticleBackground() {
     const particlesContainer = document.getElementById('particles-background');
     if (!particlesContainer) return;
@@ -35,6 +60,7 @@ function createParticleBackground() {
         particlesContainer.appendChild(particle);
     }
 }
+
 function showSelectedFile(files) {
     selectedFiles = Array.from(files);
     if (selectedFiles.length === 0) return;
@@ -66,37 +92,37 @@ function showSelectedFile(files) {
     if (nameEl) nameEl.textContent = `${displayName} ${fileCountText}`.trim();
     const sizeEl = selectedFileInfo.querySelector('.file-size');
     if (sizeEl) sizeEl.textContent = formatBytes(totalSize);
-    selectedFileInfo.style.display = 'block';
-    if (fileDropZone) fileDropZone.style.display = 'none';
-    selectedFileInfo.style.opacity = '0';
-    selectedFileInfo.style.transform = 'translateY(10px)';
-    setTimeout(() => {
-        selectedFileInfo.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-        selectedFileInfo.style.opacity = '1';
-        selectedFileInfo.style.transform = 'translateY(0)';
-    }, 50);
+    animateHide(fileDropZone);
+    animateShow(selectedFileInfo, 'block');
 }
+
 function clearSelectedFile() {
     selectedFiles = [];
     if (fileInput) fileInput.value = '';
-    if (selectedFileInfo) selectedFileInfo.style.display = 'none';
+    if (selectedFileInfo) {
+        selectedFileInfo.style.display = 'none';
+        selectedFileInfo.classList.remove('entering', 'leaving');
+    }
     if (currentUploadType === 'file' && fileDropZone) {
-        fileDropZone.style.display = 'flex';
+        animateShow(fileDropZone, 'flex');
     }
     resetProgress();
 }
+
 function resetProgress() {
     if (uploadProgress) uploadProgress.style.display = 'none';
     if (progressFill) progressFill.style.width = '0%';
     if (progressPercentage) progressPercentage.textContent = '0%';
     if (progressStatus) progressStatus.textContent = '准备上传...';
 }
+
 function updateProgress(percentage, status) {
     if (uploadProgress) uploadProgress.style.display = 'block';
     if (progressFill) progressFill.style.width = percentage + '%';
     if (progressPercentage) progressPercentage.textContent = Math.round(percentage) + '%';
     if (progressStatus) progressStatus.textContent = status;
 }
+
 function showUploadStatus(message, type = 'info') {
     if (!uploadStatus) return;
     uploadStatus.innerHTML = `
@@ -119,24 +145,29 @@ function showUploadStatus(message, type = 'info') {
         }, 5000);
     }
 }
+
 function switchUploadType(type) {
     currentUploadType = type;
     if (type === 'file') {
         if (uploadTypeFileBtn) uploadTypeFileBtn.classList.add('active');
         if (uploadTypeLinkBtn) uploadTypeLinkBtn.classList.remove('active');
-        if (fileDropZone) fileDropZone.style.display = 'flex';
-        if (linkUploadZone) linkUploadZone.style.display = 'none';
+        animateHide(linkUploadZone);
+        animateShow(fileDropZone, 'flex');
         if (uploadSubmitBtn) uploadSubmitBtn.innerHTML = '<i class="fas fa-upload"></i><span>开始上传</span>';
     } else {
         if (uploadTypeFileBtn) uploadTypeFileBtn.classList.remove('active');
         if (uploadTypeLinkBtn) uploadTypeLinkBtn.classList.add('active');
-        if (fileDropZone) fileDropZone.style.display = 'none';
-        if (selectedFileInfo) selectedFileInfo.style.display = 'none';
-        if (linkUploadZone) linkUploadZone.style.display = 'block';
+        animateHide(fileDropZone);
+        if (selectedFileInfo) {
+            selectedFileInfo.style.display = 'none';
+            selectedFileInfo.classList.remove('entering', 'leaving');
+        }
+        animateShow(linkUploadZone, 'block');
         if (uploadSubmitBtn) uploadSubmitBtn.innerHTML = '<i class="fas fa-plus"></i><span>添加链接</span>';
         clearSelectedFile();
     }
 }
+
 function showNoPermissionUI() {
     const uploadCard = document.querySelector('.upload-card');
     if (uploadCard) {

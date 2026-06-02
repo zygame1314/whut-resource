@@ -7254,6 +7254,42 @@ input#prompt-input {
     }
 }
 
+.file-drop-zone.entering,
+.link-upload-zone.entering {
+    animation: uploadZoneIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.file-drop-zone.leaving,
+.link-upload-zone.leaving {
+    animation: uploadZoneOut 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.upload-progress.entering {
+    animation: uploadProgressIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    overflow: hidden;
+}
+
+.upload-progress.leaving {
+    animation: uploadProgressOut 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    overflow: hidden;
+}
+
+.upload-results-panel.entering {
+    animation: uploadPanelIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.upload-results-panel.leaving {
+    animation: uploadPanelOut 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.selected-file-info.entering {
+    animation: uploadFileInfoIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.selected-file-info.leaving {
+    animation: uploadFileInfoOut 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 .upload-guide {
     background: var(--background);
     border-radius: 15px;

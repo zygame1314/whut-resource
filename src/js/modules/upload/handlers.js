@@ -331,10 +331,10 @@ function showUploadResultsPanel(successFiles, failedFiles) {
     } else {
         failedList.innerHTML = '<div class="empty-list"><i class="fas fa-check-circle"></i><span>全部上传成功</span></div>';
     }
-    panel.style.display = 'block';
+    animateShow(panel, 'block');
     if (closeBtn) {
         closeBtn.onclick = () => {
-            panel.style.display = 'none';
+            animateHide(panel);
         };
     }
 }
