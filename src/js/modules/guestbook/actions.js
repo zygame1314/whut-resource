@@ -1,40 +1,31 @@
-window.changeGuestbookPage = function (page) {
-    if (page < 1 || page > totalGuestbookPages) return;
-    if (guestbookSection) {
-        guestbookSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    fetchAndDisplayGuestbook(page);
+window.changeGuestbookPage = function (direction) {
+    if (guestbookSection) guestbookSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (direction === 'next') guestbookGoNext();
+    else if (direction === 'prev') guestbookGoPrev();
 };
 window.changeGuestbookSort = function (sortType) {
     if (currentGuestbookSort === sortType) return;
     currentGuestbookSort = sortType;
-    currentGuestbookPage = 1;
     document.querySelectorAll('.guestbook-sort-btn').forEach(btn => {
-        if (btn.dataset.sort === sortType) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
+        btn.classList.toggle('active', btn.dataset.sort === sortType);
     });
-    fetchAndDisplayGuestbook(1);
+    refreshGuestbook();
 };
 window.changeGuestbookFilter = function (filter) {
     if (currentGuestbookFilter === filter) return;
     currentGuestbookFilter = filter;
-    currentGuestbookPage = 1;
     document.querySelectorAll('.guestbook-filter-btn').forEach(btn => {
-        if (btn.dataset.filter === filter) btn.classList.add('active'); else btn.classList.remove('active');
+        btn.classList.toggle('active', btn.dataset.filter === filter);
     });
-    fetchAndDisplayGuestbook(1);
+    refreshGuestbook();
 };
 window.changeGuestbookStatus = function (status) {
     if (currentGuestbookStatus === status) return;
     currentGuestbookStatus = status;
-    currentGuestbookPage = 1;
     document.querySelectorAll('.guestbook-status-btn').forEach(btn => {
-        if (btn.dataset.status === status) btn.classList.add('active'); else btn.classList.remove('active');
+        btn.classList.toggle('active', btn.dataset.status === status);
     });
-    fetchAndDisplayGuestbook(1);
+    refreshGuestbook();
 };
 window.likeGuestbook = function (id, btnElement) {
     handleGuestbookAction(id, 'like', btnElement);

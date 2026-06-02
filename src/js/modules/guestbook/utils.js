@@ -32,9 +32,7 @@ function getAvatarColor(name) {
         'linear-gradient(135deg, #02aab0 0%, #00cdac 100%)'
     ];
     let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
+    for (let i = 0; i < name.length; i++) { hash = name.charCodeAt(i) + ((hash << 5) - hash); }
     return colors[Math.abs(hash) % colors.length];
 }
 function getAvatarChars(name) {
@@ -44,55 +42,47 @@ function getAvatarChars(name) {
 }
 window.navigateToPath = function (path) {
     const fileExplorer = document.getElementById('breadcrumb-nav');
-    if (fileExplorer) {
-        fileExplorer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    if (fileExplorer) fileExplorer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (typeof fetchAndDisplayFiles === 'function') {
         let cleanPath = path.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
-        const normalizedPath = cleanPath ? cleanPath + '/' : '/';
-        fetchAndDisplayFiles(normalizedPath);
+        fetchAndDisplayFiles(cleanPath ? cleanPath + '/' : '/');
         showNotification(`正在跳转到目录：${cleanPath || '根目录'}`, 'info');
     } else {
         showNotification('无法导航到目录', 'error');
     }
 };
-function refreshGuestbook(page = 1) {
-    guestbookCache = { data: [] };
-    fetchAndDisplayGuestbook(page);
+function refreshGuestbook() {
+    guestbookCursorStack = [];
+    guestbookPageIndex = -1;
+    guestbookLoadInitial();
 }
 function updateGuestbookCache(id, updates) {
-    const index = guestbookCache.data.findIndex(msg => msg.id === id);
-    if (index !== -1) {
-        guestbookCache.data[index] = { ...guestbookCache.data[index], ...updates };
-        fetchAndDisplayGuestbook(currentGuestbookPage);
-        return;
-    }
-    for (const parent of guestbookCache.data) {
-        if (parent.replies) {
-            const replyIdx = parent.replies.findIndex(r => r.id === id);
-            if (replyIdx !== -1) {
-                parent.replies[replyIdx] = { ...parent.replies[replyIdx], ...updates };
-                fetchAndDisplayGuestbook(currentGuestbookPage);
-                return;
+    for (const page of guestbookCursorStack) {
+        if (!page.messages) continue;
+        const mi = page.messages.findIndex(m => m.id === id);
+        if (mi !== -1) { page.messages[mi] = { ...page.messages[mi], ...updates }; break; }
+        for (const m of page.messages) {
+            if (m.replies) {
+                const ri = m.replies.findIndex(r => r.id === id);
+                if (ri !== -1) { m.replies[ri] = { ...m.replies[ri], ...updates }; return; }
             }
         }
     }
+    const cur = guestbookCursorStack[guestbookPageIndex];
+    if (cur && cur.messages) renderGuestbook(cur.messages);
 }
 function removeFromGuestbookCache(id) {
-    const parentIdx = guestbookCache.data.findIndex(msg => msg.id === id);
-    if (parentIdx !== -1) {
-        guestbookCache.data.splice(parentIdx, 1);
-        fetchAndDisplayGuestbook(currentGuestbookPage);
-        return;
-    }
-    for (const parent of guestbookCache.data) {
-        if (parent.replies) {
-            const replyIdx = parent.replies.findIndex(r => r.id === id);
-            if (replyIdx !== -1) {
-                parent.replies.splice(replyIdx, 1);
-                fetchAndDisplayGuestbook(currentGuestbookPage);
-                return;
+    for (const page of guestbookCursorStack) {
+        if (!page.messages) continue;
+        const mi = page.messages.findIndex(m => m.id === id);
+        if (mi !== -1) { page.messages.splice(mi, 1); break; }
+        for (const m of page.messages) {
+            if (m.replies) {
+                const ri = m.replies.findIndex(r => r.id === id);
+                if (ri !== -1) { m.replies.splice(ri, 1); return; }
             }
         }
     }
+    const cur = guestbookCursorStack[guestbookPageIndex];
+    if (cur && cur.messages) renderGuestbook(cur.messages);
 }

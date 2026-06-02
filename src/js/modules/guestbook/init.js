@@ -1,12 +1,10 @@
 function initGuestbook() {
-    if (guestbookForm) {
-        guestbookForm.addEventListener('submit', handleGuestbookSubmit);
-    }
+    if (guestbookForm) guestbookForm.addEventListener('submit', handleGuestbookSubmit);
     const token = localStorage.getItem('authToken');
     if (!token) {
-        refreshGuestbook(currentGuestbookPage);
+        refreshGuestbook();
     } else if (guestbookList) {
-        guestbookList.innerHTML = '<div class="loading-spinner"></div>';
+        guestbookLoadInitial();
     }
     if (guestbookList) {
         guestbookList.addEventListener('keydown', function(e) {
@@ -17,9 +15,7 @@ function initGuestbook() {
                     const formContainer = e.target.closest('.reply-form-container');
                     if (formContainer) {
                         const parentId = parseInt(formContainer.id.replace('reply-form-', ''));
-                        if (parentId) {
-                            submitReply(parentId);
-                        }
+                        if (parentId) submitReply(parentId);
                     }
                 }
             }
@@ -28,7 +24,5 @@ function initGuestbook() {
 }
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
-    document.addEventListener('authSuccess', () => {
-        refreshGuestbook(currentGuestbookPage);
-    });
+    document.addEventListener('authSuccess', () => refreshGuestbook());
 });

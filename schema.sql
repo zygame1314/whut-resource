@@ -128,8 +128,8 @@ CREATE INDEX IF NOT EXISTS idx_downloads_file_key ON downloads(file_key);
 CREATE INDEX IF NOT EXISTS idx_downloads_cleanup ON downloads(downloaded_at);
 CREATE INDEX IF NOT EXISTS idx_downloads_debounce ON downloads(user_id, file_key, downloaded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_downloads_user_history ON downloads(user_id, downloaded_at DESC);
-CREATE INDEX IF NOT EXISTS idx_guestbook_admin_list ON guestbook(is_pinned DESC, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_guestbook_list_default ON guestbook(is_hidden, is_pinned DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_guestbook_cursor_time ON guestbook(parent_id, is_pinned DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_guestbook_cursor_likes ON guestbook(parent_id, is_pinned DESC, likes DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_user_daily_limit ON guestbook(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_guestbook_cleanup ON guestbook(created_at, is_pinned);
 CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(is_published, created_at DESC);
@@ -279,20 +279,10 @@ CREATE INDEX IF NOT EXISTS idx_admin_logs_target_created ON admin_logs(target_ty
 CREATE INDEX IF NOT EXISTS idx_admin_logs_action_created ON admin_logs(action, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_target ON admin_logs(target_type, target_id);
 
-DROP TABLE IF EXISTS guestbook_stats;
-CREATE TABLE IF NOT EXISTS guestbook_stats (
+CREATE TABLE IF NOT EXISTS guestbook_cleanup (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    total_messages_all_time INTEGER DEFAULT 0,
-    current_messages_count INTEGER DEFAULT 0,
-    last_cleanup_at DATETIME,
-    last_cleanup_count INTEGER DEFAULT 0
+    last_cleanup_at DATETIME
 );
-
-INSERT OR REPLACE INTO guestbook_stats (id, total_messages_all_time, current_messages_count) 
-SELECT 1, 
-       COALESCE((SELECT total_messages_all_time FROM guestbook_stats WHERE id = 1), COUNT(*)),
-       COUNT(*) 
-FROM guestbook;
 
 DROP TRIGGER IF EXISTS update_guestbook_stats_insert;
 CREATE TRIGGER update_guestbook_stats_insert

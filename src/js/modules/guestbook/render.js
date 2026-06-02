@@ -273,61 +273,20 @@ function renderResolveNote(note) {
         return `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 管理员备注：${safeNote}</div>`;
     }
 }
-function renderGuestbookPagination() {
+function renderGuestbookPagination(hasMore, hasPrev) {
     if (!guestbookPagination) return;
-    if (totalGuestbookPages <= 1) {
+    if (!hasMore && !hasPrev) {
         guestbookPagination.innerHTML = '';
         guestbookPagination.style.display = 'none';
         return;
     }
     guestbookPagination.style.display = 'flex';
     guestbookPagination.innerHTML = `
-        <button class="secondary-btn small" onclick="changeGuestbookPage(${currentGuestbookPage - 1})" ${currentGuestbookPage === 1 ? 'disabled' : ''}>
-            <i class="fas fa-chevron-left"></i>
+        <button class="secondary-btn small" onclick="changeGuestbookPage('prev')" ${!hasPrev ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i> 上一页
         </button>
-        <div style="display:flex; align-items:center;">
-            <input type="number" min="1" max="${totalGuestbookPages}" value="${currentGuestbookPage}" 
-                class="pagination-jump-input" 
-                onchange="let val = parseInt(this.value); if(val >= 1 && val <= ${totalGuestbookPages}) changeGuestbookPage(val); else this.value = ${currentGuestbookPage}"
-                onkeydown="if(event.key === 'Enter') this.blur()"
-            >
-            <span class="pagination-info">/ ${totalGuestbookPages}</span>
-        </div>
-        <button class="secondary-btn small" onclick="changeGuestbookPage(${currentGuestbookPage + 1})" ${currentGuestbookPage === totalGuestbookPages ? 'disabled' : ''}>
-            <i class="fas fa-chevron-right"></i>
+        <button class="secondary-btn small" onclick="changeGuestbookPage('next')" ${!hasMore ? 'disabled' : ''}>
+            下一页 <i class="fas fa-chevron-right"></i>
         </button>
     `;
-}
-function renderGuestbookStats(stats) {
-    let statsWrapper = document.getElementById('guestbook-stats-wrapper');
-    if (!statsWrapper) return;
-    let statsContainer = document.getElementById('guestbook-stats-container');
-    if (!statsContainer) {
-        statsContainer = document.createElement('div');
-        statsContainer.id = 'guestbook-stats-container';
-        statsContainer.className = 'guestbook-stats-container';
-        statsWrapper.appendChild(statsContainer);
-    }
-    let lastCleanupDate = '从未';
-    if (stats.last_cleanup_at) {
-        const date = new Date(stats.last_cleanup_at + (stats.last_cleanup_at.endsWith('Z') ? '' : 'Z'));
-        lastCleanupDate = date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    }
-    statsContainer.innerHTML = `
-        <div class="stats-item" title="自建站以来的总留言数">
-            <i class="fas fa-history"></i> 
-            <span>历史总数: <strong>${stats.total_messages_all_time}</strong></span>
-        </div>
-        <div class="stats-divider"></div>
-        <div class="stats-item" title="当前显示的留言数">
-            <i class="fas fa-layer-group"></i> 
-            <span>当前存留: <strong>${stats.current_messages_count}</strong></span>
-        </div>
-        <div class="stats-divider"></div>
-        <div class="stats-item" title="最近一次自动清理情况">
-            <i class="fas fa-broom"></i> 
-            <span>上次清理: <strong>${stats.last_cleanup_count}</strong> 条 <span class="stats-date">(${lastCleanupDate})</span></span>
-        </div>
-    `;
-    statsContainer.style.display = 'flex';
 }

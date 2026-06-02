@@ -34,28 +34,6 @@ async function getUser(request, env) {
 }
 async function handleGet(request, env) {
     const url = new URL(request.url);
-    const action = url.searchParams.get('action');
-    if (action === 'stats') {
-        const user = await getUser(request, env);
-        if (!isAdmin(user)) {
-            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-        }
-        let stats = await env.DB.prepare('SELECT * FROM guestbook_stats WHERE id = 1').first();
-        if (!stats) {
-            await env.DB.prepare('INSERT OR IGNORE INTO guestbook_stats (id, total_messages_all_time, current_messages_count) SELECT 1, COUNT(*), COUNT(*) FROM guestbook').run();
-            stats = await env.DB.prepare('SELECT * FROM guestbook_stats WHERE id = 1').first();
-        }
-        return new Response(JSON.stringify({
-            success: true,
-            stats: {
-                total_messages_all_time: stats.total_messages_all_time,
-                last_cleanup_at: stats.last_cleanup_at,
-                last_cleanup_count: stats.last_cleanup_count,
-                current_messages_count: stats.current_messages_count
-            }
-        }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-    }
-    const MAX_LIMIT = 500;
     const user = await getUser(request, env);
     if (!user) {
         return new Response(JSON.stringify({ error: '请先登录' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -63,51 +41,109 @@ async function handleGet(request, env) {
     const currentUserId = user.id;
     const isAdminUser = isAdmin(user);
 
-    const etagRow = await env.DB.prepare(
-        'SELECT MAX(created_at) as max_created, COUNT(*) as cnt, SUM(is_hidden) as hidden_cnt, SUM(is_pinned) as pinned_cnt FROM guestbook'
-    ).first();
-    const etagSource = `${etagRow?.max_created || ''}_${etagRow?.cnt || 0}_${etagRow?.hidden_cnt || 0}_${etagRow?.pinned_cnt || 0}_${currentUserId}_${isAdminUser}`;
-    const encoder = new TextEncoder();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(etagSource));
-    const etag = '"' + Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16) + '"';
-    const ifNoneMatch = request.headers.get('If-None-Match');
-    if (ifNoneMatch && ifNoneMatch === etag) {
-        return new Response(null, { status: 304, headers: addCorsHeaders({ 'ETag': etag }) });
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '5'), 20);
+    const sort = url.searchParams.get('sort') || 'time';
+    const filter = url.searchParams.get('filter') || 'all';
+    const status = url.searchParams.get('status') || 'all';
+    const cursorStr = url.searchParams.get('cursor') || null;
+
+    let cursorObj = null;
+    if (cursorStr) {
+        try { cursorObj = JSON.parse(atob(cursorStr)); } catch (e) { cursorObj = null; }
     }
 
-    const orderByClause = 'ORDER BY g.is_pinned DESC, g.created_at DESC';
-    let query;
-    let params = [];
-    let results;
-    const adminSelect = `SELECT g.*, u.nickname, u.email, u.is_banned, u.role
-        FROM guestbook g
-        LEFT JOIN users u ON g.user_id = u.id`;
-    const userSelect = `SELECT g.*, u.nickname, u.email, u.role
-        FROM guestbook g
-        LEFT JOIN users u ON g.user_id = u.id`;
-    if (isAdminUser) {
-        query = `${adminSelect} ${orderByClause} LIMIT ?`;
-        params = [MAX_LIMIT];
-        const q = await env.DB.prepare(query).bind(...params).all();
-        results = q.results;
-    } else {
-        query = `${userSelect} WHERE (g.is_hidden = FALSE OR g.user_id = ?) ${orderByClause} LIMIT ?`;
-        params = [currentUserId, MAX_LIMIT];
-        const q = await env.DB.prepare(query).bind(...params).all();
-        results = q.results;
+    const selectFields = isAdminUser
+        ? 'g.*, u.nickname, u.email, u.is_banned, u.role'
+        : 'g.*, u.nickname, u.email, u.role';
+
+    const conditions = ['g.parent_id IS NULL'];
+    const params = [];
+
+    if (!isAdminUser) {
+        conditions.push('(g.is_hidden = 0 OR g.user_id = ?)');
+        params.push(currentUserId);
     }
+
+    if (status !== 'all') {
+        conditions.push('g.status = ?');
+        params.push(status);
+    }
+
+    if (filter === 'mine') {
+        conditions.push('g.user_id = ?');
+        params.push(currentUserId);
+    }
+
+    let orderClause;
+    if (sort === 'likes') {
+        orderClause = 'ORDER BY g.is_pinned DESC, g.likes DESC, g.id DESC';
+        if (cursorObj) {
+            conditions.push('(g.is_pinned < ? OR (g.is_pinned = ? AND g.likes < ?) OR (g.is_pinned = ? AND g.likes = ? AND g.id < ?))');
+            params.push(cursorObj.p, cursorObj.p, cursorObj.l, cursorObj.p, cursorObj.l, cursorObj.i);
+        }
+    } else {
+        orderClause = 'ORDER BY g.is_pinned DESC, g.id DESC';
+        if (cursorObj) {
+            conditions.push('(g.is_pinned < ? OR (g.is_pinned = ? AND g.id < ?))');
+            params.push(cursorObj.p, cursorObj.p, cursorObj.i);
+        }
+    }
+
+    const whereClause = 'WHERE ' + conditions.join(' AND ');
+    const query = `SELECT ${selectFields} FROM guestbook g LEFT JOIN users u ON g.user_id = u.id ${whereClause} ${orderClause} LIMIT ?`;
+    params.push(limit + 1);
+
+    const result = await env.DB.prepare(query).bind(...params).all();
+    const rows = result.results;
+
+    const hasMore = rows.length > limit;
+    const pageItems = hasMore ? rows.slice(0, limit) : rows;
+
+    let nextCursor = null;
+    if (hasMore && pageItems.length > 0) {
+        const lastItem = pageItems[pageItems.length - 1];
+        const cd = sort === 'likes'
+            ? { p: lastItem.is_pinned, l: lastItem.likes, i: lastItem.id }
+            : { p: lastItem.is_pinned, i: lastItem.id };
+        nextCursor = btoa(JSON.stringify(cd));
+    }
+
+    let firstCursor = null;
+    if (pageItems.length > 0) {
+        const firstItem = pageItems[0];
+        const cd = sort === 'likes'
+            ? { p: firstItem.is_pinned, l: firstItem.likes, i: firstItem.id }
+            : { p: firstItem.is_pinned, i: firstItem.id };
+        firstCursor = btoa(JSON.stringify(cd));
+    }
+
+    let replies = [];
+    const parentIds = pageItems.map(m => m.id);
+    if (parentIds.length > 0) {
+        const ph = parentIds.map(() => '?').join(',');
+        const replySelect = isAdminUser
+            ? 'SELECT g.*, u.nickname, u.email, u.is_banned, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id'
+            : 'SELECT g.*, u.nickname, u.email, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id';
+        const replyResult = await env.DB.prepare(`${replySelect} WHERE g.parent_id IN (${ph}) ORDER BY g.created_at ASC`).bind(...parentIds).all();
+        replies = replyResult.results;
+    }
+
     let likedIds = new Set();
-    const likeRows = results.map(r => r.id);
-    if (likeRows.length > 0) {
-        const placeholders = likeRows.map(() => '?').join(',');
-        const likeQuery = `SELECT guestbook_id FROM guestbook_likes WHERE user_id = ? AND guestbook_id IN (${placeholders})`;
-        const likeResult = await env.DB.prepare(likeQuery).bind(currentUserId, ...likeRows).all();
+    const allIds = [...pageItems.map(m => m.id), ...replies.map(r => r.id)];
+    if (allIds.length > 0) {
+        const ph = allIds.map(() => '?').join(',');
+        const likeResult = await env.DB.prepare(`SELECT guestbook_id FROM guestbook_likes WHERE user_id = ? AND guestbook_id IN (${ph})`).bind(currentUserId, ...allIds).all();
         likedIds = new Set(likeResult.results.map(r => r.guestbook_id));
     }
-    for (const msg of results) {
+
+    for (const msg of pageItems) {
         msg.has_liked = likedIds.has(msg.id);
     }
-    const sanitizedResults = results.map(msg => {
+    for (const r of replies) {
+        r.has_liked = likedIds.has(r.id);
+    }
+
+    const sanitizedParents = pageItems.map(msg => {
         if (msg.role === 'admin' || msg.role === 'super_admin') {
             msg.isAdmin = true;
             msg.isSuperAdmin = msg.role === 'super_admin';
@@ -118,22 +154,36 @@ async function handleGet(request, env) {
         }
         return msg;
     });
-    const parentMessages = sanitizedResults.filter(msg => !msg.parent_id);
-    const replyMap = {};
-    for (const msg of sanitizedResults) {
-        if (msg.parent_id) {
-            if (!replyMap[msg.parent_id]) replyMap[msg.parent_id] = [];
-            replyMap[msg.parent_id].push(msg);
+
+    const sanitizedReplies = replies.map(r => {
+        if (r.role === 'admin' || r.role === 'super_admin') {
+            r.isAdmin = true;
+            r.isSuperAdmin = r.role === 'super_admin';
         }
+        if (!isAdminUser && r.email) {
+            const [name, domain] = r.email.split('@');
+            r.email = `${name.substring(0, 2)}***@${domain}`;
+        }
+        return r;
+    });
+
+    const replyMap = {};
+    for (const r of sanitizedReplies) {
+        if (!replyMap[r.parent_id]) replyMap[r.parent_id] = [];
+        replyMap[r.parent_id].push(r);
     }
-    const organizedData = parentMessages.map(parent => ({
-        ...parent,
-        replies: replyMap[parent.id] || []
+
+    const organizedData = sanitizedParents.map(p => ({
+        ...p,
+        replies: replyMap[p.id] || []
     }));
+
     return new Response(JSON.stringify({
         data: organizedData,
-        totalItems: organizedData.length
-    }), { headers: addCorsHeaders({ 'Content-Type': 'application/json', 'ETag': etag }) });
+        nextCursor,
+        firstCursor,
+        hasMore
+    }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePost(request, env, context) {
     const user = await getUser(request, env);
@@ -491,21 +541,19 @@ async function handlePut(request, env, context) {
 }
 async function checkAndCleanup(env) {
     try {
-        const stats = await env.DB.prepare('SELECT last_cleanup_at FROM guestbook_stats WHERE id = 1').first();
-        const lastCleanup = stats && stats.last_cleanup_at ? new Date(stats.last_cleanup_at + 'Z').getTime() : 0;
+        const row = await env.DB.prepare('SELECT last_cleanup_at FROM guestbook_cleanup WHERE id = 1').first();
+        const lastCleanup = row?.last_cleanup_at ? new Date(row.last_cleanup_at + 'Z').getTime() : 0;
         const now = Date.now();
-        if (now - lastCleanup < 86400000 && lastCleanup !== 0) {
-            return;
-        }
-        const result = await env.DB.prepare(`DELETE FROM guestbook WHERE created_at < datetime('now', '-${CLEANUP_DAYS} days') AND is_pinned = 0`).run();
-        const deletedCount = result.meta.changes;
+        if (now - lastCleanup < 86400000 && lastCleanup !== 0) return;
+        const result = await env.DB.prepare(
+            `DELETE FROM guestbook WHERE created_at < datetime('now', '-${CLEANUP_DAYS} days') AND is_pinned = 0`
+        ).run();
         await env.DB.prepare(`
-            UPDATE guestbook_stats 
-            SET last_cleanup_at = datetime('now'), last_cleanup_count = ? 
-            WHERE id = 1
-        `).bind(deletedCount).run();
-        if (deletedCount > 0) {
-            console.log(`自动清理：已删除 ${deletedCount} 条超过 ${CLEANUP_DAYS} 天的留言。`);
+            INSERT INTO guestbook_cleanup (id, last_cleanup_at) VALUES (1, datetime('now'))
+            ON CONFLICT(id) DO UPDATE SET last_cleanup_at = datetime('now')
+        `).run();
+        if (result.meta.changes > 0) {
+            console.log(`自动清理：已删除 ${result.meta.changes} 条超过 ${CLEANUP_DAYS} 天的留言。`);
         }
     } catch (err) {
         console.error('自动清理失败：', err);
