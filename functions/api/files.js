@@ -412,9 +412,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 SELECT *
                 FROM files
             `;
-            const countQuery = `SELECT COUNT(*) as total FROM files WHERE parent_path = ?`;
-            const countResult = await DB.prepare(countQuery).bind(searchPath).first();
-            const totalItems = countResult ? countResult.total : 0;
+
             if (hasCursor) {
                 const cursorQuery = `
                     ${selectClause}
@@ -459,7 +457,6 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 success: true,
                 files,
                 directories,
-                totalItems,
                 hasMore,
                 currentFolder
             };
