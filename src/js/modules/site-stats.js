@@ -1,5 +1,6 @@
 (function () {
     let registeredCount = 0;
+    let lastCommitTimeStr = null;
 
     function updateOnlineCount(count) {
         const el = document.getElementById('online-count');
@@ -59,6 +60,12 @@
         }
     }
 
+    setInterval(function () {
+        if (lastCommitTimeStr) {
+            updateLastCommitTime(lastCommitTimeStr);
+        }
+    }, 60000);
+
     function showStats() {
         const stats = document.getElementById('site-stats');
         if (stats && !stats.classList.contains('visible')) {
@@ -76,6 +83,7 @@
                         updateUptimeDays(data.stats.uptimeDays);
                     }
                     if (data.stats.lastCommitTime) {
+                        lastCommitTimeStr = data.stats.lastCommitTime;
                         updateLastCommitTime(data.stats.lastCommitTime);
                     }
                 }
