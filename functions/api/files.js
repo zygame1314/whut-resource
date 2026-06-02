@@ -309,24 +309,40 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 });
             }
             const limit = Math.min(parseInt(url.searchParams.get('limit') || '15') || 15, 50);
-            const offset = Math.max(parseInt(url.searchParams.get('offset') || '0') || 0, 0);
-            const stmt = DB.prepare(`
-                SELECT f.key, f.name, f.parent_path, f.is_directory, f.is_link, f.link_url, f.size, f.downloads, f.contentType,
-                       d.downloaded_at
-                FROM downloads d
-                JOIN files f ON d.file_key = f.key
-                WHERE d.user_id = ?
-                ORDER BY d.downloaded_at DESC
-                LIMIT ? OFFSET ?
-            `);
-            const { results } = await stmt.bind(user.id, limit, offset + 1).all();
+            const cursor = url.searchParams.get('cursor');
+            let stmt, params;
+            if (cursor) {
+                stmt = DB.prepare(`
+                    SELECT f.key, f.name, f.parent_path, f.is_directory, f.is_link, f.link_url, f.size, f.downloads, f.contentType,
+                           d.downloaded_at
+                    FROM downloads d
+                    JOIN files f ON d.file_key = f.key
+                    WHERE d.user_id = ? AND d.downloaded_at < ?
+                    ORDER BY d.downloaded_at DESC
+                    LIMIT ?
+                `);
+                params = [user.id, cursor, limit + 1];
+            } else {
+                stmt = DB.prepare(`
+                    SELECT f.key, f.name, f.parent_path, f.is_directory, f.is_link, f.link_url, f.size, f.downloads, f.contentType,
+                           d.downloaded_at
+                    FROM downloads d
+                    JOIN files f ON d.file_key = f.key
+                    WHERE d.user_id = ?
+                    ORDER BY d.downloaded_at DESC
+                    LIMIT ?
+                `);
+                params = [user.id, limit + 1];
+            }
+            const { results } = await stmt.bind(...params).all();
             const hasMore = results.length > limit;
             if (hasMore) results.pop();
             annotateIsLiked(results, likedSet);
             return new Response(JSON.stringify({
                 success: true,
                 files: results,
-                hasMore
+                hasMore,
+                nextCursor: hasMore ? results[results.length - 1].downloaded_at : null
             }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'getById') {
