@@ -10361,3 +10361,189 @@ input#prompt-input {
     text-decoration: none;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
+
+.donation-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    z-index: 10002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.donation-modal-overlay.closing {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+.donation-modal {
+    background: var(--background);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    max-width: 440px;
+    width: 92%;
+    overflow: hidden;
+    animation: fadeInUp 0.4s ease;
+    position: relative;
+}
+
+.donation-modal-overlay.closing .donation-modal {
+    animation: slideDownClose 0.3s ease forwards;
+}
+
+.donation-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    z-index: 2;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.donation-close-btn:hover {
+    background: var(--background-alt);
+    color: var(--text-primary);
+}
+
+.donation-header {
+    text-align: center;
+    padding: 2rem 1.5rem 1rem;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.08), rgba(var(--primary-rgb), 0.02));
+}
+
+.donation-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 0.75rem;
+    background: var(--accent-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.donation-header h3 {
+    margin: 0 0 0.4rem;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+}
+
+.donation-subtitle {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.donation-body {
+    padding: 1rem 1.5rem;
+}
+
+.donation-desc {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    text-align: center;
+}
+
+.donation-qrcodes {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.donation-qr-item {
+    flex: 1;
+    max-width: 170px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.donation-qr-item img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: white;
+    padding: 6px;
+}
+
+.donation-qr-item span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.donation-qr-item span i {
+    margin-right: 0.25rem;
+}
+
+.donation-footer {
+    padding: 0.75rem 1.5rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.donation-hide-checkbox {
+    font-size: 0.8rem;
+}
+
+.donation-thanks-btn {
+    padding: 0.6rem 1.5rem;
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+}
+
+.donation-thanks-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+}
+
+@media (max-width: 480px) {
+    .donation-modal {
+        max-width: 95%;
+    }
+    .donation-header {
+        padding: 1.5rem 1rem 0.75rem;
+    }
+    .donation-body {
+        padding: 0.75rem 1rem;
+    }
+    .donation-footer {
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem 1rem;
+    }
+    .donation-thanks-btn {
+        width: 100%;
+    }
+}

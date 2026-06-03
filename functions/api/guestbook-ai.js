@@ -210,61 +210,66 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
     const systemPromptToUse = autoMode
         ? basePrompt + `\n\n【自动审核模式】当前为自动审核模式，你的操作将直接生效（而非仅提供建议）。请同时完成内容审核和资源匹配，遇到不确定的情况保持待处理等待人工介入。`
         : basePrompt;
-    const aiResponse = await Promise.race([
-        fetchAIChatCompletion(
-            [
-                { role: 'system', content: systemPromptToUse },
-                { role: 'user', content: userMessage }
-            ],
-            toolsToUse,
-            env,
-            'auto',
-            0.7
-        ),
-        new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('AI处理超时(90s)')), 90000)
-        )
-    ]);
-    const message = aiResponse.choices?.[0]?.message;
-    if (!message) {
-        throw new Error('AI 未返回有效响应');
-    }
-    if (message.tool_calls && message.tool_calls.length > 0) {
-        const toolCall = message.tool_calls[0];
-        const functionName = toolCall.function.name;
-        let functionArgs;
-        try {
-            functionArgs = JSON.parse(toolCall.function.arguments || '{}');
-        } catch (e) {
-            return {
-                success: false,
-                action: 'no_action',
-                message: `AI 返回参数解析失败: ${e.message}`,
-                ai_response: message.content
-            };
+    const messages = [
+        { role: 'system', content: systemPromptToUse },
+        { role: 'user', content: userMessage }
+    ];
+    const MAX_NO_ACTION_RETRIES = 2;
+    for (let attempt = 0; attempt <= MAX_NO_ACTION_RETRIES; attempt++) {
+        const aiResponse = await Promise.race([
+            fetchAIChatCompletion(messages, toolsToUse, env, 'auto', 0.7),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('AI处理超时(90s)')), 90000)
+            )
+        ]);
+        const message = aiResponse.choices?.[0]?.message;
+        if (!message) {
+            if (attempt < MAX_NO_ACTION_RETRIES) {
+                console.warn(`AI 未返回有效响应 (${attempt + 1}/${MAX_NO_ACTION_RETRIES})，重试中...`);
+                continue;
+            }
+            throw new Error('AI 未返回有效响应');
         }
-        const toolResult = await executeToolCall(
-            functionName,
-            functionArgs,
-            guestbookEntry,
-            env,
-            autoMode
-        );
-        if (functionName === 'search_resources' && toolResult.searchResults) {
-            return await handleSearchResults(
+        if (message.tool_calls && message.tool_calls.length > 0) {
+            const toolCall = message.tool_calls[0];
+            const functionName = toolCall.function.name;
+            let functionArgs;
+            try {
+                functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+            } catch (e) {
+                return {
+                    success: false,
+                    action: 'no_action',
+                    message: `AI 返回参数解析失败: ${e.message}`,
+                    ai_response: message.content
+                };
+            }
+            const toolResult = await executeToolCall(
+                functionName,
+                functionArgs,
                 guestbookEntry,
-                toolResult.searchResults,
                 env,
                 autoMode
             );
+            if (functionName === 'search_resources' && toolResult.searchResults) {
+                return await handleSearchResults(
+                    guestbookEntry,
+                    toolResult.searchResults,
+                    env,
+                    autoMode
+                );
+            }
+            return toolResult;
         }
-        return toolResult;
+        if (attempt < MAX_NO_ACTION_RETRIES) {
+            console.warn(`AI 未调用工具 (${attempt + 1}/${MAX_NO_ACTION_RETRIES})，重试中...`);
+            continue;
+        }
     }
     return {
-        success: true,
+        success: false,
         action: 'no_action',
-        message: 'AI 未决定采取行动',
-        ai_response: message.content
+        message: 'AI 多次未调用工具，需人工处理'
     };
 }
 async function executeToolCall(functionName, args, guestbookEntry, env, autoMode) {
@@ -610,7 +615,7 @@ export async function onRequestGet(context) {
         });
     }
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get('limit') || '10');
+    const limit = parseInt(url.searchParams.get('limit') || '10'));
     const pendingMessages = await env.DB.prepare(
         'SELECT id, content FROM guestbook WHERE status = ? ORDER BY created_at DESC LIMIT ?'
     ).bind('unresolved', limit).all();
@@ -719,7 +724,7 @@ const REPLY_TOOLS = [
 
 export async function processReplyWithAI(replyEntry, env) {
     if (!env.SILICONFLOW_API_KEY) {
-        return { success: true, action: 'no_action', message: '未配置回复审核API' };
+        return { success: false, action: 'no_action', message: '未配置回复审核API' };
     }
     const parentEntry = replyEntry.parent_id ? await env.DB.prepare(
         'SELECT g.content, g.status FROM guestbook g WHERE g.id = ?'
@@ -730,82 +735,91 @@ export async function processReplyWithAI(replyEntry, env) {
 用户昵称：${replyEntry.nickname || '匿名用户'}
 ${parentContext ? `原留言内容：${parentContext}` : ''}
 回复内容：${replyEntry.content}`;
-
+    const messages = [
+        { role: 'system', content: REPLY_SYSTEM_PROMPT },
+        { role: 'user', content: userMessage }
+    ];
+    const MAX_NO_ACTION_RETRIES = 2;
     try {
-        const aiResponse = await Promise.race([
-            fetchSiliconFlowChat(env, {
-                messages: [
-                    { role: 'system', content: REPLY_SYSTEM_PROMPT },
-                    { role: 'user', content: userMessage }
-                ],
-                tools: REPLY_TOOLS,
-                toolChoice: 'auto',
-                temperature: 0.3,
-                model: 'Qwen/Qwen3-8B'
-            }),
-            new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('回复审核超时(30s)')), 30000)
-            )
-        ]);
-        const message = aiResponse.choices?.[0]?.message;
-        if (!message) {
-            return { success: true, action: 'no_action', message: 'AI未返回有效响应' };
-        }
-        if (message.tool_calls && message.tool_calls.length > 0) {
-            const toolCall = message.tool_calls[0];
-            const functionName = toolCall.function.name;
-            let functionArgs;
-            try {
-                functionArgs = JSON.parse(toolCall.function.arguments || '{}');
-            } catch (e) {
-                return { success: true, action: 'keep_pending', message: `AI参数解析失败，需人工处理: ${e.message}` };
-            }
-            if (functionName === 'reject') {
-                const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                await env.DB.prepare(
-                    'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
-                ).bind('rejected', reason, replyEntry.id).run();
-                await logAdminAction(env, null, 'ai_reject', 'guestbook', replyEntry.id, reason, JSON.stringify({
-                    content: replyEntry.content,
-                    nickname: replyEntry.nickname,
-                    user_id: replyEntry.user_id,
-                    parent_id: replyEntry.parent_id
-                }));
-                return {
-                    success: true,
-                    action: 'reject',
-                    message: `已驳回: ${reason}`,
-                    reason: reason
-                };
-            }
-            if (functionName === 'ban_user') {
-                const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                if (replyEntry.role === 'admin' || replyEntry.role === 'super_admin') {
-                    return { success: false, action: 'no_action', message: '无法封禁管理员' };
+        for (let attempt = 0; attempt <= MAX_NO_ACTION_RETRIES; attempt++) {
+            const aiResponse = await Promise.race([
+                fetchSiliconFlowChat(env, {
+                    messages,
+                    tools: REPLY_TOOLS,
+                    toolChoice: 'auto',
+                    temperature: 0.3,
+                    model: 'Qwen/Qwen3-8B'
+                }),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('回复审核超时(30s)')), 30000)
+                )
+            ]);
+            const message = aiResponse.choices?.[0]?.message;
+            if (!message) {
+                if (attempt < MAX_NO_ACTION_RETRIES) {
+                    console.warn(`小模型未返回有效响应 (${attempt + 1}/${MAX_NO_ACTION_RETRIES})，重试中...`);
+                    continue;
                 }
-                await env.DB.batch([
-                    env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(replyEntry.user_id),
-                    env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(replyEntry.id)
-                ]);
-                await logAdminAction(env, null, 'ai_ban_user', 'user', replyEntry.user_id, reason, JSON.stringify({
-                    deleted_guestbook_id: replyEntry.id,
-                    content: replyEntry.content,
-                    nickname: replyEntry.nickname
-                }));
-                return {
-                    success: true,
-                    action: 'ban_user',
-                    message: `用户已封禁: ${reason}`,
-                    reason: reason
-                };
+                return { success: false, action: 'no_action', message: 'AI多次未返回有效响应，需人工处理' };
             }
-            return { success: true, action: 'no_action', message: '内容通过审核' };
+            if (message.tool_calls && message.tool_calls.length > 0) {
+                const toolCall = message.tool_calls[0];
+                const functionName = toolCall.function.name;
+                let functionArgs;
+                try {
+                    functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+                } catch (e) {
+                    return { success: true, action: 'keep_pending', message: `AI参数解析失败，需人工处理: ${e.message}` };
+                }
+                if (functionName === 'reject') {
+                    const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                    await env.DB.prepare(
+                        'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
+                    ).bind('rejected', reason, replyEntry.id).run();
+                    await logAdminAction(env, null, 'ai_reject', 'guestbook', replyEntry.id, reason, JSON.stringify({
+                        content: replyEntry.content,
+                        nickname: replyEntry.nickname,
+                        user_id: replyEntry.user_id,
+                        parent_id: replyEntry.parent_id
+                    }));
+                    return {
+                        success: true,
+                        action: 'reject',
+                        message: `已驳回: ${reason}`,
+                        reason: reason
+                    };
+                }
+                if (functionName === 'ban_user') {
+                    const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                    if (replyEntry.role === 'admin' || replyEntry.role === 'super_admin') {
+                        return { success: false, action: 'no_action', message: '无法封禁管理员' };
+                    }
+                    await env.DB.batch([
+                        env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(replyEntry.user_id),
+                        env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(replyEntry.id)
+                    ]);
+                    await logAdminAction(env, null, 'ai_ban_user', 'user', replyEntry.user_id, reason, JSON.stringify({
+                        deleted_guestbook_id: replyEntry.id,
+                        content: replyEntry.content,
+                        nickname: replyEntry.nickname
+                    }));
+                    return {
+                        success: true,
+                        action: 'ban_user',
+                        message: `用户已封禁: ${reason}`,
+                        reason: reason
+                    };
+                }
+                return { success: true, action: 'no_action', message: '内容通过审核' };
+            }
+            if (attempt < MAX_NO_ACTION_RETRIES) {
+                console.warn(`小模型未调用工具 (${attempt + 1}/${MAX_NO_ACTION_RETRIES})，重试中...`);
+                continue;
+            }
         }
-        return { success: true, action: 'no_action', message: 'AI未决定采取行动', ai_response: message.content };
+        return { success: false, action: 'no_action', message: '小模型多次未调用工具，需人工处理' };
     } catch (error) {
         console.error('小模型审核失败:', error);
         return { success: true, action: 'keep_pending', message: '审核失败，需人工处理' };
     }
 }
-
-

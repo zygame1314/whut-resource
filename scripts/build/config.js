@@ -75,7 +75,8 @@ const jsBundles = {
     'download-log.js': ['modules/download-log.js'],
     'site-stats.js': ['modules/site-stats.js'],
     'browser-guide.js': ['modules/browser-guide.js'],
-    'page-viewer.js': ['modules/page-viewer.js']
+    'page-viewer.js': ['modules/page-viewer.js'],
+    'donation-popup.js': ['modules/donation-popup.js']
 };
 const cssBundles = {
     'css/style.css': [
