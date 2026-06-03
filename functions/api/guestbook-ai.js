@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
-const AI_MODEL = 'gemini-3-flash-preview';
+const AI_MODEL = 'deepseek-v4-flash';
 const TOOLS = [
     {
         type: 'function',
@@ -615,7 +615,7 @@ export async function onRequestGet(context) {
         });
     }
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get('limit') || '10'));
+    const limit = parseInt(url.searchParams.get('limit') || '10');
     const pendingMessages = await env.DB.prepare(
         'SELECT id, content FROM guestbook WHERE status = ? ORDER BY created_at DESC LIMIT ?'
     ).bind('unresolved', limit).all();
