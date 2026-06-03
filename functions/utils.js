@@ -297,8 +297,8 @@ export async function rerankResults(env, query, documents, topN = 20) {
   if (!documents || documents.length === 0) return [];
   try {
     return await retryWithBackoff(async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
       try {
         const response = await fetch(SILICONFLOW_RERANK_URL, {
           method: 'POST',
