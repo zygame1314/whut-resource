@@ -210,16 +210,21 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
     const systemPromptToUse = autoMode
         ? basePrompt + `\n\n【自动审核模式】当前为自动审核模式，你的操作将直接生效（而非仅提供建议）。请同时完成内容审核和资源匹配，遇到不确定的情况保持待处理等待人工介入。`
         : basePrompt;
-    const aiResponse = await fetchAIChatCompletion(
-        [
-            { role: 'system', content: systemPromptToUse },
-            { role: 'user', content: userMessage }
-        ],
-        toolsToUse,
-        env,
-        'auto',
-        0.7
-    );
+    const aiResponse = await Promise.race([
+        fetchAIChatCompletion(
+            [
+                { role: 'system', content: systemPromptToUse },
+                { role: 'user', content: userMessage }
+            ],
+            toolsToUse,
+            env,
+            'auto',
+            0.7
+        ),
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('AI处理超时(90s)')), 90000)
+        )
+    ]);
     const message = aiResponse.choices?.[0]?.message;
     if (!message) {
         throw new Error('AI 未返回有效响应');
@@ -497,7 +502,8 @@ ${resourceList}
         searchTools,
         env,
         'auto',
-        0.7
+        0.7,
+        { maxRetries: 1, timeoutMs: 20000 }
     );
     const message = aiResponse.choices?.[0]?.message;
     if (message?.tool_calls?.length > 0) {
@@ -617,13 +623,13 @@ export async function onRequestGet(context) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' })
     });
 }
-async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.7) {
+async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.7, { maxRetries = 2, timeoutMs = 30000 } = {}) {
     if (!env.AI_API_KEY) {
         throw new Error('未配置 AI_API_KEY');
     }
     return await retryWithBackoff(async () => {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         try {
             const response = await fetch(AI_API_URL, {
                 method: 'POST',
@@ -649,7 +655,7 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
         } finally {
             clearTimeout(timeoutId);
         }
-    }, 3, 1000);
+    }, maxRetries, 1000);
 }
 const REPLY_SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板的内容审核AI，判断内容是否合规。
 重要背景：本站是资源分享平台，用户请求课程资料、真题、课件等属于正常行为，不是广告或垃圾信息。
@@ -726,16 +732,21 @@ ${parentContext ? `原留言内容：${parentContext}` : ''}
 回复内容：${replyEntry.content}`;
 
     try {
-        const aiResponse = await fetchSiliconFlowChat(env, {
-            messages: [
-                { role: 'system', content: REPLY_SYSTEM_PROMPT },
-                { role: 'user', content: userMessage }
-            ],
-            tools: REPLY_TOOLS,
-            toolChoice: 'auto',
-            temperature: 0.3,
-            model: 'Qwen/Qwen3-8B'
-        });
+        const aiResponse = await Promise.race([
+            fetchSiliconFlowChat(env, {
+                messages: [
+                    { role: 'system', content: REPLY_SYSTEM_PROMPT },
+                    { role: 'user', content: userMessage }
+                ],
+                tools: REPLY_TOOLS,
+                toolChoice: 'auto',
+                temperature: 0.3,
+                model: 'Qwen/Qwen3-8B'
+            }),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('回复审核超时(30s)')), 30000)
+            )
+        ]);
         const message = aiResponse.choices?.[0]?.message;
         if (!message) {
             return { success: true, action: 'no_action', message: 'AI未返回有效响应' };
