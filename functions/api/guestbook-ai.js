@@ -1,6 +1,6 @@
 import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
-const AI_MODEL = 'deepseek-v4-flash';
+const AI_MODEL = 'gemma4:31b';
 const TOOLS = [
     {
         type: 'function',
