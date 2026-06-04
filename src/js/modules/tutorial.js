@@ -7,9 +7,6 @@ async function startTutorial() {
         tutorialBtn.disabled = true;
         tutorialBtn.classList.add('tutorial-loading');
     }
-    if (typeof showNotification === 'function') {
-        showNotification('正在加载教程，请稍候…', 'info');
-    }
     try {
         await window.LazyLoader.loadShepherd();
     } catch (e) {

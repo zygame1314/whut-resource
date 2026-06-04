@@ -154,7 +154,9 @@ function renderAnnouncements(announcements) {
         announcementContent.querySelectorAll('.announcement-text[data-raw-content]').forEach(el => {
             const raw = el.getAttribute('data-raw-content');
             if (raw && typeof renderMarkdown === 'function') {
-                renderMarkdown(raw).then(html => { el.innerHTML = html; });
+                const originalContent = el.innerHTML;
+                el.innerHTML = '<div class="announcement-content-loader announcement-content-loader-inline"><div class="announcement-loader-icon"><i class="fas fa-scroll"></i></div></div>';
+                renderMarkdown(raw).then(html => { el.innerHTML = html; }).catch(() => { el.innerHTML = originalContent || raw; });
             }
         });
         updateAnnouncementItemView();
@@ -381,7 +383,10 @@ function openAnnouncementViewModal(announcement, options = {}) {
             <span><i class="far fa-clock"></i> 发布时间：${formatAnnouncementDateLocal(announcement.created_at)}</span>
         </div>
         <div class="announcement-text markdown-body" style="max-height: none;" id="announcement-view-body">
-            <div class="loading-spinner"></div>
+            <div class="announcement-content-loader">
+                <div class="announcement-loader-icon"><i class="fas fa-scroll"></i></div>
+                <div class="announcement-loader-text">正在渲染公告内容<span class="creative-loader-dots"></span></div>
+            </div>
         </div>
     `;
     if (announcementHideWrap) {
@@ -617,7 +622,7 @@ function switchTab(mode) {
         if (!content) {
             previewArea.innerHTML = '<p class="text-muted">无内容可预览</p>';
         } else if (typeof renderMarkdown === 'function') {
-            previewArea.innerHTML = '<div class="loading-spinner"></div>';
+            previewArea.innerHTML = '<div class="announcement-content-loader"><div class="announcement-loader-icon"><i class="fas fa-scroll"></i></div><div class="announcement-loader-text">正在渲染预览<span class="creative-loader-dots"></span></div></div>';
             previewArea.classList.add('markdown-body');
             renderMarkdown(content).then(html => { previewArea.innerHTML = html; });
         } else {
