@@ -7,13 +7,11 @@
         if (el) {
             if (!window.currentUser) {
                 el.textContent = '--';
-                showStats();
                 return;
             }
             const num = parseInt(count, 10);
             el.textContent = isNaN(num) ? count : (num > 999 ? (num / 1000).toFixed(1) + 'k' : num);
         }
-        showStats();
     }
 
     function updateRegisteredCount(count) {
@@ -23,7 +21,6 @@
             el.textContent = isNaN(num) ? count : (num > 9999 ? (num / 10000).toFixed(1) + 'w' : num > 999 ? (num / 1000).toFixed(1) + 'k' : num);
         }
         registeredCount = count;
-        showStats();
     }
 
     function updateUptimeDays(days) {
@@ -65,13 +62,6 @@
             updateLastCommitTime(lastCommitTimeStr);
         }
     }, 60000);
-
-    function showStats() {
-        const stats = document.getElementById('site-stats');
-        if (stats && !stats.classList.contains('visible')) {
-            stats.classList.add('visible');
-        }
-    }
 
     function fetchSiteStats() {
         fetch(API_ENDPOINTS.siteStats)

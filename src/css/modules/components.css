@@ -215,14 +215,7 @@
     flex-wrap: wrap;
     justify-content: center;
     width: 100%;
-    opacity: 0;
-    pointer-events: none;
     transition: opacity 0.4s ease;
-}
-
-.site-stats.visible {
-    opacity: 1;
-    pointer-events: auto;
 }
 
 .stat-badge {
