@@ -94,7 +94,7 @@ async function fetchPageInfo(url, externalSignal = null) {
                 return {
                     title: preset.title,
                     description: preset.description,
-                    favicon: `https://favicon.im/${urlObj.hostname}?throw-error-on-404=true`
+                    favicon: `/api/favicon?domain=${urlObj.hostname}`
                 };
             }
         } catch (e) {
@@ -185,7 +185,7 @@ async function fetchPageInfo(url, externalSignal = null) {
             description = description.trim();
             if (description.length > 200) description = description.substring(0, 200) + '...';
         }
-        let favicon = `https://favicon.im/${urlObj.hostname}?throw-error-on-404=true`;
+        let favicon = `/api/favicon?domain=${urlObj.hostname}`;
         if (info.iconHref) {
             try {
                 favicon = new URL(info.iconHref, urlObj.href).href;
