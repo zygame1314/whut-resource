@@ -21,9 +21,9 @@ const ThreatTypeLabels = {
 const FAVICON_SERVICE = 'https://ico.n3v.cn/get.php?url=';
 
 const SPA_PRESETS = [
-    { pattern: /bilibili\.com/, title: '哔哩哔哩 (bilibili)', description: '哔哩哔哩 (bilibili.com) 是国内知名的视频弹幕网站，这里有及时的动漫新番，活跃的ACG氛围，有创意的Up主。', domain: 'bilibili.com' },
+    { pattern: /bilibili\.com/, title: '哔哩哔哩 (bilibili)', description: '哔哩哔哩是国内知名的视频弹幕网站，这里有及时的动漫新番，活跃的ACG氛围，有创意的Up主。', domain: 'bilibili.com' },
     { pattern: /123pan\.com/, title: '123云盘', description: '123云盘为您提供高速、安全、稳定的网盘存储服务。', domain: '123pan.com' },
-    { pattern: /douyin\.com/, title: '抖音', description: '抖音-记录美好生活', domain: 'douyin.com' },
+    { pattern: /douyin\.com/, title: '抖音', description: '抖音 - 记录美好生活', domain: 'douyin.com' },
     { pattern: /kdocs\.cn/, title: '金山文档 | WPS云文档', description: '金山文档是一款可多人实时协作编辑的在线文档，修改后自动保存，无需转换格式，支持多人在线协作编辑文档和表格。', domain: 'kdocs.cn' },
     { pattern: /docs\.qq\.com/, title: '腾讯文档', description: '腾讯文档是一款可多人协作的在线文档，支持Word、Excel和PPT类型，支持多人实时编辑、批注和修订。', domain: 'docs.qq.com' },
     { pattern: /shimo\.im/, title: '石墨文档', description: '石墨文档，全新一代云端 Office，支持多人在线协作编辑文档和表格。', domain: 'shimo.im' },
