@@ -274,7 +274,7 @@ async function handlePut(request, env, user) {
             });
         }
         await env.DB.prepare('UPDATE users SET is_banned = FALSE WHERE id = ?').bind(user_id).run();
-        await logAdminAction(env, user.id, 'unban_user', 'user', user_id, '解封用户', JSON.stringify({}));
+        await logAdminAction(env, user.id, 'unban_user', 'user', user_id, '解封用户', JSON.stringify({ target_id: user_id }));
         return new Response(JSON.stringify({ success: true }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });

@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, getUserFromRequest } from '../utils.js';
+import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest } from '../utils.js';
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
@@ -170,6 +170,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
           await recordVectorSyncFailure(env, 'create', linkInsertResult.meta.last_row_id, { name: sanitizedLinkName, key }, indexError.message);
         }
       }
+      await logAdminAction(env, user.id, 'create_link', 'file', linkInsertResult.meta?.last_row_id, '创建链接', JSON.stringify({ key, url: linkUrl, parent_path: parentPath }));
       return new Response(JSON.stringify({ success: true, message: '链接创建成功。' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -264,6 +265,10 @@ export async function onRequestPost({ request, env, waitUntil }) {
     }));
     const successCount = uploadResults.filter(r => r.success).length;
     const failCount = uploadResults.length - successCount;
+    if (successCount > 0) {
+      const successNames = uploadResults.filter(r => r.success).map(r => r.name);
+      await logAdminAction(env, user.id, 'create_file', 'file', null, '上传文件', JSON.stringify({ count: successCount, names: successNames.join(',') }));
+    }
     return new Response(JSON.stringify({
       success: successCount > 0,
       message: `上传完成: 成功 ${successCount} 个, 失败 ${failCount} 个`,

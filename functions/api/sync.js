@@ -1,4 +1,4 @@
-import { addCorsHeaders, isSuperAdmin, getUserFromRequest } from '../utils.js';
+import { addCorsHeaders, isSuperAdmin, logAdminAction, getUserFromRequest } from '../utils.js';
 export async function onRequestPost({ request, env }) {
     const user = await getUserFromRequest(request, env);
     if (!user || !isSuperAdmin(user)) {
@@ -18,13 +18,13 @@ export async function onRequestPost({ request, env }) {
         }
         switch (action) {
             case 'init':
-                return await handleInit(DB);
+                return await handleInit(DB, env, user);
             case 'process':
-                return await handleProcess(request, env, body);
+                return await handleProcess(request, env, body, user);
             case 'cleanup':
-                return await handleCleanup(DB, body, VECTORIZE);
+                return await handleCleanup(DB, body, VECTORIZE, env, user);
             case 'repair':
-                return await handleRepair(DB);
+                return await handleRepair(DB, env, user);
             default:
                 return new Response(JSON.stringify({ success: false, error: '无效的操作类型' }), { status: 400, headers: addCorsHeaders() });
         }
@@ -33,7 +33,7 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({ success: false, error: e.message, stack: e.stack }), { status: 500, headers: addCorsHeaders() });
     }
 }
-async function handleRepair(DB) {
+async function handleRepair(DB, env, user) {
     const result = await DB.prepare("SELECT DISTINCT parent_path FROM files WHERE parent_path IS NOT NULL AND parent_path != ''").all();
     const rows = result.results || [];
     const neededDirs = new Set();
@@ -73,6 +73,7 @@ async function handleRepair(DB) {
             await DB.batch(chunk);
         }
     }
+    await logAdminAction(env, user.id, 'sync_repair', 'system', null, '同步修复目录', JSON.stringify({ scanned: neededDirs.size, repaired: repairCount }));
     return new Response(JSON.stringify({
         success: true,
         message: `目录结构修复完成。扫描路径: ${neededDirs.size}, 恢复缺失: ${repairCount}`,
@@ -91,15 +92,16 @@ async function ensureSchema(DB) {
         }
     }
 }
-async function handleInit(DB) {
+async function handleInit(DB, env, user) {
     const sessionId = Date.now();
+    await logAdminAction(env, user.id, 'sync_init', 'system', null, '同步初始化', JSON.stringify({ session_id: sessionId }));
     return new Response(JSON.stringify({
         success: true,
         sessionId: sessionId,
         message: '同步初始化完成'
     }), { status: 200, headers: addCorsHeaders() });
 }
-async function handleProcess(request, env, body) {
+async function handleProcess(request, env, body, user) {
     const { cursor, sessionId } = body;
     if (!sessionId) {
         throw new Error('缺少 sessionId');
@@ -165,6 +167,7 @@ async function handleProcess(request, env, body) {
             await DB.batch(chunk);
         }
     }
+    await logAdminAction(env, user.id, 'sync_process', 'system', null, '同步处理', JSON.stringify({ processed: processedCount, dirs: newDirsCount, truncated: list.truncated }));
     return new Response(JSON.stringify({
         success: true,
         cursor: list.truncated ? list.cursor : null,
@@ -173,7 +176,7 @@ async function handleProcess(request, env, body) {
         dirsProcessed: newDirsCount
     }), { status: 200, headers: addCorsHeaders() });
 }
-async function handleCleanup(DB, body, VECTORIZE) {
+async function handleCleanup(DB, body, VECTORIZE, env, user) {
     const { sessionId } = body;
     if (!sessionId) {
         throw new Error('缺少 sessionId');
@@ -235,6 +238,7 @@ async function handleCleanup(DB, body, VECTORIZE) {
     } catch (e) {
         console.error('更新系统统计失败', e);
     }
+    await logAdminAction(env, user.id, 'sync_cleanup', 'system', null, '同步清理', JSON.stringify({ deleted_files: filesToDelete.length, deleted_dirs: dirsToDelete.length, deleted_vectors: deletedVectorsCount }));
     return new Response(JSON.stringify({
         success: true,
         message: '同步完成',

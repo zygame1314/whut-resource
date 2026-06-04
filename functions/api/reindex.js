@@ -1,4 +1,4 @@
-import { addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, getUserFromRequest } from '../utils.js';
+import { addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest } from '../utils.js';
 const BATCH_SIZE = 50;
 export async function onRequestPost({ request, env }) {
     const user = await getUserFromRequest(request, env);
@@ -20,13 +20,14 @@ export async function onRequestPost({ request, env }) {
         const body = await request.json().catch(() => ({}));
         const action = body.action || 'reindex';
         if (action === 'retryFailed') {
-            return await handleRetryFailed(env, DB, VECTORIZE);
+            return await handleRetryFailed(env, DB, VECTORIZE, user);
         }
         if (action === 'clearFailures') {
             const cutoff = body.olderThanDays ? `AND created_at < datetime('now', '-${parseInt(body.olderThanDays)} days')` : '';
             const result = await DB.prepare(
                 `DELETE FROM vector_sync_failures WHERE resolved = TRUE ${cutoff}`
             ).run();
+            await logAdminAction(env, user.id, 'clear_failures', 'system', null, '清理失败记录', JSON.stringify({ deleted: result.meta?.changes || 0 }));
             return new Response(JSON.stringify({
                 success: true,
                 message: `已清理已解决的失败记录`,
@@ -84,6 +85,7 @@ export async function onRequestPost({ request, env }) {
         await VECTORIZE.upsert(vectors);
         const processedCount = offset + files.length;
         const isCompleted = processedCount >= totalFiles;
+        await logAdminAction(env, user.id, 'reindex', 'system', null, '重建索引', JSON.stringify({ offset, indexed: processedCount, total: totalFiles, completed: isCompleted }));
         return new Response(JSON.stringify({
             success: true,
             message: isCompleted ? '索引完成' : '批次处理完成，请继续调用以处理剩余文件',
@@ -106,7 +108,7 @@ export async function onRequestPost({ request, env }) {
         });
     }
 }
-async function handleRetryFailed(env, DB, VECTORIZE) {
+async function handleRetryFailed(env, DB, VECTORIZE, user) {
     const { results: failures } = await DB.prepare(
         'SELECT * FROM vector_sync_failures WHERE resolved = FALSE ORDER BY created_at ASC LIMIT 100'
     ).all();
@@ -170,6 +172,7 @@ async function handleRetryFailed(env, DB, VECTORIZE) {
             stillFailed++;
         }
     }
+    await logAdminAction(env, user.id, 'retry_failed', 'system', null, '重试失败向量', JSON.stringify({ retried, still_failed: stillFailed }));
     return new Response(JSON.stringify({
         success: true,
         message: `重试完成: ${retried} 个成功, ${stillFailed} 个仍然失败`,

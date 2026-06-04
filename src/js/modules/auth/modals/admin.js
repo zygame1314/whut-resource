@@ -145,8 +145,10 @@ async function showAdminLogsModal() {
                              <div class="dropdown-item" data-value="announcement">公告</div>
                              <div class="dropdown-item" data-value="guestbook">留言</div>
                              <div class="dropdown-item" data-value="user">用户</div>
-                             <div class="dropdown-item" data-value="file">文件</div>
-                             <div class="dropdown-item" data-value="system">系统</div>
+                              <div class="dropdown-item" data-value="file">文件</div>
+                              <div class="dropdown-item" data-value="file_boost">评论</div>
+                              <div class="dropdown-item" data-value="admin_request">管理请求</div>
+                              <div class="dropdown-item" data-value="system">系统</div>
                              <div class="dropdown-item" data-value="ai_">AI 自动</div>
                          </div>
                          <input type="hidden" id="log-filter-action" value="">
@@ -323,6 +325,36 @@ async function showAdminLogsModal() {
                 }
                 if (details.target_email) {
                     detailsHtml += `<div class="admin-log-user-info">目标邮箱: ${escapeHtml(details.target_email)}</div>`;
+                }
+                if (details.old_key && details.new_key) {
+                    detailsHtml += `<div class="admin-log-user-info">${details.child_count != null ? '文件夹操作' : '重命名/移动'}: ${escapeHtml(details.old_key)} → ${escapeHtml(details.new_key)}</div>`;
+                }
+                if (details.child_count != null && !details.old_key) {
+                    detailsHtml += `<div class="admin-log-user-info">子项数量: ${details.child_count}</div>`;
+                }
+                if (details.count) {
+                    detailsHtml += `<div class="admin-log-user-info">上传文件数: ${details.count}${details.names ? ` (${escapeHtml(details.names)})` : ''}</div>`;
+                }
+                if (details.url && details.parent_path !== undefined && !details.old_key) {
+                    detailsHtml += `<div class="admin-log-user-info">链接地址: ${escapeHtml(details.url)}</div>`;
+                }
+                if (details.target_id) {
+                    detailsHtml += `<div class="admin-log-user-info">目标ID: ${details.target_id}</div>`;
+                }
+                if (details.entry_id && !details.target_email) {
+                    detailsHtml += `<div class="admin-log-user-info">留言ID: ${details.entry_id}</div>`;
+                }
+                if (details.deleted_files != null) {
+                    detailsHtml += `<div class="admin-log-user-info">删除文件: ${details.deleted_files}, 删除目录: ${details.deleted_dirs}, 删除向量: ${details.deleted_vectors}</div>`;
+                }
+                if (details.processed != null && details.deleted_files == null) {
+                    detailsHtml += `<div class="admin-log-user-info">处理: ${details.processed}文件, ${details.dirs || 0}目录</div>`;
+                }
+                if (details.retried != null) {
+                    detailsHtml += `<div class="admin-log-user-info">重试成功: ${details.retried}, 仍失败: ${details.still_failed || details.stillFailed || 0}</div>`;
+                }
+                if (details.indexed != null) {
+                    detailsHtml += `<div class="admin-log-user-info">已索引: ${details.indexed}/${details.total}${details.completed ? ' (完成)' : ''}</div>`;
                 }
             } catch (e) {
                 detailsHtml = `<div class="admin-log-user-info">${escapeHtml(log.details)}</div>`;

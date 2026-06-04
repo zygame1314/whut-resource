@@ -653,6 +653,7 @@ export async function onRequestPut({ request, env }) {
                 "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
             ).bind(newFolderKey, newFolderKey, newEndKey).all();
             await createVectorIndexes(env, newFiles || []);
+            await logAdminAction(env, user.id, 'rename_folder', 'file', fileRecord.id, '重命名文件夹', JSON.stringify({ old_key: key, new_key: newFolderKey, child_count: (childItems || []).length }));
             return new Response(JSON.stringify({ success: true, message: '文件夹重命名成功' }), {
                 status: 200,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -698,6 +699,7 @@ export async function onRequestPut({ request, env }) {
         if (newFileRecord) {
             await createVectorIndexes(env, [newFileRecord]);
         }
+        await logAdminAction(env, user.id, 'rename_file', 'file', oldFileId, '重命名文件', JSON.stringify({ old_key: key, new_key: newKey }));
         return new Response(JSON.stringify({ success: true, message: '重命名成功' }), {
             status: 200,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -869,6 +871,7 @@ export async function onRequestPost({ request, env }) {
                 "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
             ).bind(newFolderKey, newFolderKey, newEndKey).all();
             await createVectorIndexes(env, newFiles || []);
+            await logAdminAction(env, user.id, 'move_folder', 'file', fileRecord.id, '移动文件夹', JSON.stringify({ old_key: sourceKey, new_key: newFolderKey, child_count: (childItems || []).length }));
             return new Response(JSON.stringify({ success: true, message: '文件夹移动成功' }), {
                 status: 200,
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -920,6 +923,7 @@ export async function onRequestPost({ request, env }) {
         if (newFileRecord) {
             await createVectorIndexes(env, [newFileRecord]);
         }
+        await logAdminAction(env, user.id, 'move_file', 'file', oldFileId, '移动文件', JSON.stringify({ old_key: sourceKey, new_key: newKey }));
         return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
             status: 200,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

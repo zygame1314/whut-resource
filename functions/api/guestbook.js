@@ -395,7 +395,7 @@ async function handlePut(request, env, context) {
         }
         const isHidden = action === 'hide';
         await env.DB.prepare('UPDATE guestbook SET is_hidden = ? WHERE id = ?').bind(isHidden ? 1 : 0, id).run();
-        await logAdminAction(env, user.id, action, 'guestbook', id, action === 'hide' ? '隐藏留言' : '取消隐藏留言', JSON.stringify({}));
+        await logAdminAction(env, user.id, action, 'guestbook', id, action === 'hide' ? '隐藏留言' : '取消隐藏留言', JSON.stringify({ entry_id: id }));
     } else if (action === 'pin' || action === 'unpin') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -411,7 +411,7 @@ async function handlePut(request, env, context) {
         }
         const isPinned = action === 'pin';
         await env.DB.prepare('UPDATE guestbook SET is_pinned = ? WHERE id = ?').bind(isPinned ? 1 : 0, id).run();
-        await logAdminAction(env, user.id, action, 'guestbook', id, action === 'pin' ? '置顶留言' : '取消置顶留言', JSON.stringify({}));
+        await logAdminAction(env, user.id, action, 'guestbook', id, action === 'pin' ? '置顶留言' : '取消置顶留言', JSON.stringify({ entry_id: id }));
     } else if (action === 'resolve' || action === 'unresolve') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -470,7 +470,7 @@ async function handlePut(request, env, context) {
             }
         }
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, is_hidden = 0 WHERE id = ?').bind('unresolved', id).run();
-        await logAdminAction(env, user.id, 'unreject', 'guestbook', id, '取消驳回留言', JSON.stringify({}));
+        await logAdminAction(env, user.id, 'unreject', 'guestbook', id, '取消驳回留言', JSON.stringify({ entry_id: id }));
     } else if (action === 'ban_user') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });

@@ -134,6 +134,6 @@ async function handleDelete(request, env) {
         return new Response(JSON.stringify({ error: '普通管理员不能删除超级管理员发布的公告' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     await env.DB.prepare('DELETE FROM announcements WHERE id = ?').bind(id).run();
-    await logAdminAction(env, user.id, 'delete_announcement', 'announcement', id, '删除公告', JSON.stringify({}));
+    await logAdminAction(env, user.id, 'delete_announcement', 'announcement', id, '删除公告', JSON.stringify({ announcement_id: id }));
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
