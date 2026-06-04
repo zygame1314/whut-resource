@@ -1,4 +1,110 @@
 let _tutorialLoading = false;
+
+function showTutorialCelebration() {
+    const existing = document.getElementById('tutorial-celebration-overlay');
+    if (existing) return;
+
+    const confettiColors = [
+        '#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff',
+        '#5f27cd', '#01a3a4', '#f368e0', '#ff9f43', '#10ac84',
+        '#ee5a24', '#0abde3', '#6c5ce7', '#fdcb6e', '#00b894'
+    ];
+    const confettiShapes = ['', 'circle', 'star'];
+
+    const overlay = document.createElement('div');
+    overlay.id = 'tutorial-celebration-overlay';
+    overlay.className = 'tutorial-celebration-overlay';
+
+    const confettiContainer = document.createElement('div');
+    confettiContainer.className = 'tutorial-celebration-confetti';
+    overlay.appendChild(confettiContainer);
+
+    const pieceCount = 60;
+    for (let i = 0; i < pieceCount; i++) {
+        const piece = document.createElement('div');
+        const shape = confettiShapes[Math.floor(Math.random() * confettiShapes.length)];
+        piece.className = 'tutorial-confetti-piece' + (shape ? ' ' + shape : '');
+        piece.style.left = Math.random() * 100 + '%';
+        piece.style.background = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+        const size = Math.random() * 8 + 6;
+        piece.style.width = size + 'px';
+        piece.style.height = size + 'px';
+        const duration = Math.random() * 2 + 2.5;
+        const delay = Math.random() * 1.2;
+        piece.style.setProperty('--confetti-duration', duration + 's');
+        piece.style.setProperty('--confetti-delay', delay + 's');
+        const swayDuration = Math.random() * 1.5 + 1.5;
+        const swayDelay = Math.random() * 0.5;
+        piece.style.setProperty('--sway-duration', swayDuration + 's');
+        piece.style.setProperty('--sway-delay', swayDelay + 's');
+        confettiContainer.appendChild(piece);
+    }
+
+    const content = document.createElement('div');
+    content.className = 'tutorial-celebration-content';
+
+    const sparklePositions = [
+        { top: '8%', left: '12%', dur: '1.8s', del: '0.3s' },
+        { top: '15%', right: '10%', dur: '2.2s', del: '0.8s' },
+        { top: '45%', left: '5%', dur: '1.5s', del: '1.2s' },
+        { top: '60%', right: '8%', dur: '2s', del: '0.5s' },
+        { top: '80%', left: '15%', dur: '1.6s', del: '1s' },
+        { top: '25%', right: '5%', dur: '2.1s', del: '0.6s' },
+    ];
+    sparklePositions.forEach(pos => {
+        const sparkle = document.createElement('div');
+        sparkle.className = 'tutorial-celebration-sparkle';
+        if (pos.top) sparkle.style.top = pos.top;
+        if (pos.left) sparkle.style.left = pos.left;
+        if (pos.right) sparkle.style.right = pos.right;
+        sparkle.style.setProperty('--sparkle-duration', pos.dur);
+        sparkle.style.setProperty('--sparkle-delay', pos.del);
+        overlay.appendChild(sparkle);
+    });
+
+    const icon = document.createElement('div');
+    icon.className = 'tutorial-celebration-icon';
+    icon.innerHTML = '<i class="fas fa-graduation-cap" style="color: var(--primary-color);"></i>';
+    content.appendChild(icon);
+
+    const title = document.createElement('h3');
+    title.className = 'tutorial-celebration-title';
+    title.textContent = '恭喜你，教程完成！';
+    content.appendChild(title);
+
+    const subtitle = document.createElement('p');
+    subtitle.className = 'tutorial-celebration-subtitle';
+    subtitle.textContent = '你已掌握平台所有核心功能，快去探索吧！';
+    content.appendChild(subtitle);
+
+    const actions = document.createElement('div');
+    actions.className = 'tutorial-celebration-actions';
+    const btn = document.createElement('button');
+    btn.className = 'tutorial-celebration-btn';
+    btn.innerHTML = '<i class="fas fa-rocket"></i> 开始探索';
+    btn.addEventListener('click', closeCelebration);
+    actions.appendChild(btn);
+    content.appendChild(actions);
+
+    overlay.appendChild(content);
+
+    overlay.addEventListener('click', function (e) {
+        if (e.target === overlay || e.target === confettiContainer) {
+            closeCelebration();
+        }
+    });
+
+    document.body.appendChild(overlay);
+
+    function closeCelebration() {
+        if (overlay.classList.contains('closing')) return;
+        overlay.classList.add('closing');
+        setTimeout(function () {
+            overlay.remove();
+        }, 400);
+    }
+}
+
 async function startTutorial() {
     if (_tutorialLoading || window._tutorialActive) return;
     _tutorialLoading = true;
@@ -440,7 +546,9 @@ async function startTutorial() {
     const originalNext = tour.next.bind(tour);
     const originalBack = tour.back.bind(tour);
     const originalCancel = tour.cancel.bind(tour);
+    const originalComplete = tour.complete.bind(tour);
     let animating = false;
+    let tutorialCompleted = false;
 
     tour.next = function () {
         if (animating) return;
@@ -457,6 +565,7 @@ async function startTutorial() {
     tour.cancel = function () {
         if (animating) return;
         animating = true;
+        tutorialCompleted = false;
         const el = tour.getCurrentStep()?.el;
         const overlay = document.querySelector('.shepherd-modal-overlay-container.shepherd-modal-is-visible');
         animateOut(el, () => { });
@@ -477,6 +586,42 @@ async function startTutorial() {
             originalCancel();
         }, 320);
     };
+    tour.complete = function () {
+        if (animating) return;
+        animating = true;
+        tutorialCompleted = true;
+        const el = tour.getCurrentStep()?.el;
+        const overlay = document.querySelector('.shepherd-modal-overlay-container.shepherd-modal-is-visible');
+        animateOut(el, () => { });
+        if (overlay) {
+            overlay.style.transition = 'opacity 0.3s ease, backdrop-filter 0.3s ease, -webkit-backdrop-filter 0.3s ease';
+            overlay.style.opacity = '0';
+            overlay.style.backdropFilter = 'blur(0)';
+            overlay.style.webkitBackdropFilter = 'blur(0)';
+        }
+        setTimeout(() => {
+            if (overlay) {
+                overlay.style.transition = '';
+                overlay.style.opacity = '';
+                overlay.style.backdropFilter = '';
+                overlay.style.webkitBackdropFilter = '';
+            }
+            animating = false;
+            originalComplete();
+        }, 320);
+    };
+
+    tour.on('complete', () => {
+        tutorialCompleted = true;
+        document.querySelectorAll('li.actions-visible').forEach(li => li.classList.remove('actions-visible'));
+        window._setTutorialKeepNavOpen(false);
+        window._tutorialActive = false;
+        if (typeof window._removeTutorialDownloadToast === 'function') {
+            window._removeTutorialDownloadToast();
+        }
+        document.body.classList.remove('mobile-sidebar-visible');
+        showTutorialCelebration();
+    });
 
     steps.forEach((step, index) => {
         const isFirst = index === 0;
@@ -492,7 +637,7 @@ async function startTutorial() {
         }
         if (isLast) {
             buttons.push({
-                action() { return this.cancel(); },
+                action() { return this.complete(); },
                 text: '完成'
             });
         } else if (isFirst) {

@@ -920,9 +920,24 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 1rem;
     color: var(--text-secondary);
     z-index: 10;
+    padding: 2rem;
+}
+
+.preview-loader-icon {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    animation: pulse 1.4s ease-in-out infinite;
+    filter: drop-shadow(0 4px 16px rgba(var(--primary-rgb), 0.3));
+}
+
+.preview-loader-text {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-style: italic;
 }
 
 .support-us-section {

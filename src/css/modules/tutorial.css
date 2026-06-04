@@ -288,3 +288,207 @@
     opacity: 0.6;
 }
 
+.tutorial-celebration-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: celebrationFadeIn 0.4s ease forwards;
+    pointer-events: auto;
+}
+
+.tutorial-celebration-overlay.closing {
+    animation: celebrationFadeOut 0.4s ease forwards;
+}
+
+.tutorial-celebration-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2.5rem 2.5rem 2rem;
+    background: var(--background);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(var(--primary-rgb), 0.1);
+    animation: celebrationContentIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+}
+
+.tutorial-celebration-overlay.closing .tutorial-celebration-content {
+    animation: celebrationContentOut 0.35s ease forwards;
+}
+
+.tutorial-celebration-icon {
+    font-size: 3rem;
+    animation: celebrationIconBounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.15s both;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+}
+
+.tutorial-celebration-icon::before {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    border: 3px solid var(--primary-color);
+    animation: celebrationRingExpand 0.8s ease-out 0.3s both;
+}
+
+.tutorial-celebration-icon::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(var(--primary-rgb), 0.15) 0%, transparent 70%);
+    animation: celebrationPulse 2s ease-in-out infinite;
+}
+
+.tutorial-celebration-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.4;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.tutorial-celebration-subtitle {
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.tutorial-celebration-actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+}
+
+.tutorial-celebration-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.65rem 1.5rem;
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    font-family: var(--font-family);
+}
+
+.tutorial-celebration-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(var(--primary-rgb), 0.35);
+}
+
+.tutorial-celebration-btn:active {
+    transform: translateY(0);
+}
+
+.tutorial-celebration-confetti {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.tutorial-confetti-piece {
+    position: absolute;
+    top: -20px;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    animation: celebrationConfettiFall var(--confetti-duration, 3s) linear var(--confetti-delay, 0s) forwards;
+}
+
+.tutorial-confetti-piece::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    animation: celebrationConfettiSway var(--sway-duration, 2s) ease-in-out var(--sway-delay, 0s) infinite;
+    background: inherit;
+    border-radius: inherit;
+}
+
+.tutorial-confetti-piece.circle {
+    border-radius: 50%;
+}
+
+.tutorial-confetti-piece.star {
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+.tutorial-celebration-sparkle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    animation: celebrationSparkle var(--sparkle-duration, 1.5s) ease-in-out var(--sparkle-delay, 0s) infinite;
+    pointer-events: none;
+}
+
+[data-theme="dark"] .tutorial-celebration-overlay {
+    background: rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="dark"] .tutorial-celebration-content {
+    background: var(--dark-bg-alt);
+    border-color: var(--dark-border);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(77, 163, 255, 0.15);
+}
+
+@media (max-width: 480px) {
+    .tutorial-celebration-content {
+        padding: 2rem 1.5rem 1.5rem;
+        border-radius: 20px;
+        gap: 0.8rem;
+    }
+
+    .tutorial-celebration-icon {
+        font-size: 2.5rem;
+        width: 64px;
+        height: 64px;
+    }
+
+    .tutorial-celebration-title {
+        font-size: 1.2rem;
+    }
+
+    .tutorial-celebration-subtitle {
+        font-size: 0.85rem;
+    }
+}
+

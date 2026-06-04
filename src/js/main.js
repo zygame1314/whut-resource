@@ -58,10 +58,7 @@ document.addEventListener('authSuccess', async () => {
     if (typeof checkAdminPermission === 'function') {
         checkAdminPermission();
     }
-    const uploadBtnLink = document.getElementById('upload-btn-link');
-    if (uploadBtnLink) {
-        uploadBtnLink.style.display = 'inline-flex';
-    }
+    if (typeof updateAuthUI === 'function') updateAuthUI();
     if (!localStorage.getItem('hasSeenTutorial')) {
         setTimeout(async () => {
             if (typeof showConfirmation === 'function') {
@@ -87,10 +84,7 @@ document.addEventListener('authRestored', () => {
     fetchAndRenderHotFolders();
     fetchAndRenderDownloadHistory();
     fetchAndRenderRecentUploads();
-    const uploadBtnLink = document.getElementById('upload-btn-link');
-    if (uploadBtnLink) {
-        uploadBtnLink.style.display = 'inline-flex';
-    }
+    if (typeof updateAuthUI === 'function') updateAuthUI();
 });
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
