@@ -450,18 +450,51 @@ async function showAdminManagementModal(initialTab = 'roles') {
         const searchResults = tabContent.querySelector('#search-results');
         const adminListContainer = tabContent.querySelector('#admin-list-container');
 
-        const loadAdmins = async () => {
-            adminListContainer.innerHTML = '<div class="loading-spinner"></div>';
+        let adminCache = [];
+        let adminCursor = null;
+        let hasMoreAdmins = true;
+        let isLoadingAdmins = false;
+
+        const renderAdminList = () => {
+            renderUserList(adminListContainer, adminCache, true);
+            const existingMore = adminListContainer.querySelector('.load-more-admins');
+            if (existingMore) existingMore.remove();
+            if (hasMoreAdmins) {
+                const moreBtn = document.createElement('div');
+                moreBtn.className = 'load-more-admins';
+                moreBtn.innerHTML = '<button class="secondary-btn small" style="width:100%;margin-top:8px;"><i class="fas fa-chevron-down"></i> 加载更多</button>';
+                moreBtn.querySelector('button').onclick = () => loadAdmins(false);
+                adminListContainer.appendChild(moreBtn);
+            }
+        };
+
+        const loadAdmins = async (reset = true) => {
+            if (isLoadingAdmins) return;
+            if (reset) {
+                adminCache = [];
+                adminCursor = null;
+                hasMoreAdmins = true;
+                adminListContainer.innerHTML = '<div class="loading-spinner"></div>';
+            } else if (!hasMoreAdmins) {
+                return;
+            }
+            isLoadingAdmins = true;
             try {
-                const res = await fetch(`${API_ENDPOINTS.userRole}?action=admins`, {
+                let url = `${API_ENDPOINTS.userRole}?action=admins`;
+                if (adminCursor) url += `&cursor=${encodeURIComponent(adminCursor)}`;
+                const res = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error);
-                renderUserList(adminListContainer, data.users || [], true);
+                adminCache = adminCache.concat(data.users || []);
+                adminCursor = data.nextCursor;
+                hasMoreAdmins = data.hasMore;
+                renderAdminList();
             } catch (e) {
-                adminListContainer.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
+                if (reset) adminListContainer.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
             }
+            isLoadingAdmins = false;
         };
 
         function renderUserList(container, users, showDemote) {

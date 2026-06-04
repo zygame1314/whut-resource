@@ -87,10 +87,21 @@ async function handleGet(request, env, user) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
         }
-        const { results } = await env.DB.prepare(
-            "SELECT id, email, nickname, role, is_banned, created_at FROM users WHERE role = 'admin' ORDER BY created_at ASC"
-        ).all();
-        return new Response(JSON.stringify({ success: true, users: results }), {
+        const limit = Math.min(parseInt(url.searchParams.get('limit')) || 20, 100);
+        const cursor = url.searchParams.get('cursor');
+        let query = "SELECT id, email, nickname, role, is_banned, created_at FROM users WHERE role = 'admin'";
+        const params = [];
+        if (cursor) {
+            query += " AND id > ?";
+            params.push(parseInt(cursor));
+        }
+        query += " ORDER BY id ASC LIMIT ?";
+        params.push(limit + 1);
+        const { results } = await env.DB.prepare(query).bind(...params).all();
+        const hasMore = results.length > limit;
+        const users = hasMore ? results.slice(0, limit) : results;
+        const nextCursor = hasMore ? users[users.length - 1].id : null;
+        return new Response(JSON.stringify({ success: true, users, nextCursor, hasMore }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
