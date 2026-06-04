@@ -1,5 +1,34 @@
+let _tutorialLoading = false;
 async function startTutorial() {
-    await window.LazyLoader.loadShepherd();
+    if (_tutorialLoading || window._tutorialActive) return;
+    _tutorialLoading = true;
+    const tutorialBtn = document.getElementById('tutorial-btn');
+    if (tutorialBtn) {
+        tutorialBtn.disabled = true;
+        tutorialBtn.classList.add('tutorial-loading');
+    }
+    if (typeof showNotification === 'function') {
+        showNotification('正在加载教程，请稍候…', 'info');
+    }
+    try {
+        await window.LazyLoader.loadShepherd();
+    } catch (e) {
+        console.error('教程加载失败:', e);
+        if (typeof showNotification === 'function') {
+            showNotification('教程加载失败，请刷新页面重试。', 'error');
+        }
+        _tutorialLoading = false;
+        if (tutorialBtn) {
+            tutorialBtn.disabled = false;
+            tutorialBtn.classList.remove('tutorial-loading');
+        }
+        return;
+    }
+    if (tutorialBtn) {
+        tutorialBtn.disabled = false;
+        tutorialBtn.classList.remove('tutorial-loading');
+    }
+    _tutorialLoading = false;
     const announcementViewModal = document.getElementById('announcement-view-modal');
     if (announcementViewModal) announcementViewModal.classList.remove('visible');
     window._tutorialActive = true;

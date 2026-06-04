@@ -12,6 +12,18 @@
     color: var(--text-secondary);
 }
 
+.icon-btn.tutorial-loading {
+    pointer-events: none;
+    opacity: 0.6;
+    cursor: wait;
+}
+.icon-btn.tutorial-loading i {
+    animation: tutorial-spin 0.8s linear infinite;
+}
+@keyframes tutorial-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
 .icon-btn:hover {
     background: var(--primary-light);
     color: white;
