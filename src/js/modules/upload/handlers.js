@@ -223,7 +223,7 @@ async function injectTraceCode(file) {
         return file;
     }
 }
-async function handleFileSelect(files) {
+async function handleFileSelect(files, append) {
     showNotification('正在处理文件，图片将被压缩...', 'info');
     const originalFiles = Array.from(files);
     try {
@@ -244,21 +244,22 @@ async function handleFileSelect(files) {
             if (ignoredFiles.length > 0) {
                 showNotification(`所有文件均无效: ${ignoredFiles[0].error}`, 'error');
             }
-            clearSelectedFile();
+            if (!append) clearSelectedFile();
             return;
         }
         if (ignoredFiles.length > 0) {
             console.warn('部分文件被忽略:', ignoredFiles);
             showNotification(`${ignoredFiles.length} 个文件被忽略 (如: ${ignoredFiles[0].name} ${ignoredFiles[0].error})`, 'warning');
         }
-        showSelectedFile(validFiles);
+        showSelectedFile(validFiles, append);
         if (validFiles.length > 0) {
-            showNotification(`${validFiles.length} 个文件选择成功` + (ignoredFiles.length > 0 ? ` (忽略 ${ignoredFiles.length} 个无效文件)` : ''), 'success');
+            const actionText = append ? '追加' : '选择';
+            showNotification(`${validFiles.length} 个文件${actionText}成功` + (ignoredFiles.length > 0 ? ` (忽略 ${ignoredFiles.length} 个无效文件)` : ''), 'success');
         }
     } catch (error) {
         console.error('文件处理失败:', error);
         showNotification('处理文件时发生错误', 'error');
-        clearSelectedFile();
+        if (!append) clearSelectedFile();
     }
 }
 let pendingRetryFiles = new Map();

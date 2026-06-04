@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (fileInput) {
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                handleFileSelect(e.target.files);
+                handleFileSelect(e.target.files, true);
             }
         });
     }
@@ -71,9 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 await Promise.all(promises);
                 if (allFiles.length > 0) {
-                    handleFileSelect(allFiles);
+                    handleFileSelect(allFiles, true);
                 } else {
-                    handleFileSelect(e.dataTransfer.files);
+                    handleFileSelect(e.dataTransfer.files, true);
                 }
             }
         });

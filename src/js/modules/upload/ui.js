@@ -61,8 +61,32 @@ function createParticleBackground() {
     }
 }
 
-function showSelectedFile(files) {
-    selectedFiles = Array.from(files);
+function appendSelectedFiles(files) {
+    const newFiles = Array.from(files);
+    const existingKeys = new Set(
+        selectedFiles.map(f => {
+            const rel = f._webkitRelativePath || f.webkitRelativePath || f.originalRelativePath || f.name;
+            return f.size + '|' + rel;
+        })
+    );
+    let addedCount = 0;
+    for (const f of newFiles) {
+        const key = f.size + '|' + (f._webkitRelativePath || f.webkitRelativePath || f.originalRelativePath || f.name);
+        if (!existingKeys.has(key)) {
+            selectedFiles.push(f);
+            existingKeys.add(key);
+            addedCount++;
+        }
+    }
+    return addedCount;
+}
+
+function showSelectedFile(files, append) {
+    if (append) {
+        appendSelectedFiles(files);
+    } else {
+        selectedFiles = Array.from(files);
+    }
     if (selectedFiles.length === 0) return;
     let totalSize = 0;
     selectedFiles.forEach(file => totalSize += file.size);
@@ -92,8 +116,26 @@ function showSelectedFile(files) {
     if (nameEl) nameEl.textContent = `${displayName} ${fileCountText}`.trim();
     const sizeEl = selectedFileInfo.querySelector('.file-size');
     if (sizeEl) sizeEl.textContent = formatBytes(totalSize);
-    animateHide(fileDropZone);
+    if (fileDropZone) {
+        fileDropZone.classList.add('compact');
+        const hintText = fileDropZone.querySelector('.drop-zone-text');
+        if (hintText) {
+            if (!hintText.querySelector('.drop-zone-append-hint')) {
+                const hint = document.createElement('span');
+                hint.className = 'drop-zone-append-hint';
+                hint.textContent = '（继续添加可追加文件）';
+                hintText.querySelector('h3') || hintText.insertBefore(hint, hintText.firstChild.nextSibling);
+            }
+            const h3 = hintText.querySelector('h3');
+            if (h3) h3.textContent = '继续添加文件或文件夹';
+            const p = hintText.querySelector('p');
+            if (p) p.innerHTML = '拖拽或 <span class="browse-text">点击选择</span> 可追加更多文件';
+        }
+    }
     animateShow(selectedFileInfo, 'block');
+    if (fileDropZone && fileDropZone.style.display === 'none') {
+        animateShow(fileDropZone, 'flex');
+    }
 }
 
 function clearSelectedFile() {
@@ -102,6 +144,15 @@ function clearSelectedFile() {
     if (selectedFileInfo) {
         selectedFileInfo.style.display = 'none';
         selectedFileInfo.classList.remove('entering', 'leaving');
+    }
+    if (fileDropZone) {
+        fileDropZone.classList.remove('compact');
+        const h3 = fileDropZone.querySelector('.drop-zone-text h3');
+        if (h3) h3.textContent = '拖拽文件或文件夹到此处';
+        const p = fileDropZone.querySelector('.drop-zone-text p');
+        if (p) p.innerHTML = '或者 <span class="browse-text">点击选择文件或文件夹</span>';
+        const hint = fileDropZone.querySelector('.drop-zone-append-hint');
+        if (hint) hint.remove();
     }
     if (currentUploadType === 'file' && fileDropZone) {
         animateShow(fileDropZone, 'flex');

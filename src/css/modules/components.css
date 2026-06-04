@@ -7926,6 +7926,38 @@ input#prompt-input {
     background-color: rgba(46, 139, 87, 0.1);
 }
 
+.file-drop-zone.compact {
+    padding: 1rem 2rem;
+    min-height: 80px;
+    margin-bottom: 1rem;
+}
+
+.file-drop-zone.compact .drop-zone-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.3rem;
+}
+
+.file-drop-zone.compact .drop-zone-text h3 {
+    font-size: 0.95rem;
+    margin-bottom: 0.2rem;
+}
+
+.file-drop-zone.compact .drop-zone-text p {
+    margin-bottom: 0;
+    font-size: 0.85rem;
+}
+
+.file-drop-zone.compact .file-types {
+    display: none;
+}
+
+.drop-zone-append-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--primary-color);
+    margin-top: 0.2rem;
+}
+
 .admin-logs-modal .auth-box,
 .banned-users-modal .auth-box,
 #admin-requests-modal .auth-box {
@@ -8137,8 +8169,7 @@ input#prompt-input {
 }
 
 .admin-logs-toolbar .custom-select-options.dropdown-menu {
-    min-width: 0;
-    width: auto;
+    min-width: 120px;
 }
 
 .admin-log-refresh-btn {
