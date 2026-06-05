@@ -117,7 +117,7 @@ export async function onRequestPost(context) {
             await env.DB.prepare(
                 'INSERT INTO oauth_clients (client_id, client_secret_hash, client_name, redirect_uris, description, logo_url, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
             ).bind(clientId, secretHash, client_name.trim(), uriList.join(','), description || '', logo_url || '', user.id).run();
-            await logAdminAction(env, user.id, 'oauth_client_create', 'oauth_client', null, `创建OAuth客户端: ${client_name} (${clientId})`);
+            await logAdminAction(env, user.id, 'oauth_client_create', 'oauth_client', clientId, `创建OAuth客户端: ${client_name} (${clientId})`, JSON.stringify({ client_name: client_name.trim(), client_id: clientId, redirect_uris: uriList.join(',') }));
             return new Response(JSON.stringify({
                 success: true,
                 client: { client_id: clientId, client_secret: clientSecret, client_name: client_name.trim(), redirect_uris: uriList.join(','), description: description || '', logo_url: logo_url || '' },
@@ -136,7 +136,7 @@ export async function onRequestPost(context) {
             const newSecret = await generateClientSecret();
             const secretHash = await hashPassword(newSecret, env.SALT);
             await env.DB.prepare('UPDATE oauth_clients SET client_secret_hash = ? WHERE client_id = ?').bind(secretHash, client_id).run();
-            await logAdminAction(env, user.id, 'oauth_client_reset_secret', 'oauth_client', null, `重置OAuth客户端密钥: ${client.client_name} (${client_id})`);
+            await logAdminAction(env, user.id, 'oauth_client_reset_secret', 'oauth_client', client_id, `重置OAuth客户端密钥: ${client.client_name} (${client_id})`, JSON.stringify({ client_name: client.client_name, client_id }));
             return new Response(JSON.stringify({
                 success: true,
                 client_secret: newSecret,
@@ -154,7 +154,7 @@ export async function onRequestPost(context) {
             }
             const newActive = !client.is_active;
             await env.DB.prepare('UPDATE oauth_clients SET is_active = ? WHERE client_id = ?').bind(newActive ? 1 : 0, client_id).run();
-            await logAdminAction(env, user.id, 'oauth_client_toggle', 'oauth_client', null, `${newActive ? '启用' : '禁用'}OAuth客户端: ${client.client_name} (${client_id})`);
+            await logAdminAction(env, user.id, 'oauth_client_toggle', 'oauth_client', client_id, `${newActive ? '启用' : '禁用'}OAuth客户端: ${client.client_name} (${client_id})`, JSON.stringify({ client_name: client.client_name, client_id, is_active: newActive }));
             return new Response(JSON.stringify({ success: true, is_active: newActive }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'update') {
@@ -189,7 +189,7 @@ export async function onRequestPost(context) {
             }
             binds.push(client_id);
             await env.DB.prepare(`UPDATE oauth_clients SET ${updates.join(', ')} WHERE client_id = ?`).bind(...binds).run();
-            await logAdminAction(env, user.id, 'oauth_client_update', 'oauth_client', null, `更新OAuth客户端: ${client.client_name} (${client_id})`);
+            await logAdminAction(env, user.id, 'oauth_client_update', 'oauth_client', client_id, `更新OAuth客户端: ${client.client_name} (${client_id})`, JSON.stringify({ client_name: client.client_name, client_id }));
             return new Response(JSON.stringify({ success: true, message: '更新成功' }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'delete') {
@@ -204,7 +204,7 @@ export async function onRequestPost(context) {
             await env.DB.prepare('DELETE FROM oauth_access_tokens WHERE client_id = ?').bind(client_id).run();
             await env.DB.prepare('DELETE FROM oauth_authorization_codes WHERE client_id = ?').bind(client_id).run();
             await env.DB.prepare('DELETE FROM oauth_clients WHERE client_id = ?').bind(client_id).run();
-            await logAdminAction(env, user.id, 'oauth_client_delete', 'oauth_client', null, `删除OAuth客户端: ${client.client_name} (${client_id})`);
+            await logAdminAction(env, user.id, 'oauth_client_delete', 'oauth_client', client_id, `删除OAuth客户端: ${client.client_name} (${client_id})`, JSON.stringify({ client_name: client.client_name, client_id }));
             return new Response(JSON.stringify({ success: true, message: '客户端已删除' }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'revoke_tokens') {
@@ -213,7 +213,7 @@ export async function onRequestPost(context) {
                 return new Response(JSON.stringify({ success: false, error: '缺少 client_id' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
             }
             const result = await env.DB.prepare('DELETE FROM oauth_access_tokens WHERE client_id = ?').bind(client_id).run();
-            await logAdminAction(env, user.id, 'oauth_revoke_tokens', 'oauth_client', null, `撤销OAuth客户端所有令牌: ${client_id}, 影响行数: ${result.meta?.changes || 0}`);
+            await logAdminAction(env, user.id, 'oauth_revoke_tokens', 'oauth_client', client_id, `撤销OAuth客户端所有令牌: ${client_id}, 影响行数: ${result.meta?.changes || 0}`, JSON.stringify({ client_id, revoked_count: result.meta?.changes || 0 }));
             return new Response(JSON.stringify({ success: true, message: '已撤销该客户端的所有令牌' }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'cleanup') {

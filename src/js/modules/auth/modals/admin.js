@@ -340,7 +340,20 @@ async function showAdminLogsModal() {
                     detailsHtml += `<div class="admin-log-user-info">链接地址: ${escapeHtml(details.url)}</div>`;
                 }
                 if (details.target_id) {
-                    detailsHtml += `<div class="admin-log-user-info">目标ID: ${details.target_id}</div>`;
+                    detailsHtml += `<div class="admin-log-user-info">目标ID: ${escapeHtml(details.target_id)}</div>`;
+                }
+                if (details.client_name && details.client_id) {
+                    detailsHtml += `<div class="admin-log-user-info"><i class="fas fa-key"></i> 客户端: ${escapeHtml(details.client_name)} (<code>${escapeHtml(details.client_id)}</code>)</div>`;
+                }
+                if (details.is_active !== undefined && !details.client_name) {
+                    detailsHtml += `<div class="admin-log-user-info">状态: ${details.is_active ? '启用' : '禁用'}</div>`;
+                }
+                if (details.revoked_count != null) {
+                    detailsHtml += `<div class="admin-log-user-info">撤销令牌数: ${details.revoked_count}</div>`;
+                }
+                if (details.scope && details.nickname) {
+                    detailsHtml += `<div class="admin-log-user-info">授权用户: ${escapeHtml(details.nickname)} (${escapeHtml(details.email || '')})</div>`;
+                    detailsHtml += `<div class="admin-log-user-info">授权范围: ${escapeHtml(details.scope)}</div>`;
                 }
                 if (details.entry_id && !details.target_email) {
                     detailsHtml += `<div class="admin-log-user-info">留言ID: ${details.entry_id}</div>`;

@@ -8097,6 +8097,7 @@ input#prompt-input {
 }
 
 .admin-log-action[class*="action-unhide"],
+.admin-log-action[class*="action-unban"],
 .admin-log-action[class*="action-resolve"],
 .admin-log-action[class*="action-approve"] {
     color: #fff;
@@ -8121,9 +8122,17 @@ input#prompt-input {
 .admin-log-action[class*="action-demote"],
 .admin-log-action[class*="action-cleanup"],
 .admin-log-action[class*="action-unpin"],
-.admin-log-action[class*="action-unresolve"] {
+.admin-log-action[class*="action-unresolve"],
+.admin-log-action[class*="action-oauth-authorize"],
+.admin-log-action[class*="action-oauth-client-toggle"],
+.admin-log-action[class*="action-oauth-client-reset-secret"] {
     color: var(--text-secondary);
     background: rgba(128, 128, 128, 0.15);
+}
+
+.admin-log-action[class*="action-oauth-revoke-tokens"] {
+    color: #fff;
+    background: rgba(250, 173, 20, 0.85);
 }
 
 .admin-log-operator {
