@@ -298,11 +298,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     animation: celebrationFadeIn 0.4s ease forwards;
     pointer-events: auto;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .tutorial-celebration-overlay {
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
 }
 
 .tutorial-celebration-overlay.closing {
@@ -325,6 +333,7 @@
     max-width: 380px;
     width: 90%;
     text-align: center;
+    will-change: transform, opacity;
 }
 
 .tutorial-celebration-overlay.closing .tutorial-celebration-content {
@@ -427,19 +436,8 @@
     width: 10px;
     height: 10px;
     border-radius: 2px;
+    will-change: transform, opacity;
     animation: celebrationConfettiFall var(--confetti-duration, 3s) linear var(--confetti-delay, 0s) forwards;
-}
-
-.tutorial-confetti-piece::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    animation: celebrationConfettiSway var(--sway-duration, 2s) ease-in-out var(--sway-delay, 0s) infinite;
-    background: inherit;
-    border-radius: inherit;
 }
 
 .tutorial-confetti-piece.circle {
@@ -448,6 +446,15 @@
 
 .tutorial-confetti-piece.star {
     clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .tutorial-confetti-piece {
+        animation-name: celebrationConfettiFall !important;
+    }
+    .tutorial-confetti-piece::before {
+        display: none;
+    }
 }
 
 .tutorial-celebration-sparkle {

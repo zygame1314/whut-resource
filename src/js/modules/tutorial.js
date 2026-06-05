@@ -9,7 +9,9 @@ function showTutorialCelebration() {
         '#5f27cd', '#01a3a4', '#f368e0', '#ff9f43', '#10ac84',
         '#ee5a24', '#0abde3', '#6c5ce7', '#fdcb6e', '#00b894'
     ];
-    const confettiShapes = ['', 'circle', 'star'];
+    const confettiShapes = isMobile ? ['', 'circle'] : ['', 'circle', 'star'];
+
+    const isMobile = window.matchMedia('(max-width: 768px), (hover: none) and (pointer: coarse)').matches;
 
     const overlay = document.createElement('div');
     overlay.id = 'tutorial-celebration-overlay';
@@ -19,7 +21,7 @@ function showTutorialCelebration() {
     confettiContainer.className = 'tutorial-celebration-confetti';
     overlay.appendChild(confettiContainer);
 
-    const pieceCount = 60;
+    const pieceCount = isMobile ? 28 : 55;
     for (let i = 0; i < pieceCount; i++) {
         const piece = document.createElement('div');
         const shape = confettiShapes[Math.floor(Math.random() * confettiShapes.length)];
@@ -43,7 +45,11 @@ function showTutorialCelebration() {
     const content = document.createElement('div');
     content.className = 'tutorial-celebration-content';
 
-    const sparklePositions = [
+    const sparklePositions = isMobile ? [
+        { top: '15%', left: '10%', dur: '2s', del: '0.5s' },
+        { top: '50%', right: '8%', dur: '1.8s', del: '0.9s' },
+        { top: '75%', left: '12%', dur: '2.2s', del: '1.3s' },
+    ] : [
         { top: '8%', left: '12%', dur: '1.8s', del: '0.3s' },
         { top: '15%', right: '10%', dur: '2.2s', del: '0.8s' },
         { top: '45%', left: '5%', dur: '1.5s', del: '1.2s' },
