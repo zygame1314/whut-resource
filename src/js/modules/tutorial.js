@@ -4,14 +4,14 @@ function showTutorialCelebration() {
     const existing = document.getElementById('tutorial-celebration-overlay');
     if (existing) return;
 
+    const isMobileDevice = window.matchMedia('(max-width: 768px), (hover: none) and (pointer: coarse)').matches;
+
     const confettiColors = [
         '#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff',
         '#5f27cd', '#01a3a4', '#f368e0', '#ff9f43', '#10ac84',
         '#ee5a24', '#0abde3', '#6c5ce7', '#fdcb6e', '#00b894'
     ];
-    const confettiShapes = isMobile ? ['', 'circle'] : ['', 'circle', 'star'];
-
-    const isMobile = window.matchMedia('(max-width: 768px), (hover: none) and (pointer: coarse)').matches;
+    const confettiShapes = isMobileDevice ? ['', 'circle'] : ['', 'circle', 'star'];
 
     const overlay = document.createElement('div');
     overlay.id = 'tutorial-celebration-overlay';
@@ -21,7 +21,7 @@ function showTutorialCelebration() {
     confettiContainer.className = 'tutorial-celebration-confetti';
     overlay.appendChild(confettiContainer);
 
-    const pieceCount = isMobile ? 28 : 55;
+    const pieceCount = isMobileDevice ? 28 : 55;
     for (let i = 0; i < pieceCount; i++) {
         const piece = document.createElement('div');
         const shape = confettiShapes[Math.floor(Math.random() * confettiShapes.length)];
@@ -45,7 +45,7 @@ function showTutorialCelebration() {
     const content = document.createElement('div');
     content.className = 'tutorial-celebration-content';
 
-    const sparklePositions = isMobile ? [
+    const sparklePositions = isMobileDevice ? [
         { top: '15%', left: '10%', dur: '2s', del: '0.5s' },
         { top: '50%', right: '8%', dur: '1.8s', del: '0.9s' },
         { top: '75%', left: '12%', dur: '2.2s', del: '1.3s' },
@@ -470,7 +470,7 @@ async function startTutorial() {
             });
         }
         const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-        if (isTouchDevice) {
+        if (isTouchDevice && document.querySelector('.mobile-actions-toggle')) {
             steps.push({
                 id: 'mobile-actions',
                 title: '移动端操作提示',
