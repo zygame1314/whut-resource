@@ -17,6 +17,7 @@ const pathsToRemove = [
     'donation-popup.js',
     'download-manager.js',
     'download-manager-ui.js',
+    'oauth.js',
     'page-viewer.js',
     'npm-debug.log',
     'yarn-debug.log',
