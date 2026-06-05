@@ -148,7 +148,8 @@ async function showAdminLogsModal() {
                               <div class="dropdown-item" data-value="file">文件</div>
                               <div class="dropdown-item" data-value="file_boost">评论</div>
                               <div class="dropdown-item" data-value="admin_request">管理请求</div>
-                              <div class="dropdown-item" data-value="system">系统</div>
+                               <div class="dropdown-item" data-value="oauth_client">OAuth</div>
+                               <div class="dropdown-item" data-value="system">系统</div>
                              <div class="dropdown-item" data-value="ai_">AI 自动</div>
                          </div>
                          <input type="hidden" id="log-filter-action" value="">

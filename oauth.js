@@ -1,4 +1,4 @@
-/** DEV MODE - Generated at 18:29:35 */
+/** DEV MODE - Generated at 18:37:54 */
 // --- Module: modules/oauth.js ---
 const OAUTH_AUTHORIZE_URL = API_ENDPOINTS.oauthAuthorize;
 const OAUTH_TOKEN_URL = API_ENDPOINTS.oauthToken;
