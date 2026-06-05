@@ -45,17 +45,9 @@ export async function onRequestGet(context) {
                 }
                 return { ...c, created_by_name: '系统' };
             }));
-            const activeTokens = await env.DB.prepare('SELECT client_id, COUNT(*) as count FROM oauth_access_tokens WHERE expires_at > ? GROUP BY client_id').bind(new Date().toISOString()).all();
-            const tokenMap = {};
-            for (const t of (activeTokens.results || [])) {
-                tokenMap[t.client_id] = t.count;
-            }
             return new Response(JSON.stringify({
                 success: true,
-                clients: enrichedClients.map(c => ({
-                    ...c,
-                    active_tokens: tokenMap[c.client_id] || 0
-                }))
+                clients: enrichedClients
             }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'detail' && url.searchParams.get('client_id')) {

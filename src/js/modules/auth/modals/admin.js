@@ -1134,56 +1134,57 @@ async function showOauthClientsModal() {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';
     modal.innerHTML = `
-        <div class="auth-box" style="max-width: 800px;">
-            <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
-            <h2 class="auth-title"><i class="fas fa-key"></i> OAuth SSO 客户端管理</h2>
-            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">管理第三方应用的 OAuth2 接入授权。客户端可通过授权码模式（Authorization Code）实现 SSO。</p>
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
-                <button id="oauth-create-btn" class="primary-btn" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;"><i class="fas fa-plus"></i> 新建客户端</button>
-                <button id="oauth-refresh-btn" class="secondary-btn" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;"><i class="fas fa-sync"></i> 刷新</button>
-                <button id="oauth-cleanup-btn" class="secondary-btn" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;"><i class="fas fa-broom"></i> 清理过期数据</button>
+        <div class="auth-box oauth-manage-box">
+            <div class="admin-modal-header">
+                <h2 class="auth-title"><i class="fas fa-key"></i> SSO 客户端管理</h2>
+                <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             </div>
-            <div id="oauth-clients-list" style="max-height: 400px; overflow-y: auto;"></div>
+            <p class="oauth-manage-desc">管理第三方应用的 OAuth2 接入授权，支持授权码模式（Authorization Code + PKCE）实现 SSO</p>
+            <div class="oauth-toolbar">
+                <button id="oauth-create-btn" class="primary-btn small"><i class="fas fa-plus"></i> 新建</button>
+                <button id="oauth-refresh-btn" class="secondary-btn small"><i class="fas fa-sync"></i> 刷新</button>
+                <button id="oauth-cleanup-btn" class="secondary-btn small"><i class="fas fa-broom"></i> 清理过期数据</button>
+            </div>
+            <div id="oauth-clients-list" class="oauth-clients-list"></div>
         </div>
     `;
     document.body.appendChild(modal);
     modal.querySelector('#close-modal').onclick = () => closeAuthModal(modal);
     const listEl = modal.querySelector('#oauth-clients-list');
     async function loadClients() {
-        listEl.innerHTML = '<div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--text-secondary);"></i></div>';
+        listEl.innerHTML = '<div class="oauth-loading-state"><div class="loading-spinner"></div><p>加载中...</p></div>';
         try {
             const res = await fetch(`${API_ENDPOINTS.oauthAdmin}?action=list`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
             if (!data.success) {
-                listEl.innerHTML = `<p style="color:var(--accent-color);text-align:center;">${escapeHtml(data.error)}</p>`;
+                listEl.innerHTML = `<div class="oauth-error-state"><i class="fas fa-exclamation-circle"></i>${escapeHtml(data.error)}</div>`;
                 return;
             }
             if (!data.clients || data.clients.length === 0) {
-                listEl.innerHTML = '<p style="text-align:center;color:var(--text-secondary);">暂无 OAuth 客户端，点击"新建客户端"创建。</p>';
+                listEl.innerHTML = '<div class="oauth-empty-state"><i class="fas fa-plug"></i><p>暂无 OAuth 客户端</p><span>点击"新建"创建第一个 OAuth2 应用</span></div>';
                 return;
             }
             listEl.innerHTML = data.clients.map(c => `
-                <div style="border:1px solid var(--border-color);border-radius:10px;padding:1rem;margin-bottom:0.8rem;background:var(--bg-secondary);">
-                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
-                        <div>
-                            <strong style="font-size:1rem;">${escapeHtml(c.client_name)}</strong>
-                            <span style="margin-left:0.5rem;padding:0.1rem 0.5rem;border-radius:4px;font-size:0.75rem;${c.is_active ? 'background:rgba(46,204,113,0.15);color:#2ecc71;' : 'background:rgba(231,76,60,0.15);color:#e74c3c;'}">${c.is_active ? '启用' : '禁用'}</span>
-                            ${c.active_tokens > 0 ? `<span style="margin-left:0.5rem;padding:0.1rem 0.5rem;border-radius:4px;font-size:0.75rem;background:rgba(74,158,255,0.15);color:var(--primary-color);">${c.active_tokens} 个活跃令牌</span>` : ''}
+                <div class="oauth-client-card">
+                    <div class="oauth-client-main">
+                        <div class="oauth-client-header">
+                            <strong class="oauth-client-name">${escapeHtml(c.client_name)}</strong>
+                            <span class="oauth-status-badge ${c.is_active ? 'oauth-status-active' : 'oauth-status-inactive'}">${c.is_active ? '● 启用' : '● 禁用'}</span>
                         </div>
-                        <div style="display:flex;gap:0.3rem;flex-wrap:wrap;">
-                            <button class="icon-btn oauth-action-btn" data-action="toggle" data-id="${escapeHtml(c.client_id)}" title="${c.is_active ? '禁用' : '启用'}" style="width:32px;height:32px;"><i class="fas fa-${c.is_active ? 'pause' : 'play'}"></i></button>
-                            <button class="icon-btn oauth-action-btn" data-action="secret" data-id="${escapeHtml(c.client_id)}" title="重置密钥" style="width:32px;height:32px;"><i class="fas fa-key"></i></button>
-                            <button class="icon-btn oauth-action-btn" data-action="revoke" data-id="${escapeHtml(c.client_id)}" title="撤销令牌" style="width:32px;height:32px;"><i class="fas fa-ban"></i></button>
-                            <button class="icon-btn oauth-action-btn danger" data-action="delete" data-id="${escapeHtml(c.client_id)}" title="删除" style="width:32px;height:32px;color:var(--accent-color);"><i class="fas fa-trash"></i></button>
+                        <div class="oauth-client-meta">
+                            <div class="oauth-meta-row"><i class="fas fa-fingerprint"></i><code class="oauth-code">${escapeHtml(c.client_id)}</code></div>
+                            <div class="oauth-meta-row"><i class="fas fa-link"></i><code class="oauth-code oauth-code-uri">${escapeHtml(c.redirect_uris)}</code></div>
+                            ${c.description ? `<div class="oauth-meta-row"><i class="fas fa-align-left"></i><span>${escapeHtml(c.description)}</span></div>` : ''}
+                            <div class="oauth-meta-row"><i class="fas fa-user-shield"></i><span>${escapeHtml(c.created_by_name || '未知')} · ${new Date(c.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>
                         </div>
                     </div>
-                    <div style="margin-top:0.5rem;font-size:0.82rem;color:var(--text-secondary);">
-                        <div><code style="font-size:0.78rem;background:var(--bg-primary);padding:0.15rem 0.4rem;border-radius:4px;">${escapeHtml(c.client_id)}</code></div>
-                        <div style="margin-top:0.3rem;">回调: <code style="font-size:0.75rem;word-break:break-all;">${escapeHtml(c.redirect_uris)}</code></div>
-                        ${c.description ? `<div style="margin-top:0.2rem;">${escapeHtml(c.description)}</div>` : ''}
-                        <div style="margin-top:0.2rem;">创建者: ${escapeHtml(c.created_by_name || '未知')} · ${new Date(c.created_at).toLocaleString()}</div>
+                    <div class="oauth-client-actions">
+                        <button class="icon-btn oauth-action-btn" data-action="toggle" data-id="${escapeHtml(c.client_id)}" title="${c.is_active ? '禁用' : '启用'}"><i class="fas fa-${c.is_active ? 'pause' : 'play'}"></i></button>
+                        <button class="icon-btn oauth-action-btn" data-action="secret" data-id="${escapeHtml(c.client_id)}" title="重置密钥"><i class="fas fa-key"></i></button>
+                        <button class="icon-btn oauth-action-btn" data-action="revoke" data-id="${escapeHtml(c.client_id)}" title="撤销令牌"><i class="fas fa-ban"></i></button>
+                        <button class="icon-btn danger oauth-action-btn" data-action="delete" data-id="${escapeHtml(c.client_id)}" title="删除"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
             `).join('');
@@ -1212,7 +1213,7 @@ async function showOauthClientsModal() {
                             if (d.success) {
                                 const secModal = document.createElement('div');
                                 secModal.className = 'auth-modal';
-                                secModal.innerHTML = `<div class="auth-box" style="max-width:500px;"><button id="close-sec-modal" class="close-modal-btn"><i class="fas fa-times"></i></button><h2 class="auth-title"><i class="fas fa-key"></i> 新密钥</h2><p style="color:var(--accent-color);font-weight:bold;margin:0.5rem 0;">请立即复制并保存，此密钥仅展示一次：</p><div style="background:var(--bg-secondary);padding:0.8rem;border-radius:8px;word-break:break-all;font-family:monospace;margin:0.8rem 0;">${escapeHtml(d.client_secret)}</div><button id="copy-sec-btn" class="primary-btn full-width"><i class="fas fa-copy"></i> 复制密钥</button></div></div>`;
+                                secModal.innerHTML = `<div class="auth-box" style="max-width:520px;"><button id="close-sec-modal" class="close-modal-btn"><i class="fas fa-times"></i></button><h2 class="auth-title"><i class="fas fa-key"></i> 新密钥</h2><div class="oauth-warning-box"><i class="fas fa-exclamation-triangle"></i><p>请立即复制并妥善保管，此密钥仅展示一次！</p></div><div class="oauth-cred-box"><code class="oauth-secret-code">${escapeHtml(d.client_secret)}</code></div><button id="copy-sec-btn" class="primary-btn full-width"><i class="fas fa-copy"></i> 复制密钥</button></div></div>`;
                                 document.body.appendChild(secModal);
                                 secModal.querySelector('#close-sec-modal').onclick = () => closeAuthModal(secModal);
                                 secModal.querySelector('#copy-sec-btn').onclick = () => { navigator.clipboard.writeText(d.client_secret); showNotification('已复制', 'success'); };
@@ -1244,7 +1245,7 @@ async function showOauthClientsModal() {
                 };
             });
         } catch (e) {
-            listEl.innerHTML = `<p style="color:var(--accent-color);text-align:center;">加载失败: ${escapeHtml(e.message)}</p>`;
+            listEl.innerHTML = `<div class="oauth-error-state"><i class="fas fa-exclamation-circle"></i>加载失败: ${escapeHtml(e.message)}</div>`;
         }
     }
     modal.querySelector('#oauth-refresh-btn').onclick = loadClients;
@@ -1262,14 +1263,14 @@ async function showOauthClientsModal() {
         const createModal = document.createElement('div');
         createModal.className = 'auth-modal';
         createModal.innerHTML = `
-            <div class="auth-box" style="max-width:500px;">
+            <div class="auth-box" style="max-width:520px;">
                 <button id="close-create-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
-                <h2 class="auth-title"><i class="fas fa-plus"></i> 新建 OAuth 客户端</h2>
+                <h2 class="auth-title"><i class="fas fa-plus"></i> 新建客户端</h2>
                 <form id="oauth-create-form">
-                    <div class="form-group"><label>客户端名称 *</label><input type="text" id="oauth-client-name" class="form-control" placeholder="如：XX社区、XX助手" required></div>
-                    <div class="form-group"><label>回调地址 (Redirect URI) *</label><textarea id="oauth-redirect-uris" class="form-control" rows="3" placeholder="多个地址用英文逗号分隔&#10;如: https://example.com/callback, http://localhost:3000/auth" required></textarea><div style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.3rem;">第三方应用接收授权码的 URL，支持多个</div></div>
-                    <div class="form-group"><label>描述</label><input type="text" id="oauth-description" class="form-control" placeholder="应用简介（可选）"></div>
-                    <div class="form-group"><label>Logo URL</label><input type="url" id="oauth-logo-url" class="form-control" placeholder="https://example.com/logo.png（可选）"></div>
+                    <div class="form-group"><label>客户端名称 <span style="color:var(--accent-color);">*</span></label><div class="input-with-icon"><i class="fas fa-tag"></i><input type="text" id="oauth-client-name" class="form-control" placeholder="如：XX社区、XX助手" required></div></div>
+                    <div class="form-group"><label>回调地址 (Redirect URI) <span style="color:var(--accent-color);">*</span></label><textarea id="oauth-redirect-uris" class="form-control" rows="3" placeholder="多个地址用英文逗号分隔&#10;如: https://example.com/callback, http://localhost:3000/auth" required></textarea><div class="oauth-form-hint"><i class="fas fa-info-circle"></i> 第三方应用接收授权码的 URL，支持多个</div></div>
+                    <div class="form-group"><label>描述</label><div class="input-with-icon"><i class="fas fa-align-left"></i><input type="text" id="oauth-description" class="form-control" placeholder="应用简介（可选）"></div></div>
+                    <div class="form-group"><label>Logo URL</label><div class="input-with-icon"><i class="fas fa-image"></i><input type="url" id="oauth-logo-url" class="form-control" placeholder="https://example.com/logo.png（可选）"></div></div>
                     <button type="submit" class="primary-btn full-width"><i class="fas fa-check"></i> 创建</button>
                 </form>
             </div>`;
@@ -1294,7 +1295,7 @@ async function showOauthClientsModal() {
                     closeAuthModal(createModal);
                     const resultModal = document.createElement('div');
                     resultModal.className = 'auth-modal';
-                    resultModal.innerHTML = `<div class="auth-box" style="max-width:500px;"><button id="close-result" class="close-modal-btn"><i class="fas fa-times"></i></button><h2 class="auth-title"><i class="fas fa-check-circle" style="color:var(--success-color);"></i> 客户端创建成功</h2><p style="color:var(--accent-color);font-weight:bold;margin:0.5rem 0;">请立即复制以下信息并妥善保管，client_secret 仅此一次展示：</p><div style="background:var(--bg-secondary);padding:1rem;border-radius:8px;margin:0.8rem 0;text-align:left;"><div style="margin-bottom:0.5rem;"><strong>Client ID:</strong><div style="font-family:monospace;word-break:break-all;background:var(--bg-primary);padding:0.4rem;border-radius:4px;margin-top:0.2rem;">${escapeHtml(d.client.client_id)}</div></div><div><strong>Client Secret:</strong><div style="font-family:monospace;word-break:break-all;background:var(--bg-primary);padding:0.4rem;border-radius:4px;margin-top:0.2rem;">${escapeHtml(d.client.client_secret)}</div></div></div><div style="display:flex;gap:0.5rem;"><button id="copy-oauth-cred-btn" class="primary-btn" style="flex:1;"><i class="fas fa-copy"></i> 复制凭证</button><button id="close-result2" class="secondary-btn" style="flex:1;">我已保存</button></div></div></div>`;
+                    resultModal.innerHTML = `<div class="auth-box" style="max-width:520px;"><button id="close-result" class="close-modal-btn"><i class="fas fa-times"></i></button><div class="oauth-success-header"><div class="oauth-success-icon"><i class="fas fa-check"></i></div><h2 class="oauth-success-title">客户端创建成功</h2></div><div class="oauth-warning-box"><i class="fas fa-exclamation-triangle"></i><p>请立即复制并妥善保管，client_secret 仅此一次展示！</p></div><div class="oauth-cred-result"><div class="oauth-cred-item"><div class="oauth-cred-label">Client ID</div><div class="oauth-cred-value">${escapeHtml(d.client.client_id)}</div></div><div class="oauth-cred-item"><div class="oauth-cred-label">Client Secret</div><div class="oauth-cred-value">${escapeHtml(d.client.client_secret)}</div></div></div><div class="oauth-cred-actions"><button id="copy-oauth-cred-btn" class="primary-btn full-width"><i class="fas fa-copy"></i> 复制凭证</button><button id="close-result2" class="secondary-btn full-width" style="margin-top:0.5rem;">关闭</button></div></div>`;
                     document.body.appendChild(resultModal);
                     resultModal.querySelector('#close-result').onclick = () => closeAuthModal(resultModal);
                     resultModal.querySelector('#close-result2').onclick = () => closeAuthModal(resultModal);
