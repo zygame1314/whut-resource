@@ -1,4 +1,6 @@
-const OAUTH_API_URL = API_ENDPOINTS.oauth;
+const OAUTH_AUTHORIZE_URL = API_ENDPOINTS.oauthAuthorize;
+const OAUTH_TOKEN_URL = API_ENDPOINTS.oauthToken;
+const OAUTH_USERINFO_URL = API_ENDPOINTS.oauthUserinfo;
 const AUTH_API_URL = API_ENDPOINTS.auth;
 
 function escapeHtml(text) {
@@ -135,7 +137,7 @@ async function submitAuthorization(decision) {
     if (approveBtn) approveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
 
     try {
-        const response = await fetch(`${OAUTH_API_URL}/authorize`, {
+        const response = await fetch(OAUTH_AUTHORIZE_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -212,7 +214,7 @@ async function init() {
     if (!isAuthenticated) return;
 
     try {
-        const response = await fetch(`${OAUTH_API_URL}/authorize`, {
+        const response = await fetch(OAUTH_AUTHORIZE_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

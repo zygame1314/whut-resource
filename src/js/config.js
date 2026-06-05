@@ -21,7 +21,11 @@ const API_ENDPOINTS = {
     passkey: `${API_BASE}/api/passkey`,
     siteStats: `${API_BASE}/api/site-stats`,
     userRole: `${API_BASE}/api/admin-management`,
-    oauth: `${API_BASE}/api/oauth`
+    oauth: `${API_BASE}/api/oauth`,
+    oauthAuthorize: `${API_BASE}/api/oauth/authorize`,
+    oauthToken: `${API_BASE}/api/oauth/token`,
+    oauthUserinfo: `${API_BASE}/api/oauth/userinfo`,
+    oauthAdmin: `${API_BASE}/api/oauth-admin`
 };
 window.filesApiCache = {
     _cache: {},
