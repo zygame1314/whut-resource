@@ -8092,7 +8092,8 @@ input#prompt-input {
 }
 
 .admin-log-action[class*="action-reject"],
-.admin-log-action[class*="action-hide"] {
+.admin-log-action[class*="action-hide"],
+.admin-log-action[class*="action-unreject"] {
     color: #fff;
     background: rgba(250, 173, 20, 0.85);
 }
@@ -8108,7 +8109,9 @@ input#prompt-input {
 .admin-log-action[class*="action-edit"],
 .admin-log-action[class*="action-update"],
 .admin-log-action[class*="action-enable"],
-.admin-log-action[class*="action-disable"] {
+.admin-log-action[class*="action-disable"],
+.admin-log-action[class*="action-rename"],
+.admin-log-action[class*="action-move"] {
     color: #fff;
     background: rgba(59, 130, 246, 0.85);
 }
@@ -8126,7 +8129,13 @@ input#prompt-input {
 .admin-log-action[class*="action-unpin"],
 .admin-log-action[class*="action-unresolve"],
 .admin-log-action[class*="action-oauth-client-toggle"],
-.admin-log-action[class*="action-oauth-client-reset-secret"] {
+.admin-log-action[class*="action-oauth-client-reset-secret"],
+.admin-log-action[class*="action-sync-init"],
+.admin-log-action[class*="action-sync-process"],
+.admin-log-action[class*="action-sync-repair"],
+.admin-log-action[class*="action-reindex"],
+.admin-log-action[class*="action-retry-failed"],
+.admin-log-action[class*="action-clear-failures"] {
     color: var(--text-secondary);
     background: rgba(128, 128, 128, 0.15);
 }
