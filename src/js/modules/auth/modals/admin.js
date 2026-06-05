@@ -344,9 +344,6 @@ async function showAdminLogsModal() {
                 if (details.count) {
                     detailsHtml += `<div class="admin-log-user-info">上传文件数: ${details.count}${details.names ? ` (${escapeHtml(details.names)})` : ''}</div>`;
                 }
-                if (details.url && details.parent_path !== undefined && !details.old_key) {
-                    detailsHtml += `<div class="admin-log-user-info">链接地址: ${escapeHtml(details.url)}</div>`;
-                }
                 if (details.target_id) {
                     detailsHtml += `<div class="admin-log-user-info">目标ID: ${escapeHtml(details.target_id)}</div>`;
                 }
@@ -421,7 +418,7 @@ async function showAdminLogsModal() {
                             ${targetInfo}
                             <span class="admin-log-timestamp">${date}</span>
                         </div>
-                        ${log.reason ? `<div class="admin-log-reason"><i class="fas fa-info-circle"></i> ${escapeHtml(log.reason)}</div>` : ''}
+                        ${log.reason && log.reason !== log.label ? `<div class="admin-log-reason"><i class="fas fa-info-circle"></i> ${escapeHtml(log.reason)}</div>` : ''}
                         ${detailsHtml}
                     </div>
                 `;
