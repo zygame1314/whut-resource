@@ -8084,65 +8084,29 @@ input#prompt-input {
     white-space: nowrap;
 }
 
-.admin-log-action[class*="action-delete"],
-.admin-log-action[class*="action-ban"],
-.admin-log-action[class*="action-oauth-client-delete"] {
+.admin-log-action[data-category="danger"] {
     color: #fff;
     background: rgba(255, 77, 79, 0.85);
 }
 
-.admin-log-action[class*="action-reject"],
-.admin-log-action[class*="action-hide"],
-.admin-log-action[class*="action-unreject"] {
+.admin-log-action[data-category="warning"] {
     color: #fff;
     background: rgba(250, 173, 20, 0.85);
 }
 
-.admin-log-action[class*="action-unhide"],
-.admin-log-action[class*="action-unban"],
-.admin-log-action[class*="action-resolve"],
-.admin-log-action[class*="action-approve"] {
+.admin-log-action[data-category="success"] {
     color: #fff;
     background: rgba(82, 196, 26, 0.85);
 }
 
-.admin-log-action[class*="action-edit"],
-.admin-log-action[class*="action-update"],
-.admin-log-action[class*="action-enable"],
-.admin-log-action[class*="action-disable"],
-.admin-log-action[class*="action-rename"],
-.admin-log-action[class*="action-move"] {
+.admin-log-action[data-category="info"] {
     color: #fff;
     background: rgba(59, 130, 246, 0.85);
 }
 
-.admin-log-action[class*="action-create"],
-.admin-log-action[class*="action-oauth-client-create"],
-.admin-log-action[class*="action-promote"],
-.admin-log-action[class*="action-pin"] {
-    color: #fff;
-    background: rgba(82, 196, 26, 0.8);
-}
-
-.admin-log-action[class*="action-demote"],
-.admin-log-action[class*="action-cleanup"],
-.admin-log-action[class*="action-unpin"],
-.admin-log-action[class*="action-unresolve"],
-.admin-log-action[class*="action-oauth-client-toggle"],
-.admin-log-action[class*="action-oauth-client-reset-secret"],
-.admin-log-action[class*="action-sync-init"],
-.admin-log-action[class*="action-sync-process"],
-.admin-log-action[class*="action-sync-repair"],
-.admin-log-action[class*="action-reindex"],
-.admin-log-action[class*="action-retry-failed"],
-.admin-log-action[class*="action-clear-failures"] {
+.admin-log-action[data-category="neutral"] {
     color: var(--text-secondary);
     background: rgba(128, 128, 128, 0.15);
-}
-
-.admin-log-action[class*="action-oauth-revoke-tokens"] {
-    color: #fff;
-    background: rgba(250, 173, 20, 0.85);
 }
 
 .admin-log-operator {

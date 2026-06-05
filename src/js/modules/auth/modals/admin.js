@@ -385,6 +385,26 @@ async function showAdminLogsModal() {
                 }
             }
             const actionClass = `action-${(log.action || '').replace(/_/g, '-')}`;
+            const ACTION_CATEGORIES = {
+                create_announcement: 'success', update_announcement: 'info', delete_announcement: 'danger',
+                delete_guestbook: 'danger', edit_guestbook: 'info', hide: 'warning', unhide: 'success',
+                pin: 'success', unpin: 'neutral', resolve: 'success', unresolve: 'neutral',
+                reject: 'warning', unreject: 'warning', ban_user: 'danger', unban_user: 'success',
+                promote_admin: 'success', demote_admin: 'neutral', approve_request: 'success',
+                reject_request: 'warning', update_link_url: 'info', update_description: 'info',
+                rename_file: 'info', rename_folder: 'info', move_file: 'info', move_folder: 'info',
+                delete_folder: 'danger', delete_file: 'danger', delete_link: 'danger',
+                create_file: 'success', create_link: 'success', delete_boost: 'danger',
+                enable_maintenance: 'info', disable_maintenance: 'info', cleanup_logs: 'neutral',
+                sync_init: 'neutral', sync_process: 'neutral', sync_cleanup: 'neutral',
+                sync_repair: 'neutral', reindex: 'neutral', retry_failed: 'neutral',
+                clear_failures: 'neutral', ai_reject: 'warning', ai_ban_user: 'danger',
+                ai_delete: 'danger', ai_resolve: 'success',
+                oauth_client_create: 'success', oauth_client_delete: 'danger',
+                oauth_client_update: 'info', oauth_client_toggle: 'neutral',
+                oauth_client_reset_secret: 'warning', oauth_revoke_tokens: 'warning',
+            };
+            const category = ACTION_CATEGORIES[log.action] || 'neutral';
             const utcDate = log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z';
             const date = new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
             const operatorHtml = log.operator
@@ -397,7 +417,7 @@ async function showAdminLogsModal() {
                     <div class="admin-log-entry">
                         <div class="admin-log-entry-header">
                             ${operatorHtml}
-                            <span class="admin-log-action ${actionClass}">${escapeHtml(log.label || log.action)}</span>
+                            <span class="admin-log-action ${actionClass}" data-category="${category}">${escapeHtml(log.label || log.action)}</span>
                             ${targetInfo}
                             <span class="admin-log-timestamp">${date}</span>
                         </div>
