@@ -224,12 +224,7 @@ async function handleGuestbookAction(id, action, btnElement) {
 }
 
 async function handleDeleteGuestbook(id) {
-    let confirmed = false;
-    if (typeof showConfirmation === 'function') {
-        confirmed = await showConfirmation({ title: '删除留言', message: '确定要删除这条留言吗？', confirmText: '删除', confirmClass: 'confirm-btn-danger' });
-    } else {
-        confirmed = confirm('确定要删除这条留言吗？');
-    }
+    const confirmed = await showConfirmation({ title: '删除留言', message: '确定要删除这条留言吗？', confirmText: '删除', confirmClass: 'confirm-btn-danger' });
     if (!confirmed) return;
     try {
         const token = localStorage.getItem('authToken');

@@ -41,33 +41,23 @@ window.toggleGuestbookVisibility = function (id, currentHiddenState) {
     handleGuestbookAction(id, action);
 };
 window.confirmBanUser = async function (id) {
-    let confirmed = false;
-    if (typeof showConfirmation === 'function') {
-        confirmed = await showConfirmation({
-            title: '封禁用户',
-            message: '确定要封禁发布这条留言的用户吗？该用户将无法再使用网站功能。',
-            confirmText: '封禁',
-            confirmClass: 'confirm-btn-danger'
-        });
-    } else {
-        confirmed = confirm('确定要封禁发布这条留言的用户吗？该用户将无法再使用网站功能。');
-    }
+    const confirmed = await showConfirmation({
+        title: '封禁用户',
+        message: '确定要封禁发布这条留言的用户吗？该用户将无法再使用网站功能。',
+        confirmText: '封禁',
+        confirmClass: 'confirm-btn-danger'
+    });
     if (confirmed) {
         handleGuestbookAction(id, 'ban_user');
     }
 };
 window.confirmUnbanUser = async function (id) {
-    let confirmed = false;
-    if (typeof showConfirmation === 'function') {
-        confirmed = await showConfirmation({
-            title: '解封用户',
-            message: '确定要解封这位用户吗？该用户将恢复使用网站功能的权限。',
-            confirmText: '解封',
-            confirmClass: 'confirm-btn-primary'
-        });
-    } else {
-        confirmed = confirm('确定要解封这位用户吗？该用户将恢复使用网站功能的权限。');
-    }
+    const confirmed = await showConfirmation({
+        title: '解封用户',
+        message: '确定要解封这位用户吗？该用户将恢复使用网站功能的权限。',
+        confirmText: '解封',
+        confirmClass: 'confirm-btn-primary'
+    });
     if (confirmed) {
         handleGuestbookAction(id, 'unban_user');
     }

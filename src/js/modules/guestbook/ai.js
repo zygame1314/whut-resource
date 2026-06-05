@@ -224,17 +224,12 @@ async function showAiResultModal(guestbookId, result) {
                     return;
                 }
                 if (action === 'delete') {
-                    let confirmed = false;
-                    if (typeof showConfirmation === 'function') {
-                        confirmed = await showConfirmation({
-                            title: '确认删除留言',
-                            message: '此操作无法撤销！确定要删除这条留言吗？',
-                            confirmText: '确认删除',
-                            confirmClass: 'confirm-btn-danger'
-                        });
-                    } else {
-                        confirmed = confirm('确定要删除这条留言吗？此操作无法撤销！');
-                    }
+                    const confirmed = await showConfirmation({
+                        title: '确认删除留言',
+                        message: '此操作无法撤销！确定要删除这条留言吗？',
+                        confirmText: '确认删除',
+                        confirmClass: 'confirm-btn-danger'
+                    });
                     if (confirmed) {
                         await applyAiDeleteAction(guestbookId);
                         closeModal();
@@ -243,17 +238,12 @@ async function showAiResultModal(guestbookId, result) {
                     return;
                 }
                 if (action === 'ban_and_delete') {
-                    let confirmed = false;
-                    if (typeof showConfirmation === 'function') {
-                        confirmed = await showConfirmation({
-                            title: '确认封禁并删除',
-                            message: '将永久封禁该用户并删除此留言，确定吗？',
-                            confirmText: '封禁并删除',
-                            confirmClass: 'confirm-btn-danger'
-                        });
-                    } else {
-                        confirmed = confirm('将永久封禁该用户并删除此留言，确定吗？');
-                    }
+                    const confirmed = await showConfirmation({
+                        title: '确认封禁并删除',
+                        message: '将永久封禁该用户并删除此留言，确定吗？',
+                        confirmText: '封禁并删除',
+                        confirmClass: 'confirm-btn-danger'
+                    });
                     if (confirmed) {
                         try {
                             await handleGuestbookAction(guestbookId, 'ban_user');

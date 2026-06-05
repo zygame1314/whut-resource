@@ -1047,17 +1047,13 @@ async function showAdminRequestsModal(mode = 'all') {
             });
             listContainer.querySelectorAll('.approve-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
-                    if (typeof showConfirmation === 'function') {
-                        const confirmed = await showConfirmation({
-                            title: '确认批准',
-                            message: '你确定要批准此请求吗？',
-                            confirmText: '批准',
-                            confirmClass: 'confirm-btn-primary'
-                        });
-                        if (!confirmed) return;
-                    } else if (!confirm('确定要批准此请求吗？')) {
-                        return;
-                    }
+                    const confirmed = await showConfirmation({
+                        title: '确认批准',
+                        message: '确定要批准此请求吗？',
+                        confirmText: '批准',
+                        confirmClass: 'confirm-btn-primary'
+                    });
+                    if (!confirmed) return;
                     await handleRequestAction(btn.dataset.id, 'approve', loadRequests);
                 });
             });
@@ -1089,17 +1085,13 @@ async function showAdminRequestsModal(mode = 'all') {
     };
     batchApproveBtn.addEventListener('click', async () => {
         if (selectedRequestIds.size === 0) return;
-        if (typeof showConfirmation === 'function') {
-            const confirmed = await showConfirmation({
-                title: '确认批量批准',
-                message: `你确定要批准选中的 <span style="color:var(--primary-color);font-weight:bold;">${selectedRequestIds.size}</span> 个请求吗？`,
-                confirmText: '批准',
-                confirmClass: 'confirm-btn-primary'
-            });
-            if (!confirmed) return;
-        } else if (!confirm(`确定要批准这 ${selectedRequestIds.size} 个请求吗？`)) {
-            return;
-        }
+        const confirmed = await showConfirmation({
+            title: '批量批准',
+            message: `确定要批准选中的 <strong>${selectedRequestIds.size}</strong> 个请求吗？`,
+            confirmText: '批准',
+            confirmClass: 'confirm-btn-primary'
+        });
+        if (!confirmed) return;
         await handleBatchAction(Array.from(selectedRequestIds), 'approve', loadRequests);
     });
     batchRejectBtn.addEventListener('click', async () => {
@@ -1203,7 +1195,7 @@ async function showOauthClientsModal() {
                             else showNotification(d.error, 'error');
                         } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
                     } else if (action === 'secret') {
-                        if (!confirm('重置密钥后旧密钥将立即失效，所有使用该密钥的应用需要更新配置。确认重置？')) return;
+                        if (!await showConfirmation({ title: '重置密钥', message: '重置密钥后旧密钥将立即失效，所有使用该密钥的应用需要更新配置。<br><br>确认重置？', confirmText: '确认重置', confirmClass: 'danger' })) return;
                         try {
                             const res = await fetch(API_ENDPOINTS.oauthAdmin, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1220,7 +1212,7 @@ async function showOauthClientsModal() {
                             } else { showNotification(d.error, 'error'); }
                         } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
                     } else if (action === 'revoke') {
-                        if (!confirm('确认撤销该客户端的所有活跃令牌？所有已授权用户需要重新登录。')) return;
+                        if (!await showConfirmation({ title: '撤销令牌', message: '确认撤销该客户端的所有活跃令牌？<br><br>所有已授权用户需要重新登录。', confirmText: '确认撤销', confirmClass: 'danger' })) return;
                         try {
                             const res = await fetch(API_ENDPOINTS.oauthAdmin, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1231,7 +1223,7 @@ async function showOauthClientsModal() {
                             else showNotification(d.error, 'error');
                         } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
                     } else if (action === 'delete') {
-                        if (!confirm('删除客户端将同时删除其所有授权码和令牌。确认删除？')) return;
+                        if (!await showConfirmation({ title: '删除客户端', message: '删除客户端将同时删除其所有授权码和令牌。<br><br>确认删除？', confirmText: '确认删除', confirmClass: 'danger' })) return;
                         try {
                             const res = await fetch(API_ENDPOINTS.oauthAdmin, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

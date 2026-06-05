@@ -25,81 +25,167 @@
             background: var(--background);
             color: var(--text-primary);
             transition: background-color 0.3s ease, color 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background:
+                radial-gradient(ellipse 600px 600px at 20% 30%, rgba(0, 123, 255, 0.06) 0%, transparent 70%),
+                radial-gradient(ellipse 500px 500px at 80% 70%, rgba(77, 163, 255, 0.05) 0%, transparent 70%),
+                radial-gradient(ellipse 400px 400px at 50% 50%, rgba(0, 79, 152, 0.03) 0%, transparent 70%);
+            animation: bgDrift 20s ease-in-out infinite alternate;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes bgDrift {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(30px, -20px) rotate(2deg);
+            }
+        }
+
+        #authorize-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 440px;
         }
 
         .oauth-card {
             background: var(--background);
-            padding: 3rem 2.5rem;
+            padding: 2.5rem 2.2rem 2rem;
             border-radius: 24px;
-            max-width: 440px;
             width: 100%;
             position: relative;
-            animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-            border: 2px solid transparent;
-            background-image:
-                linear-gradient(var(--background), var(--background)),
-                linear-gradient(135deg, rgba(0, 123, 255, 0.2), rgba(77, 163, 255, 0.2));
-            background-origin: border-box;
-            background-clip: padding-box, border-box;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 123, 255, 0.3);
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 1px solid var(--border-color);
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.08),
+                0 0 0 1px rgba(0, 123, 255, 0.05);
+            overflow: hidden;
+        }
+
+        .oauth-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #007BFF, #4DA3FF, #007BFF);
+            background-size: 200% 100%;
+            animation: gradientSlide 3s linear infinite;
+        }
+
+        @keyframes gradientSlide {
+            0% {
+                background-position: 0% 0%;
+            }
+
+            100% {
+                background-position: 200% 0%;
+            }
         }
 
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(20px);
+                transform: translateY(24px) scale(0.98);
             }
 
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
             }
         }
 
-        @keyframes oauthPulse {
-            0%, 100% {
-                box-shadow: 0 10px 20px rgba(0, 79, 152, 0.2);
-            }
-            50% {
-                box-shadow: 0 10px 30px rgba(0, 79, 152, 0.35);
-            }
-        }
-
-        .oauth-icon {
-            width: 64px;
-            height: 64px;
-            margin: 0 auto 1.5rem;
-            background: linear-gradient(135deg, #007BFF 0%, #4DA3FF 100%);
-            border-radius: 20px;
+        .oauth-icon-wrap {
             display: flex;
             align-items: center;
             justify-content: center;
-            transform: rotate(-5deg);
-            box-shadow: 0 10px 20px rgba(0, 79, 152, 0.2);
-            transition: transform 0.3s ease;
-            animation: oauthPulse 3s ease-in-out infinite;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+        }
+
+        .oauth-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #007BFF 0%, #4DA3FF 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(0, 79, 152, 0.2);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: iconFloat 4s ease-in-out infinite;
         }
 
         .oauth-card:hover .oauth-icon {
-            transform: rotate(0deg) scale(1.05);
+            transform: scale(1.08) rotate(-3deg);
+        }
+
+        @keyframes iconFloat {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-4px);
+            }
         }
 
         .oauth-icon i {
-            font-size: 1.6rem;
+            font-size: 1.4rem;
             color: #fff;
         }
 
         .oauth-icon-error {
             background: linear-gradient(135deg, #FF6B6B 0%, #FF4757 100%);
-            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.2);
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.2);
             animation: none;
         }
 
+        .oauth-bridge {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: var(--text-secondary);
+            opacity: 0.4;
+        }
+
+        .oauth-bridge-line {
+            width: 24px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary-color), transparent);
+            border-radius: 1px;
+        }
+
+        .oauth-bridge-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            opacity: 0.5;
+        }
+
         h2 {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             font-weight: 800;
             text-align: center;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.4rem;
             background: linear-gradient(135deg, #007BFF 0%, #4DA3FF 50%, #007BFF 100%);
             background-size: 200% auto;
             -webkit-background-clip: text;
@@ -121,9 +207,9 @@
 
         .oauth-desc {
             color: var(--text-secondary);
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             line-height: 1.6;
-            margin-bottom: 0.8rem;
+            margin-bottom: 0.6rem;
             text-align: center;
         }
 
@@ -133,11 +219,11 @@
         }
 
         .oauth-client-logo {
-            width: 56px;
-            height: 56px;
-            border-radius: 14px;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
             object-fit: contain;
-            margin: 0.5rem auto;
+            margin: 0.4rem auto;
             border: 1px solid var(--border-color);
             background: var(--background-alt);
             display: block;
@@ -156,42 +242,42 @@
             background: var(--background-alt);
             border: 1px solid var(--border-color);
             border-radius: 14px;
-            padding: 1rem 1.2rem;
-            margin: 1rem 0;
+            padding: 0.9rem 1.1rem;
+            margin: 0.8rem 0;
             text-align: left;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
         .oauth-user-info:hover {
             border-color: var(--primary-light, rgba(0, 123, 255, 0.3));
-            box-shadow: 0 2px 12px rgba(var(--primary-rgb, 0, 123, 255), 0.08);
+            box-shadow: 0 2px 12px rgba(var(--primary-rgb, 0, 123, 255), 0.06);
         }
 
         .oauth-user-avatar {
-            width: 44px;
-            height: 44px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             background: linear-gradient(135deg, #007BFF 0%, #4DA3FF 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            box-shadow: 0 3px 10px rgba(0, 79, 152, 0.2);
+            box-shadow: 0 3px 10px rgba(0, 79, 152, 0.15);
         }
 
         .oauth-user-avatar i {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: #fff;
         }
 
         .oauth-user-name {
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.92rem;
             color: var(--text-primary);
         }
 
         .oauth-user-email {
-            font-size: 0.82rem;
+            font-size: 0.78rem;
             color: var(--text-secondary);
             margin-top: 0.1rem;
         }
@@ -199,7 +285,7 @@
         .oauth-scope-list {
             list-style: none;
             text-align: left;
-            margin: 1rem 0;
+            margin: 0.8rem 0;
             padding: 0;
             background: var(--background-alt);
             border: 1px solid var(--border-color);
@@ -208,11 +294,11 @@
         }
 
         .oauth-scope-list li {
-            padding: 0.85rem 1rem;
+            padding: 0.75rem 1rem;
             display: flex;
             align-items: center;
             gap: 0.7rem;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             color: var(--text-primary);
             border-bottom: 1px solid var(--border-color);
             transition: background 0.2s ease;
@@ -223,22 +309,22 @@
         }
 
         .oauth-scope-list li:hover {
-            background: rgba(var(--primary-rgb), 0.05);
+            background: rgba(var(--primary-rgb), 0.04);
         }
 
         .oauth-scope-list li i {
             color: var(--primary-color);
             width: 20px;
             text-align: center;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             flex-shrink: 0;
         }
 
         .oauth-client-desc {
-            font-size: 0.82rem;
+            font-size: 0.8rem;
             color: var(--text-secondary);
-            margin: 0.5rem 0;
-            padding: 0.7rem 0.9rem;
+            margin: 0.4rem 0;
+            padding: 0.6rem 0.85rem;
             background: var(--background-alt);
             border: 1px solid var(--border-color);
             border-radius: 10px;
@@ -247,76 +333,49 @@
 
         .oauth-actions {
             display: flex;
-            gap: 0.8rem;
-            margin-top: 1.5rem;
+            gap: 0.6rem;
+            margin-top: 1.2rem;
         }
 
         .oauth-btn {
             flex: 1;
-            padding: 0.85rem 1.4rem;
+            padding: 0.7rem 1rem;
             border: none;
-            border-radius: 14px;
-            font-size: 0.95rem;
+            border-radius: 10px;
+            font-size: 0.88rem;
             font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                background 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            gap: 0.4rem;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
         }
 
         .oauth-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-            transform: none !important;
-        }
-
-        .oauth-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            transition: left 0.5s;
-        }
-
-        .oauth-btn:hover:not(:disabled)::before {
-            left: 100%;
         }
 
         .oauth-btn-primary {
-            background: linear-gradient(135deg, #007BFF 0%, #4DA3FF 100%);
+            background: var(--primary-color, #007BFF);
             color: #fff;
-            box-shadow: 0 4px 14px rgba(0, 79, 152, 0.3);
+            box-shadow: 0 2px 8px rgba(0, 79, 152, 0.2);
         }
 
         .oauth-btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 79, 152, 0.4);
-        }
-
-        .oauth-btn-primary:active:not(:disabled) {
-            transform: translateY(0px);
+            background: #0069d9;
+            box-shadow: 0 4px 12px rgba(0, 79, 152, 0.3);
         }
 
         .oauth-btn-danger {
             background: transparent;
             color: var(--accent-color, #FF6B6B);
-            border: 2px solid var(--accent-color, #FF6B6B);
+            border: 1.5px solid var(--accent-color, #FF6B6B);
         }
 
         .oauth-btn-danger:hover:not(:disabled) {
-            background: linear-gradient(135deg, #FF6B6B 0%, #FF4757 100%);
-            color: #fff;
-            border-color: transparent;
-            box-shadow: 0 4px 14px rgba(255, 107, 107, 0.3);
+            background: rgba(255, 107, 107, 0.08);
         }
 
         .oauth-btn-secondary {
@@ -327,12 +386,11 @@
 
         .oauth-btn-secondary:hover:not(:disabled) {
             background: var(--border-color);
-            transform: translateY(-1px);
         }
 
         .oauth-error-code {
             margin-top: 0.5rem;
-            font-size: 0.82rem;
+            font-size: 0.8rem;
             color: var(--text-secondary);
             text-align: center;
         }
@@ -341,23 +399,23 @@
             background: var(--background-alt);
             padding: 0.2rem 0.5rem;
             border-radius: 6px;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             font-family: var(--font-mono, monospace);
         }
 
         .oauth-footer-hint {
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: var(--text-secondary);
-            margin-top: 1.5rem;
-            padding: 0.7rem 0.9rem;
-            background: rgba(46, 204, 113, 0.08);
-            border: 1px solid rgba(46, 204, 113, 0.15);
+            margin-top: 1.2rem;
+            padding: 0.6rem 0.8rem;
+            background: rgba(46, 204, 113, 0.06);
+            border: 1px solid rgba(46, 204, 113, 0.12);
             border-radius: 10px;
             line-height: 1.5;
             text-align: center;
             display: flex;
             flex-direction: column;
-            gap: 0.3rem;
+            gap: 0.2rem;
         }
 
         .oauth-footer-hint i {
@@ -373,30 +431,47 @@
             color: var(--success-color, #27AE60);
         }
 
+        .oauth-page-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        .oauth-page-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
         .oauth-loading-spinner {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            background: conic-gradient(from 0deg, transparent 0%, var(--primary-color) 100%);
-            mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-            -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+            border: 3px solid var(--border-color);
+            border-top-color: var(--primary-color);
             animation: spin 0.8s linear infinite;
-            margin: 0 auto 1rem;
-            filter: drop-shadow(0 0 4px rgba(var(--primary-rgb), 0.3));
+            margin: 0 auto 1.2rem;
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .oauth-state-enter {
+            animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         @media (max-width: 480px) {
             .oauth-card {
-                padding: 2rem 1.5rem;
+                padding: 2rem 1.5rem 1.5rem;
                 border-radius: 18px;
             }
 
             h2 {
-                font-size: 1.5rem;
+                font-size: 1.4rem;
             }
 
             .oauth-actions {
@@ -404,10 +479,78 @@
             }
 
             .oauth-user-info {
-                padding: 0.8rem 1rem;
+                padding: 0.75rem 0.9rem;
+            }
+
+            .oauth-icon-wrap {
+                gap: 0.6rem;
+            }
+
+            .oauth-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 14px;
+            }
+
+            .oauth-icon i {
+                font-size: 1.2rem;
             }
         }
+
+        [data-theme="dark"] body::before {
+            background:
+                radial-gradient(ellipse 600px 600px at 20% 30%, rgba(0, 123, 255, 0.04) 0%, transparent 70%),
+                radial-gradient(ellipse 500px 500px at 80% 70%, rgba(77, 163, 255, 0.03) 0%, transparent 70%);
+        }
+
+        [data-theme="dark"] .oauth-card {
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(77, 163, 255, 0.08);
+        }
+
+        [data-theme="dark"] .oauth-card::before {
+            background: linear-gradient(90deg, #007BFF, #4DA3FF, #007BFF);
+            opacity: 0.6;
+        }
+
+        [data-theme="dark"] .oauth-icon {
+            box-shadow: 0 8px 20px rgba(0, 50, 120, 0.4);
+        }
+
+        [data-theme="dark"] .oauth-btn-primary {
+            background: #1a7feb;
+            box-shadow: 0 2px 8px rgba(0, 50, 120, 0.3);
+        }
+
+        [data-theme="dark"] .oauth-btn-primary:hover:not(:disabled) {
+            background: #2b8cf0;
+            box-shadow: 0 4px 12px rgba(0, 50, 120, 0.4);
+        }
+
+        [data-theme="dark"] .oauth-btn-danger:hover:not(:disabled) {
+            background: rgba(255, 107, 107, 0.12);
+        }
+
+        [data-theme="dark"] .oauth-user-avatar {
+            box-shadow: 0 3px 10px rgba(0, 50, 120, 0.3);
+        }
+
+        [data-theme="dark"] .oauth-page-footer {
+            opacity: 0.35;
+        }
     </style>
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme');
+            var auto = localStorage.getItem('autoTheme');
+            if (!t || auto === 'true') {
+                var h = new Date().getHours();
+                t = (h >= 18 || h < 6) ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
 </head>
 
 <body>
@@ -418,6 +561,7 @@
             <p class="oauth-desc">请稍候，正在检查你的登录状态和授权信息。</p>
         </div>
     </div>
+    <div class="oauth-page-footer">武理资源共享平台 · SSO</div>
     <script src="config.js"></script>
     <script src="oauth.js"></script>
 </body>

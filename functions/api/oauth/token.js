@@ -108,6 +108,12 @@ export async function onRequestPost(context) {
 
         await env.DB.prepare('DELETE FROM oauth_authorization_codes WHERE code = ?').bind(code).run();
 
+        if (Math.random() < 0.1) {
+            const now = new Date().toISOString();
+            env.DB.prepare('DELETE FROM oauth_authorization_codes WHERE expires_at < ?').bind(now).run();
+            env.DB.prepare('DELETE FROM oauth_access_tokens WHERE expires_at < ?').bind(now).run();
+        }
+
         const idToken = await signToken({
             id: user.id,
             email: user.email,

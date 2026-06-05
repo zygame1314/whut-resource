@@ -48,10 +48,12 @@ function showLoginRequired() {
     if (!container) return;
     container.innerHTML = `
         <div class="oauth-card">
-            <div class="oauth-icon"><i class="fas fa-lock"></i></div>
+            <div class="oauth-icon-wrap">
+                <div class="oauth-icon"><i class="fas fa-lock"></i></div>
+            </div>
             <h2>需要登录</h2>
             <p class="oauth-desc">请先登录你的武理资源共享平台账号，以继续授权流程。</p>
-            <p class="oauth-desc" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">登录后将会自动继续授权。</p>
+            <p class="oauth-desc" style="font-size: 0.82rem; margin-top: 0.3rem;">登录后将会自动继续授权。</p>
             <div class="oauth-actions">
                 <button id="login-btn" class="oauth-btn oauth-btn-primary">
                     <i class="fas fa-sign-in-alt"></i> 去登录
@@ -70,7 +72,9 @@ function showErrorPage(title, message, errorCode) {
     if (!container) return;
     container.innerHTML = `
         <div class="oauth-card">
-            <div class="oauth-icon oauth-icon-error"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="oauth-icon-wrap">
+                <div class="oauth-icon oauth-icon-error"><i class="fas fa-exclamation-triangle"></i></div>
+            </div>
             <h2>${escapeHtml(title)}</h2>
             <p class="oauth-desc">${escapeHtml(message)}</p>
             ${errorCode ? `<p class="oauth-error-code">错误代码: <code>${escapeHtml(errorCode)}</code></p>` : ''}
@@ -98,11 +102,20 @@ function showConsentPage(clientInfo, user, scopeStr) {
 
     container.innerHTML = `
         <div class="oauth-card">
-            <div class="oauth-icon"><i class="fas fa-shield-alt"></i></div>
+            <div class="oauth-icon-wrap">
+                <div class="oauth-icon"><i class="fas fa-shield-alt"></i></div>
+                ${clientInfo.logo_url ? `
+                    <div class="oauth-bridge">
+                        <div class="oauth-bridge-line"></div>
+                        <div class="oauth-bridge-dot"></div>
+                        <div class="oauth-bridge-line" style="background:linear-gradient(90deg,transparent,var(--primary-color))"></div>
+                    </div>
+                    <img src="${escapeHtml(clientInfo.logo_url)}" alt="${escapeHtml(clientInfo.client_name)}" class="oauth-icon" style="object-fit:contain;padding:8px;background:var(--background-alt);border:1px solid var(--border-color);" onerror="this.style.display='none'">
+                ` : ''}
+            </div>
             <h2>授权确认</h2>
-            ${clientInfo.logo_url ? `<img src="${escapeHtml(clientInfo.logo_url)}" alt="${escapeHtml(clientInfo.client_name)}" class="oauth-client-logo" onerror="this.style.display='none'">` : ''}
             <p class="oauth-desc">
-                <strong>${escapeHtml(clientInfo.client_name)}</strong> 请求访问你的账号信息：
+                <strong>${escapeHtml(clientInfo.client_name)}</strong> 请求访问你的账号信息
             </p>
             <div class="oauth-user-info">
                 <div class="oauth-user-avatar"><i class="fas fa-user-circle"></i></div>

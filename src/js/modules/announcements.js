@@ -702,17 +702,12 @@ function hideAnnouncementForm() {
     announcementList.style.display = 'block';
 }
 window.deleteAnnouncement = async function (id) {
-    let confirmed = false;
-    if (typeof showConfirmation === 'function') {
-        confirmed = await showConfirmation({
-            title: '删除公告',
-            message: '确定要删除这条公告吗？',
-            confirmText: '删除',
-            confirmClass: 'confirm-btn-danger'
-        });
-    } else {
-        confirmed = confirm('确定要删除这条公告吗？');
-    }
+    const confirmed = await showConfirmation({
+        title: '删除公告',
+        message: '确定要删除这条公告吗？',
+        confirmText: '删除',
+        confirmClass: 'confirm-btn-danger'
+    });
     if (!confirmed) return;
     try {
         const token = localStorage.getItem('authToken');

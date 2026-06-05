@@ -8682,7 +8682,6 @@ input#prompt-input {
     border-color: var(--primary-light);
     border-left-color: var(--primary-color);
     box-shadow: 0 4px 16px rgba(var(--primary-rgb), 0.08);
-    transform: translateY(-1px);
 }
 
 .oauth-client-main {
