@@ -1138,53 +1138,99 @@ async function showOauthClientsModal() {
                 <button id="oauth-cleanup-btn" class="secondary-btn small"><i class="fas fa-broom"></i> 清理过期数据</button>
             </div>
             <div id="oauth-clients-list" class="oauth-clients-list"></div>
+            <button id="oauth-load-more-btn" class="secondary-btn small oauth-load-more-btn" style="display:none;margin:0.8rem auto 0;"><i class="fas fa-chevron-down"></i> 加载更多</button>
         </div>
     `;
     document.body.appendChild(modal);
     modal.querySelector('#close-modal').onclick = () => closeAuthModal(modal);
     const listEl = modal.querySelector('#oauth-clients-list');
-    async function loadClients() {
-        listEl.innerHTML = '<div class="oauth-loading-state"><div class="loading-spinner"></div><p>加载中...</p></div>';
-        try {
-            const res = await fetch(`${API_ENDPOINTS.oauthAdmin}?action=list`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (!data.success) {
-                listEl.innerHTML = `<div class="oauth-error-state"><i class="fas fa-exclamation-circle"></i>${escapeHtml(data.error)}</div>`;
-                return;
-            }
-            if (!data.clients || data.clients.length === 0) {
-                listEl.innerHTML = '<div class="oauth-empty-state"><i class="fas fa-plug"></i><p>暂无 OAuth 客户端</p><span>点击"新建"创建第一个 OAuth2 应用</span></div>';
-                return;
-            }
-            listEl.innerHTML = data.clients.map(c => `
-                <div class="oauth-client-card">
-                    <div class="oauth-client-main">
-                        <div class="oauth-client-header">
-                            <strong class="oauth-client-name">${escapeHtml(c.client_name)}</strong>
-                            <span class="oauth-status-badge ${c.is_active ? 'oauth-status-active' : 'oauth-status-inactive'}">${c.is_active ? '● 启用' : '● 禁用'}</span>
-                        </div>
-                        <div class="oauth-client-meta">
-                            <div class="oauth-meta-row"><i class="fas fa-fingerprint"></i><code class="oauth-code">${escapeHtml(c.client_id)}</code></div>
-                            <div class="oauth-meta-row"><i class="fas fa-link"></i><code class="oauth-code oauth-code-uri">${escapeHtml(c.redirect_uris)}</code></div>
-                            ${c.description ? `<div class="oauth-meta-row"><i class="fas fa-align-left"></i><span>${escapeHtml(c.description)}</span></div>` : ''}
-                            <div class="oauth-meta-row"><i class="fas fa-user-shield"></i><span>${escapeHtml(c.created_by_name || '未知')} · ${new Date(c.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>
-                        </div>
+    const loadMoreBtn = modal.querySelector('#oauth-load-more-btn');
+    let currentCursor = null;
+    function renderClientCards(clients) {
+        const html = clients.map(c => `
+            <div class="oauth-client-card">
+                <div class="oauth-client-main">
+                    <div class="oauth-client-header">
+                        <strong class="oauth-client-name">${escapeHtml(c.client_name)}</strong>
+                        <span class="oauth-status-badge ${c.is_active ? 'oauth-status-active' : 'oauth-status-inactive'}">${c.is_active ? '● 启用' : '● 禁用'}</span>
                     </div>
-                    <div class="oauth-client-actions">
-                        <button class="icon-btn oauth-action-btn" data-action="toggle" data-id="${escapeHtml(c.client_id)}" title="${c.is_active ? '禁用' : '启用'}"><i class="fas fa-${c.is_active ? 'pause' : 'play'}"></i></button>
-                        <button class="icon-btn oauth-action-btn" data-action="secret" data-id="${escapeHtml(c.client_id)}" title="重置密钥"><i class="fas fa-key"></i></button>
-                        <button class="icon-btn oauth-action-btn" data-action="revoke" data-id="${escapeHtml(c.client_id)}" title="撤销令牌"><i class="fas fa-ban"></i></button>
-                        <button class="icon-btn danger oauth-action-btn" data-action="delete" data-id="${escapeHtml(c.client_id)}" title="删除"><i class="fas fa-trash"></i></button>
+                    <div class="oauth-client-meta">
+                        <div class="oauth-meta-row"><i class="fas fa-fingerprint"></i><code class="oauth-code">${escapeHtml(c.client_id)}</code></div>
+                        <div class="oauth-meta-row"><i class="fas fa-link"></i><code class="oauth-code oauth-code-uri">${escapeHtml(c.redirect_uris)}</code></div>
+                        ${c.description ? `<div class="oauth-meta-row"><i class="fas fa-align-left"></i><span>${escapeHtml(c.description)}</span></div>` : ''}
+                        <div class="oauth-meta-row"><i class="fas fa-user-shield"></i><span>${escapeHtml(c.created_by_name || '未知')} · ${new Date(c.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>
                     </div>
                 </div>
-            `).join('');
-            listEl.querySelectorAll('.oauth-action-btn').forEach(btn => {
-                btn.onclick = async () => {
-                    const action = btn.dataset.action;
-                    const clientId = btn.dataset.id;
-                    if (action === 'toggle') {
+                <div class="oauth-client-actions">
+                    <button class="icon-btn oauth-action-btn" data-action="detail" data-id="${escapeHtml(c.client_id)}" data-name="${escapeHtml(c.client_name)}" title="查看详情"><i class="fas fa-info-circle"></i></button>
+                    <button class="icon-btn oauth-action-btn" data-action="toggle" data-id="${escapeHtml(c.client_id)}" title="${c.is_active ? '禁用' : '启用'}"><i class="fas fa-${c.is_active ? 'pause' : 'play'}"></i></button>
+                    <button class="icon-btn oauth-action-btn" data-action="secret" data-id="${escapeHtml(c.client_id)}" title="重置密钥"><i class="fas fa-key"></i></button>
+                    <button class="icon-btn oauth-action-btn" data-action="revoke" data-id="${escapeHtml(c.client_id)}" title="撤销令牌"><i class="fas fa-ban"></i></button>
+                    <button class="icon-btn danger oauth-action-btn" data-action="delete" data-id="${escapeHtml(c.client_id)}" title="删除"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `).join('');
+        const fragment = document.createElement('div');
+        fragment.innerHTML = html;
+        bindActionButtons(fragment);
+        return fragment;
+    }
+    function bindActionButtons(container) {
+        container.querySelectorAll('.oauth-action-btn').forEach(btn => {
+            btn.onclick = async () => {
+                if (btn.disabled) return;
+                btn.disabled = true;
+                const action = btn.dataset.action;
+                const clientId = btn.dataset.id;
+                    if (action === 'detail') {
+                        const clientName = btn.dataset.name;
+                        try {
+                            const res = await fetch(`${API_ENDPOINTS.oauthAdmin}?action=detail&client_id=${encodeURIComponent(clientId)}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            const d = await res.json();
+                            if (!d.success) { showNotification(d.error, 'error'); return; }
+                            const detailModal = document.createElement('div');
+                            detailModal.className = 'auth-modal';
+                            const authRows = (d.recentAuthorizations && d.recentAuthorizations.length > 0)
+                                ? d.recentAuthorizations.map(a => `
+                                    <tr>
+                                        <td title="${escapeHtml(a.code)}"><code class="oauth-detail-code">${escapeHtml(a.code ? a.code.substring(0, 12) + '...' : '')}</code></td>
+                                        <td>${escapeHtml(a.nickname || a.email || '-')}</td>
+                                        <td><span class="oauth-detail-scope">${escapeHtml(a.scope || '-')}</span></td>
+                                        <td class="oauth-detail-time">${new Date(a.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+                                        <td>${new Date(a.expires_at) > new Date() ? '<span class="oauth-detail-active">有效</span>' : '<span class="oauth-detail-expired">已过期</span>'}</td>
+                                    </tr>
+                                `).join('')
+                                : '<tr><td colspan="5" class="oauth-detail-empty">暂无授权记录</td></tr>';
+                            const c = d.client;
+                            detailModal.innerHTML = `
+                                <div class="auth-box oauth-detail-box">
+                                    <button id="close-detail-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+                                    <div class="oauth-detail-header">
+                                        <h2 class="auth-title"><i class="fas fa-info-circle"></i> ${escapeHtml(clientName)}</h2>
+                                        <span class="oauth-status-badge ${c.is_active ? 'oauth-status-active' : 'oauth-status-inactive'}">${c.is_active ? '● 启用' : '● 禁用'}</span>
+                                    </div>
+                                    <div class="oauth-detail-info">
+                                        <div class="oauth-meta-row"><i class="fas fa-fingerprint"></i><span class="oauth-detail-label">Client ID</span><code class="oauth-code">${escapeHtml(c.client_id)}</code></div>
+                                        <div class="oauth-meta-row"><i class="fas fa-link"></i><span class="oauth-detail-label">回调地址</span><code class="oauth-code oauth-code-uri">${escapeHtml(c.redirect_uris)}</code></div>
+                                        ${c.description ? `<div class="oauth-meta-row"><i class="fas fa-align-left"></i><span class="oauth-detail-label">描述</span><span>${escapeHtml(c.description)}</span></div>` : ''}
+                                        ${c.logo_url ? `<div class="oauth-meta-row"><i class="fas fa-image"></i><span class="oauth-detail-label">Logo</span><code class="oauth-code oauth-code-uri">${escapeHtml(c.logo_url)}</code></div>` : ''}
+                                    </div>
+                                    <h3 class="oauth-detail-section-title"><i class="fas fa-history"></i> 最近授权记录 <span class="oauth-detail-badge">20</span></h3>
+                                    <div class="oauth-detail-table-wrap">
+                                        <table class="oauth-detail-table">
+                                            <thead><tr><th>授权码</th><th>用户</th><th>Scope</th><th>时间</th><th>状态</th></tr></thead>
+                                            <tbody>${authRows}</tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `;
+                            document.body.appendChild(detailModal);
+                            detailModal.querySelector('#close-detail-modal').onclick = () => closeAuthModal(detailModal);
+                        } catch (e) { showNotification('加载详情失败: ' + e.message, 'error'); }
+                        finally { btn.disabled = false; }
+                    } else if (action === 'toggle') {
                         try {
                             const res = await fetch(API_ENDPOINTS.oauthAdmin, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1194,8 +1240,9 @@ async function showOauthClientsModal() {
                             if (d.success) { showNotification(d.is_active ? '客户端已启用' : '客户端已禁用', 'success'); loadClients(); }
                             else showNotification(d.error, 'error');
                         } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
+                        finally { btn.disabled = false; }
                     } else if (action === 'secret') {
-                        if (!await showConfirmation({ title: '重置密钥', message: '重置密钥后旧密钥将立即失效，所有使用该密钥的应用需要更新配置。<br><br>确认重置？', confirmText: '确认重置', confirmClass: 'danger' })) return;
+                        if (!await showConfirmation({ title: '重置密钥', message: '重置密钥后旧密钥将立即失效，所有使用该密钥的应用需要更新配置。<br><br>确认重置？', confirmText: '确认重置', confirmClass: 'danger' })) { btn.disabled = false; return; }
                         try {
                             const res = await fetch(API_ENDPOINTS.oauthAdmin, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1211,8 +1258,9 @@ async function showOauthClientsModal() {
                                 secModal.querySelector('#copy-sec-btn').onclick = () => { navigator.clipboard.writeText(d.client_secret); showNotification('已复制', 'success'); };
                             } else { showNotification(d.error, 'error'); }
                         } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
+                        finally { btn.disabled = false; }
                     } else if (action === 'revoke') {
-                        if (!await showConfirmation({ title: '撤销令牌', message: '确认撤销该客户端的所有活跃令牌？<br><br>所有已授权用户需要重新登录。', confirmText: '确认撤销', confirmClass: 'danger' })) return;
+                        if (!await showConfirmation({ title: '撤销令牌', message: '确认撤销该客户端的所有活跃令牌？<br><br>所有已授权用户需要重新登录。', confirmText: '确认撤销', confirmClass: 'danger' })) { btn.disabled = false; return; }
                         try {
                             const res = await fetch(API_ENDPOINTS.oauthAdmin, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1222,8 +1270,9 @@ async function showOauthClientsModal() {
                             if (d.success) { showNotification(d.message, 'success'); loadClients(); }
                             else showNotification(d.error, 'error');
                         } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
+                        finally { btn.disabled = false; }
                     } else if (action === 'delete') {
-                        if (!await showConfirmation({ title: '删除客户端', message: '删除客户端将同时删除其所有授权码和令牌。<br><br>确认删除？', confirmText: '确认删除', confirmClass: 'danger' })) return;
+                        if (!await showConfirmation({ title: '删除客户端', message: '删除客户端将同时删除其所有授权码和令牌。<br><br>确认删除？', confirmText: '确认删除', confirmClass: 'danger' })) { btn.disabled = false; return; }
                         try {
                             const res = await fetch(API_ENDPOINTS.oauthAdmin, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1233,13 +1282,58 @@ async function showOauthClientsModal() {
                             if (d.success) { showNotification('客户端已删除', 'success'); loadClients(); }
                             else showNotification(d.error, 'error');
                         } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
+                        finally { btn.disabled = false; }
                     }
                 };
             });
+    }
+    async function loadClients() {
+        currentCursor = null;
+        loadMoreBtn.style.display = 'none';
+        listEl.innerHTML = '<div class="oauth-loading-state"><div class="loading-spinner"></div><p>加载中...</p></div>';
+        try {
+            const res = await fetch(`${API_ENDPOINTS.oauthAdmin}?action=list`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!data.success) {
+                listEl.innerHTML = `<div class="oauth-error-state"><i class="fas fa-exclamation-circle"></i>${escapeHtml(data.error)}</div>`;
+                return;
+            }
+            if (!data.clients || data.clients.length === 0) {
+                listEl.innerHTML = '<div class="oauth-empty-state"><i class="fas fa-plug"></i><p>暂无 OAuth 客户端</p><span>点击"新建"创建第一个 OAuth2 应用</span></div>';
+                return;
+            }
+            listEl.innerHTML = '';
+            listEl.appendChild(renderClientCards(data.clients));
+            currentCursor = data.next_cursor;
+            loadMoreBtn.style.display = data.has_more ? '' : 'none';
         } catch (e) {
             listEl.innerHTML = `<div class="oauth-error-state"><i class="fas fa-exclamation-circle"></i>加载失败: ${escapeHtml(e.message)}</div>`;
         }
     }
+    async function loadMoreClients() {
+        if (!currentCursor) return;
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+        try {
+            const res = await fetch(`${API_ENDPOINTS.oauthAdmin}?action=list&cursor=${encodeURIComponent(currentCursor)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!data.success) { showNotification(data.error, 'error'); return; }
+            if (data.clients && data.clients.length > 0) {
+                listEl.appendChild(renderClientCards(data.clients));
+            }
+            currentCursor = data.next_cursor;
+            loadMoreBtn.style.display = data.has_more ? '' : 'none';
+        } catch (e) { showNotification('加载更多失败: ' + e.message, 'error'); }
+        finally {
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多';
+        }
+    }
+    loadMoreBtn.onclick = loadMoreClients;
     modal.querySelector('#oauth-refresh-btn').onclick = loadClients;
     modal.querySelector('#oauth-cleanup-btn').onclick = async () => {
         try {

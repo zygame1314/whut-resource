@@ -35,10 +35,21 @@ export async function onRequestGet(context) {
         const url = new URL(request.url);
         const action = url.searchParams.get('action');
         if (action === 'list') {
-            const clients = await env.DB.prepare(
-                'SELECT id, client_id, client_name, redirect_uris, description, logo_url, is_active, created_at, created_by FROM oauth_clients ORDER BY created_at DESC'
-            ).all();
-            const enrichedClients = await Promise.all((clients.results || []).map(async (c) => {
+            const PAGE_SIZE = 20;
+            const cursor = url.searchParams.get('cursor');
+            let query, binds;
+            if (cursor) {
+                query = 'SELECT id, client_id, client_name, redirect_uris, description, logo_url, is_active, created_at, created_by FROM oauth_clients WHERE created_at < ? ORDER BY created_at DESC LIMIT ?';
+                binds = [cursor, PAGE_SIZE + 1];
+            } else {
+                query = 'SELECT id, client_id, client_name, redirect_uris, description, logo_url, is_active, created_at, created_by FROM oauth_clients ORDER BY created_at DESC LIMIT ?';
+                binds = [PAGE_SIZE + 1];
+            }
+            const clients = await env.DB.prepare(query).bind(...binds).all();
+            let hasMore = (clients.results || []).length > PAGE_SIZE;
+            const results = hasMore ? (clients.results || []).slice(0, PAGE_SIZE) : (clients.results || []);
+            const nextCursor = hasMore && results.length > 0 ? results[results.length - 1].created_at : null;
+            const enrichedClients = await Promise.all(results.map(async (c) => {
                 if (c.created_by) {
                     const creator = await env.DB.prepare('SELECT nickname, email FROM users WHERE id = ?').bind(c.created_by).first();
                     return { ...c, created_by_name: creator ? (creator.nickname || creator.email) : '未知' };
@@ -47,7 +58,9 @@ export async function onRequestGet(context) {
             }));
             return new Response(JSON.stringify({
                 success: true,
-                clients: enrichedClients
+                clients: enrichedClients,
+                has_more: hasMore,
+                next_cursor: nextCursor
             }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'detail' && url.searchParams.get('client_id')) {
