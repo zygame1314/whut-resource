@@ -20,7 +20,8 @@ const API_ENDPOINTS = {
     urlSafety: `${API_BASE}/api/url-safety`,
     passkey: `${API_BASE}/api/passkey`,
     siteStats: `${API_BASE}/api/site-stats`,
-    userRole: `${API_BASE}/api/admin-management`
+    userRole: `${API_BASE}/api/admin-management`,
+    oauth: `${API_BASE}/api/oauth`
 };
 window.filesApiCache = {
     _cache: {},

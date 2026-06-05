@@ -39,6 +39,7 @@ function updateAuthUI() {
                     <button id="sync-btn" class="dropdown-item"><i class="fas fa-sync"></i> 同步R2文件</button>
                     <button id="vector-sync-btn" class="dropdown-item"><i class="fas fa-brain"></i> 同步向量索引</button>
                     <button id="admin-logs-btn" class="dropdown-item"><i class="fas fa-history"></i> 系统操作日志</button>
+                    <button id="oauth-clients-btn" class="dropdown-item"><i class="fas fa-key"></i> SSO客户端</button>
                     <div class="dropdown-divider"></div>
                 `;
             } else if (isAdmin(currentUser)) {
@@ -127,6 +128,8 @@ function updateAuthUI() {
                     if (userRoleBtn) userRoleBtn.addEventListener('click', () => showAdminManagementModal('roles'));
                     const reqBtn = document.getElementById('admin-requests-btn');
                     if (reqBtn) reqBtn.addEventListener('click', () => showAdminRequestsModal('all'));
+                    const oauthClientsBtn = document.getElementById('oauth-clients-btn');
+                    if (oauthClientsBtn) oauthClientsBtn.addEventListener('click', showOauthClientsModal);
                 }
                 if (isAdmin(currentUser)) {
                     fetchPendingRequestsCount();

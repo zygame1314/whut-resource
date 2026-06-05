@@ -396,3 +396,49 @@ AFTER DELETE ON users
 BEGIN
     UPDATE system_stats SET registered_users = registered_users - 1, updated_at = CURRENT_TIMESTAMP WHERE id = 1;
 END;
+
+CREATE TABLE IF NOT EXISTS oauth_clients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id TEXT UNIQUE NOT NULL,
+    client_secret_hash TEXT NOT NULL,
+    client_name TEXT NOT NULL,
+    redirect_uris TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    logo_url TEXT DEFAULT '',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_oauth_clients_client_id ON oauth_clients(client_id);
+
+CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT UNIQUE NOT NULL,
+    client_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    redirect_uri TEXT NOT NULL,
+    scope TEXT DEFAULT 'openid profile email',
+    code_challenge TEXT,
+    code_challenge_method TEXT,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_oauth_codes_code ON oauth_authorization_codes(code);
+CREATE INDEX IF NOT EXISTS idx_oauth_codes_expires ON oauth_authorization_codes(expires_at);
+
+CREATE TABLE IF NOT EXISTS oauth_access_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    access_token TEXT UNIQUE NOT NULL,
+    client_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    scope TEXT DEFAULT 'openid profile email',
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_token ON oauth_access_tokens(access_token);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expires ON oauth_access_tokens(expires_at);

@@ -11,7 +11,7 @@ export async function onRequest(context) {
     if (request.method === 'OPTIONS') {
         return next();
     }
-    if (url.pathname.startsWith('/api/maintenance') || url.pathname.startsWith('/api/auth') || url.pathname.startsWith('/api/site-stats')) {
+    if (url.pathname.startsWith('/api/maintenance') || url.pathname.startsWith('/api/auth') || url.pathname.startsWith('/api/site-stats') || url.pathname.startsWith('/api/oauth')) {
         return next();
     }
     try {

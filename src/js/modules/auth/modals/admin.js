@@ -1130,3 +1130,190 @@ async function showAdminRequestsModal(mode = 'all') {
     await loadRequests();
 }
 
+async function showOauthClientsModal() {
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.innerHTML = `
+        <div class="auth-box" style="max-width: 800px;">
+            <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+            <h2 class="auth-title"><i class="fas fa-key"></i> OAuth SSO 客户端管理</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">管理第三方应用的 OAuth2 接入授权。客户端可通过授权码模式（Authorization Code）实现 SSO。</p>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                <button id="oauth-create-btn" class="primary-btn" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;"><i class="fas fa-plus"></i> 新建客户端</button>
+                <button id="oauth-refresh-btn" class="secondary-btn" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;"><i class="fas fa-sync"></i> 刷新</button>
+                <button id="oauth-cleanup-btn" class="secondary-btn" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;"><i class="fas fa-broom"></i> 清理过期数据</button>
+            </div>
+            <div id="oauth-clients-list" style="max-height: 400px; overflow-y: auto;"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#close-modal').onclick = () => closeAuthModal(modal);
+    const listEl = modal.querySelector('#oauth-clients-list');
+    async function loadClients() {
+        listEl.innerHTML = '<div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--text-secondary);"></i></div>';
+        try {
+            const res = await fetch(`${API_ENDPOINTS.oauthAdmin}?action=list`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!data.success) {
+                listEl.innerHTML = `<p style="color:var(--accent-color);text-align:center;">${escapeHtml(data.error)}</p>`;
+                return;
+            }
+            if (!data.clients || data.clients.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center;color:var(--text-secondary);">暂无 OAuth 客户端，点击"新建客户端"创建。</p>';
+                return;
+            }
+            listEl.innerHTML = data.clients.map(c => `
+                <div style="border:1px solid var(--border-color);border-radius:10px;padding:1rem;margin-bottom:0.8rem;background:var(--bg-secondary);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                        <div>
+                            <strong style="font-size:1rem;">${escapeHtml(c.client_name)}</strong>
+                            <span style="margin-left:0.5rem;padding:0.1rem 0.5rem;border-radius:4px;font-size:0.75rem;${c.is_active ? 'background:rgba(46,204,113,0.15);color:#2ecc71;' : 'background:rgba(231,76,60,0.15);color:#e74c3c;'}">${c.is_active ? '启用' : '禁用'}</span>
+                            ${c.active_tokens > 0 ? `<span style="margin-left:0.5rem;padding:0.1rem 0.5rem;border-radius:4px;font-size:0.75rem;background:rgba(74,158,255,0.15);color:var(--primary-color);">${c.active_tokens} 个活跃令牌</span>` : ''}
+                        </div>
+                        <div style="display:flex;gap:0.3rem;flex-wrap:wrap;">
+                            <button class="icon-btn oauth-action-btn" data-action="toggle" data-id="${escapeHtml(c.client_id)}" title="${c.is_active ? '禁用' : '启用'}" style="width:32px;height:32px;"><i class="fas fa-${c.is_active ? 'pause' : 'play'}"></i></button>
+                            <button class="icon-btn oauth-action-btn" data-action="secret" data-id="${escapeHtml(c.client_id)}" title="重置密钥" style="width:32px;height:32px;"><i class="fas fa-key"></i></button>
+                            <button class="icon-btn oauth-action-btn" data-action="revoke" data-id="${escapeHtml(c.client_id)}" title="撤销令牌" style="width:32px;height:32px;"><i class="fas fa-ban"></i></button>
+                            <button class="icon-btn oauth-action-btn danger" data-action="delete" data-id="${escapeHtml(c.client_id)}" title="删除" style="width:32px;height:32px;color:var(--accent-color);"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div style="margin-top:0.5rem;font-size:0.82rem;color:var(--text-secondary);">
+                        <div><code style="font-size:0.78rem;background:var(--bg-primary);padding:0.15rem 0.4rem;border-radius:4px;">${escapeHtml(c.client_id)}</code></div>
+                        <div style="margin-top:0.3rem;">回调: <code style="font-size:0.75rem;word-break:break-all;">${escapeHtml(c.redirect_uris)}</code></div>
+                        ${c.description ? `<div style="margin-top:0.2rem;">${escapeHtml(c.description)}</div>` : ''}
+                        <div style="margin-top:0.2rem;">创建者: ${escapeHtml(c.created_by_name || '未知')} · ${new Date(c.created_at).toLocaleString()}</div>
+                    </div>
+                </div>
+            `).join('');
+            listEl.querySelectorAll('.oauth-action-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    const action = btn.dataset.action;
+                    const clientId = btn.dataset.id;
+                    if (action === 'toggle') {
+                        try {
+                            const res = await fetch(API_ENDPOINTS.oauthAdmin, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                body: JSON.stringify({ action: 'toggle', client_id: clientId })
+                            });
+                            const d = await res.json();
+                            if (d.success) { showNotification(d.is_active ? '客户端已启用' : '客户端已禁用', 'success'); loadClients(); }
+                            else showNotification(d.error, 'error');
+                        } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
+                    } else if (action === 'secret') {
+                        if (!confirm('重置密钥后旧密钥将立即失效，所有使用该密钥的应用需要更新配置。确认重置？')) return;
+                        try {
+                            const res = await fetch(API_ENDPOINTS.oauthAdmin, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                body: JSON.stringify({ action: 'reset_secret', client_id: clientId })
+                            });
+                            const d = await res.json();
+                            if (d.success) {
+                                const secModal = document.createElement('div');
+                                secModal.className = 'auth-modal';
+                                secModal.innerHTML = `<div class="auth-box" style="max-width:500px;"><button id="close-sec-modal" class="close-modal-btn"><i class="fas fa-times"></i></button><h2 class="auth-title"><i class="fas fa-key"></i> 新密钥</h2><p style="color:var(--accent-color);font-weight:bold;margin:0.5rem 0;">请立即复制并保存，此密钥仅展示一次：</p><div style="background:var(--bg-secondary);padding:0.8rem;border-radius:8px;word-break:break-all;font-family:monospace;margin:0.8rem 0;">${escapeHtml(d.client_secret)}</div><button id="copy-sec-btn" class="primary-btn full-width"><i class="fas fa-copy"></i> 复制密钥</button></div></div>`;
+                                document.body.appendChild(secModal);
+                                secModal.querySelector('#close-sec-modal').onclick = () => closeAuthModal(secModal);
+                                secModal.querySelector('#copy-sec-btn').onclick = () => { navigator.clipboard.writeText(d.client_secret); showNotification('已复制', 'success'); };
+                            } else { showNotification(d.error, 'error'); }
+                        } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
+                    } else if (action === 'revoke') {
+                        if (!confirm('确认撤销该客户端的所有活跃令牌？所有已授权用户需要重新登录。')) return;
+                        try {
+                            const res = await fetch(API_ENDPOINTS.oauthAdmin, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                body: JSON.stringify({ action: 'revoke_tokens', client_id: clientId })
+                            });
+                            const d = await res.json();
+                            if (d.success) { showNotification(d.message, 'success'); loadClients(); }
+                            else showNotification(d.error, 'error');
+                        } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
+                    } else if (action === 'delete') {
+                        if (!confirm('删除客户端将同时删除其所有授权码和令牌。确认删除？')) return;
+                        try {
+                            const res = await fetch(API_ENDPOINTS.oauthAdmin, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                body: JSON.stringify({ action: 'delete', client_id: clientId })
+                            });
+                            const d = await res.json();
+                            if (d.success) { showNotification('客户端已删除', 'success'); loadClients(); }
+                            else showNotification(d.error, 'error');
+                        } catch (e) { showNotification('操作失败: ' + e.message, 'error'); }
+                    }
+                };
+            });
+        } catch (e) {
+            listEl.innerHTML = `<p style="color:var(--accent-color);text-align:center;">加载失败: ${escapeHtml(e.message)}</p>`;
+        }
+    }
+    modal.querySelector('#oauth-refresh-btn').onclick = loadClients;
+    modal.querySelector('#oauth-cleanup-btn').onclick = async () => {
+        try {
+            const res = await fetch(API_ENDPOINTS.oauthAdmin, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ action: 'cleanup' })
+            });
+            const d = await res.json();
+            showNotification(d.message || '清理完成', d.success ? 'success' : 'error');
+        } catch (e) { showNotification('清理失败: ' + e.message, 'error'); }
+    };
+    modal.querySelector('#oauth-create-btn').onclick = () => {
+        const createModal = document.createElement('div');
+        createModal.className = 'auth-modal';
+        createModal.innerHTML = `
+            <div class="auth-box" style="max-width:500px;">
+                <button id="close-create-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+                <h2 class="auth-title"><i class="fas fa-plus"></i> 新建 OAuth 客户端</h2>
+                <form id="oauth-create-form">
+                    <div class="form-group"><label>客户端名称 *</label><input type="text" id="oauth-client-name" class="form-control" placeholder="如：XX社区、XX助手" required></div>
+                    <div class="form-group"><label>回调地址 (Redirect URI) *</label><textarea id="oauth-redirect-uris" class="form-control" rows="3" placeholder="多个地址用英文逗号分隔&#10;如: https://example.com/callback, http://localhost:3000/auth" required></textarea><div style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.3rem;">第三方应用接收授权码的 URL，支持多个</div></div>
+                    <div class="form-group"><label>描述</label><input type="text" id="oauth-description" class="form-control" placeholder="应用简介（可选）"></div>
+                    <div class="form-group"><label>Logo URL</label><input type="url" id="oauth-logo-url" class="form-control" placeholder="https://example.com/logo.png（可选）"></div>
+                    <button type="submit" class="primary-btn full-width"><i class="fas fa-check"></i> 创建</button>
+                </form>
+            </div>`;
+        document.body.appendChild(createModal);
+        createModal.querySelector('#close-create-modal').onclick = () => closeAuthModal(createModal);
+        createModal.querySelector('#oauth-create-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const name = createModal.querySelector('#oauth-client-name').value.trim();
+            const uris = createModal.querySelector('#oauth-redirect-uris').value.trim();
+            const desc = createModal.querySelector('#oauth-description').value.trim();
+            const logo = createModal.querySelector('#oauth-logo-url').value.trim();
+            if (!name || !uris) { showNotification('请填写必填项', 'error'); return; }
+            const btn = createModal.querySelector('button[type="submit"]');
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创建中...';
+            try {
+                const res = await fetch(API_ENDPOINTS.oauthAdmin, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ action: 'create', client_name: name, redirect_uris: uris, description: desc, logo_url: logo })
+                });
+                const d = await res.json();
+                if (d.success) {
+                    closeAuthModal(createModal);
+                    const resultModal = document.createElement('div');
+                    resultModal.className = 'auth-modal';
+                    resultModal.innerHTML = `<div class="auth-box" style="max-width:500px;"><button id="close-result" class="close-modal-btn"><i class="fas fa-times"></i></button><h2 class="auth-title"><i class="fas fa-check-circle" style="color:var(--success-color);"></i> 客户端创建成功</h2><p style="color:var(--accent-color);font-weight:bold;margin:0.5rem 0;">请立即复制以下信息并妥善保管，client_secret 仅此一次展示：</p><div style="background:var(--bg-secondary);padding:1rem;border-radius:8px;margin:0.8rem 0;text-align:left;"><div style="margin-bottom:0.5rem;"><strong>Client ID:</strong><div style="font-family:monospace;word-break:break-all;background:var(--bg-primary);padding:0.4rem;border-radius:4px;margin-top:0.2rem;">${escapeHtml(d.client.client_id)}</div></div><div><strong>Client Secret:</strong><div style="font-family:monospace;word-break:break-all;background:var(--bg-primary);padding:0.4rem;border-radius:4px;margin-top:0.2rem;">${escapeHtml(d.client.client_secret)}</div></div></div><div style="display:flex;gap:0.5rem;"><button id="copy-oauth-cred-btn" class="primary-btn" style="flex:1;"><i class="fas fa-copy"></i> 复制凭证</button><button id="close-result2" class="secondary-btn" style="flex:1;">我已保存</button></div></div></div>`;
+                    document.body.appendChild(resultModal);
+                    resultModal.querySelector('#close-result').onclick = () => closeAuthModal(resultModal);
+                    resultModal.querySelector('#close-result2').onclick = () => closeAuthModal(resultModal);
+                    resultModal.querySelector('#copy-oauth-cred-btn').onclick = () => {
+                        const cred = `Client ID: ${d.client.client_id}\nClient Secret: ${d.client.client_secret}`;
+                        navigator.clipboard.writeText(cred);
+                        showNotification('已复制到剪贴板', 'success');
+                    };
+                    loadClients();
+                } else {
+                    showNotification(d.error, 'error');
+                    btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> 创建';
+                }
+            } catch (e) {
+                showNotification('创建失败: ' + e.message, 'error');
+                btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> 创建';
+            }
+        };
+    };
+    await loadClients();
+}
+

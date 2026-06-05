@@ -133,7 +133,7 @@ async function processHtmlAndOthers(currentDir, fileHashMap) {
                 try {
                     let content = fs.readFileSync(srcPath, 'utf8');
                     for (const [original, hashed] of Object.entries(fileHashMap)) {
-                        const regex = new RegExp(original.replace(/\./g, '\\.'), 'g');
+                        const regex = new RegExp('(?<![a-zA-Z0-9/_-])' + original.replace(/\./g, '\\.'), 'g');
                         content = content.replace(regex, hashed);
                     }
                     const minified = await minifyHtml(content, {
@@ -165,7 +165,7 @@ async function processServiceWorker(fileHashMap) {
     try {
         let content = fs.readFileSync(swPath, 'utf8');
         for (const [original, hashed] of Object.entries(fileHashMap)) {
-            const regex = new RegExp(original.replace(/\./g, '\\.'), 'g');
+            const regex = new RegExp('(?<![a-zA-Z0-9/_-])' + original.replace(/\./g, '\\.'), 'g');
             content = content.replace(regex, hashed);
         }
         const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);

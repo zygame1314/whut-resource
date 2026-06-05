@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>授权登录 | 武理资源共享平台</title>
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="lib/fontawesome/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4a9eff;
+            --primary-light: #6db3ff;
+            --primary-rgb: 74, 158, 255;
+            --danger-color: #e74c3c;
+            --success-color: #2ecc71;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f7fa;
+            --bg-card: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --border-color: #e8ecf1;
+        }
+
+        [data-theme="dark"] {
+            --primary-color: #5ba8ff;
+            --primary-light: #3d8ce0;
+            --primary-rgb: 91, 168, 255;
+            --danger-color: #e74c3c;
+            --success-color: #2ecc71;
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #1f2940;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0b0;
+            --border-color: #2a3a5c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .oauth-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .oauth-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1.2rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .oauth-icon i {
+            font-size: 1.6rem;
+            color: #fff;
+        }
+
+        .oauth-icon-error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .oauth-desc {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 0.8rem;
+        }
+
+        .oauth-desc strong {
+            color: var(--primary-color);
+        }
+
+        .oauth-client-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            object-fit: contain;
+            margin: 0.5rem auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .oauth-user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            margin: 1rem 0;
+            text-align: left;
+        }
+
+        .oauth-user-avatar {
+            font-size: 2rem;
+            color: var(--primary-color);
+            line-height: 1;
+        }
+
+        .oauth-user-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .oauth-user-email {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+
+        .oauth-scope-list {
+            list-style: none;
+            text-align: left;
+            margin: 1rem 0;
+            padding: 0;
+        }
+
+        .oauth-scope-list li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .oauth-scope-list li:last-child {
+            border-bottom: none;
+        }
+
+        .oauth-scope-list li i {
+            color: var(--primary-color);
+            width: 18px;
+            text-align: center;
+        }
+
+        .oauth-client-desc {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .oauth-actions {
+            display: flex;
+            gap: 0.8rem;
+            margin-top: 1.5rem;
+        }
+
+        .oauth-btn {
+            flex: 1;
+            padding: 0.7rem 1.2rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            transition: all 0.2s ease;
+        }
+
+        .oauth-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .oauth-btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: #fff;
+        }
+
+        .oauth-btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+        }
+
+        .oauth-btn-danger {
+            background: transparent;
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+        }
+
+        .oauth-btn-danger:hover:not(:disabled) {
+            background: var(--danger-color);
+            color: #fff;
+        }
+
+        .oauth-btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .oauth-btn-secondary:hover:not(:disabled) {
+            background: var(--border-color);
+        }
+
+        .oauth-error-code {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .oauth-error-code code {
+            background: var(--bg-secondary);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .oauth-footer-hint {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-top: 1.2rem;
+            line-height: 1.5;
+        }
+
+        .oauth-footer-hint i {
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 480px) {
+            .oauth-card {
+                padding: 1.5rem;
+                border-radius: 12px;
+            }
+
+            h2 {
+                font-size: 1.2rem;
+            }
+
+            .oauth-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="authorize-container">
+        <div class="oauth-card">
+            <div class="oauth-icon"><i class="fas fa-spinner fa-spin"></i></div>
+            <h2>正在验证授权请求...</h2>
+            <p class="oauth-desc">请稍候，正在检查你的登录状态和授权信息。</p>
+        </div>
+    </div>
+    <script src="config.js"></script>
+    <script src="oauth.js"></script>
+</body>
+
+</html>
