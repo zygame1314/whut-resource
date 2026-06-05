@@ -8085,7 +8085,8 @@ input#prompt-input {
 }
 
 .admin-log-action[class*="action-delete"],
-.admin-log-action[class*="action-ban"] {
+.admin-log-action[class*="action-ban"],
+.admin-log-action[class*="action-oauth-client-delete"] {
     color: #fff;
     background: rgba(255, 77, 79, 0.85);
 }
@@ -8113,6 +8114,7 @@ input#prompt-input {
 }
 
 .admin-log-action[class*="action-create"],
+.admin-log-action[class*="action-oauth-client-create"],
 .admin-log-action[class*="action-promote"],
 .admin-log-action[class*="action-pin"] {
     color: #fff;
@@ -8123,7 +8125,6 @@ input#prompt-input {
 .admin-log-action[class*="action-cleanup"],
 .admin-log-action[class*="action-unpin"],
 .admin-log-action[class*="action-unresolve"],
-.admin-log-action[class*="action-oauth-authorize"],
 .admin-log-action[class*="action-oauth-client-toggle"],
 .admin-log-action[class*="action-oauth-client-reset-secret"] {
     color: var(--text-secondary);

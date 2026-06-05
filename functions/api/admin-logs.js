@@ -46,7 +46,6 @@ const ACTION_LABELS = {
     ai_ban_user: 'AI自动封禁',
     ai_delete: 'AI自动删除',
     ai_resolve: 'AI自动解决',
-    oauth_authorize: 'OAuth授权',
     oauth_client_create: '创建OAuth客户端',
     oauth_client_delete: '删除OAuth客户端',
     oauth_client_update: '更新OAuth客户端',

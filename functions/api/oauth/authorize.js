@@ -115,8 +115,6 @@ export async function onRequestPost(context) {
             'INSERT INTO oauth_authorization_codes (code, client_id, user_id, redirect_uri, scope, code_challenge, code_challenge_method, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         ).bind(authCode, client_id, user.id, redirect_uri, validatedScopes.join(' '), code_challenge || null, code_challenge_method || null, expiresAt).run();
 
-        await logAdminAction(env, user.id, 'oauth_authorize', 'oauth_client', client_id, `用户 ${user.nickname || user.email} 授权客户端 ${client.client_name}(${client_id})，scope: ${validatedScopes.join(' ')}`, JSON.stringify({ user_id: user.id, nickname: user.nickname, email: user.email, client_name: client.client_name, client_id, scope: validatedScopes.join(' ') }));
-
         return new Response(JSON.stringify({
             success: true,
             code: authCode,

@@ -298,7 +298,9 @@ async function showAdminLogsModal() {
         container.innerHTML = logsToShow.map(log => {
             let detailsHtml = '';
             try {
-                const details = JSON.parse(log.details);
+                const raw = log.details;
+                const details = raw && raw !== 'null' && raw !== null ? JSON.parse(raw) : null;
+                if (details) {
                 const originalContent = details.snapshot_content || details.content;
                 if (originalContent) {
                     detailsHtml += `<div class="admin-log-details"><strong>原始内容:</strong> ${escapeHtml(originalContent)}</div>`;
@@ -323,6 +325,12 @@ async function showAdminLogsModal() {
                 }
                 if (details.new_url) {
                     detailsHtml += `<div class="admin-log-user-info">新链接: ${escapeHtml(details.new_url)}</div>`;
+                }
+                if (details.url && !details.new_url) {
+                    detailsHtml += `<div class="admin-log-user-info">链接地址: ${escapeHtml(details.url)}</div>`;
+                }
+                if (details.parent_path && !details.resource_path) {
+                    detailsHtml += `<div class="admin-log-user-info">所属目录: ${escapeHtml(details.parent_path)}</div>`;
                 }
                 if (details.target_email) {
                     detailsHtml += `<div class="admin-log-user-info">目标邮箱: ${escapeHtml(details.target_email)}</div>`;
@@ -370,8 +378,11 @@ async function showAdminLogsModal() {
                 if (details.indexed != null) {
                     detailsHtml += `<div class="admin-log-user-info">已索引: ${details.indexed}/${details.total}${details.completed ? ' (完成)' : ''}</div>`;
                 }
+                }
             } catch (e) {
-                detailsHtml = `<div class="admin-log-user-info">${escapeHtml(log.details)}</div>`;
+                if (log.details && log.details !== 'null') {
+                    detailsHtml = `<div class="admin-log-user-info">${escapeHtml(log.details)}</div>`;
+                }
             }
             const actionClass = `action-${(log.action || '').replace(/_/g, '-')}`;
             const utcDate = log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z';
@@ -379,7 +390,7 @@ async function showAdminLogsModal() {
             const operatorHtml = log.operator
                 ? `<span class="admin-log-operator"><i class="fas fa-user-circle"></i> ${escapeHtml(log.operator.nickname)}</span>`
                 : `<span class="admin-log-operator operator-ai"><i class="fas fa-robot"></i> 系统自动</span>`;
-            const targetInfo = log.target_type && log.target_id
+            const targetInfo = log.target_type && log.target_id && log.target_type !== 'oauth_client'
                 ? `<span class="admin-log-target">${log.target_type}#${log.target_id}</span>`
                 : '';
             return `
