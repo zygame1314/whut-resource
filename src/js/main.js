@@ -11,8 +11,13 @@ console.log(`%c${[
     ''
 ].join('\n')}`, "font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace; color: #007BFF;");
 document.addEventListener('authSuccess', async () => {
-    console.log("验证成功，开始加载根目录文件列表...");
     const urlParams = new URLSearchParams(window.location.search);
+    const oauthRedirect = urlParams.get('oauth_redirect');
+    if (oauthRedirect) {
+        window.location.href = decodeURIComponent(oauthRedirect);
+        return;
+    }
+    console.log("验证成功，开始加载根目录文件列表...");
     const idParam = urlParams.get('id');
     if (idParam) {
         try {
