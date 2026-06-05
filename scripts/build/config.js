@@ -89,7 +89,8 @@ const cssBundles = {
         'modules/dynamic.css',
         'modules/tutorial.css',
         'modules/browser-guide.css',
-        'modules/page-viewer.css'
+        'modules/page-viewer.css',
+        'modules/authorize.css'
     ],
     'css/graph.css': ['modules/graph.css']
 };

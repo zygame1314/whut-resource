@@ -134,7 +134,7 @@ function showConsentPage(clientInfo, user, scopeStr) {
                     <i class="fas fa-times"></i> 拒绝
                 </button>
             </div>
-            <p class="oauth-footer-hint"><i class="fas fa-info-circle"></i> 授权后，该应用可在授权范围内访问你的信息。你可以随时在个人设置中撤销授权。</p>
+            <p class="oauth-consent-hint"><i class="fas fa-info-circle"></i> 授权后，该应用可在授权范围内访问你的信息。你可以随时在个人设置中撤销授权。</p>
         </div>
     `;
 
