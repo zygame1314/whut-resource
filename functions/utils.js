@@ -10,7 +10,7 @@ export async function verifyPasswordHash(password, hash, salt) {
   return computedHash === hash;
 }
 function toBase64Url(data) {
-  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
   let binary = '';
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
