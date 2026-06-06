@@ -372,7 +372,6 @@ function showAuthModal(mode = 'login') {
                     currentUser = data.user;
                     window.currentUser = currentUser;
                     updateAuthUI();
-                    document.dispatchEvent(new Event('authSuccess'));
                     if (window.releaseRequests) window.releaseRequests(true);
                     if (isSso && data.needsActivation) {
                         closeAuthModal(modal);
@@ -404,10 +403,11 @@ function showAuthModal(mode = 'login') {
                         `;
                         document.body.appendChild(welcomeModal);
                         welcomeModal.querySelector('#skip-welcome-btn').onclick = () => {
-                            closeAuthModal(welcomeModal);
+                             closeAuthModal(welcomeModal);
+                             document.dispatchEvent(new Event('authSuccess'));
                         };
                         welcomeModal.querySelector('#go-activate-btn').onclick = () => {
-                            closeAuthModal(welcomeModal, () => showChangePasswordModal());
+                            closeAuthModal(welcomeModal, () => { showChangePasswordModal(); document.dispatchEvent(new Event('authSuccess')); });
                         };
                         const copyPwdBtn = welcomeModal.querySelector('#copy-init-pwd-btn');
                         if (copyPwdBtn) {
@@ -458,6 +458,7 @@ function showAuthModal(mode = 'login') {
                         }
                     } else {
                         closeAuthModal(modal);
+                        document.dispatchEvent(new Event('authSuccess'));
                     }
                 } else {
                     if (isSso && data.ssoCaptchaRequired) {
