@@ -34,6 +34,12 @@ export async function signToken(payload, secret) {
   const encodedSignature = toBase64Url(signature);
   return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
 }
+function fromBase64Url(str) {
+  const binary = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
 export async function verifyToken(token, secret) {
   try {
     const parts = token.split('.');
@@ -54,7 +60,7 @@ export async function verifyToken(token, secret) {
       new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
     );
     if (!isValid) return null;
-    const payload = JSON.parse(atob(encodedPayload.replace(/-/g, "+").replace(/_/g, "/")));
+    const payload = JSON.parse(fromBase64Url(encodedPayload));
     if (payload.exp && Date.now() > payload.exp) return null;
     return payload;
   } catch (e) {
