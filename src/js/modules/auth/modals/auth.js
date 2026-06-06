@@ -407,7 +407,7 @@ function showAuthModal(mode = 'login') {
                              document.dispatchEvent(new Event('authSuccess'));
                         };
                         welcomeModal.querySelector('#go-activate-btn').onclick = () => {
-                            closeAuthModal(welcomeModal, () => { showChangePasswordModal(); document.dispatchEvent(new Event('authSuccess')); });
+                            closeAuthModal(welcomeModal, () => { showChangePasswordModal(() => { document.dispatchEvent(new Event('authSuccess')); }); });
                         };
                         const copyPwdBtn = welcomeModal.querySelector('#copy-init-pwd-btn');
                         if (copyPwdBtn) {

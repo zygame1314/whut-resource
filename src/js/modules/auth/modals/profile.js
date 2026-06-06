@@ -371,7 +371,7 @@ function showForgotPasswordModal(prefillEmail = '') {
         closeAuthModal(modal);
     };
 }
-function showChangePasswordModal() {
+function showChangePasswordModal(onClose) {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';
     modal.innerHTML = `
@@ -407,7 +407,7 @@ function showChangePasswordModal() {
     `;
     document.body.appendChild(modal);
     const closeBtn = modal.querySelector('#close-modal');
-    closeBtn.onclick = () => closeAuthModal(modal);
+    closeBtn.onclick = () => closeAuthModal(modal, onClose);
     initPasswordToggles(modal);
     const form = modal.querySelector('#change-pwd-form');
     form.onsubmit = async (e) => {
@@ -435,7 +435,7 @@ function showChangePasswordModal() {
             const data = await res.json();
             if (data.success) {
                 showNotification('密码修改成功', 'success');
-                closeAuthModal(modal);
+                closeAuthModal(modal, onClose);
             } else {
                 showNotification(data.error || '修改失败', 'error');
             }
