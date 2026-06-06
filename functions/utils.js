@@ -9,10 +9,16 @@ export async function verifyPasswordHash(password, hash, salt) {
   const computedHash = await hashPassword(password, salt);
   return computedHash === hash;
 }
+function toBase64Url(data) {
+  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
 export async function signToken(payload, secret) {
   const header = { alg: "HS256", typ: "JWT" };
-  const encodedHeader = btoa(JSON.stringify(header)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-  const encodedPayload = btoa(JSON.stringify(payload)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  const encodedHeader = toBase64Url(JSON.stringify(header));
+  const encodedPayload = toBase64Url(JSON.stringify(payload));
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -25,7 +31,7 @@ export async function signToken(payload, secret) {
     key,
     new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
   );
-  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  const encodedSignature = toBase64Url(signature);
   return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
 }
 export async function verifyToken(token, secret) {
