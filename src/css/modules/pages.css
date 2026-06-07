@@ -1123,7 +1123,7 @@
 }
 
 .ai-badge:hover {
-    transform: scale(1.08);
+    transform: scale(1.03);
     box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.15);
 }
 

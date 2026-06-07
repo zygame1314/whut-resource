@@ -825,7 +825,7 @@
 }
 
 .upload-btn:hover {
-    transform: scale(1.05);
+    transform: scale(1.03);
     box-shadow: var(--shadow-medium);
 }
 
@@ -1653,7 +1653,7 @@
 }
 
 .guestbook-item:hover {
-    transform: scale(1.02);
+    transform: scale(1.005);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(var(--primary-rgb), 0.06);
     border-color: var(--primary-light);
 }
@@ -3032,7 +3032,7 @@
 }
 
 .admin-badge:hover {
-    transform: scale(1.08);
+    transform: scale(1.03);
     box-shadow: 0 4px 8px rgba(118, 75, 162, 0.4);
 }
 
@@ -3050,7 +3050,7 @@
 
 .admin-badge.super:hover {
     box-shadow: 0 4px 12px rgba(253, 160, 133, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    transform: scale(1.08);
+    transform: scale(1.03);
 }
 
 @media (max-width: 768px) {
@@ -3276,7 +3276,7 @@
 
 .sso-btn:hover {
     box-shadow: 0 6px 20px rgba(0, 79, 152, 0.5);
-    transform: scale(1.04);
+    transform: scale(1.02);
     background: linear-gradient(135deg, #005bb0 0%, #0077ee 100%) !important;
 }
 
@@ -3768,7 +3768,7 @@
 }
 
 .user-info:hover {
-    transform: scale(1.03);
+    transform: scale(1.01);
     box-shadow: 0 6px 20px rgba(0, 123, 255, 0.2);
     background-image:
         linear-gradient(white, white),
@@ -3932,7 +3932,7 @@
 }
 
 .announcement-card:hover {
-    transform: scale(1.02);
+    transform: scale(1.01);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
     border-color: rgba(var(--primary-rgb, 46, 139, 87), 0.3);
 }
@@ -4656,7 +4656,7 @@ textarea.form-input {
     }
 
     .guestbook-item:hover {
-        transform: scale(1.02);
+        transform: scale(1.005);
     }
 
     .user-avatar-placeholder {
@@ -6146,7 +6146,7 @@ textarea.form-input {
 
 .folder-desc-badge.clickable-badge:hover {
     background: rgba(46, 139, 87, 0.2);
-    transform: scale(1.06);
+    transform: scale(1.03);
 }
 
 .file-list li.folder-description-card {
