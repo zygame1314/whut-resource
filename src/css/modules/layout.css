@@ -225,7 +225,7 @@
 
 .social-link:hover {
     background: var(--primary-light);
-    transform: translateY(-2px);
+    transform: scale(1.08);
 }
 
 .footer-bottom {
@@ -385,7 +385,7 @@
 }
 
 .file-list-container.grid-view .file-list-item:hover {
-    transform: translateY(-3px);
+    transform: scale(1.03);
     box-shadow: var(--shadow-medium);
     z-index: 1;
 }
@@ -665,7 +665,7 @@
 
 .folder-tree-scroll-indicator:hover .folder-tree-scroll-collapse-icon {
     opacity: 1;
-    transform: translateY(-1px);
+    transform: scale(1.1);
 }
 
 .folder-tree-scroll-indicator-text {

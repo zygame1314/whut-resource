@@ -53,7 +53,7 @@
 .icon-btn:hover {
     background: var(--primary-light);
     color: white;
-    transform: translateY(-2px);
+    transform: scale(1.06);
 }
 
 .icon-btn.active {
@@ -112,11 +112,11 @@
 }
 
 .primary-btn:hover {
-    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(var(--primary-rgb), 0.3);
 }
 
 .primary-btn:active {
-    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
 }
 
 .secondary-btn {
@@ -152,11 +152,13 @@
 }
 
 .secondary-btn:hover {
-    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
 }
 
 .secondary-btn:active {
-    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .primary-btn.small,
@@ -189,7 +191,8 @@
 }
 
 .danger-btn:hover {
-    transform: translateY(-2px);
+    transform: scale(1.04);
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
 }
 
 .success-btn {
@@ -208,7 +211,7 @@
 }
 
 .success-btn:hover {
-    transform: translateY(-2px);
+    transform: scale(1.04);
     background: linear-gradient(135deg, #66bb6a, #388e3c);
 }
 
@@ -738,7 +741,7 @@
 
 .download-button:hover {
     background: #229954;
-    transform: translateY(-1px);
+    transform: scale(1.06);
 }
 
 .preview-button {
@@ -760,7 +763,7 @@
 
 .preview-button:hover {
     background: #2E86C1;
-    transform: translateY(-1px);
+    transform: scale(1.06);
 }
 
 .enter-folder-button {
@@ -782,7 +785,7 @@
 
 .enter-folder-button:hover {
     background: var(--primary-dark);
-    transform: translateY(-1px);
+    transform: scale(1.06);
 }
 
 .share-button {
@@ -804,7 +807,7 @@
 
 .share-button:hover {
     background: #8E44AD;
-    transform: translateY(-1px);
+    transform: scale(1.06);
 }
 
 .upload-btn {
@@ -822,7 +825,7 @@
 }
 
 .upload-btn:hover {
-    transform: translateY(-3px);
+    transform: scale(1.05);
     box-shadow: var(--shadow-medium);
 }
 
@@ -999,7 +1002,7 @@
 .support-us-section a:hover {
     background: var(--primary-color);
     color: white;
-    transform: translateY(-1px);
+    transform: scale(1.05);
     box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
 }
 
@@ -1137,12 +1140,12 @@
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-medium);
     padding: 0.85rem 1rem;
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .recent-upload-item:hover {
-    transform: translateY(-2px);
     box-shadow: var(--shadow-light);
+    border-color: var(--primary-light);
 }
 
 .recent-upload-info {
@@ -1305,7 +1308,7 @@
             rgba(102, 126, 234, 0.15) 0%,
             rgba(118, 75, 162, 0.15) 100%);
     border-color: rgba(102, 126, 234, 0.35);
-    transform: translateY(-1px);
+    transform: scale(1.03);
 }
 
 .ai-powered-notice i {
@@ -1650,7 +1653,7 @@
 }
 
 .guestbook-item:hover {
-    transform: translateY(-3px);
+    transform: scale(1.02);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(var(--primary-rgb), 0.06);
     border-color: var(--primary-light);
 }
@@ -1881,7 +1884,7 @@
 .reply-btn:hover {
     color: #667eea;
     border-color: #667eea;
-    transform: translateY(-1px);
+    transform: scale(1.05);
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
 }
 
@@ -1960,7 +1963,7 @@
 }
 
 .guestbook-reply-item:hover {
-    transform: translateY(-2px);
+    transform: scale(1.02);
     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.08);
     border-color: rgba(102, 126, 234, 0.15);
     border-left-color: rgba(102, 126, 234, 0.6);
@@ -2075,7 +2078,7 @@
     background: rgba(231, 76, 60, 0.08);
     color: var(--accent-color);
     border-color: rgba(231, 76, 60, 0.15);
-    transform: translateY(-1px);
+    transform: scale(1.08);
 }
 
 .like-btn:active {
@@ -2550,7 +2553,7 @@
 }
 
 .ai-assist-btn:hover {
-    transform: translateY(-2px);
+    transform: scale(1.05);
     box-shadow: 0 6px 16px rgba(168, 85, 247, 0.35);
     background: linear-gradient(135deg, #5558e6, #9643e6);
 }
@@ -3029,7 +3032,7 @@
 }
 
 .admin-badge:hover {
-    transform: translateY(-1px);
+    transform: scale(1.08);
     box-shadow: 0 4px 8px rgba(118, 75, 162, 0.4);
 }
 
@@ -3047,7 +3050,7 @@
 
 .admin-badge.super:hover {
     box-shadow: 0 4px 12px rgba(253, 160, 133, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    transform: translateY(-2px);
+    transform: scale(1.08);
 }
 
 @media (max-width: 768px) {
@@ -3148,7 +3151,7 @@
 .sso-captcha-img-box:hover {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-    transform: translateY(-1px);
+    transform: scale(1.02);
 }
 
 .sso-captcha-img-box img {
@@ -3273,7 +3276,7 @@
 
 .sso-btn:hover {
     box-shadow: 0 6px 20px rgba(0, 79, 152, 0.5);
-    transform: translateY(-2px);
+    transform: scale(1.04);
     background: linear-gradient(135deg, #005bb0 0%, #0077ee 100%) !important;
 }
 
@@ -3607,13 +3610,13 @@
 .send-code-btn:hover:not(:disabled) {
     background: var(--primary-gradient);
     color: white;
-    transform: translateY(-2px);
+    transform: scale(1.05);
     box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
     border-color: var(--primary-color);
 }
 
 .send-code-btn:active:not(:disabled) {
-    transform: translateY(0);
+    transform: scale(1.01);
 }
 
 .send-code-btn:disabled {
@@ -3765,7 +3768,7 @@
 }
 
 .user-info:hover {
-    transform: translateY(-2px);
+    transform: scale(1.03);
     box-shadow: 0 6px 20px rgba(0, 123, 255, 0.2);
     background-image:
         linear-gradient(white, white),
@@ -3929,7 +3932,7 @@
 }
 
 .announcement-card:hover {
-    transform: translateY(-2px);
+    transform: scale(1.02);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
     border-color: rgba(var(--primary-rgb, 46, 139, 87), 0.3);
 }
@@ -4653,7 +4656,7 @@ textarea.form-input {
     }
 
     .guestbook-item:hover {
-        transform: translateY(-2px);
+        transform: scale(1.02);
     }
 
     .user-avatar-placeholder {
@@ -4816,7 +4819,6 @@ textarea.form-input {
 }
 
 .pagination-jump-input {
-    width: 60px;
     padding: 0.5rem 0.3rem;
     border: 2px solid var(--border-color);
     border-radius: 8px;
@@ -4857,7 +4859,7 @@ textarea.form-input {
 
 .icon-btn.ai-btn:hover {
     background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-    transform: translateY(-2px);
+    transform: scale(1.06);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
@@ -5060,7 +5062,7 @@ textarea.form-input {
 
 .confirm-btn-warning:hover {
     filter: brightness(1.1);
-    transform: translateY(-1px);
+    transform: scale(1.03);
 }
 
 
@@ -5612,13 +5614,12 @@ textarea.form-input {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-medium);
     padding: 1rem;
-    transition: box-shadow var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+    transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .request-item:hover {
     box-shadow: var(--shadow-light);
     border-color: var(--primary-color);
-    transform: translateY(-1px);
 }
 
 .request-header {
@@ -6073,7 +6074,7 @@ textarea.form-input {
 }
 
 .file-list-item:hover {
-    transform: translateY(-2px);
+    transform: scale(1.02);
     transition: transform 0.2s ease;
 }
 
@@ -6095,7 +6096,7 @@ textarea.form-input {
 
 .delete-button:hover {
     background: #c0392b;
-    transform: translateY(-1px);
+    transform: scale(1.06);
     box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
 }
 
@@ -6117,7 +6118,7 @@ textarea.form-input {
 
 .edit-desc-button:hover {
     background: #2980b9;
-    transform: translateY(-1px);
+    transform: scale(1.06);
     box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
 }
 
@@ -6145,7 +6146,7 @@ textarea.form-input {
 
 .folder-desc-badge.clickable-badge:hover {
     background: rgba(46, 139, 87, 0.2);
-    transform: translateY(-1px);
+    transform: scale(1.06);
 }
 
 .file-list li.folder-description-card {
@@ -6221,7 +6222,7 @@ textarea.form-input {
 
 .rename-button:hover {
     background: var(--primary-dark);
-    transform: translateY(-1px);
+    transform: scale(1.06);
     box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
 }
 
@@ -6243,7 +6244,7 @@ textarea.form-input {
 
 .move-button:hover {
     background: #357ABD;
-    transform: translateY(-1px);
+    transform: scale(1.06);
     box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
 }
 
@@ -6265,7 +6266,7 @@ textarea.form-input {
 
 .edit-link-button:hover {
     background: #2980b9;
-    transform: translateY(-1px);
+    transform: scale(1.06);
     box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
 }
 
@@ -6412,7 +6413,7 @@ textarea.form-input {
 
 .confirm-btn:hover {
     filter: brightness(1.1);
-    transform: translateY(-1px);
+    transform: scale(1.03);
 }
 
 .confirm-btn-danger {
@@ -6725,7 +6726,7 @@ input#prompt-input {
 }
 
 .pagination-button:hover:not(:disabled) {
-    transform: translateY(-2px);
+    transform: scale(1.05);
 }
 
 .pagination-button:hover:not(:disabled)::before {
@@ -6733,7 +6734,7 @@ input#prompt-input {
 }
 
 .pagination-button:active:not(:disabled) {
-    transform: translateY(0);
+    transform: scale(1.01);
 }
 
 .pagination-button:disabled {
@@ -6782,14 +6783,14 @@ input#prompt-input {
 }
 
 .load-more-button:hover {
-    transform: translateY(-2px);
+    transform: scale(1.05);
     background: var(--primary-color);
     color: #fff;
     border-color: var(--primary-color);
 }
 
 .load-more-button:active {
-    transform: translateY(0);
+    transform: scale(1.01);
 }
 
 .load-more-button.loading {
@@ -7025,7 +7026,7 @@ input#prompt-input {
 }
 
 .upload-submit-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
+    transform: scale(1.02);
     box-shadow: var(--shadow-medium);
 }
 
@@ -7391,7 +7392,7 @@ input#prompt-input {
 }
 
 .upload-path-info:hover {
-    transform: translateY(-2px);
+    transform: scale(1.03);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -8513,7 +8514,7 @@ input#prompt-input {
     }
 
     .role-search-bar .primary-btn {
-        width: 100%;
+        width: 90%;
     }
 
     .requests-header {
@@ -9250,7 +9251,7 @@ input#prompt-input {
 }
 
 .batch-action-btn:hover {
-    transform: translateY(-1px);
+    transform: scale(1.05);
     box-shadow: var(--shadow-light);
 }
 
@@ -9924,7 +9925,7 @@ input#prompt-input {
 }
 
 .boost-load-more:hover i {
-    transform: translateY(-2px);
+    transform: scale(1.2);
 }
 
 .boost-load-more i {
@@ -11104,7 +11105,7 @@ input#prompt-input {
 }
 
 .donation-thanks-btn:hover {
-    transform: translateY(-2px);
+    transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
 }
 

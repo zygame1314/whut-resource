@@ -446,7 +446,7 @@
             rgba(46, 139, 87, 0.25) 0%,
             rgba(64, 224, 208, 0.15) 100%);
     border-color: var(--primary-color);
-    transform: translateY(-2px);
+    transform: scale(1.05);
     box-shadow: 0 4px 15px rgba(46, 139, 87, 0.2);
 }
 

@@ -428,7 +428,7 @@
 .file-list li:hover {
     background: var(--background-alt);
     border-color: var(--primary-light);
-    transform: translateY(-2px);
+    transform: scale(1.02);
     box-shadow: var(--shadow-medium);
 }
 
@@ -750,7 +750,7 @@
 }
 
 .rule-item:hover {
-    transform: translateY(-5px);
+    transform: scale(1.04);
     box-shadow: var(--shadow-medium);
 }
 
@@ -932,7 +932,7 @@
 
 .open-link-button:hover {
     background: #2980b9;
-    transform: translateY(-1px);
+    transform: scale(1.04);
 }
 
 .open-link-button:disabled {
@@ -1124,7 +1124,7 @@
 }
 
 .ai-badge:hover {
-    transform: translateY(-1px);
+    transform: scale(1.08);
     box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.15);
 }
 

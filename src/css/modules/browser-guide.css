@@ -130,12 +130,12 @@
 }
 
 .browser-guide-copy-btn:hover {
-    transform: translateY(-1px);
+    transform: scale(1.04);
     box-shadow: 0 4px 14px rgba(0, 123, 255, 0.4);
 }
 
 .browser-guide-copy-btn:active {
-    transform: translateY(0);
+    transform: scale(1.01);
 }
 
 .browser-guide-copy-btn.copied {
