@@ -385,8 +385,8 @@
 }
 
 .file-list-container.grid-view .file-list-item:hover {
-    transform: scale(1.03);
     box-shadow: var(--shadow-medium);
+    border-color: var(--primary-light);
     z-index: 1;
 }
 

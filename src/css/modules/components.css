@@ -6074,8 +6074,8 @@ textarea.form-input {
 }
 
 .file-list-item:hover {
-    transform: scale(1.02);
-    transition: transform 0.2s ease;
+    background: var(--background-alt);
+    border-color: var(--primary-light);
 }
 
 .delete-button {

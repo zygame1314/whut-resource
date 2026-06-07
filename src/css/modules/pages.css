@@ -428,7 +428,6 @@
 .file-list li:hover {
     background: var(--background-alt);
     border-color: var(--primary-light);
-    transform: scale(1.02);
     box-shadow: var(--shadow-medium);
 }
 
