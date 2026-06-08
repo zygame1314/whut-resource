@@ -271,6 +271,7 @@
     font-weight: 600;
     white-space: nowrap;
     animation: fadeInUp 0.8s ease both;
+    transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .stat-badge-online {
