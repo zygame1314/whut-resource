@@ -410,25 +410,11 @@
     border-color: var(--primary-color);
 }
 
-.file-tools-bar {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1.5rem;
-    padding: 0.6rem 0.8rem;
-    background: var(--background-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    flex-wrap: wrap;
-}
-
-
 .folder-search-wrapper {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    flex: 1;
-    min-width: 180px;
+    min-width: 160px;
     background: var(--background);
     border: 1px solid var(--border-color);
     border-radius: 20px;
@@ -458,7 +444,6 @@
     color: var(--primary-color);
 }
 
-
 .folder-search-wrapper input {
     flex: 1;
     border: none;
@@ -466,7 +451,7 @@
     color: var(--text-primary);
     font-size: 0.9rem;
     outline: none;
-    min-width: 100px;
+    min-width: 80px;
     height: 24px;
     line-height: 24px;
 }
@@ -516,8 +501,20 @@
 
 
 @media (max-width: 768px) {
-    .file-tools-bar {
+    .filter-bar {
         gap: 0.6rem;
+    }
+
+    .filter-bar-left {
+        gap: 0.5rem;
+    }
+
+    .filter-type-tabs {
+        gap: 0.3rem;
+    }
+
+    .filter-bar-divider {
+        display: none;
     }
 
     .folder-search-wrapper {

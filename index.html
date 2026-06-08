@@ -382,40 +382,45 @@
                                 <i class="fas fa-arrow-right"></i>
                             </button>
                         </div>
-                        <div class="search-filters">
-                            <button class="filter-btn active" data-filter="all">全部</button>
-                            <button class="filter-btn" data-filter="folder">文件夹</button>
-                            <button class="filter-btn" data-filter="link">链接</button>
-                            <button class="filter-btn" data-filter="pdf">PDF</button>
-                            <button class="filter-btn" data-filter="doc">文档</button>
-                            <button class="filter-btn" data-filter="image">图片</button>
-                            <button class="filter-btn" data-filter="video">视频</button>
-                        </div>
-                        <div class="file-tools-bar">
-                            <div class="folder-search-wrapper">
-                                <i class="fas fa-filter"></i>
-                                <input type="text" id="folder-search-input" placeholder="在当前文件夹中搜索...">
-                                <button id="clear-folder-search" class="clear-folder-search-btn" style="display: none;">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            <div class="sort-wrapper custom-select-container">
-                                <div class="custom-select-trigger" id="sort-trigger">
-                                    <i class="fas fa-sort"></i>
-                                    <span id="sort-label">名称 A-Z</span>
-                                    <i class="fas fa-chevron-down"></i>
+                        <div class="filter-bar">
+                            <div class="filter-bar-left">
+                                <div class="filter-type-tabs">
+                                    <button class="filter-btn active" data-filter="all">全部</button>
+                                    <button class="filter-btn" data-filter="folder">文件夹</button>
+                                    <button class="filter-btn" data-filter="link">链接</button>
+                                    <button class="filter-btn" data-filter="pdf">PDF</button>
+                                    <button class="filter-btn" data-filter="doc">文档</button>
+                                    <button class="filter-btn" data-filter="image">图片</button>
+                                    <button class="filter-btn" data-filter="video">视频</button>
                                 </div>
-                                <div class="custom-select-options dropdown-menu" id="sort-options">
-                                    <div class="dropdown-item selected" data-value="name-asc">名称 A-Z</div>
-                                    <div class="dropdown-item" data-value="name-desc">名称 Z-A</div>
-                                    <div class="dropdown-item" data-value="date-desc">最新上传</div>
-                                    <div class="dropdown-item" data-value="date-asc">最早上传</div>
-                                    <div class="dropdown-item" data-value="size-desc">大小降序</div>
-                                    <div class="dropdown-item" data-value="size-asc">大小升序</div>
-                                    <div class="dropdown-item" data-value="downloads-desc">下载量降序</div>
-                                    <div class="dropdown-item" data-value="downloads-asc">下载量升序</div>
-                                    <div class="dropdown-item" data-value="likes-desc">点赞数降序</div>
-                                    <div class="dropdown-item" data-value="likes-asc">点赞数升序</div>
+                                <div class="filter-bar-divider"></div>
+                                <div class="folder-search-wrapper">
+                                    <i class="fas fa-search"></i>
+                                    <input type="text" id="folder-search-input" placeholder="筛选当前文件夹...">
+                                    <button id="clear-folder-search" class="clear-folder-search-btn" style="display: none;">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="filter-bar-right">
+                                <div class="sort-wrapper custom-select-container">
+                                    <div class="custom-select-trigger" id="sort-trigger">
+                                        <i class="fas fa-sort"></i>
+                                        <span id="sort-label">名称 A-Z</span>
+                                        <i class="fas fa-chevron-down"></i>
+                                    </div>
+                                    <div class="custom-select-options dropdown-menu" id="sort-options">
+                                        <div class="dropdown-item selected" data-value="name-asc">名称 A-Z</div>
+                                        <div class="dropdown-item" data-value="name-desc">名称 Z-A</div>
+                                        <div class="dropdown-item" data-value="date-desc">最新上传</div>
+                                        <div class="dropdown-item" data-value="date-asc">最早上传</div>
+                                        <div class="dropdown-item" data-value="size-desc">大小降序</div>
+                                        <div class="dropdown-item" data-value="size-asc">大小升序</div>
+                                        <div class="dropdown-item" data-value="downloads-desc">下载量降序</div>
+                                        <div class="dropdown-item" data-value="downloads-asc">下载量升序</div>
+                                        <div class="dropdown-item" data-value="likes-desc">点赞数降序</div>
+                                        <div class="dropdown-item" data-value="likes-asc">点赞数升序</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
