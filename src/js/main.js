@@ -174,11 +174,40 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            filterButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentFilter = btn.dataset.filter;
+    const breadcrumbHome = document.querySelector('.breadcrumb-home');
+    if (breadcrumbHome) {
+        breadcrumbHome.style.cursor = 'pointer';
+        breadcrumbHome.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            isShowingSearchResults = false;
+            fetchAndDisplayFiles('');
+        });
+    }
+    if (filterTypeTrigger && filterTypeOptions) {
+        filterTypeTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = filterTypeOptions.classList.contains('show');
+            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                if (menu !== filterTypeOptions) menu.classList.remove('show');
+            });
+            document.querySelectorAll('.custom-select-trigger.active').forEach(trigger => {
+                if (trigger !== filterTypeTrigger) trigger.classList.remove('active');
+            });
+            filterTypeOptions.classList.toggle('show', !isOpen);
+            filterTypeTrigger.classList.toggle('active', !isOpen);
+        });
+        filterTypeOptions.addEventListener('click', (e) => {
+            const item = e.target.closest('.dropdown-item');
+            if (!item) return;
+            e.stopPropagation();
+            const value = item.dataset.value;
+            const text = item.textContent;
+            currentFilter = value;
+            filterTypeLabel.textContent = text;
+            filterTypeOptions.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
+            filterTypeOptions.classList.remove('show');
+            filterTypeTrigger.classList.remove('active');
             currentPage = 1;
             if (currentRawData) {
                 applyLocalSortAndFilter();
@@ -186,7 +215,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', 1);
             }
         });
-    });
+        document.addEventListener('click', (e) => {
+            if (!filterTypeTrigger.contains(e.target) && !filterTypeOptions.contains(e.target)) {
+                filterTypeOptions.classList.remove('show');
+                filterTypeTrigger.classList.remove('active');
+            }
+        });
+    }
     const sortTrigger = document.getElementById('sort-trigger');
     const sortOptions = document.getElementById('sort-options');
     const sortLabel = document.getElementById('sort-label');

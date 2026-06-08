@@ -682,6 +682,15 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
     }
     renderPaginationControls(paginationData);
 }
+function scrollToBreadcrumb() {
+    const breadcrumbNav = document.getElementById('breadcrumb-nav');
+    if (breadcrumbNav) {
+        const headerOffset = 80;
+        const elementPosition = breadcrumbNav.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+        window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+    }
+}
 function renderPaginationControls(paginationData) {
     let controlsContainer = document.getElementById('pagination-controls');
     if (!controlsContainer) {
@@ -703,14 +712,20 @@ function renderPaginationControls(paginationData) {
         return;
     }
     controlsContainer.style.display = 'flex';
-    const { currentPage, totalPages, totalItems } = paginationData;
+    const { currentPage: page, totalPages, totalItems } = paginationData;
     const prevButton = document.createElement('button');
     prevButton.innerHTML = '<i class="fas fa-chevron-left"></i> <span class="pagination-btn-text">上一页</span>';
     prevButton.className = 'pagination-button';
-    prevButton.disabled = currentPage <= 1;
+    prevButton.disabled = page <= 1;
     prevButton.onclick = () => {
-        if (currentPage > 1) {
-            fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage - 1);
+        if (page > 1) {
+            if (currentRawData) {
+                currentPage = page - 1;
+                scrollToBreadcrumb();
+                applyLocalSortAndFilter();
+            } else {
+                fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', page - 1);
+            }
         }
     };
     controlsContainer.appendChild(prevButton);
@@ -722,7 +737,7 @@ function renderPaginationControls(paginationData) {
     pageInput.type = 'number';
     pageInput.min = 1;
     pageInput.max = totalPages;
-    pageInput.value = currentPage;
+    pageInput.value = page;
     pageInput.className = 'pagination-jump-input';
     pageInput.title = '输入页码跳转';
     pageInput.onchange = () => {
@@ -730,10 +745,16 @@ function renderPaginationControls(paginationData) {
         if (isNaN(val)) val = 1;
         if (val < 1) val = 1;
         if (val > totalPages) val = totalPages;
-        if (val !== currentPage) {
-            fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', val);
+        if (val !== page) {
+            if (currentRawData) {
+                currentPage = val;
+                scrollToBreadcrumb();
+                applyLocalSortAndFilter();
+            } else {
+                fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', val);
+            }
         } else {
-            pageInput.value = currentPage;
+            pageInput.value = page;
         }
     };
     pageInput.onkeydown = (e) => {
@@ -748,10 +769,16 @@ function renderPaginationControls(paginationData) {
     const nextButton = document.createElement('button');
     nextButton.innerHTML = '<span class="pagination-btn-text">下一页</span> <i class="fas fa-chevron-right"></i>';
     nextButton.className = 'pagination-button';
-    nextButton.disabled = currentPage >= totalPages;
+    nextButton.disabled = page >= totalPages;
     nextButton.onclick = () => {
-        if (currentPage < totalPages) {
-            fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', currentPage + 1);
+        if (page < totalPages) {
+            if (currentRawData) {
+                currentPage = page + 1;
+                scrollToBreadcrumb();
+                applyLocalSortAndFilter();
+            } else {
+                fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', page + 1);
+            }
         }
     };
     controlsContainer.appendChild(nextButton);

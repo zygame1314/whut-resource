@@ -384,14 +384,21 @@
                         </div>
                         <div class="filter-bar">
                             <div class="filter-bar-left">
-                                <div class="filter-type-tabs">
-                                    <button class="filter-btn active" data-filter="all">全部</button>
-                                    <button class="filter-btn" data-filter="folder">文件夹</button>
-                                    <button class="filter-btn" data-filter="link">链接</button>
-                                    <button class="filter-btn" data-filter="pdf">PDF</button>
-                                    <button class="filter-btn" data-filter="doc">文档</button>
-                                    <button class="filter-btn" data-filter="image">图片</button>
-                                    <button class="filter-btn" data-filter="video">视频</button>
+                                <div class="filter-type-dropdown custom-select-container" id="filter-type-dropdown">
+                                    <div class="custom-select-trigger" id="filter-type-trigger">
+                                        <i class="fas fa-filter"></i>
+                                        <span id="filter-type-label">全部类型</span>
+                                        <i class="fas fa-chevron-down"></i>
+                                    </div>
+                                    <div class="custom-select-options dropdown-menu" id="filter-type-options">
+                                        <div class="dropdown-item selected" data-value="all">全部类型</div>
+                                        <div class="dropdown-item" data-value="folder">文件夹</div>
+                                        <div class="dropdown-item" data-value="link">链接</div>
+                                        <div class="dropdown-item" data-value="pdf">PDF</div>
+                                        <div class="dropdown-item" data-value="doc">文档</div>
+                                        <div class="dropdown-item" data-value="image">图片</div>
+                                        <div class="dropdown-item" data-value="video">视频</div>
+                                    </div>
                                 </div>
                                 <div class="filter-bar-divider"></div>
                                 <div class="folder-search-wrapper">
