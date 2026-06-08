@@ -159,7 +159,7 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
   const idArray = [...candidateIds];
   const placeholders = idArray.map(() => '?').join(',');
   const dbResults = await DB.prepare(
-    `SELECT id, name, key, parent_path, is_directory, description, contentType, size, downloads FROM files WHERE id IN (${placeholders})`
+    `SELECT id, name, key, parent_path, is_directory, is_link, link_url, description, contentType, size, downloads, uploaded FROM files WHERE id IN (${placeholders})`
   ).bind(...idArray).all();
 
   let results = (dbResults.results || []).map(file => ({
@@ -309,8 +309,8 @@ export async function rerankResults(env, query, documents, topN = 20) {
   if (!documents || documents.length === 0) return [];
   try {
     return await retryWithBackoff(async () => {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       try {
         const response = await fetch(SILICONFLOW_RERANK_URL, {
           method: 'POST',
