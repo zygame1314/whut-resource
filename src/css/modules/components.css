@@ -47,9 +47,11 @@
     opacity: 0.6;
     cursor: wait;
 }
+
 .icon-btn.tutorial-loading i {
     animation: spin 0.8s linear infinite;
 }
+
 .icon-btn:hover {
     background: var(--primary-light);
     color: white;
@@ -500,13 +502,60 @@
 }
 
 
-@media (max-width: 768px) {
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    flex-wrap: wrap;
+}
+
+.filter-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.filter-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+}
+
+.filter-type-tabs {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.filter-bar-divider {
+    width: 1px;
+    height: 1.4rem;
+    background: var(--border-color);
+    flex-shrink: 0;
+}
+
+@media (max-width: 1500px) {
     .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
         gap: 0.6rem;
     }
 
     .filter-bar-left {
         gap: 0.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .filter-bar-right {
+        justify-content: flex-end;
     }
 
     .filter-type-tabs {
@@ -518,7 +567,7 @@
     }
 
     .folder-search-wrapper {
-        min-width: 140px;
+        min-width: 0;
         order: 1;
         flex-basis: 100%;
     }
@@ -527,6 +576,12 @@
         order: 2;
         flex: 1;
         min-width: 0;
+    }
+}
+
+@media (max-width: 600px) {
+    .filter-type-tabs {
+        justify-content: center;
     }
 }
 
@@ -8727,7 +8782,7 @@ input#prompt-input {
     line-height: 1.5;
 }
 
-.oauth-meta-row + .oauth-meta-row {
+.oauth-meta-row+.oauth-meta-row {
     padding-top: 0.4rem;
     border-top: 1px dashed rgba(var(--primary-rgb), 0.08);
 }
@@ -8740,7 +8795,7 @@ input#prompt-input {
     opacity: 0.8;
 }
 
-.oauth-meta-row > i {
+.oauth-meta-row>i {
     width: 16px;
     text-align: center;
     font-size: 0.72rem;
@@ -11110,17 +11165,21 @@ input#prompt-input {
     .donation-modal {
         max-width: 95%;
     }
+
     .donation-header {
         padding: 1.5rem 1rem 0.75rem;
     }
+
     .donation-body {
         padding: 0.75rem 1rem;
     }
+
     .donation-footer {
         flex-direction: column;
         gap: 0.75rem;
         padding: 0.75rem 1rem 1rem;
     }
+
     .donation-thanks-btn {
         width: 100%;
     }
