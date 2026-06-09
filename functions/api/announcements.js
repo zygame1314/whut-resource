@@ -89,7 +89,7 @@ async function handlePut(request, env) {
     if (!id) {
         return new Response(JSON.stringify({ error: '缺少ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    const announcement = await env.DB.prepare('SELECT author_id FROM announcements WHERE id = ?').bind(id).first();
+    const announcement = await env.DB.prepare('SELECT author_id, content FROM announcements WHERE id = ?').bind(id).first();
     if (!announcement) {
         return new Response(JSON.stringify({ error: '公告不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
@@ -112,7 +112,7 @@ async function handlePut(request, env) {
     await env.DB.prepare(
         'UPDATE announcements SET title = ?, content = ?, is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
     ).bind(title.trim(), content.trim(), is_published ? 1 : 0, id).run();
-    await logAdminAction(env, user.id, 'update_announcement', 'announcement', id, '更新公告', JSON.stringify({ title: title.trim() }));
+    await logAdminAction(env, user.id, 'update_announcement', 'announcement', id, '更新公告', JSON.stringify({ title: title.trim(), snapshot_content: announcement.content, target_id: id }));
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handleDelete(request, env) {
@@ -125,7 +125,7 @@ async function handleDelete(request, env) {
     if (!id) {
         return new Response(JSON.stringify({ error: '缺少ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    const announcement = await env.DB.prepare('SELECT author_id FROM announcements WHERE id = ?').bind(id).first();
+    const announcement = await env.DB.prepare('SELECT author_id, title, content FROM announcements WHERE id = ?').bind(id).first();
     if (!announcement) {
         return new Response(JSON.stringify({ error: '公告不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
@@ -134,6 +134,6 @@ async function handleDelete(request, env) {
         return new Response(JSON.stringify({ error: '普通管理员不能删除超级管理员发布的公告' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     await env.DB.prepare('DELETE FROM announcements WHERE id = ?').bind(id).run();
-    await logAdminAction(env, user.id, 'delete_announcement', 'announcement', id, '删除公告', JSON.stringify({ announcement_id: id }));
+    await logAdminAction(env, user.id, 'delete_announcement', 'announcement', id, '删除公告', JSON.stringify({ title: announcement.title, snapshot_content: announcement.content }));
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }

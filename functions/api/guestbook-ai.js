@@ -311,7 +311,7 @@ async function handleReject(entry, reason, env, autoMode) {
             'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
         ).bind('rejected', reason, entry.id).run();
         await logAdminAction(env, null, 'ai_reject', 'guestbook', entry.id, reason, JSON.stringify({
-            content: entry.content,
+            snapshot_content: entry.content,
             nickname: entry.nickname,
             user_id: entry.user_id
         }));
@@ -577,7 +577,7 @@ async function handleResolve(entry, reply, searchResults = null, resourcePath = 
             'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?'
         ).bind('resolved', resolveValue, entry.id).run();
         await logAdminAction(env, null, 'ai_resolve', 'guestbook', entry.id, reply, JSON.stringify({
-            content: entry.content,
+            snapshot_content: entry.content,
             nickname: entry.nickname,
             user_id: entry.user_id,
             resource_path: resourcePath,
@@ -777,7 +777,7 @@ ${parentContext ? `原留言内容：${parentContext}` : ''}
                         'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
                     ).bind('rejected', reason, replyEntry.id).run();
                     await logAdminAction(env, null, 'ai_reject', 'guestbook', replyEntry.id, reason, JSON.stringify({
-                        content: replyEntry.content,
+                        snapshot_content: replyEntry.content,
                         nickname: replyEntry.nickname,
                         user_id: replyEntry.user_id,
                         parent_id: replyEntry.parent_id
@@ -800,8 +800,9 @@ ${parentContext ? `原留言内容：${parentContext}` : ''}
                     ]);
                     await logAdminAction(env, null, 'ai_ban_user', 'user', replyEntry.user_id, reason, JSON.stringify({
                         deleted_guestbook_id: replyEntry.id,
-                        content: replyEntry.content,
-                        nickname: replyEntry.nickname
+                        snapshot_content: replyEntry.content,
+                        nickname: replyEntry.nickname,
+                        user_id: replyEntry.user_id
                     }));
                     return {
                         success: true,

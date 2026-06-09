@@ -240,7 +240,7 @@ export async function onRequestDelete({ request, env }) {
         }
         await DB.prepare('DELETE FROM file_boosts WHERE id = ?').bind(id).run();
         if (boost.user_id !== user.id && isAdmin(user)) {
-            await logAdminAction(env, user.id, 'delete_boost', 'file_boost', id, '管理员删除评论', JSON.stringify({ file_key: boost.file_key }));
+            await logAdminAction(env, user.id, 'delete_boost', 'file_boost', id, '管理员删除评论', JSON.stringify({ file_key: boost.file_key, snapshot_content: boost.content, resource_path: boost.file_key }));
         }
         const stats = await DB.prepare('SELECT boost_count FROM files WHERE key = ?').bind(boost.file_key).first();
         return new Response(JSON.stringify({

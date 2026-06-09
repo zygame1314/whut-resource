@@ -314,6 +314,12 @@ async function showAdminLogsModal() {
                 if (details.reject_reason) {
                     detailsHtml += `<div class="admin-log-user-info">驳回原因: ${escapeHtml(details.reject_reason)}</div>`;
                 }
+                if (details.resolve_note) {
+                    detailsHtml += `<div class="admin-log-user-info">解决备注: ${escapeHtml(details.resolve_note)}</div>`;
+                }
+                if (details.review_note) {
+                    detailsHtml += `<div class="admin-log-user-info">审批备注: ${escapeHtml(details.review_note)}</div>`;
+                }
                 if (details.title) {
                     detailsHtml += `<div class="admin-log-user-info">公告标题: ${escapeHtml(details.title)}</div>`;
                 }
@@ -334,6 +340,10 @@ async function showAdminLogsModal() {
                 }
                 if (details.target_email) {
                     detailsHtml += `<div class="admin-log-user-info">目标邮箱: ${escapeHtml(details.target_email)}</div>`;
+                }
+                if (details.request_type) {
+                    const requestTypeLabels = { ban_user: '封禁用户', unban_user: '解封用户', delete_files: '删除文件' };
+                    detailsHtml += `<div class="admin-log-user-info">请求类型: ${requestTypeLabels[details.request_type] || escapeHtml(details.request_type)}</div>`;
                 }
                 if (details.old_key && details.new_key) {
                     detailsHtml += `<div class="admin-log-user-info">${details.child_count != null ? '文件夹操作' : '重命名/移动'}: ${escapeHtml(details.old_key)} → ${escapeHtml(details.new_key)}</div>`;
