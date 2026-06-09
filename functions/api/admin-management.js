@@ -72,10 +72,10 @@ async function handleGet(request, env, user) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
         }
-        const prefix = `${keyword.trim()}*`;
+        const kw = keyword.trim().toLowerCase();
         const { results } = await env.DB.prepare(
-            "SELECT id, email, nickname, role, is_banned, created_at FROM users WHERE email GLOB ? AND role != 'super_admin' LIMIT 20"
-        ).bind(prefix).all();
+            "SELECT id, email, nickname, role, is_banned, created_at FROM users WHERE email >= ? AND email < ? AND role != 'super_admin' LIMIT 20"
+        ).bind(kw, kw + '\uffff').all();
         return new Response(JSON.stringify({ success: true, users: results }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
