@@ -211,7 +211,7 @@ async function handlePut(request, env, user) {
                 });
             }
             await env.DB.prepare("UPDATE users SET role = 'admin' WHERE id = ?").bind(user_id).run();
-            await logAdminAction(env, user.id, 'promote_admin', 'user', user_id, '提升为管理员', JSON.stringify({ nickname: targetUser.nickname, target_email: targetUser.email }));
+            await logAdminAction(env, user.id, 'promote_admin', 'user', user_id, '提升为管理员', JSON.stringify({ nickname: targetUser.nickname, target_email: targetUser.email, user_id: targetUser.id }));
         } else if (action === 'demote') {
             if (targetUser.role === 'user') {
                 return new Response(JSON.stringify({ error: '该用户已是普通用户' }), {
@@ -220,7 +220,7 @@ async function handlePut(request, env, user) {
                 });
             }
             await env.DB.prepare("UPDATE users SET role = 'user' WHERE id = ?").bind(user_id).run();
-            await logAdminAction(env, user.id, 'demote_admin', 'user', user_id, '降级为普通用户', JSON.stringify({ nickname: targetUser.nickname, target_email: targetUser.email }));
+            await logAdminAction(env, user.id, 'demote_admin', 'user', user_id, '降级为普通用户', JSON.stringify({ nickname: targetUser.nickname, target_email: targetUser.email, user_id: targetUser.id }));
         }
         return new Response(JSON.stringify({ success: true }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
@@ -254,7 +254,7 @@ async function handlePut(request, env, user) {
             });
         }
         await env.DB.prepare('UPDATE users SET is_banned = TRUE WHERE id = ?').bind(user_id).run();
-        await logAdminAction(env, user.id, 'ban_user', 'user', user_id, '封禁用户', JSON.stringify({ nickname: targetUser.nickname, target_email: targetUser.email }));
+        await logAdminAction(env, user.id, 'ban_user', 'user', user_id, '封禁用户', JSON.stringify({ nickname: targetUser.nickname, target_email: targetUser.email, user_id: targetUser.id }));
         return new Response(JSON.stringify({ success: true }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
@@ -275,7 +275,7 @@ async function handlePut(request, env, user) {
         }
         const targetUser = await env.DB.prepare('SELECT id, email, nickname FROM users WHERE id = ?').bind(user_id).first();
         await env.DB.prepare('UPDATE users SET is_banned = FALSE WHERE id = ?').bind(user_id).run();
-        await logAdminAction(env, user.id, 'unban_user', 'user', user_id, '解封用户', JSON.stringify({ nickname: targetUser ? targetUser.nickname : null, target_email: targetUser ? targetUser.email : null }));
+        await logAdminAction(env, user.id, 'unban_user', 'user', user_id, '解封用户', JSON.stringify({ nickname: targetUser ? targetUser.nickname : null, target_email: targetUser ? targetUser.email : null, user_id: user_id }));
         return new Response(JSON.stringify({ success: true }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
