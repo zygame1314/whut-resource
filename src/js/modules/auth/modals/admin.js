@@ -317,6 +317,9 @@ async function showAdminLogsModal() {
                 if (details.resolve_note) {
                     detailsHtml += `<div class="admin-log-user-info">解决备注: ${escapeHtml(details.resolve_note)}</div>`;
                 }
+                if (details.note) {
+                    detailsHtml += `<div class="admin-log-user-info">备注: ${escapeHtml(details.note)}</div>`;
+                }
                 if (details.review_note) {
                     detailsHtml += `<div class="admin-log-user-info">审批备注: ${escapeHtml(details.review_note)}</div>`;
                 }

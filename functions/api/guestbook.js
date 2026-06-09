@@ -431,12 +431,22 @@ async function handlePut(request, env, context) {
         const status = action === 'resolve' ? 'resolved' : 'unresolved';
         const resolveNote = action === 'resolve' ? (body.resolve_note || null) : null;
         const isHidden = action === 'resolve' ? 0 : null;
+        const logDetails = { snapshot_content: gbEntryResolve.content, nickname: gbEntryResolve.nickname, user_id: gbEntryResolve.user_id };
+        if (resolveNote) {
+            try {
+                const parsed = JSON.parse(resolveNote);
+                if (parsed.path) logDetails.resource_path = parsed.path;
+                if (parsed.note) logDetails.note = parsed.note;
+            } catch {
+                logDetails.resolve_note = resolveNote;
+            }
+        }
         if (isHidden !== null) {
             await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ?, is_hidden = ? WHERE id = ?').bind(status, resolveNote, isHidden, id).run();
         } else {
             await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?').bind(status, resolveNote, id).run();
         }
-        await logAdminAction(env, user.id, action, 'guestbook', id, action === 'resolve' ? '标记留言为已解决' : '标记留言为未解决', JSON.stringify({ snapshot_content: gbEntryResolve.content, nickname: gbEntryResolve.nickname, user_id: gbEntryResolve.user_id, resolve_note: resolveNote }));
+        await logAdminAction(env, user.id, action, 'guestbook', id, action === 'resolve' ? '标记留言为已解决' : '标记留言为未解决', JSON.stringify(logDetails));
     } else if (action === 'reject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
