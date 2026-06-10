@@ -1,5 +1,13 @@
 function initGuestbook() {
     if (guestbookForm) guestbookForm.addEventListener('submit', handleGuestbookSubmit);
+    if (guestbookContentInput) {
+        const charCurrent = document.getElementById('char-current');
+        if (charCurrent) {
+            const updateCharCount = () => { charCurrent.textContent = guestbookContentInput.value.length; };
+            guestbookContentInput.addEventListener('input', updateCharCount);
+            updateCharCount();
+        }
+    }
     const token = localStorage.getItem('authToken');
     if (!token) {
         refreshGuestbook();

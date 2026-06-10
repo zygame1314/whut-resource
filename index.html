@@ -540,11 +540,19 @@
                             onclick="showAuthModal('login'); return false;">登录</a> 后查看和发布留言
                     </div>
                     <form id="guestbook-form" style="display: none;">
+                        <div class="form-top">
+                            <div class="form-label">
+                                <i class="fas fa-pen-fancy"></i> 发表留言
+                            </div>
+                            <div class="form-hint">
+                                <span class="char-count"><span id="char-current">0</span>/500</span>
+                            </div>
+                        </div>
                         <div class="input-wrapper">
                             <textarea id="guestbook-content" placeholder="写下你的心愿或留言..." maxlength="500"
                                 required></textarea>
                             <button type="submit" id="submit-guestbook-btn" class="primary-btn">
-                                提交
+                                <i class="fas fa-paper-plane"></i> 提交
                             </button>
                         </div>
                     </form>

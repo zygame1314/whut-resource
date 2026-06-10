@@ -256,7 +256,7 @@ async function handleReplySubmit(parentId, content) {
             const d = await response.json();
             const isAdmin = isGuestbookAdmin(window.currentUser);
             const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
-            showNotification(isAdmin ? '回复发布成功！' : '回复发布成功！审核后将显示', 'success');
+            showNotification('回复发布成功！', 'success');
             const newReply = {
                 id: d.id,
                 user_id: window.currentUser.id,
@@ -265,7 +265,7 @@ async function handleReplySubmit(parentId, content) {
                 parent_id: parentId,
                 likes: 0,
                 has_liked: false,
-                is_hidden: isAdmin ? 0 : 1,
+                is_hidden: 0,
                 status: 'unresolved',
                 reject_reason: null,
                 resolve_note: null,

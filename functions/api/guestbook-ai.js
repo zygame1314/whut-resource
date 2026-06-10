@@ -662,165 +662,89 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
         }
     }, maxRetries, 1000);
 }
-const REPLY_SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板的内容审核AI，判断内容是否合规。
+const REPLY_MODERATION_PROMPT = `你是武汉理工大学资源分享网站留言板的内容审核AI，判断回复内容是否合规。
 重要背景：本站是资源分享平台，用户请求课程资料、真题、课件等属于正常行为，不是广告或垃圾信息。
 
-判断标准（按优先级）：
-1. 昵称含辱骂/色情/反动/恶意推广/攻击性/不雅词汇 -> ban_user，reason 写明昵称违规类型（无论留言内容如何，必须封禁）
-2. 含暴恐/反动/色情/违法/辱骂/人身攻击 -> reject，reason 写明违规类型
-3. 含广告/刷屏/无意义内容 -> reject，reason 写明原因（注意：求课程资料、求真题、求考试答案、求网课答案等资源请求不是广告，应该approve）
-4. 留联系方式(QQ/微信/邮箱/手机号) -> reject，reason: 请勿在留言板泄露个人信息
-5. 其他正常内容（包括资源请求、感谢等） -> approve
-所有输出必须是纯文本，禁用Markdown。`;
+【核心原则】回复必须结合上下文（原留言及同级回复）综合判断，不能孤立地看回复内容。很多回复单独看可能无意义，但在对话上下文中是完全合理的内容，如：确认信息、补充说明、回答疑问、表达感谢、讨论课程细节等。
 
-const REPLY_TOOLS = [
-    {
-        type: 'function',
-        function: {
-            name: 'approve',
-            description: '内容合规，通过审核',
-            parameters: {
-                type: 'object',
-                properties: {},
-                required: []
-            }
-        }
-    },
-    {
-        type: 'function',
-        function: {
-            name: 'reject',
-            description: '内容违规，驳回留言',
-            parameters: {
-                type: 'object',
-                properties: {
-                    reason: {
-                        type: 'string',
-                        description: '驳回原因'
-                    }
-                },
-                required: ['reason']
-            }
-        }
-    },
-    {
-        type: 'function',
-        function: {
-            name: 'ban_user',
-            description: '内容严重违规（辱骂/色情/反动等），封禁用户并删除留言',
-            parameters: {
-                type: 'object',
-                properties: {
-                    reason: {
-                        type: 'string',
-                        description: '封禁原因'
-                    }
-                },
-                required: ['reason']
-            }
-        }
-    }
-];
+【审核规则】
+0. 昵称审查：若用户昵称含违规内容（辱骂/色情/反动/恶意推广/攻击性/不雅词汇）→ NICKNAME_REJECT:违规原因
+1. 严重违规（辱骂/人身攻击/色情/暴恐/反动/违法/政治敏感）→ REJECT:违规类型
+2. 广告/推广/引流/有偿交易 → REJECT:广告或交易信息
+3. 泄露个人联系方式（手机号/QQ号/微信号/邮箱等）→ REJECT:泄露个人信息
+4. 恶意诱导（藏头诗/隐晦辱骂等）→ REJECT:恶意诱导
+5. 结合上下文后有意义的正常内容 → PASS
+
+【输出格式】
+- 昵称违规：NICKNAME_REJECT:简短原因（不超过15字）
+- 内容违规：REJECT:简短原因（不超过15字）
+- 通过审核：PASS
+严禁输出其他内容，只输出 PASS 或 REJECT:原因 或 NICKNAME_REJECT:原因`;
 
 export async function processReplyWithAI(replyEntry, env) {
     if (!env.SILICONFLOW_API_KEY) {
-        return { success: false, action: 'no_action', message: '未配置回复审核API' };
+        return { pass: true };
     }
     const parentEntry = replyEntry.parent_id ? await env.DB.prepare(
-        'SELECT g.content, g.status FROM guestbook g WHERE g.id = ?'
+        'SELECT g.content, g.status, g.resolve_note, g.reject_reason FROM guestbook g WHERE g.id = ?'
     ).bind(replyEntry.parent_id).first() : null;
-    const parentContext = parentEntry ? parentEntry.content.substring(0, 200) : '';
-    const roleTag = (replyEntry.role === 'admin' || replyEntry.role === 'super_admin') ? '【管理员】' : '【普通用户】';
-    const userMessage = `用户身份：${roleTag}
-用户昵称：${replyEntry.nickname || '匿名用户'}
-${parentContext ? `原留言内容：${parentContext}` : ''}
-回复内容：${replyEntry.content}`;
-    const messages = [
-        { role: 'system', content: REPLY_SYSTEM_PROMPT },
-        { role: 'user', content: userMessage }
-    ];
-    const MAX_NO_ACTION_RETRIES = 2;
-    try {
-        for (let attempt = 0; attempt <= MAX_NO_ACTION_RETRIES; attempt++) {
-            const aiResponse = await Promise.race([
-                fetchSiliconFlowChat(env, {
-                    messages,
-                    tools: REPLY_TOOLS,
-                    toolChoice: 'auto',
-                    temperature: 0.3,
-                    model: 'Qwen/Qwen3-8B'
-                }),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('回复审核超时(30s)')), 30000)
-                )
-            ]);
-            const message = aiResponse.choices?.[0]?.message;
-            if (!message) {
-                if (attempt < MAX_NO_ACTION_RETRIES) {
-                    console.warn(`小模型未返回有效响应 (${attempt + 1}/${MAX_NO_ACTION_RETRIES})，重试中...`);
-                    continue;
-                }
-                return { success: false, action: 'no_action', message: 'AI多次未返回有效响应，需人工处理' };
-            }
-            if (message.tool_calls && message.tool_calls.length > 0) {
-                const toolCall = message.tool_calls[0];
-                const functionName = toolCall.function.name;
-                let functionArgs;
-                try {
-                    functionArgs = JSON.parse(toolCall.function.arguments || '{}');
-                } catch (e) {
-                    return { success: true, action: 'keep_pending', message: `AI参数解析失败，需人工处理: ${e.message}` };
-                }
-                if (functionName === 'reject') {
-                    const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                    await env.DB.prepare(
-                        'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
-                    ).bind('rejected', reason, replyEntry.id).run();
-                    await logAdminAction(env, null, 'ai_reject', 'guestbook', replyEntry.id, reason, JSON.stringify({
-                        snapshot_content: replyEntry.content,
-                        nickname: replyEntry.nickname,
-                        user_id: replyEntry.user_id,
-                        parent_id: replyEntry.parent_id
-                    }));
-                    return {
-                        success: true,
-                        action: 'reject',
-                        message: `已驳回: ${reason}`,
-                        reason: reason
-                    };
-                }
-                if (functionName === 'ban_user') {
-                    const reason = (functionArgs.reason || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                    if (replyEntry.role === 'admin' || replyEntry.role === 'super_admin') {
-                        return { success: false, action: 'no_action', message: '无法封禁管理员' };
-                    }
-                    await env.DB.batch([
-                        env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(replyEntry.user_id),
-                        env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(replyEntry.id)
-                    ]);
-                    await logAdminAction(env, null, 'ai_ban_user', 'user', replyEntry.user_id, reason, JSON.stringify({
-                        deleted_guestbook_id: replyEntry.id,
-                        snapshot_content: replyEntry.content,
-                        nickname: replyEntry.nickname,
-                        user_id: replyEntry.user_id
-                    }));
-                    return {
-                        success: true,
-                        action: 'ban_user',
-                        message: `用户已封禁: ${reason}`,
-                        reason: reason
-                    };
-                }
-                return { success: true, action: 'no_action', message: '内容通过审核' };
-            }
-            if (attempt < MAX_NO_ACTION_RETRIES) {
-                console.warn(`小模型未调用工具 (${attempt + 1}/${MAX_NO_ACTION_RETRIES})，重试中...`);
-                continue;
-            }
+    const parentContext = parentEntry ? parentEntry.content.substring(0, 300) : '';
+    const parentStatus = parentEntry ? parentEntry.status : '';
+    let resolveContext = '';
+    if (parentEntry && parentEntry.resolve_note) {
+        try {
+            const parsed = JSON.parse(parentEntry.resolve_note);
+            resolveContext = parsed.note || '';
+        } catch {
+            resolveContext = parentEntry.resolve_note;
         }
-        return { success: false, action: 'no_action', message: '小模型多次未调用工具，需人工处理' };
+    }
+    const rejectContext = parentEntry?.reject_reason || '';
+    let siblingReplies = [];
+    if (replyEntry.parent_id) {
+        const siblings = await env.DB.prepare(
+            'SELECT g.nickname, g.content, g.created_at FROM guestbook g WHERE g.parent_id = ? AND g.id != ? AND g.is_hidden = 0 ORDER BY g.created_at ASC LIMIT 10'
+        ).bind(replyEntry.parent_id, replyEntry.id).all();
+        siblingReplies = siblings.results || [];
+    }
+    let contextLines = '';
+    if (parentContext) {
+        contextLines += `原留言内容：${parentContext}`;
+        if (parentStatus) contextLines += `\n原留言状态：${parentStatus}`;
+        if (resolveContext) contextLines += `\nAI备注：${resolveContext}`;
+        if (rejectContext) contextLines += `\n驳回原因：${rejectContext}`;
+    }
+    if (siblingReplies.length > 0) {
+        contextLines += '\n\n对话记录（按时间顺序）：';
+        for (const s of siblingReplies) {
+            contextLines += `\n- ${s.nickname || '匿名'}：${s.content}`;
+        }
+    }
+    const userMessage = `用户昵称：${replyEntry.nickname || '匿名用户'}
+${contextLines ? contextLines + '\n' : ''}
+当前回复内容：${replyEntry.content}`;
+    try {
+        const data = await fetchSiliconFlowChat(env, {
+            messages: [
+                { role: 'system', content: REPLY_MODERATION_PROMPT },
+                { role: 'user', content: userMessage }
+            ],
+            temperature: 0.1,
+            maxTokens: 50
+        });
+        let result = data.choices?.[0]?.message?.content?.trim() || '';
+        result = result.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        if (result.startsWith('NICKNAME_REJECT:')) {
+            const reason = result.substring(16).trim();
+            return { pass: false, reason: reason || '昵称不合规', isNicknameViolation: true };
+        }
+        if (result.startsWith('REJECT:')) {
+            const reason = result.substring(7).trim();
+            return { pass: false, reason: reason || '内容不合规' };
+        }
+        return { pass: true };
     } catch (error) {
-        console.error('小模型审核失败:', error);
-        return { success: true, action: 'keep_pending', message: '审核失败，需人工处理' };
+        console.error('回复审核失败，放行:', error);
+        return { pass: true };
     }
 }

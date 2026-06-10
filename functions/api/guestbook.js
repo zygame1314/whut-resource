@@ -229,9 +229,30 @@ async function handlePost(request, env, context) {
         }
         parentId = parseInt(parent_id);
     }
+    const dbUser = await env.DB.prepare('SELECT nickname, email FROM users WHERE id = ?').bind(user.id).first();
+    const emailPrefix = dbUser?.email ? dbUser.email.split('@')[0] : '';
+    const userNickname = dbUser?.nickname || emailPrefix || '匿名用户';
+    if (parentId) {
+        if (!isAdmin(user)) {
+            const entryForCheck = { parent_id: parentId, content: content.trim(), nickname: userNickname, role: user.role };
+            const moderation = await processReplyWithAI(entryForCheck, env);
+            if (!moderation.pass) {
+                const errorPrefix = moderation.isNicknameViolation ? '昵称未通过审核' : '回复未通过审核';
+                return new Response(JSON.stringify({ success: false, error: `${errorPrefix}：${moderation.reason}` }), {
+                    status: 451,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+        }
+        const result = await env.DB.prepare(
+            'INSERT INTO guestbook (user_id, content, parent_id, is_hidden) VALUES (?, ?, ?, 0)'
+        ).bind(user.id, content.trim(), parentId).run();
+        const newId = result.meta.last_row_id;
+        return new Response(JSON.stringify({ success: true, id: newId }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const result = await env.DB.prepare(
         'INSERT INTO guestbook (user_id, content, parent_id, is_hidden) VALUES (?, ?, ?, 1)'
-    ).bind(user.id, content.trim(), parentId).run();
+    ).bind(user.id, content.trim(), null).run();
     const newId = result.meta.last_row_id;
     if (context && context.waitUntil) {
         context.waitUntil((async () => {
@@ -242,16 +263,9 @@ async function handlePost(request, env, context) {
                 if (newEntry && isAdmin(newEntry)) {
                     await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
                 } else if (newEntry) {
-                    if (newEntry.parent_id) {
-                        const replyResult = await processReplyWithAI(newEntry, env);
-                        if (replyResult && replyResult.success && (replyResult.action === 'no_action' || replyResult.action === 'keep_pending' || replyResult.action === 'resolve')) {
-                            await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
-                        }
-                    } else {
-                        const aiResult = await processWithAIAgent(newEntry, env, true);
-                        if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
-                            await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
-                        }
+                    const aiResult = await processWithAIAgent(newEntry, env, true);
+                    if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
+                        await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
                     }
                 }
             } catch (err) {
@@ -331,10 +345,21 @@ async function handlePut(request, env, context) {
             if (guestbookEntry.user_id !== user.id) {
                 await logAdminAction(env, user.id, 'edit_guestbook', 'guestbook', id, '管理员编辑留言', JSON.stringify({ snapshot_content: guestbookEntry.content, nickname: guestbookEntry.nickname, user_id: guestbookEntry.user_id }));
             }
+        } else if (guestbookEntry.parent_id) {
+            const entryForCheck = { parent_id: guestbookEntry.parent_id, content: content.trim(), nickname: guestbookEntry.nickname, role: user.role, id: guestbookEntry.id };
+            const moderation = await processReplyWithAI(entryForCheck, env);
+            if (!moderation.pass) {
+                const errorPrefix = moderation.isNicknameViolation ? '昵称未通过审核' : '回复未通过审核';
+                return new Response(JSON.stringify({ success: false, error: `${errorPrefix}：${moderation.reason}` }), {
+                    status: 451,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            await env.DB.prepare('UPDATE guestbook SET content = ?, status = ?, reject_reason = NULL, is_hidden = 0 WHERE id = ?').bind(content.trim(), 'unresolved', id).run();
         } else {
             await env.DB.prepare('UPDATE guestbook SET content = ?, status = ?, reject_reason = NULL, is_hidden = 1 WHERE id = ?').bind(content.trim(), 'unresolved', id).run();
         }
-        if (context && context.waitUntil) {
+        if (context && context.waitUntil && !guestbookEntry.parent_id) {
             context.waitUntil((async () => {
                 try {
                     const updatedEntry = await env.DB.prepare(
@@ -343,16 +368,9 @@ async function handlePut(request, env, context) {
                     if (updatedEntry && isAdmin(user)) {
                         await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
                     } else if (updatedEntry) {
-                        if (updatedEntry.parent_id) {
-                            const replyResult = await processReplyWithAI(updatedEntry, env);
-                            if (replyResult && replyResult.success && (replyResult.action === 'no_action' || replyResult.action === 'keep_pending' || replyResult.action === 'resolve')) {
-                                await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
-                            }
-                        } else {
-                            const aiResult = await processWithAIAgent(updatedEntry, env, true);
-                            if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
-                                await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
-                            }
+                        const aiResult = await processWithAIAgent(updatedEntry, env, true);
+                        if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
+                            await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
                         }
                     }
                 } catch (err) {
