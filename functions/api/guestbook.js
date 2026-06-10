@@ -229,9 +229,7 @@ async function handlePost(request, env, context) {
         }
         parentId = parseInt(parent_id);
     }
-    const dbUser = await env.DB.prepare('SELECT nickname, email FROM users WHERE id = ?').bind(user.id).first();
-    const emailPrefix = dbUser?.email ? dbUser.email.split('@')[0] : '';
-    const userNickname = dbUser?.nickname || emailPrefix || '匿名用户';
+    const userNickname = user.nickname || (user.email ? user.email.split('@')[0] : '匿名用户');
     if (parentId) {
         if (!isAdmin(user)) {
             const entryForCheck = { parent_id: parentId, content: content.trim(), nickname: userNickname, role: user.role };
