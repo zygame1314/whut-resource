@@ -702,9 +702,11 @@ export async function processReplyWithAI(replyEntry, env) {
     const rejectContext = parentEntry?.reject_reason || '';
     let siblingReplies = [];
     if (replyEntry.parent_id) {
-        const siblings = await env.DB.prepare(
-            'SELECT g.nickname, g.content, g.created_at FROM guestbook g WHERE g.parent_id = ? AND g.id != ? AND g.is_hidden = 0 ORDER BY g.created_at ASC LIMIT 10'
-        ).bind(replyEntry.parent_id, replyEntry.id).all();
+        const query = replyEntry.id
+            ? 'SELECT g.nickname, g.content, g.created_at FROM guestbook g WHERE g.parent_id = ? AND g.id != ? AND g.is_hidden = 0 ORDER BY g.created_at ASC LIMIT 10'
+            : 'SELECT g.nickname, g.content, g.created_at FROM guestbook g WHERE g.parent_id = ? AND g.is_hidden = 0 ORDER BY g.created_at ASC LIMIT 10';
+        const params = replyEntry.id ? [replyEntry.parent_id, replyEntry.id] : [replyEntry.parent_id];
+        const siblings = await env.DB.prepare(query).bind(...params).all();
         siblingReplies = siblings.results || [];
     }
     let contextLines = '';
