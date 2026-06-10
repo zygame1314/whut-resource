@@ -6,7 +6,6 @@ async function guestbookFetchPage(cursor) {
     if (currentGuestbookFilter !== 'all') params.set('filter', currentGuestbookFilter);
     if (currentGuestbookStatus !== 'all') params.set('status', currentGuestbookStatus);
     if (cursor) params.set('cursor', cursor);
-
     const response = await fetch(`${GUESTBOOK_API_URL}?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -18,7 +17,6 @@ async function guestbookFetchPage(cursor) {
         hasMore: data.hasMore || false
     };
 }
-
 async function guestbookLoadInitial() {
     if (!guestbookSection) return;
     const token = localStorage.getItem('authToken');
@@ -46,7 +44,6 @@ async function guestbookLoadInitial() {
         if (guestbookList) guestbookList.innerHTML = '<p class="error-message">加载留言失败，请稍后重试</p>';
     }
 }
-
 function guestbookGoNext() {
     const currentPage = guestbookCursorStack[guestbookPageIndex];
     if (!currentPage || !currentPage.nextCursor) return;
@@ -71,7 +68,6 @@ function guestbookGoNext() {
         if (guestbookList) guestbookList.innerHTML = '<p class="error-message">加载下一页失败</p>';
     });
 }
-
 function guestbookGoPrev() {
     if (guestbookPageIndex <= 0) return;
     guestbookPageIndex--;
@@ -79,14 +75,14 @@ function guestbookGoPrev() {
     renderGuestbook(page.messages);
     renderGuestbookPagination(page.hasMore, guestbookPageIndex > 0);
 }
-
 async function handleGuestbookSubmit(e) {
     e.preventDefault();
     const content = guestbookContentInput.value.trim();
     if (!content) return;
     if (submitGuestbookBtn) {
         submitGuestbookBtn.disabled = true;
-        submitGuestbookBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 发布中...';
+        submitGuestbookBtn.classList.add('btn-sending');
+        submitGuestbookBtn.innerHTML = '<span class="send-label">发布中</span><span class="send-dot"></span><span class="send-dot"></span><span class="send-dot"></span>';
     }
     try {
         const token = localStorage.getItem('authToken');
@@ -146,12 +142,14 @@ async function handleGuestbookSubmit(e) {
     } finally {
         if (submitGuestbookBtn) {
             submitGuestbookBtn.disabled = false;
+            submitGuestbookBtn.classList.remove('btn-sending');
             submitGuestbookBtn.innerHTML = '提交';
         }
     }
 }
-
 async function handleGuestbookAction(id, action, btnElement) {
+    if (isGbActionPending(id, action)) return;
+    setGbActionPending(id, action);
     try {
         const token = localStorage.getItem('authToken');
         if (!token) { showNotification('请先登录', 'warning'); return; }
@@ -220,12 +218,15 @@ async function handleGuestbookAction(id, action, btnElement) {
         console.error('Error handling guestbook action:', error);
         showNotification('操作出错', 'error');
         if (btnElement && (action === 'like' || action === 'unlike')) refreshGuestbook();
+    } finally {
+        clearGbActionPending(id, action);
     }
 }
-
 async function handleDeleteGuestbook(id) {
+    if (isGbActionPending(id, 'delete')) return;
     const confirmed = await showConfirmation({ title: '删除留言', message: '确定要删除这条留言吗？', confirmText: '删除', confirmClass: 'confirm-btn-danger' });
     if (!confirmed) return;
+    setGbActionPending(id, 'delete');
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(`${GUESTBOOK_API_URL}?id=${id}`, {
@@ -241,9 +242,10 @@ async function handleDeleteGuestbook(id) {
     } catch (error) {
         console.error('Error deleting guestbook:', error);
         showNotification('删除出错', 'error');
+    } finally {
+        clearGbActionPending(id, 'delete');
     }
 }
-
 async function handleReplySubmit(parentId, content) {
     try {
         const token = localStorage.getItem('authToken');
@@ -299,7 +301,6 @@ async function handleReplySubmit(parentId, content) {
         showNotification('回复出错，请检查网络', 'error');
     }
 }
-
 function getViewLikes(id) {
     for (const page of guestbookCursorStack) {
         if (!page.messages) continue;

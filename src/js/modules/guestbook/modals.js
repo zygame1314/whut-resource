@@ -250,6 +250,7 @@ async function showResolvePrompt() {
     });
 }
 window.editGuestbook = async function (id, encodedContent = '') {
+    if (isGbActionPending(id, 'edit')) return;
     let decoded = '';
     try {
         decoded = decodeURIComponent(atob(encodedContent));
@@ -276,6 +277,7 @@ window.editGuestbook = async function (id, encodedContent = '') {
         showNotification('内容过长（最多500字符）', 'warning');
         return;
     }
+    setGbActionPending(id, 'edit');
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(GUESTBOOK_API_URL, {
@@ -302,5 +304,7 @@ window.editGuestbook = async function (id, encodedContent = '') {
     } catch (error) {
         console.error('Edit guestbook error:', error);
         showNotification('编辑出错', 'error');
+    } finally {
+        clearGbActionPending(id, 'edit');
     }
 };

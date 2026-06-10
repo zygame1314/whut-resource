@@ -63,6 +63,7 @@ window.confirmUnbanUser = async function (id) {
     }
 };
 window.rejectGuestbook = async function (id) {
+    if (isGbActionPending(id, 'reject')) return;
     let rejectReason = '';
     try {
         rejectReason = await showRejectPrompt();
@@ -79,6 +80,7 @@ window.rejectGuestbook = async function (id) {
         showNotification('驳回原因过长（最多200字符）', 'warning');
         return;
     }
+    setGbActionPending(id, 'reject');
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(GUESTBOOK_API_URL, {
@@ -99,9 +101,12 @@ window.rejectGuestbook = async function (id) {
     } catch (error) {
         console.error('Reject guestbook error:', error);
         showNotification('驳回出错', 'error');
+    } finally {
+        clearGbActionPending(id, 'reject');
     }
 };
 window.resolveGuestbook = async function (id) {
+    if (isGbActionPending(id, 'resolve')) return;
     let resolvePath = null;
     try {
         resolvePath = await showResolvePrompt();
@@ -110,6 +115,7 @@ window.resolveGuestbook = async function (id) {
     }
     if (resolvePath === null) return;
     resolvePath = resolvePath ? resolvePath.trim() : null;
+    setGbActionPending(id, 'resolve');
     try {
         const token = localStorage.getItem('authToken');
         const body = { id, action: 'resolve' };
@@ -134,6 +140,8 @@ window.resolveGuestbook = async function (id) {
     } catch (error) {
         console.error('Resolve guestbook error:', error);
         showNotification('操作出错', 'error');
+    } finally {
+        clearGbActionPending(id, 'resolve');
     }
 };
 window.showReplyForm = function (parentId) {
@@ -186,7 +194,8 @@ window.submitReply = async function (parentId) {
     const submitBtn = input.closest('.reply-form-wrapper').querySelector('.primary-btn');
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 发送中...';
+        submitBtn.classList.add('btn-sending');
+        submitBtn.innerHTML = '<span class="send-label">发送中</span><span class="send-dot"></span><span class="send-dot"></span><span class="send-dot"></span>';
     }
     try {
         await handleReplySubmit(parentId, content);
@@ -194,6 +203,7 @@ window.submitReply = async function (parentId) {
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
+            submitBtn.classList.remove('btn-sending');
             submitBtn.innerHTML = '发送回复';
         }
     }

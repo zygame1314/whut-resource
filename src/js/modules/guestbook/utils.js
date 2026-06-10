@@ -4,6 +4,15 @@ function isGuestbookAdmin(user) {
 function isGuestbookSuperAdmin(user) {
     return user && user.role === 'super_admin';
 }
+function isGbActionPending(id, action) {
+    return guestbookActionPending.has(`${id}_${action}`);
+}
+function setGbActionPending(id, action) {
+    guestbookActionPending.add(`${id}_${action}`);
+}
+function clearGbActionPending(id, action) {
+    guestbookActionPending.delete(`${id}_${action}`);
+}
 function getAvatarColor(name) {
     const colors = [
         'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)',

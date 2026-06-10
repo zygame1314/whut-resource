@@ -19,3 +19,4 @@ const REJECT_PRESETS = [
     '无法实现',
 ];
 let isAiProcessing = false;
+const guestbookActionPending = new Set();

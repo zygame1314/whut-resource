@@ -122,9 +122,12 @@
 }
 
 @keyframes pinShimmer {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: translateX(-100%) rotate(45deg);
     }
+
     50% {
         transform: translateX(100%) rotate(45deg);
     }
@@ -661,6 +664,7 @@
         opacity: 0;
         transform: scale(0.85) translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -668,53 +672,99 @@
 }
 
 @keyframes browser-guide-arrow-bounce {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: translateY(0);
     }
+
     50% {
         transform: translateY(10px);
     }
 }
 
 @keyframes pvSkeletonSlideIn {
-    to { opacity: 1; transform: translateX(0); }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 @keyframes pvSkeletonShimmer {
-    0% { transform: translateX(-25%); }
-    100% { transform: translateX(75%); }
+    0% {
+        transform: translateX(-25%);
+    }
+
+    100% {
+        transform: translateX(75%);
+    }
 }
 
 @keyframes stat-pulse-anim {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-    50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+    }
 }
 
 @keyframes gbLoadBreathe {
-    0%, 100% { transform: scale(1); opacity: 0.8; }
-    50% { transform: scale(1.08); opacity: 1; }
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    50% {
+        transform: scale(1.08);
+        opacity: 1;
+    }
 }
 
 @keyframes gbLoadDotBounce {
-    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-    40% { transform: translateY(-8px); opacity: 1; }
+
+    0%,
+    80%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+
+    40% {
+        transform: translateY(-8px);
+        opacity: 1;
+    }
 }
 
 @keyframes danger-pulse {
     0% {
         box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4);
     }
+
     70% {
         box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
     }
+
     100% {
         box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
     }
 }
 
 @keyframes loadMoreIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes uploadZoneIn {
@@ -894,7 +944,9 @@
 }
 
 @keyframes celebrationConfettiSway {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: translateX(0);
     }
 
@@ -908,7 +960,9 @@
 }
 
 @keyframes celebrationPulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
     }
 
@@ -918,7 +972,9 @@
 }
 
 @keyframes celebrationSparkle {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 0;
         transform: scale(0) rotate(0deg);
     }
@@ -940,3 +996,4 @@
         opacity: 0;
     }
 }
+
