@@ -2033,7 +2033,7 @@
 }
 
 .guestbook-reply-item:hover {
-    transform: scale(1.02);
+    transform: scale(1.005);
     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.08);
     border-color: rgba(102, 126, 234, 0.15);
     border-left-color: rgba(102, 126, 234, 0.6);
