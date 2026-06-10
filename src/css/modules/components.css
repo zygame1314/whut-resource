@@ -2129,14 +2129,6 @@
     border-left-color: rgba(102, 126, 234, 0.6);
 }
 
-.guestbook-reply-item.is-hidden {
-    opacity: 0.65;
-}
-
-.guestbook-reply-item.is-hidden:hover {
-    opacity: 0.85;
-}
-
 .guestbook-reply-avatar {
     flex-shrink: 0;
 }

@@ -140,25 +140,8 @@ function renderGuestbook(messages) {
                         </button>
                     </div>`;
                 }
-                let replyStatusBadge = '';
-                let replyRejectHtml = '';
-                let replyResolveHtml = '';
-                if (reply.status === 'resolved') {
-                    replyStatusBadge = '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>';
-                    if (reply.resolve_note) {
-                        replyResolveHtml = renderResolveNote(reply.resolve_note);
-                    }
-                } else if (reply.status === 'rejected') {
-                    replyStatusBadge = '<span class="status-badge rejected"><i class="fas fa-times"></i> 已驳回</span>';
-                    if (reply.reject_reason) {
-                        replyRejectHtml = `<div class="reject-reason"><i class="fas fa-comment-slash"></i> 驳回原因：${escapeHtml(reply.reject_reason)}</div>`;
-                    }
-                }
-                if (reply.is_hidden && reply.status !== 'rejected') {
-                    replyStatusBadge = '<span class="status-badge auditing"><i class="fas fa-hourglass-half"></i> 审核中</span>';
-                }
                 return `
-                    <div class="guestbook-reply-item ${reply.is_hidden ? 'is-hidden' : ''}">
+                    <div class="guestbook-reply-item">
                         <div class="guestbook-reply-avatar">
                             <div class="user-avatar-placeholder reply-avatar" style="background: ${replyAvatarColor}">${reply.isAdmin ? `<i class="fas fa-${reply.isSuperAdmin ? 'crown' : 'shield-alt'} avatar-role-icon reply-role-icon${reply.isSuperAdmin ? ' super' : ''}"></i>` : ''}${replyAvatarChar}</div>
                         </div>
@@ -172,13 +155,10 @@ function renderGuestbook(messages) {
                                         </div>
                                         <span class="timestamp">${formatDateLocal(reply.created_at)}</span>
                                     </div>
-                                    <div class="user-badges">${replyStatusBadge}</div>
                                 </div>
                                 ${replyAdminControls}${replyAuthorControls}
                             </div>
                             <div class="guestbook-content">${escapeHtml(reply.content)}</div>
-                            ${replyRejectHtml}
-                            ${replyResolveHtml}
                             <div class="guestbook-footer">
                                 <button class="like-btn ${likedClass}" onclick="${likeAction}">
                                     <i class="${likeIcon}"></i> <span>${reply.likes}</span>
