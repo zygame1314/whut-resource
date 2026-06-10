@@ -518,18 +518,22 @@ async function showAdminManagementModal(initialTab = 'roles') {
     tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
     function loadRolesTab() {
         tabContent.innerHTML = `
-            <div class="role-search-bar">
-                <div class="input-with-icon" style="flex:1;">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="user-search-input" class="form-control" placeholder="输入邮箱前缀搜索用户..." style="padding-left:2.5rem;">
+            <div class="admin-section">
+                <div class="admin-section-title"><i class="fas fa-search"></i> 搜索用户</div>
+                <div class="role-search-bar">
+                    <div class="input-with-icon" style="flex:1;">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="user-search-input" class="form-control" placeholder="输入邮箱前缀搜索用户..." style="padding-left:2.5rem;">
+                    </div>
+                    <button id="user-search-btn" class="primary-btn"><i class="fas fa-search"></i> 搜索</button>
                 </div>
-                <button id="user-search-btn" class="primary-btn"><i class="fas fa-search"></i> 搜索</button>
+                <div id="search-results" class="admin-search-results" style="display:none;"></div>
             </div>
-            <div id="search-results" style="max-height:200px;overflow-y:auto;display:none;border:1px solid var(--border-color);border-radius:8px;padding:10px;"></div>
-            <div style="margin:1rem 0;border-top:1px dashed var(--border-color);"></div>
-            <h3 style="font-size:1rem;margin-bottom:0.8rem;color:var(--text-secondary);"><i class="fas fa-users-cog"></i> 管理员列表</h3>
-            <div id="admin-list-container" style="max-height:300px;overflow-y:auto;border:1px solid var(--border-color);border-radius:8px;padding:10px;">
-                <div class="loading-spinner"></div>
+            <div class="admin-section">
+                <div class="admin-section-title"><i class="fas fa-users-cog"></i> 管理员列表</div>
+                <div id="admin-list-container" class="admin-list-container">
+                    <div class="loading-spinner"></div>
+                </div>
             </div>
         `;
         const searchInput = tabContent.querySelector('#user-search-input');
@@ -606,9 +610,9 @@ async function showAdminManagementModal(initialTab = 'roles') {
                         btns += `<button class="primary-btn small promote-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-arrow-up"></i> 升权</button>`;
                     }
                     if (user.is_banned) {
-                        btns += `<button class="primary-btn small unban-role-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}" style="margin-left:4px;"><i class="fas fa-user-check"></i> 解封</button>`;
+                        btns += `<button class="primary-btn small unban-role-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-user-check"></i> 解封</button>`;
                     } else if (user.role === 'user') {
-                        btns += `<button class="secondary-btn small ban-role-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}" style="margin-left:4px;"><i class="fas fa-ban"></i> 封禁</button>`;
+                        btns += `<button class="secondary-btn small ban-role-btn" data-user-id="${user.id}" data-nickname="${escapeHtml(user.nickname || user.email)}"><i class="fas fa-ban"></i> 封禁</button>`;
                     }
                     return btns;
                 })();
@@ -791,7 +795,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
         loadAdmins();
     }
     function loadBannedTab() {
-        tabContent.innerHTML = '<div id="banned-users-container" class="admin-scrollable-container"><div class="loading-spinner"></div></div>';
+        tabContent.innerHTML = '<div class="admin-section"><div id="banned-users-container" class="admin-scrollable-container"><div class="loading-spinner"></div></div></div>';
         const container = tabContent.querySelector('#banned-users-container');
         const loadBannedUsers = async () => {
             container.innerHTML = '<div class="loading-spinner"></div>';

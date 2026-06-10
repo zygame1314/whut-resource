@@ -1622,9 +1622,7 @@
 }
 
 #guestbook-form .input-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    position: relative;
 }
 
 #guestbook-content {
@@ -1632,6 +1630,7 @@
     min-height: 80px;
     max-height: 150px;
     padding: 1rem;
+    padding-bottom: 2.2rem;
     border: 1px solid rgba(var(--primary-rgb), 0.15);
     border-radius: 14px;
     background: var(--background);
@@ -1639,6 +1638,14 @@
     resize: vertical;
     font-family: inherit;
     transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+#submit-guestbook-btn {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    font-size: 0.8rem;
+    padding: 0.35rem 1rem;
 }
 
 #guestbook-content:focus {
@@ -8441,25 +8448,38 @@ input#prompt-input {
 .role-user-item .banned-user-action {
     flex-shrink: 0;
     white-space: nowrap;
+    display: flex;
+    gap: 4px;
 }
 
-@media (max-width: 768px) {
-    .role-user-item {
-        flex-direction: row;
-        flex-wrap: nowrap;
-        align-items: center;
-    }
-
-    .role-user-item .banned-user-action button {
-        width: auto;
-    }
+.role-user-item .banned-user-action button {
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .role-search-bar {
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.admin-tab-content .admin-search-results {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.5rem;
+    background: var(--background);
+}
+
+.admin-tab-content .admin-list-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.5rem;
+    background: var(--background);
 }
 
 .admin-tabs {
@@ -8498,6 +8518,29 @@ input#prompt-input {
 .admin-tab-content {
     max-height: calc(90vh - 200px);
     overflow-y: auto;
+    padding: 0.5rem 0.25rem;
+}
+
+.admin-tab-content .admin-section {
+    background: var(--surface-secondary, rgba(0, 0, 0, 0.02));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.admin-tab-content .admin-section:last-child {
+    margin-bottom: 0;
+}
+
+.admin-tab-content .admin-section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
 }
 
 
@@ -8579,12 +8622,12 @@ input#prompt-input {
     }
 
     .role-search-bar {
-        flex-direction: column;
-        gap: 0.5rem;
+        flex-wrap: nowrap;
     }
 
     .role-search-bar .primary-btn {
-        width: 90%;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
 
     .requests-header {
@@ -8629,9 +8672,9 @@ input#prompt-input {
     }
 
     .role-user-item {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
     }
 
     .role-user-item .banned-user-action {

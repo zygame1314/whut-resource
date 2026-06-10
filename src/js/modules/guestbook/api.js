@@ -146,7 +146,7 @@ async function handleGuestbookSubmit(e) {
     } finally {
         if (submitGuestbookBtn) {
             submitGuestbookBtn.disabled = false;
-            submitGuestbookBtn.innerHTML = '发布心愿';
+            submitGuestbookBtn.innerHTML = '提交';
         }
     }
 }
