@@ -703,8 +703,8 @@ export async function processReplyWithAI(replyEntry, env) {
     let siblingReplies = [];
     if (replyEntry.parent_id) {
         const query = replyEntry.id
-            ? 'SELECT g.nickname, g.content, g.created_at FROM guestbook g WHERE g.parent_id = ? AND g.id != ? AND g.is_hidden = 0 ORDER BY g.created_at ASC LIMIT 10'
-            : 'SELECT g.nickname, g.content, g.created_at FROM guestbook g WHERE g.parent_id = ? AND g.is_hidden = 0 ORDER BY g.created_at ASC LIMIT 10';
+            ? 'SELECT u.nickname, g.content, g.created_at FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.parent_id = ? AND g.id != ? AND g.is_hidden = 0 ORDER BY g.created_at ASC LIMIT 10'
+            : 'SELECT u.nickname, g.content, g.created_at FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.parent_id = ? AND g.is_hidden = 0 ORDER BY g.created_at ASC LIMIT 10';
         const params = replyEntry.id ? [replyEntry.parent_id, replyEntry.id] : [replyEntry.parent_id];
         const siblings = await env.DB.prepare(query).bind(...params).all();
         siblingReplies = siblings.results || [];
