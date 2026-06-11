@@ -375,14 +375,24 @@ function showAuthModal(mode = 'login') {
             const password = document.getElementById('auth-password').value;
             let powData = null;
             if (loginPowCtrl && captchaContainer && captchaContainer.style.display !== 'none') {
-                if (!loginPowCtrl.isSolved()) {
-                    if (!loginPowCtrl.isSolving()) {
+                if (!loginPowCtrl.isSolved() || !loginPowCtrl.meetsRequired()) {
+                    if (loginPowCtrl.isSolved() && !loginPowCtrl.meetsRequired()) {
+                        loginPowCtrl.reset();
+                        showNotification(`人机验证难度不足，需要 ${loginPowCtrl.requiredBits()} 位难度，请重新验证`, 'error');
+                    } else if (!loginPowCtrl.isSolving()) {
                         loginPowEl.click();
                     }
-                    showNotification('请先完成人机验证', 'error');
-                    return;
+                    if (!loginPowCtrl.isSolved()) {
+                        showNotification('请先完成人机验证', 'error');
+                        return;
+                    }
                 }
                 powData = loginPowCtrl.getResult();
+                if (powData && loginPowCtrl.requiredBits() && powData.powBits < loginPowCtrl.requiredBits()) {
+                    loginPowCtrl.reset();
+                    showNotification(`人机验证难度不足，需要 ${loginPowCtrl.requiredBits()} 位难度，请重新验证`, 'error');
+                    return;
+                }
             }
             let payload = { password };
             if (powData) {

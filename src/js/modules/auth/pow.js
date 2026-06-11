@@ -230,8 +230,10 @@ function initPowCard(powEl, onSolved) {
         getResult: () => result,
         isSolved: () => solved,
         isSolving: () => solving,
-        setMinBits: (b) => { minBits = b; if (!solving && !solved) { solved = false; solving = false; } },
+        setMinBits: (b) => { minBits = b; },
         reset: () => { solved = false; solving = false; result = null; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', nonce: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
+        meetsRequired: () => solved && result && result.powBits >= minBits,
+        requiredBits: () => minBits,
         el: powEl
     };
 }
