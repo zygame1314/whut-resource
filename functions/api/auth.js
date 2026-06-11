@@ -74,24 +74,13 @@ export async function onRequestPost({ request, env }) {
     }
     if (action === 'prepare-register') {
       const { powChallenge, powNonce, powBits, nickname } = body;
-      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-      const now = new Date().toISOString();
-      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => {});
-      const ipAttempt = await env.DB.prepare(
-        'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
-      ).bind(ip, 'ip', now).first();
-      const ipFailCount = ipAttempt?.fail_count || 0;
-      const requiredBits = Math.min(14 + Math.floor(Math.max(ipFailCount - 3, 0) / 2), 22);
       if (powChallenge && powNonce !== undefined && powBits) {
-        if (requiredBits > 0 && powBits < requiredBits) {
-          return new Response(JSON.stringify({ success: false, error: `人机验证难度不足，需要 ${requiredBits} 位难度`, requiredBits }), { status: 403, headers: addCorsHeaders() });
-        }
         const powResult = await verifyPowSolution(powChallenge, powNonce, powBits, env);
         if (!powResult.valid) {
-          return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败', requiredBits }), { status: 403, headers: addCorsHeaders() });
+          return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
       } else {
-        return new Response(JSON.stringify({ success: false, error: '请完成人机验证', requiredBits }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
       }
       const emailPrefix = body.emailPrefix || body.studentId;
       if (!emailPrefix) {
@@ -177,26 +166,15 @@ export async function onRequestPost({ request, env }) {
     }
     if (action === 'prepare-reset') {
       const { powChallenge, powNonce, powBits, newPassword } = body;
-      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-      const now = new Date().toISOString();
-      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => {});
-      const ipAttempt = await env.DB.prepare(
-        'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
-      ).bind(ip, 'ip', now).first();
-      const ipFailCount = ipAttempt?.fail_count || 0;
-      const requiredBits = Math.min(14 + Math.floor(Math.max(ipFailCount - 3, 0) / 2), 22);
       if (powChallenge && powNonce !== undefined && powBits) {
-        if (requiredBits > 0 && powBits < requiredBits) {
-          return new Response(JSON.stringify({ success: false, error: `人机验证难度不足，需要 ${requiredBits} 位难度`, requiredBits }), { status: 403, headers: addCorsHeaders() });
+        const powResult = await verifyPowSolution(powChallenge, powNonce, powBits, env);
+        if (!powResult.valid) {
+          return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
-         const powResult = await verifyPowSolution(powChallenge, powNonce, powBits, env);
-         if (!powResult.valid) {
-           return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败', requiredBits }), { status: 403, headers: addCorsHeaders() });
-         }
-       } else {
-         return new Response(JSON.stringify({ success: false, error: '请完成人机验证', requiredBits }), { status: 400, headers: addCorsHeaders() });
-       }
-       const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
+      } else {
+        return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
+      }
+      const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
       if (!email || !emailRegex.test(email)) {
         return new Response(JSON.stringify({ success: false, error: '请输入有效的学校邮箱地址。' }), { status: 400, headers: addCorsHeaders() });
       }
@@ -259,24 +237,13 @@ export async function onRequestPost({ request, env }) {
       if (!user) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
       }
-      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-      const now = new Date().toISOString();
-      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => {});
-      const ipAttempt = await env.DB.prepare(
-        'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
-      ).bind(ip, 'ip', now).first();
-      const ipFailCount = ipAttempt?.fail_count || 0;
-      const requiredBits = Math.min(14 + Math.floor(Math.max(ipFailCount - 3, 0) / 2), 22);
       if (powChallenge && powNonce !== undefined && powBits) {
-        if (requiredBits > 0 && powBits < requiredBits) {
-          return new Response(JSON.stringify({ success: false, error: `人机验证难度不足，需要 ${requiredBits} 位难度`, requiredBits }), { status: 403, headers: addCorsHeaders() });
-        }
         const powResult = await verifyPowSolution(powChallenge, powNonce, powBits, env);
         if (!powResult.valid) {
-          return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败', requiredBits }), { status: 403, headers: addCorsHeaders() });
+          return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
       } else {
-        return new Response(JSON.stringify({ success: false, error: '请完成人机验证', requiredBits }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
       }
       const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
       if (!newEmail || !emailRegex.test(newEmail)) {

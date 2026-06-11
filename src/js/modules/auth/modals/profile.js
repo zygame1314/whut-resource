@@ -253,17 +253,12 @@ function showForgotPasswordModal(prefillEmail = '') {
         }
         let powPayload = null;
         if (resetPowCtrl) {
-            if (!resetPowCtrl.isSolved() || !resetPowCtrl.meetsRequired()) {
-                if (resetPowCtrl.isSolved() && !resetPowCtrl.meetsRequired()) {
-                    resetPowCtrl.reset();
-                    showNotification(`人机验证难度不足，需要 ${resetPowCtrl.requiredBits()} 位难度，请重新验证`, 'error');
-                } else if (!resetPowCtrl.isSolving()) {
+            if (!resetPowCtrl.isSolved()) {
+                if (!resetPowCtrl.isSolving()) {
                     resetPowEl.click();
                 }
-                if (!resetPowCtrl.isSolved()) {
-                    showNotification('请先完成人机验证', 'error');
-                    return;
-                }
+                showNotification('请先完成人机验证', 'error');
+                return;
             }
             powPayload = resetPowCtrl.getResult();
         }
@@ -358,10 +353,6 @@ function showForgotPasswordModal(prefillEmail = '') {
                     });
                 };
             } else {
-                if (data.requiredBits && resetPowCtrl) {
-                    resetPowCtrl.reset();
-                    resetPowCtrl.setMinBits(data.requiredBits);
-                }
                 showNotification(data.error, 'error');
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
@@ -615,17 +606,12 @@ function showChangeEmailModal() {
         }
         let powPayload = null;
         if (changeEmailPowCtrl) {
-            if (!changeEmailPowCtrl.isSolved() || !changeEmailPowCtrl.meetsRequired()) {
-                if (changeEmailPowCtrl.isSolved() && !changeEmailPowCtrl.meetsRequired()) {
-                    changeEmailPowCtrl.reset();
-                    showNotification(`人机验证难度不足，需要 ${changeEmailPowCtrl.requiredBits()} 位难度，请重新验证`, 'error');
-                } else if (!changeEmailPowCtrl.isSolving()) {
+            if (!changeEmailPowCtrl.isSolved()) {
+                if (!changeEmailPowCtrl.isSolving()) {
                     changeEmailPowEl.click();
                 }
-                if (!changeEmailPowCtrl.isSolved()) {
-                    showNotification('请先完成人机验证', 'error');
-                    return;
-                }
+                showNotification('请先完成人机验证', 'error');
+                return;
             }
             powPayload = changeEmailPowCtrl.getResult();
         }
@@ -710,10 +696,6 @@ function showChangeEmailModal() {
                 showNotification(data.error, 'error');
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
-                if (data.requiredBits && changeEmailPowCtrl) {
-                    changeEmailPowCtrl.reset();
-                    changeEmailPowCtrl.setMinBits(data.requiredBits);
-                }
             }
         } catch (err) {
             showNotification('请求失败: ' + err.message, 'error');
