@@ -1,27 +1,8 @@
 const POW_BENCHMARK_MS = 300;
 const POW_TARGET_TIME_MS = 2000;
 
-async function powSha256Hex(message) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function powBenchmark(durationMs) {
-    const sample = crypto.randomUUID().replace(/-/g, '');
-    let count = 0;
-    const start = performance.now();
-    while (performance.now() - start < durationMs) {
-        await powSha256Hex(`${sample}:${count}`);
-        count++;
-    }
-    const elapsed = performance.now() - start;
-    return Math.round(count / (elapsed / 1000));
-}
-
 function bitsFromHashRate(hashRate) {
-    if (!hashRate || hashRate <= 0) return 18;
+    if (!hashRate || hashRate <= 0) return 14;
     const targetHashes = (POW_TARGET_TIME_MS / 1000) * hashRate;
     const bits = Math.floor(Math.log2(targetHashes));
     return Math.max(bits, 14);
@@ -29,9 +10,9 @@ function bitsFromHashRate(hashRate) {
 
 const POW_WORKER_CODE = `
 async function sha256Hex(message) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    var msgBuffer = new TextEncoder().encode(message);
+    var hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    var hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
 }
 
@@ -49,18 +30,35 @@ function checkPowHash(hash, bits) {
 }
 
 self.onmessage = async function(e) {
-    var challenge = e.data.challenge;
-    var bits = e.data.bits;
-    var nonce = 0;
-    while (true) {
-        var hash = await sha256Hex(challenge + ':' + nonce);
-        if (checkPowHash(hash, bits)) {
-            self.postMessage({ nonce: nonce, hash: hash.substring(0, 12), phase: 'done' });
-            return;
+    if (e.data.type === 'benchmark') {
+        var durationMs = e.data.durationMs || 300;
+        var sample = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : 'b8c3f7a1e2d4';
+        var count = 0;
+        var start = performance.now();
+        while (performance.now() - start < durationMs) {
+            await sha256Hex(sample + ':' + count);
+            count++;
         }
-        nonce++;
-        if (nonce % 2000 === 0) {
-            self.postMessage({ nonce: nonce, hash: hash.substring(0, 12), phase: 'computing' });
+        var elapsed = performance.now() - start;
+        var hashRate = Math.round(count / (elapsed / 1000));
+        self.postMessage({ type: 'benchmark', hashRate: hashRate });
+        return;
+    }
+
+    if (e.data.type === 'solve') {
+        var challenge = e.data.challenge;
+        var bits = e.data.bits;
+        var nonce = 0;
+        while (true) {
+            var hash = await sha256Hex(challenge + ':' + nonce);
+            if (checkPowHash(hash, bits)) {
+                self.postMessage({ type: 'solve', nonce: nonce, hash: hash.substring(0, 12), phase: 'done' });
+                return;
+            }
+            nonce++;
+            if (nonce % 2000 === 0) {
+                self.postMessage({ type: 'solve', nonce: nonce, hash: hash.substring(0, 12), phase: 'computing' });
+            }
         }
     }
 };
@@ -71,28 +69,36 @@ function createPowWorker() {
     return new Worker(URL.createObjectURL(blob));
 }
 
+function powBenchmarkInWorker(durationMs) {
+    return new Promise((resolve, reject) => {
+        let worker;
+        try { worker = createPowWorker(); } catch (e) { reject(e); return; }
+        worker.onmessage = (e) => {
+            if (e.data.type === 'benchmark') {
+                worker.terminate();
+                resolve(e.data.hashRate);
+            }
+        };
+        worker.onerror = (e) => { worker.terminate(); reject(new Error(e.message || 'Worker error')); };
+        worker.postMessage({ type: 'benchmark', durationMs });
+    });
+}
+
 function solvePowInWorker(challenge, bits, onProgress) {
     return new Promise((resolve, reject) => {
         let worker;
-        try {
-            worker = createPowWorker();
-        } catch (e) {
-            reject(e);
-            return;
-        }
+        try { worker = createPowWorker(); } catch (e) { reject(e); return; }
         worker.onmessage = (e) => {
-            const msg = e.data;
-            if (onProgress) onProgress(msg);
-            if (msg.phase === 'done') {
-                worker.terminate();
-                resolve(msg.nonce);
+            if (e.data.type === 'solve') {
+                if (onProgress) onProgress(e.data);
+                if (e.data.phase === 'done') {
+                    worker.terminate();
+                    resolve(e.data.nonce);
+                }
             }
         };
-        worker.onerror = (e) => {
-            worker.terminate();
-            reject(new Error(e.message || 'Worker error'));
-        };
-        worker.postMessage({ challenge, bits });
+        worker.onerror = (e) => { worker.terminate(); reject(new Error(e.message || 'Worker error')); };
+        worker.postMessage({ type: 'solve', challenge, bits });
     });
 }
 
@@ -114,7 +120,7 @@ async function fetchPowChallenge(hashRate) {
 
 async function solvePowChallenge(onProgress) {
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark', challenge: '' });
-    const hashRate = await powBenchmark(POW_BENCHMARK_MS);
+    const hashRate = await powBenchmarkInWorker(POW_BENCHMARK_MS);
     const clientBits = bitsFromHashRate(hashRate);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'fetching', challenge: '' });
     const { challenge, bits } = await fetchPowChallenge(hashRate);

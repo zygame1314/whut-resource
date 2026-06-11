@@ -358,7 +358,7 @@ export async function onRequestPost({ request, env }) {
       }
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const now = new Date().toISOString();
-      await env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run();
+      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => {});
       const ipAttempt = await env.DB.prepare(
         'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
       ).bind(ip, 'ip', now).first();
@@ -514,7 +514,7 @@ export async function onRequestPost({ request, env }) {
       const { powChallenge, powNonce, powBits } = body;
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const now = new Date().toISOString();
-      await env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run();
+      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => {});
       const ipAttempt = await env.DB.prepare(
         'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
       ).bind(ip, 'ip', now).first();
