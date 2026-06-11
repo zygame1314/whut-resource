@@ -1,17 +1,27 @@
 const POW_BENCHMARK_MS = 300;
 const POW_TARGET_TIME_MS = 2000;
 
+const DEVICE_RANKS = [
+    { hz: 0,       name: '未知设备',   icon: 'fa-question' },
+    { hz: 5000,    name: '智能冰箱',   icon: 'fa-snowflake' },
+    { hz: 10000,   name: '树莓派 4',   icon: 'fa-microchip' },
+    { hz: 20000,   name: '入门手机',   icon: 'fa-mobile-screen' },
+    { hz: 40000,   name: '旗舰手机',   icon: 'fa-mobile' },
+    { hz: 70000,   name: '办公笔记本', icon: 'fa-laptop' },
+    { hz: 120000,  name: '游戏电脑',   icon: 'fa-laptop-code' },
+    { hz: 250000,  name: '超频主机',   icon: 'fa-fire' },
+    { hz: 500000,  name: '天河二号',   icon: 'fa-building' },
+    { hz: Infinity, name: '神威·太湖之光', icon: 'fa-mountain-sun' },
+];
+
 function getDeviceRank(hashRate) {
-    if (!hashRate || hashRate <= 0) return { name: '未知设备', icon: 'fa-question' };
-    if (hashRate < 5000) return { name: '智能冰箱', icon: 'fa-snowflake' };
-    if (hashRate < 15000) return { name: '树莓派', icon: 'fa-microchip' };
-    if (hashRate < 30000) return { name: '千元安卓', icon: 'fa-mobile-screen' };
-    if (hashRate < 50000) return { name: '办公笔记本', icon: 'fa-laptop' };
-    if (hashRate < 80000) return { name: '性能笔记本', icon: 'fa-laptop-code' };
-    if (hashRate < 130000) return { name: '游戏电脑', icon: 'fa-desktop' };
-    if (hashRate < 250000) return { name: '超频主机', icon: 'fa-fire' };
-    if (hashRate < 500000) return { name: '天河二号', icon: 'fa-building' };
-    return { name: '神威·太湖之光', icon: 'fa-mountain-sun' };
+    if (!hashRate || hashRate <= 0) return DEVICE_RANKS[0];
+    for (let i = 1; i < DEVICE_RANKS.length; i++) {
+        if (hashRate < DEVICE_RANKS[i].hz) {
+            return DEVICE_RANKS[i - 1];
+        }
+    }
+    return DEVICE_RANKS[DEVICE_RANKS.length - 1];
 }
 
 function bitsFromHashRate(hashRate) {
