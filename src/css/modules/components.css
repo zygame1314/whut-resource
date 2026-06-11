@@ -903,6 +903,10 @@
     .primary-btn span {
         display: none;
     }
+
+    .primary-btn.btn-sending .send-label {
+        display: inline-block;
+    }
 }
 
 .modal-overlay {

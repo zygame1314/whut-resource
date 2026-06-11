@@ -625,6 +625,24 @@ function applyLocalSortAndFilter() {
         isShowingSearchResults ? (searchInput ? searchInput.value.trim() : '') : ''
     );
 }
+function paginateSearchResults(allDirs, allFiles, page, perPage) {
+    const allItems = [
+        ...allDirs.map(d => ({ ...d, _sortIsDir: true, _sortIsLink: d.is_link === 1 || d.is_link === true })),
+        ...allFiles.map(f => ({ ...f, _sortIsDir: false, _sortIsLink: f.is_link === 1 || f.is_link === true }))
+    ];
+    const totalItems = allItems.length;
+    const startIndex = (page - 1) * perPage;
+    const endIndex = startIndex + perPage;
+    const pageItems = allItems.slice(startIndex, endIndex);
+    const dirsOnPage = pageItems.filter(i => i._sortIsDir);
+    const linksOnPage = pageItems.filter(i => !i._sortIsDir && i._sortIsLink);
+    const filesOnPage = pageItems.filter(i => !i._sortIsDir && !i._sortIsLink);
+    const displayedData = {
+        directories: dirsOnPage,
+        files: [...linksOnPage, ...filesOnPage]
+    };
+    return { displayedData, totalItems };
+}
 function reRenderWithData(data, isGlobalSearch, searchTerm) {
     const allDirs = data.directories || [];
     const allFiles = data.files || [];
@@ -633,17 +651,23 @@ function reRenderWithData(data, isGlobalSearch, searchTerm) {
     if (currentPage > newTotalPages) {
         currentPage = newTotalPages;
     }
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const displayedData = { files: [], directories: [] };
-    if (startIndex < allDirs.length) {
-        const dirEnd = Math.min(endIndex, allDirs.length);
-        displayedData.directories = allDirs.slice(startIndex, dirEnd);
-    }
-    if (endIndex > allDirs.length) {
-        const fileStart = Math.max(0, startIndex - allDirs.length);
-        const fileEnd = endIndex - allDirs.length;
-        displayedData.files = allFiles.slice(fileStart, fileEnd);
+    let displayedData;
+    if (isGlobalSearch) {
+        const result = paginateSearchResults(allDirs, allFiles, currentPage, itemsPerPage);
+        displayedData = result.displayedData;
+    } else {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        displayedData = { files: [], directories: [] };
+        if (startIndex < allDirs.length) {
+            const dirEnd = Math.min(endIndex, allDirs.length);
+            displayedData.directories = allDirs.slice(startIndex, dirEnd);
+        }
+        if (endIndex > allDirs.length) {
+            const fileStart = Math.max(0, startIndex - allDirs.length);
+            const fileEnd = endIndex - allDirs.length;
+            displayedData.files = allFiles.slice(fileStart, fileEnd);
+        }
     }
     const paginationData = {
         currentPage: currentPage,
@@ -826,20 +850,8 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                     files: [...allFiles]
                 };
                 const sortedData = sortData(currentRawData, currentSortOption);
-                const sortedDirs = sortedData.directories;
-                const sortedFiles = sortedData.files;
-                const totalItems = sortedDirs.length + sortedFiles.length;
-                const startIndex = (currentPage - 1) * itemsPerPage;
-                const endIndex = startIndex + itemsPerPage;
-                receivedData = { files: [], directories: [] };
-                if (startIndex < sortedDirs.length) {
-                    receivedData.directories = sortedDirs.slice(startIndex, Math.min(endIndex, sortedDirs.length));
-                }
-                if (endIndex > sortedDirs.length) {
-                    const fileStart = Math.max(0, startIndex - sortedDirs.length);
-                    const fileEnd = endIndex - sortedDirs.length;
-                    receivedData.files = sortedFiles.slice(fileStart, fileEnd);
-                }
+                const paginateResult = paginateSearchResults(sortedData.directories, sortedData.files, currentPage, itemsPerPage);
+                receivedData = paginateResult.displayedData;
                 paginationData = {
                     currentPage: currentPage,
                     totalPages: Math.ceil(cachedResult.totalItems / itemsPerPage),
@@ -901,20 +913,8 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                         files: [...allFiles]
                     };
                     const sortedData = sortData(currentRawData, currentSortOption);
-                    const sortedDirs = sortedData.directories;
-                    const sortedFiles = sortedData.files;
-                    const totalItems = sortedDirs.length + sortedFiles.length;
-                    const startIndex = (currentPage - 1) * itemsPerPage;
-                    const endIndex = startIndex + itemsPerPage;
-                    receivedData = { files: [], directories: [] };
-                    if (startIndex < sortedDirs.length) {
-                        receivedData.directories = sortedDirs.slice(startIndex, Math.min(endIndex, sortedDirs.length));
-                    }
-                    if (endIndex > sortedDirs.length) {
-                        const fileStart = Math.max(0, startIndex - sortedDirs.length);
-                        const fileEnd = endIndex - sortedDirs.length;
-                        receivedData.files = sortedFiles.slice(fileStart, fileEnd);
-                    }
+                    const paginateResult = paginateSearchResults(sortedData.directories, sortedData.files, currentPage, itemsPerPage);
+                    receivedData = paginateResult.displayedData;
                     paginationData = {
                         currentPage: currentPage,
                         totalPages: Math.ceil(totalFound / itemsPerPage),
@@ -954,12 +954,8 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                         files: [...cachedResult.files]
                     };
                     const sortedData = sortData(currentRawData, currentSortOption);
-                    const startIndex = (currentPage - 1) * itemsPerPage;
-                    const endIndex = startIndex + itemsPerPage;
-                    receivedData = {
-                        files: sortedData.files.slice(startIndex, endIndex),
-                        directories: sortedData.directories || []
-                    };
+                    const paginateResult = paginateSearchResults(sortedData.directories, sortedData.files, currentPage, itemsPerPage);
+                    receivedData = paginateResult.displayedData;
                     paginationData = {
                         currentPage: currentPage,
                         totalPages: Math.ceil(cachedResult.totalItems / itemsPerPage),
@@ -1030,12 +1026,8 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                             files: [...allFiles]
                         };
                         const sortedData = sortData(currentRawData, currentSortOption);
-                        const startIndex = (currentPage - 1) * itemsPerPage;
-                        const endIndex = startIndex + itemsPerPage;
-                        receivedData = {
-                            files: sortedData.files.slice(startIndex, endIndex),
-                            directories: sortedData.directories
-                        };
+                        const paginateResult = paginateSearchResults(sortedData.directories, sortedData.files, currentPage, itemsPerPage);
+                        receivedData = paginateResult.displayedData;
                         paginationData = {
                             currentPage: currentPage,
                             totalPages: Math.ceil(totalFound / itemsPerPage),

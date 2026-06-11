@@ -143,7 +143,7 @@ async function handleGuestbookSubmit(e) {
         if (submitGuestbookBtn) {
             submitGuestbookBtn.disabled = false;
             submitGuestbookBtn.classList.remove('btn-sending');
-            submitGuestbookBtn.innerHTML = '提交';
+            submitGuestbookBtn.innerHTML = '<i class="fas fa-paper-plane"></i> 提交';
         }
     }
 }
