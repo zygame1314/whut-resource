@@ -62,8 +62,22 @@ function showAuthModal(mode = 'login') {
                     </div>
                 </div>
                 <div id="login-captcha-container" class="form-group" style="display: none;">
-                    <div id="pow-login-status" class="pow-status" style="display:none;">
-                        <i class="fas fa-cog fa-spin"></i> <span class="pow-status-text">正在计算人机验证...</span>
+                    <div id="pow-login-status" class="pow-card">
+                        <div class="pow-visual">
+                            <svg class="pow-ring-svg" viewBox="0 0 44 44">
+                                <circle class="pow-ring-bg" cx="22" cy="22" r="18"/>
+                                <circle class="pow-ring-progress" cx="22" cy="22" r="18"/>
+                            </svg>
+                            <div class="pow-ring-content">
+                                <i class="fas fa-shield-alt pow-icon"></i>
+                                <i class="fas fa-check pow-check" style="display:none;"></i>
+                            </div>
+                        </div>
+                        <div class="pow-info">
+                            <div class="pow-label">点击完成人机验证</div>
+                            <div class="pow-hash"><span class="pow-hash-label">hash</span> <span class="pow-hash-value">--------</span></div>
+                            <div class="pow-nonce-row"><span class="pow-nonce-label">nonce</span> <span class="pow-nonce">0</span></div>
+                        </div>
                     </div>
                 </div>
                 ${isSso ? `
@@ -177,8 +191,22 @@ function showAuthModal(mode = 'login') {
                                 <div class="warning-help-link"><a href="https://home.haoli.site/pages/blog-view?id=WHUT%E6%A0%A1%E5%9B%AD%E9%82%AE%E7%AE%B1%E7%94%B3%E8%AF%B7%E5%8F%8A%E7%99%BB%E5%BD%95%E6%8C%87%E5%8D%97" target="_blank" rel="noopener noreferrer"><i class="fas fa-question-circle"></i> 邮箱申请教程</a></div>
                             </div>
                             <div id="hcaptcha-widget" class="captcha-widget" style="display:none;"></div>
-                            <div id="pow-register-status" class="pow-status" style="display:none;">
-                                <i class="fas fa-cog fa-spin"></i> <span class="pow-status-text">正在计算人机验证...</span>
+                            <div id="pow-register-status" class="pow-card">
+                                <div class="pow-visual">
+                                    <svg class="pow-ring-svg" viewBox="0 0 44 44">
+                                        <circle class="pow-ring-bg" cx="22" cy="22" r="18"/>
+                                        <circle class="pow-ring-progress" cx="22" cy="22" r="18"/>
+                                    </svg>
+                                    <div class="pow-ring-content">
+                                        <i class="fas fa-shield-alt pow-icon"></i>
+                                        <i class="fas fa-check pow-check" style="display:none;"></i>
+                                    </div>
+                                </div>
+                                <div class="pow-info">
+                                    <div class="pow-label">点击完成人机验证</div>
+                                    <div class="pow-hash"><span class="pow-hash-label">hash</span> <span class="pow-hash-value">--------</span></div>
+                                    <div class="pow-nonce-row"><span class="pow-nonce-label">nonce</span> <span class="pow-nonce">0</span></div>
+                                </div>
                             </div>
                         </div>
                         <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
@@ -318,6 +346,7 @@ function showAuthModal(mode = 'login') {
     initPasswordToggles(modal);
     let currentSsoCookies = '';
     let currentSsoSmsHtml = '';
+    let loginPowCtrl = null;
     if (isLogin || isSso) {
         const form = modal.querySelector('#auth-form');
         const forgotPasswordLink = modal.querySelector('#forgot-password');
@@ -326,6 +355,11 @@ function showAuthModal(mode = 'login') {
                 e.preventDefault();
                 closeAuthModal(modal, () => showForgotPasswordModal());
             };
+        }
+        const captchaContainer = modal.querySelector('#login-captcha-container');
+        const loginPowEl = modal.querySelector('#pow-login-status');
+        if (captchaContainer && captchaContainer.style.display !== 'none' && loginPowEl) {
+            loginPowCtrl = initPowCard(loginPowEl);
         }
         form.onsubmit = async (e) => {
             e.preventDefault();
@@ -337,23 +371,16 @@ function showAuthModal(mode = 'login') {
             }
             const identifier = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
-            const captchaContainer = modal.querySelector('#login-captcha-container');
             let powData = null;
-            if (captchaContainer && captchaContainer.style.display !== 'none') {
-                const powStatusEl = modal.querySelector('#pow-login-status');
-                if (powStatusEl) { powStatusEl.style.display = 'flex'; }
-                try {
-                    powData = await solvePowChallenge((nonce) => {
-                        if (powStatusEl) {
-                            powStatusEl.querySelector('.pow-status-text').textContent = `正在计算人机验证... (${nonce})`;
-                        }
-                    });
-                } catch (e) {
-                    showNotification('人机验证计算失败: ' + e.message, 'error');
-                    if (powStatusEl) { powStatusEl.style.display = 'none'; }
+            if (loginPowCtrl && captchaContainer && captchaContainer.style.display !== 'none') {
+                if (!loginPowCtrl.isSolved()) {
+                    if (!loginPowCtrl.isSolving()) {
+                        loginPowEl.click();
+                    }
+                    showNotification('请先完成人机验证', 'error');
                     return;
                 }
-                if (powStatusEl) { powStatusEl.style.display = 'none'; }
+                powData = loginPowCtrl.getResult();
             }
             let payload = { password };
             if (powData) {
@@ -511,6 +538,9 @@ function showAuthModal(mode = 'login') {
                     const needCaptcha = data.requireCaptcha;
                     if (needCaptcha && captchaContainer.style.display === 'none') {
                         captchaContainer.style.display = 'block';
+                        if (!loginPowCtrl && loginPowEl) {
+                            loginPowCtrl = initPowCard(loginPowEl);
+                        }
                         showNotification(data.error, 'error');
                     } else if (needCaptcha) {
                         showNotification(data.error, 'error');
@@ -594,6 +624,8 @@ function showAuthModal(mode = 'login') {
             }
         }
     } else {
+        const registerPowEl = modal.querySelector('#pow-register-status');
+        const registerPowCtrl = registerPowEl ? initPowCard(registerPowEl) : null;
         const step1Form = modal.querySelector('#register-form-step1');
         const step1Div = modal.querySelector('#register-step-1');
         const step2Div = modal.querySelector('#register-step-2');
@@ -626,20 +658,16 @@ function showAuthModal(mode = 'login') {
                 return;
             }
             let powData = null;
-            const powStatusEl = modal.querySelector('#pow-register-status');
-            if (powStatusEl) { powStatusEl.style.display = 'flex'; }
-            try {
-                powData = await solvePowChallenge((nonce) => {
-                    if (powStatusEl) {
-                        powStatusEl.querySelector('.pow-status-text').textContent = `正在计算人机验证... (${nonce})`;
+            if (registerPowCtrl) {
+                if (!registerPowCtrl.isSolved()) {
+                    if (!registerPowCtrl.isSolving()) {
+                        registerPowEl.click();
                     }
-                });
-            } catch (e) {
-                showNotification('人机验证计算失败: ' + e.message, 'error');
-                if (powStatusEl) { powStatusEl.style.display = 'none'; }
-                return;
+                    showNotification('请先完成人机验证', 'error');
+                    return;
+                }
+                powData = registerPowCtrl.getResult();
             }
-            if (powStatusEl) { powStatusEl.style.display = 'none'; }
             const getCodeBtn = modal.querySelector('#get-code-btn');
             getCodeBtn.disabled = true;
             getCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';

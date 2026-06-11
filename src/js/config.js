@@ -25,7 +25,8 @@ const API_ENDPOINTS = {
     oauthAuthorize: `${API_BASE}/api/oauth/authorize`,
     oauthToken: `${API_BASE}/api/oauth/token`,
     oauthUserinfo: `${API_BASE}/api/oauth/userinfo`,
-    oauthAdmin: `${API_BASE}/api/oauth-admin`
+    oauthAdmin: `${API_BASE}/api/oauth-admin`,
+    pow: `${API_BASE}/api/pow`
 };
 window.filesApiCache = {
     _cache: {},

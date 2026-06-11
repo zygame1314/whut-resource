@@ -101,8 +101,22 @@ function showForgotPasswordModal(prefillEmail = '') {
                     </div>
                     <div class="form-group">
                         <div id="hcaptcha-reset-widget" class="captcha-widget" style="display:none;"></div>
-                        <div id="pow-reset-status" class="pow-status" style="display:none;">
-                            <i class="fas fa-cog fa-spin"></i> <span class="pow-status-text">正在计算人机验证...</span>
+                        <div id="pow-reset-status" class="pow-card">
+                            <div class="pow-visual">
+                                <svg class="pow-ring-svg" viewBox="0 0 44 44">
+                                    <circle class="pow-ring-bg" cx="22" cy="22" r="18"/>
+                                    <circle class="pow-ring-progress" cx="22" cy="22" r="18"/>
+                                </svg>
+                                <div class="pow-ring-content">
+                                    <i class="fas fa-shield-alt pow-icon"></i>
+                                    <i class="fas fa-check pow-check" style="display:none;"></i>
+                                </div>
+                            </div>
+                            <div class="pow-info">
+                                <div class="pow-label">点击完成人机验证</div>
+                                <div class="pow-hash"><span class="pow-hash-label">hash</span> <span class="pow-hash-value">--------</span></div>
+                                <div class="pow-nonce-row"><span class="pow-nonce-label">nonce</span> <span class="pow-nonce">0</span></div>
+                            </div>
                         </div>
                     </div>
                     <button type="submit" id="get-reset-code-btn" class="primary-btn full-width">获取验证码</button>
@@ -193,6 +207,8 @@ function showForgotPasswordModal(prefillEmail = '') {
     `;
     document.body.appendChild(modal);
     initPasswordToggles(modal);
+    const resetPowEl = modal.querySelector('#pow-reset-status');
+    const resetPowCtrl = resetPowEl ? initPowCard(resetPowEl) : null;
     const closeBtn = modal.querySelector('#close-modal');
     const backToLoginLink = modal.querySelector('#back-to-login');
     closeBtn.onclick = () => {
@@ -235,20 +251,16 @@ function showForgotPasswordModal(prefillEmail = '') {
             return;
         }
         let powPayload = null;
-        const resetPowStatusEl2 = modal.querySelector('#pow-reset-status');
-        if (resetPowStatusEl2) { resetPowStatusEl2.style.display = 'flex'; }
-        try {
-            powPayload = await solvePowChallenge((nonce) => {
-                if (resetPowStatusEl2) {
-                    resetPowStatusEl2.querySelector('.pow-status-text').textContent = `正在计算人机验证... (${nonce})`;
+        if (resetPowCtrl) {
+            if (!resetPowCtrl.isSolved()) {
+                if (!resetPowCtrl.isSolving()) {
+                    resetPowEl.click();
                 }
-            });
-        } catch (e) {
-            showNotification('人机验证计算失败: ' + e.message, 'error');
-            if (resetPowStatusEl2) { resetPowStatusEl2.style.display = 'none'; }
-            return;
+                showNotification('请先完成人机验证', 'error');
+                return;
+            }
+            powPayload = resetPowCtrl.getResult();
         }
-        if (resetPowStatusEl2) { resetPowStatusEl2.style.display = 'none'; }
         const getCodeBtn = modal.querySelector('#get-reset-code-btn');
         getCodeBtn.disabled = true;
         getCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
@@ -463,8 +475,22 @@ function showChangeEmailModal() {
                     </div>
                     <div class="form-group">
                         <div id="hcaptcha-change-email-widget" class="captcha-widget" style="display:none;"></div>
-                        <div id="pow-change-email-status" class="pow-status" style="display:none;">
-                            <i class="fas fa-cog fa-spin"></i> <span class="pow-status-text">正在计算人机验证...</span>
+                        <div id="pow-change-email-status" class="pow-card">
+                            <div class="pow-visual">
+                                <svg class="pow-ring-svg" viewBox="0 0 44 44">
+                                    <circle class="pow-ring-bg" cx="22" cy="22" r="18"/>
+                                    <circle class="pow-ring-progress" cx="22" cy="22" r="18"/>
+                                </svg>
+                                <div class="pow-ring-content">
+                                    <i class="fas fa-shield-alt pow-icon"></i>
+                                    <i class="fas fa-check pow-check" style="display:none;"></i>
+                                </div>
+                            </div>
+                            <div class="pow-info">
+                                <div class="pow-label">点击完成人机验证</div>
+                                <div class="pow-hash"><span class="pow-hash-label">hash</span> <span class="pow-hash-value">--------</span></div>
+                                <div class="pow-nonce-row"><span class="pow-nonce-label">nonce</span> <span class="pow-nonce">0</span></div>
+                            </div>
                         </div>
                     </div>
                     <button type="submit" id="get-change-code-btn" class="primary-btn full-width">获取验证码</button>
@@ -550,6 +576,8 @@ function showChangeEmailModal() {
         </div>
     `;
     document.body.appendChild(modal);
+    const changeEmailPowEl = modal.querySelector('#pow-change-email-status');
+    const changeEmailPowCtrl = changeEmailPowEl ? initPowCard(changeEmailPowEl) : null;
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => {
         if (window.changePollingTimer) clearInterval(window.changePollingTimer);
@@ -575,20 +603,16 @@ function showChangeEmailModal() {
             return;
         }
         let powPayload = null;
-        const changePowStatusEl = modal.querySelector('#pow-change-email-status');
-        if (changePowStatusEl) { changePowStatusEl.style.display = 'flex'; }
-        try {
-            powPayload = await solvePowChallenge((nonce) => {
-                if (changePowStatusEl) {
-                    changePowStatusEl.querySelector('.pow-status-text').textContent = `正在计算人机验证... (${nonce})`;
+        if (changeEmailPowCtrl) {
+            if (!changeEmailPowCtrl.isSolved()) {
+                if (!changeEmailPowCtrl.isSolving()) {
+                    changeEmailPowEl.click();
                 }
-            });
-        } catch (e) {
-            showNotification('人机验证计算失败: ' + e.message, 'error');
-            if (changePowStatusEl) { changePowStatusEl.style.display = 'none'; }
-            return;
+                showNotification('请先完成人机验证', 'error');
+                return;
+            }
+            powPayload = changeEmailPowCtrl.getResult();
         }
-        if (changePowStatusEl) { changePowStatusEl.style.display = 'none'; }
         const getCodeBtn = modal.querySelector('#get-change-code-btn');
         getCodeBtn.disabled = true;
         getCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
