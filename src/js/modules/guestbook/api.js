@@ -95,6 +95,8 @@ async function handleGuestbookSubmit(e) {
         if (response.ok) {
             const result = d;
             guestbookContentInput.value = '';
+            const charCurrent = document.getElementById('char-current');
+            if (charCurrent) charCurrent.textContent = '0';
             const isAdmin = isGuestbookAdmin(window.currentUser);
             const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
             showNotification(isAdmin ? '留言发布成功！' : '留言已提交，请耐心等待审核', 'success');
