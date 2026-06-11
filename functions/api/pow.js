@@ -51,13 +51,19 @@ export async function verifyPowSolution(challenge, nonce, bits, env) {
   if (!Number.isInteger(nonce) || nonce < 0) {
     return { valid: false, error: 'nonce 参数无效' };
   }
-  const record = await env.DB.prepare('SELECT bits, expires_at FROM pow_challenges WHERE challenge = ? AND expires_at > ?')
+  const record = await env.DB.prepare('SELECT bits, issued_at, expires_at FROM pow_challenges WHERE challenge = ? AND expires_at > ?')
     .bind(challenge, new Date().toISOString()).first();
   if (!record) {
     return { valid: false, error: '挑战不存在或已过期' };
   }
   if (bits < record.bits) {
     return { valid: false, error: '难度低于服务端要求' };
+  }
+  const elapsedMs = Date.now() - new Date(record.issued_at).getTime();
+  const minTimeMs = Math.pow(2, record.bits - 4) * 0.3;
+  if (elapsedMs < minTimeMs) {
+    await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
+    return { valid: false, error: '验证过快，请重试' };
   }
   await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
   const hash = await sha256Hex(`${challenge}:${nonce}`);
