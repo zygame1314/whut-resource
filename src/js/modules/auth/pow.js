@@ -27,7 +27,7 @@ function collectBrowserProof() {
         proof.cg = canvas.toDataURL().length;
     } catch (_) { proof.cg = 0; }
 
-    proof.gl = (function() {
+    proof.gl = (function () {
         try {
             const c = document.createElement('canvas');
             const g = c.getContext('webgl') || c.getContext('experimental-webgl');
@@ -85,15 +85,15 @@ function validateBrowserProof(proof) {
 }
 
 const DEVICE_RANKS = [
-    { hz: 0,       name: '未知设备',   icon: 'fa-question' },
-    { hz: 5000,    name: '智能冰箱',   icon: 'fa-snowflake' },
-    { hz: 10000,   name: '树莓派 4',   icon: 'fa-microchip' },
-    { hz: 20000,   name: '入门手机',   icon: 'fa-mobile-screen' },
-    { hz: 40000,   name: '旗舰手机',   icon: 'fa-mobile' },
-    { hz: 70000,   name: '办公笔记本', icon: 'fa-laptop' },
-    { hz: 120000,  name: '游戏电脑',   icon: 'fa-laptop-code' },
-    { hz: 250000,  name: '超频主机',   icon: 'fa-fire' },
-    { hz: 500000,  name: '天河二号',   icon: 'fa-building' },
+    { hz: 0, name: '电子垃圾', icon: 'fa-trash-can' },
+    { hz: 5000, name: '小霸王', icon: 'fa-gamepad' },
+    { hz: 10000, name: '树莓派', icon: 'fa-microchip' },
+    { hz: 20000, name: '入门手机', icon: 'fa-mobile-screen' },
+    { hz: 40000, name: '旗舰手机', icon: 'fa-mobile' },
+    { hz: 70000, name: '办公笔记本', icon: 'fa-laptop' },
+    { hz: 120000, name: '游戏电脑', icon: 'fa-laptop-code' },
+    { hz: 250000, name: '超频主机', icon: 'fa-fire' },
+    { hz: 500000, name: '天河二号', icon: 'fa-building' },
     { hz: Infinity, name: '神威·太湖之光', icon: 'fa-mountain-sun' },
 ];
 
