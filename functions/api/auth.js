@@ -369,7 +369,7 @@ export async function onRequestPost({ request, env }) {
       const idFailCount = idAttempt?.fail_count || 0;
       const maxFailCount = Math.max(ipFailCount, idFailCount);
       const requireCaptcha = maxFailCount >= 3;
-      const requiredBits = requireCaptcha ? Math.min(14 + Math.floor((maxFailCount - 3) / 2), 22) : 0;
+      const requiredBits = requireCaptcha ? Math.min(15 + Math.floor((maxFailCount - 3) / 2), 22) : 0;
       const isSmsVerification = ssoSmsCode && ssoCookies;
       if (requireCaptcha && !isSmsVerification) {
         if (powChallenge && powNonce !== undefined && powBits) {
@@ -535,7 +535,7 @@ export async function onRequestPost({ request, env }) {
       const emailFailCount = emailAttempt?.fail_count || 0;
       const maxFailCount = Math.max(ipFailCount, emailFailCount);
       const requireCaptcha = maxFailCount >= 3;
-      const requiredBits = requireCaptcha ? Math.min(14 + Math.floor((maxFailCount - 3) / 2), 22) : 0;
+      const requiredBits = requireCaptcha ? Math.min(15 + Math.floor((maxFailCount - 3) / 2), 22) : 0;
       if (requireCaptcha) {
         if (powChallenge && powNonce !== undefined && powBits) {
           if (powBits < requiredBits) {

@@ -1,5 +1,5 @@
 const CHALLENGE_EXPIRES_MS = 5 * 60 * 1000;
-const MIN_BITS = 14;
+const MIN_BITS = 15;
 const MAX_BITS = 24;
 
 function bitsFromHashRate(hashRate) {
@@ -59,7 +59,7 @@ export async function verifyPowSolution(challenge, nonce, bits, env) {
     return { valid: false, error: '难度低于服务端要求' };
   }
   const elapsedMs = Date.now() - new Date(record.issued_at).getTime();
-  const minTimeMs = Math.pow(2, record.bits - 4) * 0.3;
+  const minTimeMs = Math.pow(2, record.bits - 4) * 2;
   if (elapsedMs < minTimeMs) {
     await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
     return { valid: false, error: '验证过快，请重试' };
