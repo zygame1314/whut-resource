@@ -32,6 +32,21 @@ function shouldCleanup() {
   return Math.random() < 0.02;
 }
 
+function validateBrowserProof(bp) {
+  if (!bp) return 0;
+  let score = 0;
+  if (bp.wd) return 0;
+  if (bp.wb) return 0;
+  if (bp.cg && bp.cg > 1000) score += 30;
+  if (bp.gl === 2) score += 20;
+  else if (bp.gl === 1) score += 10;
+  if (bp.mm) score += 20;
+  if (bp.hr) score += 10;
+  if (bp.mc && bp.mc > 2) score += 10;
+  if (bp.ct && bp.ct > 0 && bp.ct < 5000) score += 10;
+  return score;
+}
+
 async function lazyCleanup(db) {
   try {
     await db.prepare('DELETE FROM pow_challenges WHERE expires_at < ?').bind(new Date().toISOString()).run();
@@ -91,6 +106,15 @@ export async function onRequestPost({ request, env }) {
     const body = await request.json().catch(() => ({}));
     const hashRate = Number(body.hashRate) || 0;
     const minBits = Number(body.minBits) || 0;
+    const bp = body.bp || null;
+    if (bp) {
+      const score = validateBrowserProof(bp);
+      if (score < 40) {
+        return new Response(JSON.stringify({ success: false, error: '浏览器环境验证失败' }), {
+          status: 403, headers: { 'Content-Type': 'application/json', ...addCors() }
+        });
+      }
+    }
     const bits = Math.max(bitsFromHashRate(hashRate), minBits, MIN_BITS);
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const challenge = crypto.randomUUID().replace(/-/g, '');
