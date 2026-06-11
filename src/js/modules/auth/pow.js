@@ -27,17 +27,73 @@ function bitsFromHashRate(hashRate) {
     return Math.max(bits, 18);
 }
 
+const POW_WORKER_CODE = `
+async function sha256Hex(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+
 function checkPowHash(hash, bits) {
-    const fullHexChars = Math.floor(bits / 4);
-    const remainingBits = bits % 4;
-    for (let i = 0; i < fullHexChars; i++) {
+    var fullHexChars = Math.floor(bits / 4);
+    var remainingBits = bits % 4;
+    for (var i = 0; i < fullHexChars; i++) {
         if (hash[i] !== '0') return false;
     }
     if (remainingBits > 0) {
-        const val = parseInt(hash[fullHexChars], 16);
+        var val = parseInt(hash[fullHexChars], 16);
         if (val >> (4 - remainingBits) !== 0) return false;
     }
     return true;
+}
+
+self.onmessage = async function(e) {
+    var challenge = e.data.challenge;
+    var bits = e.data.bits;
+    var nonce = 0;
+    while (true) {
+        var hash = await sha256Hex(challenge + ':' + nonce);
+        if (checkPowHash(hash, bits)) {
+            self.postMessage({ nonce: nonce, hash: hash.substring(0, 12), phase: 'done' });
+            return;
+        }
+        nonce++;
+        if (nonce % 2000 === 0) {
+            self.postMessage({ nonce: nonce, hash: hash.substring(0, 12), phase: 'computing' });
+        }
+    }
+};
+`;
+
+function createPowWorker() {
+    const blob = new Blob([POW_WORKER_CODE], { type: 'application/javascript' });
+    return new Worker(URL.createObjectURL(blob));
+}
+
+function solvePowInWorker(challenge, bits, onProgress) {
+    return new Promise((resolve, reject) => {
+        let worker;
+        try {
+            worker = createPowWorker();
+        } catch (e) {
+            reject(e);
+            return;
+        }
+        worker.onmessage = (e) => {
+            const msg = e.data;
+            if (onProgress) onProgress(msg);
+            if (msg.phase === 'done') {
+                worker.terminate();
+                resolve(msg.nonce);
+            }
+        };
+        worker.onerror = (e) => {
+            worker.terminate();
+            reject(new Error(e.message || 'Worker error'));
+        };
+        worker.postMessage({ challenge, bits });
+    });
 }
 
 async function fetchPowChallenge(hashRate) {
@@ -56,28 +112,6 @@ async function fetchPowChallenge(hashRate) {
     };
 }
 
-async function solvePow(challenge, bits, onProgress) {
-    let nonce = 0;
-    const batchSize = 2000;
-    let lastReport = performance.now();
-    while (true) {
-        const hash = await powSha256Hex(`${challenge}:${nonce}`);
-        if (checkPowHash(hash, bits)) {
-            if (onProgress) onProgress({ nonce, hash: hash.substring(0, 12), phase: 'done', challenge });
-            return nonce;
-        }
-        nonce++;
-        if (nonce % batchSize === 0) {
-            const now = performance.now();
-            if (now - lastReport > 80) {
-                if (onProgress) onProgress({ nonce, hash: hash.substring(0, 12), phase: 'computing', challenge });
-                lastReport = now;
-                await new Promise(r => setTimeout(r, 0));
-            }
-        }
-    }
-}
-
 async function solvePowChallenge(onProgress) {
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark', challenge: '' });
     const hashRate = await powBenchmark(POW_BENCHMARK_MS);
@@ -86,7 +120,7 @@ async function solvePowChallenge(onProgress) {
     const { challenge, bits } = await fetchPowChallenge(hashRate);
     const finalBits = Math.max(bits, clientBits);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'solving', challenge });
-    const nonce = await solvePow(challenge, finalBits, onProgress);
+    const nonce = await solvePowInWorker(challenge, finalBits, onProgress);
     return { powChallenge: challenge, powNonce: nonce, powBits: finalBits };
 }
 
