@@ -1,5 +1,4 @@
 const CHALLENGE_EXPIRES_MS = 5 * 60 * 1000;
-const MAX_CHALLENGES_PER_IP = 30;
 const MIN_BITS = 14;
 const MAX_BITS = 24;
 
@@ -96,30 +95,10 @@ export async function onRequestPost({ request, env }) {
     const challenge = crypto.randomUUID().replace(/-/g, '');
     const nowISO = new Date().toISOString();
     const expiresAt = new Date(Date.now() + CHALLENGE_EXPIRES_MS).toISOString();
-    const rateLimit = await env.DB.prepare(
-      'SELECT challenge_count FROM pow_rate_limits WHERE ip = ? AND expires_at > ?'
-    ).bind(ip, nowISO).first();
-    if (rateLimit && rateLimit.challenge_count >= MAX_CHALLENGES_PER_IP) {
-      return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请稍后再试' }), {
-        status: 429, headers: { 'Content-Type': 'application/json', ...addCors() }
-      });
-    }
-    if (rateLimit) {
-      await env.DB.prepare(
-        'UPDATE pow_rate_limits SET challenge_count = challenge_count + 1, last_issued_at = ? WHERE ip = ?'
-      ).bind(nowISO, ip).run();
-    } else {
-      await env.DB.prepare(
-        'INSERT INTO pow_rate_limits (ip, challenge_count, expires_at) VALUES (?, 1, ?)'
-      ).bind(ip, expiresAt).run();
-    }
     await env.DB.prepare(
       'INSERT INTO pow_challenges (challenge, difficulty, ip, issued_at, expires_at) VALUES (?, ?, ?, ?, ?)'
     ).bind(challenge, bits, ip, nowISO, expiresAt).run();
-    if (shouldCleanup()) {
-      lazyCleanup(env.DB);
-      env.DB.prepare('DELETE FROM pow_rate_limits WHERE expires_at < ?').bind(nowISO).run().catch(() => {});
-    }
+    if (shouldCleanup()) lazyCleanup(env.DB);
     return new Response(JSON.stringify({
       success: true,
       challenge,
