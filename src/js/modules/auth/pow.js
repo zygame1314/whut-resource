@@ -1,3 +1,6 @@
+const POW_BENCHMARK_MS = 200;
+const POW_TARGET_TIME_MS = 2000;
+
 async function powSha256Hex(message) {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -5,19 +8,35 @@ async function powSha256Hex(message) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function detectDeviceType() {
-    const ua = navigator.userAgent;
-    if (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) return 'mobile';
-    return 'desktop';
+async function powBenchmark(durationMs) {
+    const sample = crypto.randomUUID().replace(/-/g, '');
+    let count = 0;
+    const start = performance.now();
+    while (performance.now() - start < durationMs) {
+        await powSha256Hex(`${sample}:${count}`);
+        count++;
+    }
+    const elapsed = performance.now() - start;
+    return Math.round(count / (elapsed / 1000));
 }
 
-async function fetchPowChallenge() {
-    const deviceType = detectDeviceType();
+function difficultyFromHashRate(hashRate) {
+    const targetHashes = (POW_TARGET_TIME_MS / 1000) * hashRate;
+    let difficulty = 1;
+    let expected = 16;
+    while (expected * 1.5 < targetHashes && difficulty < 8) {
+        difficulty++;
+        expected *= 16;
+    }
+    return difficulty;
+}
+
+async function fetchPowChallenge(hashRate) {
     const powApiUrl = (typeof API_ENDPOINTS !== 'undefined' && API_ENDPOINTS.pow) ? API_ENDPOINTS.pow : '/api/pow';
     const res = await fetch(powApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'challenge', deviceType })
+        body: JSON.stringify({ action: 'challenge', hashRate })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || '获取 PoW 挑战失败');
@@ -47,11 +66,15 @@ async function solvePow(challenge, difficulty, onProgress) {
 }
 
 async function solvePowChallenge(onProgress) {
+    if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark', challenge: '' });
+    const hashRate = await powBenchmark(POW_BENCHMARK_MS);
+    const clientDifficulty = difficultyFromHashRate(hashRate);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'fetching', challenge: '' });
-    const { challenge, difficulty } = await fetchPowChallenge();
+    const { challenge, difficulty } = await fetchPowChallenge(hashRate);
+    const finalDifficulty = Math.max(difficulty, clientDifficulty);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'solving', challenge });
-    const nonce = await solvePow(challenge, difficulty, onProgress);
-    return { powChallenge: challenge, powNonce: nonce, powDifficulty: difficulty };
+    const nonce = await solvePow(challenge, finalDifficulty, onProgress);
+    return { powChallenge: challenge, powNonce: nonce, powDifficulty: finalDifficulty };
 }
 
 function updatePowUI(powEl, progress) {
@@ -69,12 +92,13 @@ function updatePowUI(powEl, progress) {
 
     powEl.classList.remove('pow-idle');
     powEl.classList.toggle('pow-done', phase === 'done');
-    powEl.classList.toggle('pow-working', phase === 'fetching' || phase === 'solving' || phase === 'computing');
+    powEl.classList.toggle('pow-working', phase === 'benchmark' || phase === 'fetching' || phase === 'solving' || phase === 'computing');
 
     if (ring) {
         const circumference = 2 * Math.PI * 18;
         let pct = 0;
-        if (phase === 'fetching') pct = 10;
+        if (phase === 'benchmark') pct = 5;
+        else if (phase === 'fetching') pct = 10;
         else if (phase === 'solving') pct = 25;
         else if (phase === 'computing') pct = 25 + Math.min(nonce / 80000, 1) * 75;
         else if (phase === 'done') pct = 100;
@@ -84,7 +108,7 @@ function updatePowUI(powEl, progress) {
     if (nonceEl) nonceEl.textContent = nonce.toLocaleString();
     if (hashEl) hashEl.textContent = hash || '--------';
     if (labelEl) {
-        const labels = { idle: '点击完成人机验证', fetching: '正在获取挑战...', solving: '正在计算人机验证...', computing: '正在计算...', done: '验证完成' };
+        const labels = { idle: '点击完成人机验证', benchmark: '正在评估设备性能...', fetching: '正在获取挑战...', solving: '正在计算人机验证...', computing: '正在计算...', done: '验证完成' };
         labelEl.textContent = labels[phase] || '正在计算...';
     }
     if (iconEl) iconEl.style.display = phase === 'done' ? 'none' : '';

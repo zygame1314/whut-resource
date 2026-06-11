@@ -1,16 +1,18 @@
-const POW_DIFFICULTY_MAP = {
-  mobile: 5,
-  desktop: 4,
-  unknown: 5
-};
 const CHALLENGE_EXPIRES_MS = 5 * 60 * 1000;
 const MAX_CHALLENGES_PER_IP = 30;
+const MIN_DIFFICULTY = 4;
+const MAX_DIFFICULTY = 8;
 
-function getDifficultyFromDeviceType(deviceType, ua) {
-  if (deviceType === 'mobile') return POW_DIFFICULTY_MAP.mobile;
-  if (deviceType === 'desktop') return POW_DIFFICULTY_MAP.desktop;
-  if (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) return POW_DIFFICULTY_MAP.mobile;
-  return POW_DIFFICULTY_MAP.desktop;
+function difficultyFromHashRate(hashRate) {
+  if (!hashRate || hashRate <= 0) return MIN_DIFFICULTY;
+  const targetHashes = 2 * hashRate;
+  let difficulty = 1;
+  let expected = 16;
+  while (expected * 1.5 < targetHashes && difficulty < MAX_DIFFICULTY) {
+    difficulty++;
+    expected *= 16;
+  }
+  return Math.max(difficulty, MIN_DIFFICULTY);
 }
 
 async function sha256Hex(data) {
@@ -48,8 +50,8 @@ export async function verifyPowSolution(challenge, nonce, difficulty, env) {
     env.__powChallenges.delete(challenge);
     return { valid: false, error: '挑战已过期' };
   }
-  if (record.difficulty !== difficulty) {
-    return { valid: false, error: '难度不匹配' };
+  if (difficulty < record.difficulty) {
+    return { valid: false, error: '难度低于服务端要求' };
   }
   env.__powChallenges.delete(challenge);
   const hash = await sha256Hex(`${challenge}:${nonce}`);
@@ -72,9 +74,8 @@ function addCors() {
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json().catch(() => ({}));
-    const deviceType = body.deviceType || 'unknown';
-    const ua = request.headers.get('User-Agent') || '';
-    const difficulty = getDifficultyFromDeviceType(deviceType, ua);
+    const hashRate = Number(body.hashRate) || 0;
+    const difficulty = difficultyFromHashRate(hashRate);
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const challenge = crypto.randomUUID().replace(/-/g, '');
     const issuedAt = Date.now();
