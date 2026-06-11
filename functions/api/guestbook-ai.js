@@ -576,12 +576,14 @@ async function handleResolve(entry, reply, searchResults = null, resourcePath = 
         await env.DB.prepare(
             'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?'
         ).bind('resolved', resolveValue, entry.id).run();
-        await logAdminAction(env, null, 'ai_resolve', 'guestbook', entry.id, reply, JSON.stringify({
+        const auditReason = reply || `资源匹配: ${resourcePath || '无路径'}${note ? ' | 用户备注: ' + note : ''}`;
+        await logAdminAction(env, null, 'ai_resolve', 'guestbook', entry.id, auditReason, JSON.stringify({
             snapshot_content: entry.content,
             nickname: entry.nickname,
             user_id: entry.user_id,
             resource_path: resourcePath,
-            note: note
+            note: note,
+            reply: reply
         }));
         return {
             success: true,
