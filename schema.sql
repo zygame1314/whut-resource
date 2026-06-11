@@ -445,7 +445,7 @@ CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expires ON oauth_access_tokens(expir
 
 CREATE TABLE IF NOT EXISTS pow_challenges (
     challenge TEXT PRIMARY KEY,
-    difficulty INTEGER NOT NULL,
+    bits INTEGER NOT NULL,
     ip TEXT NOT NULL,
     issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     expires_at DATETIME NOT NULL

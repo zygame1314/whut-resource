@@ -96,7 +96,7 @@ export async function onRequestPost({ request, env }) {
     const nowISO = new Date().toISOString();
     const expiresAt = new Date(Date.now() + CHALLENGE_EXPIRES_MS).toISOString();
     await env.DB.prepare(
-      'INSERT INTO pow_challenges (challenge, difficulty, ip, issued_at, expires_at) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO pow_challenges (challenge, bits, ip, issued_at, expires_at) VALUES (?, ?, ?, ?, ?)'
     ).bind(challenge, bits, ip, nowISO, expiresAt).run();
     if (shouldCleanup()) lazyCleanup(env.DB);
     return new Response(JSON.stringify({
