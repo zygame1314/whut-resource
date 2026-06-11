@@ -442,3 +442,13 @@ CREATE TABLE IF NOT EXISTS oauth_access_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_token ON oauth_access_tokens(access_token);
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expires ON oauth_access_tokens(expires_at);
+
+CREATE TABLE IF NOT EXISTS pow_challenges (
+    challenge TEXT PRIMARY KEY,
+    difficulty INTEGER NOT NULL,
+    ip TEXT NOT NULL,
+    issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pow_challenges_expires ON pow_challenges(expires_at);
+CREATE INDEX IF NOT EXISTS idx_pow_challenges_ip ON pow_challenges(ip, expires_at);

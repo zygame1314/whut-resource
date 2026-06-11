@@ -21,12 +21,8 @@ async function sha256Hex(data) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function cleanupExpiredChallenges(env) {
-  if (!env.__powChallenges) return;
-  const now = Date.now();
-  for (const [k, v] of env.__powChallenges) {
-    if (v.expiresAt < now) env.__powChallenges.delete(k);
-  }
+async function cleanupExpiredChallenges(db) {
+  await db.prepare('DELETE FROM pow_challenges WHERE expires_at < ?').bind(new Date().toISOString()).run();
 }
 
 export async function verifyPowSolution(challenge, nonce, difficulty, env) {
@@ -41,19 +37,18 @@ export async function verifyPowSolution(challenge, nonce, difficulty, env) {
   if (!Number.isInteger(nonce) || nonce < 0) {
     return { valid: false, error: 'nonce 参数无效' };
   }
-  if (!env.__powChallenges) env.__powChallenges = new Map();
-  const record = env.__powChallenges.get(challenge);
+  const record = await env.DB.prepare('SELECT difficulty, expires_at FROM pow_challenges WHERE challenge = ?').bind(challenge).first();
   if (!record) {
     return { valid: false, error: '挑战不存在或已过期' };
   }
-  if (Date.now() > record.expiresAt) {
-    env.__powChallenges.delete(challenge);
+  if (Date.now() > new Date(record.expires_at).getTime()) {
+    await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
     return { valid: false, error: '挑战已过期' };
   }
   if (difficulty < record.difficulty) {
     return { valid: false, error: '难度低于服务端要求' };
   }
-  env.__powChallenges.delete(challenge);
+  await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
   const hash = await sha256Hex(`${challenge}:${nonce}`);
   const prefix = '0'.repeat(difficulty);
   if (!hash.startsWith(prefix)) {
@@ -73,25 +68,30 @@ function addCors() {
 
 export async function onRequestPost({ request, env }) {
   try {
+    if (!env.DB) {
+      return new Response(JSON.stringify({ success: false, error: '数据库未配置' }), {
+        status: 500, headers: { 'Content-Type': 'application/json', ...addCors() }
+      });
+    }
     const body = await request.json().catch(() => ({}));
     const hashRate = Number(body.hashRate) || 0;
     const difficulty = difficultyFromHashRate(hashRate);
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const challenge = crypto.randomUUID().replace(/-/g, '');
-    const issuedAt = Date.now();
-    const expiresAt = issuedAt + CHALLENGE_EXPIRES_MS;
-    if (!env.__powChallenges) env.__powChallenges = new Map();
-    cleanupExpiredChallenges(env);
-    let ipCount = 0;
-    for (const v of env.__powChallenges.values()) {
-      if (v.ip === ip && v.expiresAt > Date.now()) ipCount++;
-    }
-    if (ipCount >= MAX_CHALLENGES_PER_IP) {
+    const issuedAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + CHALLENGE_EXPIRES_MS).toISOString();
+    await cleanupExpiredChallenges(env.DB);
+    const ipRow = await env.DB.prepare(
+      'SELECT COUNT(*) as cnt FROM pow_challenges WHERE ip = ? AND expires_at > ?'
+    ).bind(ip, issuedAt).first();
+    if (ipRow && ipRow.cnt >= MAX_CHALLENGES_PER_IP) {
       return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请稍后再试' }), {
         status: 429, headers: { 'Content-Type': 'application/json', ...addCors() }
       });
     }
-    env.__powChallenges.set(challenge, { challenge, difficulty, ip, issuedAt, expiresAt });
+    await env.DB.prepare(
+      'INSERT INTO pow_challenges (challenge, difficulty, ip, issued_at, expires_at) VALUES (?, ?, ?, ?, ?)'
+    ).bind(challenge, difficulty, ip, issuedAt, expiresAt).run();
     return new Response(JSON.stringify({
       success: true,
       challenge,
