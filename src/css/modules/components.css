@@ -8093,6 +8093,20 @@ input#prompt-input {
     overflow: visible;
 }
 
+.pow-status {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    color: var(--text-secondary, #666);
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #e0e0e0);
+}
+
 .captcha-widget>iframe,
 .captcha-widget>div {
     transform-origin: center center;

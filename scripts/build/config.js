@@ -39,6 +39,7 @@ const uploadModules = [
     'upload_main.js'
 ];
 const authModules = [
+    'modules/auth/pow.js',
     'modules/auth/state.js',
     'modules/auth/utils.js',
     'modules/auth/ui.js',

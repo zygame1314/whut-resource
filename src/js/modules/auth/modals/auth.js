@@ -62,7 +62,9 @@ function showAuthModal(mode = 'login') {
                     </div>
                 </div>
                 <div id="login-captcha-container" class="form-group" style="display: none;">
-                    <div id="hcaptcha-login-widget" class="captcha-widget"></div>
+                    <div id="pow-login-status" class="pow-status" style="display:none;">
+                        <i class="fas fa-cog fa-spin"></i> <span class="pow-status-text">正在计算人机验证...</span>
+                    </div>
                 </div>
                 ${isSso ? `
                 <div id="sso-captcha-container" class="form-group" style="display: none;">
@@ -174,7 +176,10 @@ function showAuthModal(mode = 'login') {
                                 </label>
                                 <div class="warning-help-link"><a href="https://home.haoli.site/pages/blog-view?id=WHUT%E6%A0%A1%E5%9B%AD%E9%82%AE%E7%AE%B1%E7%94%B3%E8%AF%B7%E5%8F%8A%E7%99%BB%E5%BD%95%E6%8C%87%E5%8D%97" target="_blank" rel="noopener noreferrer"><i class="fas fa-question-circle"></i> 邮箱申请教程</a></div>
                             </div>
-                            <div id="hcaptcha-widget" class="captcha-widget"></div>
+                            <div id="hcaptcha-widget" class="captcha-widget" style="display:none;"></div>
+                            <div id="pow-register-status" class="pow-status" style="display:none;">
+                                <i class="fas fa-cog fa-spin"></i> <span class="pow-status-text">正在计算人机验证...</span>
+                            </div>
                         </div>
                         <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
                     </form>
@@ -311,7 +316,6 @@ function showAuthModal(mode = 'login') {
         };
     }
     initPasswordToggles(modal);
-    let loginCaptchaWidgetId = null;
     let currentSsoCookies = '';
     let currentSsoSmsHtml = '';
     if (isLogin || isSso) {
@@ -334,15 +338,29 @@ function showAuthModal(mode = 'login') {
             const identifier = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
             const captchaContainer = modal.querySelector('#login-captcha-container');
-            let cfToken = '';
-            if (captchaContainer && captchaContainer.style.display !== 'none' && window.hcaptcha && loginCaptchaWidgetId !== null) {
-                cfToken = hcaptcha.getResponse(loginCaptchaWidgetId);
-                if (!cfToken) {
-                    showNotification('请先完成人机验证', 'error');
+            let powData = null;
+            if (captchaContainer && captchaContainer.style.display !== 'none') {
+                const powStatusEl = modal.querySelector('#pow-login-status');
+                if (powStatusEl) { powStatusEl.style.display = 'flex'; }
+                try {
+                    powData = await solvePowChallenge((nonce) => {
+                        if (powStatusEl) {
+                            powStatusEl.querySelector('.pow-status-text').textContent = `正在计算人机验证... (${nonce})`;
+                        }
+                    });
+                } catch (e) {
+                    showNotification('人机验证计算失败: ' + e.message, 'error');
+                    if (powStatusEl) { powStatusEl.style.display = 'none'; }
                     return;
                 }
+                if (powStatusEl) { powStatusEl.style.display = 'none'; }
             }
-            let payload = { password, cfToken: cfToken || undefined };
+            let payload = { password };
+            if (powData) {
+                payload.powChallenge = powData.powChallenge;
+                payload.powNonce = powData.powNonce;
+                payload.powDifficulty = powData.powDifficulty;
+            }
             if (isSso) {
                 payload.action = 'whut-login';
                 payload.studentId = identifier;
@@ -493,16 +511,8 @@ function showAuthModal(mode = 'login') {
                     const needCaptcha = data.requireCaptcha;
                     if (needCaptcha && captchaContainer.style.display === 'none') {
                         captchaContainer.style.display = 'block';
-                        if (loginCaptchaWidgetId === null) {
-                            const tryRender = () => {
-                                if (window.hcaptcha) { loginCaptchaWidgetId = hcaptcha.render('hcaptcha-login-widget', { sitekey: HCAPTCHA_SITEKEY }); }
-                                else { setTimeout(tryRender, 200); }
-                            };
-                            tryRender();
-                        }
                         showNotification(data.error, 'error');
-                    } else if (needCaptcha && window.hcaptcha && loginCaptchaWidgetId !== null) {
-                        hcaptcha.reset(loginCaptchaWidgetId);
+                    } else if (needCaptcha) {
                         showNotification(data.error, 'error');
                     } else {
                         showNotification(data.error, 'error');
@@ -584,15 +594,6 @@ function showAuthModal(mode = 'login') {
             }
         }
     } else {
-        let hcaptchaWidgetId;
-        function renderHcaptcha() {
-            if (window.hcaptcha) {
-                hcaptchaWidgetId = hcaptcha.render('hcaptcha-widget', { sitekey: HCAPTCHA_SITEKEY });
-            } else {
-                setTimeout(renderHcaptcha, 200);
-            }
-        }
-        renderHcaptcha();
         const step1Form = modal.querySelector('#register-form-step1');
         const step1Div = modal.querySelector('#register-step-1');
         const step2Div = modal.querySelector('#register-step-2');
@@ -624,14 +625,21 @@ function showAuthModal(mode = 'login') {
                 showNotification('请先确认你已激活学校邮箱', 'error');
                 return;
             }
-            let cfToken = '';
-            if (window.hcaptcha) {
-                cfToken = hcaptcha.getResponse(hcaptchaWidgetId);
-                if (!cfToken) {
-                    showNotification('请先完成人机验证', 'error');
-                    return;
-                }
+            let powData = null;
+            const powStatusEl = modal.querySelector('#pow-register-status');
+            if (powStatusEl) { powStatusEl.style.display = 'flex'; }
+            try {
+                powData = await solvePowChallenge((nonce) => {
+                    if (powStatusEl) {
+                        powStatusEl.querySelector('.pow-status-text').textContent = `正在计算人机验证... (${nonce})`;
+                    }
+                });
+            } catch (e) {
+                showNotification('人机验证计算失败: ' + e.message, 'error');
+                if (powStatusEl) { powStatusEl.style.display = 'none'; }
+                return;
             }
+            if (powStatusEl) { powStatusEl.style.display = 'none'; }
             const getCodeBtn = modal.querySelector('#get-code-btn');
             getCodeBtn.disabled = true;
             getCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
@@ -644,7 +652,9 @@ function showAuthModal(mode = 'login') {
                         emailPrefix,
                         password,
                         nickname,
-                        cfToken
+                        powChallenge: powData.powChallenge,
+                        powNonce: powData.powNonce,
+                        powDifficulty: powData.powDifficulty
                     })
                 });
                 const data = await res.json();
@@ -734,17 +744,11 @@ function showAuthModal(mode = 'login') {
                     showNotification(data.error, 'error');
                     getCodeBtn.disabled = false;
                     getCodeBtn.innerHTML = '获取验证码';
-                    if (window.hcaptcha && hcaptchaWidgetId) {
-                        hcaptcha.reset(hcaptchaWidgetId);
-                    }
                 }
             } catch (err) {
                 showNotification('请求失败: ' + err.message, 'error');
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
-                if (window.hcaptcha && hcaptchaWidgetId) {
-                    hcaptcha.reset(hcaptchaWidgetId);
-                }
             }
         };
         backBtn.onclick = () => {
@@ -761,9 +765,6 @@ function showAuthModal(mode = 'login') {
             const getCodeBtn = modal.querySelector('#get-code-btn');
             getCodeBtn.disabled = false;
             getCodeBtn.innerHTML = '获取验证码';
-            if (window.hcaptcha && hcaptchaWidgetId) {
-                hcaptcha.reset(hcaptchaWidgetId);
-            }
         };
         goLoginBtn.onclick = () => {
             closeAuthModal(modal);

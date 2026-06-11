@@ -1,5 +1,6 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
+import { verifyPowSolution } from './pow.js';
 const NICKNAME_MODERATION_PROMPT = `你是严格的昵称审核助手。逐条检查以下规则，命中任意一条即 REJECT。
 
 【必须拒绝的类型】
@@ -72,26 +73,14 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({ success: false, error: '数据库未配置' }), { status: 500, headers: addCorsHeaders() });
     }
     if (action === 'prepare-register') {
-      const { cfToken, nickname } = body;
-      if (env.HCAPTCHA_SECRET_KEY) {
-        if (!cfToken) {
-          return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
+      const { powChallenge, powNonce, powDifficulty, nickname } = body;
+      if (powChallenge && powNonce !== undefined && powDifficulty) {
+        const powResult = await verifyPowSolution(powChallenge, powNonce, powDifficulty, env);
+        if (!powResult.valid) {
+          return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
-        const ip = request.headers.get('CF-Connecting-IP');
-        const formData = new FormData();
-        formData.append('secret', env.HCAPTCHA_SECRET_KEY);
-        formData.append('response', cfToken);
-        formData.append('remoteip', ip);
-        const url = 'https://hcaptcha.com/siteverify';
-        const result = await fetch(url, {
-          body: formData,
-          method: 'POST',
-        });
-        const outcome = await result.json();
-        if (!outcome.success) {
-          console.error('hCaptcha 验证失败:', outcome);
-          return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新页面重试' }), { status: 403, headers: addCorsHeaders() });
-        }
+      } else {
+        return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
       }
       const emailPrefix = body.emailPrefix || body.studentId;
       if (!emailPrefix) {
@@ -176,26 +165,14 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({ success: true, activated: false, pending: false, expired: true }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'prepare-reset') {
-      const { cfToken, newPassword } = body;
-      if (env.HCAPTCHA_SECRET_KEY) {
-        if (!cfToken) {
-          return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
+      const { powChallenge, powNonce, powDifficulty, newPassword } = body;
+      if (powChallenge && powNonce !== undefined && powDifficulty) {
+        const powResult = await verifyPowSolution(powChallenge, powNonce, powDifficulty, env);
+        if (!powResult.valid) {
+          return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
-        const ip = request.headers.get('CF-Connecting-IP');
-        const formData = new FormData();
-        formData.append('secret', env.HCAPTCHA_SECRET_KEY);
-        formData.append('response', cfToken);
-        formData.append('remoteip', ip);
-        const url = 'https://hcaptcha.com/siteverify';
-        const result = await fetch(url, {
-          body: formData,
-          method: 'POST',
-        });
-        const outcome = await result.json();
-        if (!outcome.success) {
-          console.error('hCaptcha 验证失败:', outcome);
-          return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新页面重试' }), { status: 403, headers: addCorsHeaders() });
-        }
+      } else {
+        return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
       }
       const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
       if (!email || !emailRegex.test(email)) {
@@ -255,26 +232,18 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({ success: true, completed: true, pending: false, message: '请求已处理或已过期。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'prepare-change-email') {
-      const { newEmail, cfToken } = body;
+      const { newEmail, powChallenge, powNonce, powDifficulty } = body;
       const user = await getUserFromRequest(request, env);
       if (!user) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
       }
-      if (env.HCAPTCHA_SECRET_KEY) {
-        if (!cfToken) {
-          return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
+      if (powChallenge && powNonce !== undefined && powDifficulty) {
+        const powResult = await verifyPowSolution(powChallenge, powNonce, powDifficulty, env);
+        if (!powResult.valid) {
+          return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
-        const ip = request.headers.get('CF-Connecting-IP');
-        const formData = new FormData();
-        formData.append('secret', env.HCAPTCHA_SECRET_KEY);
-        formData.append('response', cfToken);
-        formData.append('remoteip', ip);
-        const url = 'https://hcaptcha.com/siteverify';
-        const result = await fetch(url, { body: formData, method: 'POST' });
-        const outcome = await result.json();
-        if (!outcome.success) {
-          return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新页面重试' }), { status: 403, headers: addCorsHeaders() });
-        }
+      } else {
+        return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
       }
       const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
       if (!newEmail || !emailRegex.test(newEmail)) {
@@ -383,7 +352,7 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify(result), { status: result.success ? 200 : 500, headers: addCorsHeaders() });
     }
     if (action === 'whut-login') {
-      const { studentId: inputId, password, cfToken, ssoCode, ssoCookies, ssoSmsCode } = body;
+      const { studentId: inputId, password, powChallenge, powNonce, powDifficulty, ssoCode, ssoCookies, ssoSmsCode } = body;
       if (!inputId || !password) {
         return new Response(JSON.stringify({ success: false, error: '学号/卡号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
       }
@@ -402,28 +371,21 @@ export async function onRequestPost({ request, env }) {
       const requireCaptcha = maxFailCount >= 3;
       const isSmsVerification = ssoSmsCode && ssoCookies;
       if (requireCaptcha && !isSmsVerification) {
-        if (!cfToken) {
+        if (powChallenge && powNonce !== undefined && powDifficulty) {
+          const powResult = await verifyPowSolution(powChallenge, powNonce, powDifficulty, env);
+          if (!powResult.valid) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: powResult.error || 'PoW 验证失败',
+              requireCaptcha: true
+            }), { status: 403, headers: addCorsHeaders() });
+          }
+        } else {
           return new Response(JSON.stringify({
             success: false,
             error: '登录失败次数过多，请完成人机验证',
             requireCaptcha: true
           }), { status: 403, headers: addCorsHeaders() });
-        }
-        if (env.HCAPTCHA_SECRET_KEY) {
-          const formData = new FormData();
-          formData.append('secret', env.HCAPTCHA_SECRET_KEY);
-          formData.append('response', cfToken);
-          formData.append('remoteip', ip);
-          const url = 'https://hcaptcha.com/siteverify';
-          const result = await fetch(url, { body: formData, method: 'POST' });
-          const outcome = await result.json();
-          if (!outcome.success) {
-            return new Response(JSON.stringify({
-              success: false,
-              error: '人机验证失败，请刷新页面重试',
-              requireCaptcha: true
-            }), { status: 403, headers: addCorsHeaders() });
-          }
         }
       }
       let ssoResult;
@@ -549,7 +511,7 @@ export async function onRequestPost({ request, env }) {
       }
     }
     if (action === 'login') {
-      const { cfToken } = body;
+      const { powChallenge, powNonce, powDifficulty } = body;
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const now = new Date().toISOString();
       await env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run();
@@ -564,32 +526,21 @@ export async function onRequestPost({ request, env }) {
       const maxFailCount = Math.max(ipFailCount, emailFailCount);
       const requireCaptcha = maxFailCount >= 3;
       if (requireCaptcha) {
-        if (!cfToken) {
+        if (powChallenge && powNonce !== undefined && powDifficulty) {
+          const powResult = await verifyPowSolution(powChallenge, powNonce, powDifficulty, env);
+          if (!powResult.valid) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: powResult.error || 'PoW 验证失败',
+              requireCaptcha: true
+            }), { status: 403, headers: addCorsHeaders() });
+          }
+        } else {
           return new Response(JSON.stringify({
             success: false,
             error: '登录失败次数过多，请完成人机验证',
             requireCaptcha: true
           }), { status: 403, headers: addCorsHeaders() });
-        }
-        if (env.HCAPTCHA_SECRET_KEY) {
-          const formData = new FormData();
-          formData.append('secret', env.HCAPTCHA_SECRET_KEY);
-          formData.append('response', cfToken);
-          formData.append('remoteip', ip);
-          const url = 'https://hcaptcha.com/siteverify';
-          const result = await fetch(url, {
-            body: formData,
-            method: 'POST',
-          });
-          const outcome = await result.json();
-          if (!outcome.success) {
-            console.error('hCaptcha 验证失败:', outcome);
-            return new Response(JSON.stringify({
-              success: false,
-              error: '人机验证失败，请刷新页面重试',
-              requireCaptcha: true
-            }), { status: 403, headers: addCorsHeaders() });
-          }
         }
       }
       let user = null;

@@ -100,7 +100,10 @@ function showForgotPasswordModal(prefillEmail = '') {
                         </div>
                     </div>
                     <div class="form-group">
-                        <div id="hcaptcha-reset-widget" class="captcha-widget"></div>
+                        <div id="hcaptcha-reset-widget" class="captcha-widget" style="display:none;"></div>
+                        <div id="pow-reset-status" class="pow-status" style="display:none;">
+                            <i class="fas fa-cog fa-spin"></i> <span class="pow-status-text">正在计算人机验证...</span>
+                        </div>
                     </div>
                     <button type="submit" id="get-reset-code-btn" class="primary-btn full-width">获取验证码</button>
                 </form>
@@ -205,11 +208,6 @@ function showForgotPasswordModal(prefillEmail = '') {
         }
         closeAuthModal(modal, () => showAuthModal('login'));
     };
-    let hcaptchaWidgetId;
-    (function renderResetCaptcha() {
-        if (window.hcaptcha) { hcaptchaWidgetId = hcaptcha.render('hcaptcha-reset-widget', { sitekey: HCAPTCHA_SITEKEY }); }
-        else { setTimeout(renderResetCaptcha, 200); }
-    })();
     const step1Form = modal.querySelector('#reset-form-step1');
     const step1Div = modal.querySelector('#reset-step-1');
     const step2Div = modal.querySelector('#reset-step-2');
@@ -236,14 +234,21 @@ function showForgotPasswordModal(prefillEmail = '') {
             showNotification('两次输入的密码不一致', 'error');
             return;
         }
-        let cfToken = '';
-        if (window.hcaptcha) {
-            cfToken = hcaptcha.getResponse(hcaptchaWidgetId);
-            if (!cfToken) {
-                showNotification('请先完成人机验证', 'error');
-                return;
-            }
+        let powPayload = null;
+        const resetPowStatusEl2 = modal.querySelector('#pow-reset-status');
+        if (resetPowStatusEl2) { resetPowStatusEl2.style.display = 'flex'; }
+        try {
+            powPayload = await solvePowChallenge((nonce) => {
+                if (resetPowStatusEl2) {
+                    resetPowStatusEl2.querySelector('.pow-status-text').textContent = `正在计算人机验证... (${nonce})`;
+                }
+            });
+        } catch (e) {
+            showNotification('人机验证计算失败: ' + e.message, 'error');
+            if (resetPowStatusEl2) { resetPowStatusEl2.style.display = 'none'; }
+            return;
         }
+        if (resetPowStatusEl2) { resetPowStatusEl2.style.display = 'none'; }
         const getCodeBtn = modal.querySelector('#get-reset-code-btn');
         getCodeBtn.disabled = true;
         getCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
@@ -255,7 +260,9 @@ function showForgotPasswordModal(prefillEmail = '') {
                     action: 'prepare-reset',
                     email,
                     newPassword,
-                    cfToken
+                    powChallenge: powPayload.powChallenge,
+                    powNonce: powPayload.powNonce,
+                    powDifficulty: powPayload.powDifficulty
                 })
             });
             const data = await res.json();
@@ -336,17 +343,11 @@ function showForgotPasswordModal(prefillEmail = '') {
                 showNotification(data.error, 'error');
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
-                if (window.hcaptcha && hcaptchaWidgetId !== undefined) {
-                    hcaptcha.reset(hcaptchaWidgetId);
-                }
             }
         } catch (err) {
             showNotification('请求失败: ' + err.message, 'error');
             getCodeBtn.disabled = false;
             getCodeBtn.innerHTML = '获取验证码';
-            if (window.hcaptcha && hcaptchaWidgetId !== undefined) {
-                hcaptcha.reset(hcaptchaWidgetId);
-            }
         }
     };
     backBtn.onclick = () => {
@@ -363,9 +364,6 @@ function showForgotPasswordModal(prefillEmail = '') {
         const getCodeBtn = modal.querySelector('#get-reset-code-btn');
         getCodeBtn.disabled = false;
         getCodeBtn.innerHTML = '获取验证码';
-        if (window.hcaptcha && hcaptchaWidgetId !== undefined) {
-            hcaptcha.reset(hcaptchaWidgetId);
-        }
     };
     goLoginBtn.onclick = () => {
         closeAuthModal(modal);
@@ -464,7 +462,10 @@ function showChangeEmailModal() {
                         </div>
                     </div>
                     <div class="form-group">
-                        <div id="hcaptcha-change-email-widget" class="captcha-widget"></div>
+                        <div id="hcaptcha-change-email-widget" class="captcha-widget" style="display:none;"></div>
+                        <div id="pow-change-email-status" class="pow-status" style="display:none;">
+                            <i class="fas fa-cog fa-spin"></i> <span class="pow-status-text">正在计算人机验证...</span>
+                        </div>
                     </div>
                     <button type="submit" id="get-change-code-btn" class="primary-btn full-width">获取验证码</button>
                 </form>
@@ -554,11 +555,6 @@ function showChangeEmailModal() {
         if (window.changePollingTimer) clearInterval(window.changePollingTimer);
         closeAuthModal(modal);
     };
-    let hcaptchaWidgetId;
-    (function renderChangeEmailCaptcha() {
-        if (window.hcaptcha) { hcaptchaWidgetId = hcaptcha.render('hcaptcha-change-email-widget', { sitekey: HCAPTCHA_SITEKEY }); }
-        else { setTimeout(renderChangeEmailCaptcha, 200); }
-    })();
     const step1Form = modal.querySelector('#change-email-form-step1');
     const step1Div = modal.querySelector('#change-email-step-1');
     const step2Div = modal.querySelector('#change-email-step-2');
@@ -578,14 +574,21 @@ function showChangeEmailModal() {
             showNotification('新邮箱不能与旧邮箱相同', 'error');
             return;
         }
-        let cfToken = '';
-        if (window.hcaptcha) {
-            cfToken = hcaptcha.getResponse(hcaptchaWidgetId);
-            if (!cfToken) {
-                showNotification('请先完成人机验证', 'error');
-                return;
-            }
+        let powPayload = null;
+        const changePowStatusEl = modal.querySelector('#pow-change-email-status');
+        if (changePowStatusEl) { changePowStatusEl.style.display = 'flex'; }
+        try {
+            powPayload = await solvePowChallenge((nonce) => {
+                if (changePowStatusEl) {
+                    changePowStatusEl.querySelector('.pow-status-text').textContent = `正在计算人机验证... (${nonce})`;
+                }
+            });
+        } catch (e) {
+            showNotification('人机验证计算失败: ' + e.message, 'error');
+            if (changePowStatusEl) { changePowStatusEl.style.display = 'none'; }
+            return;
         }
+        if (changePowStatusEl) { changePowStatusEl.style.display = 'none'; }
         const getCodeBtn = modal.querySelector('#get-change-code-btn');
         getCodeBtn.disabled = true;
         getCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
@@ -599,7 +602,9 @@ function showChangeEmailModal() {
                 body: JSON.stringify({
                     action: 'prepare-change-email',
                     newEmail,
-                    cfToken
+                    powChallenge: powPayload.powChallenge,
+                    powNonce: powPayload.powNonce,
+                    powDifficulty: powPayload.powDifficulty
                 })
             });
             const data = await res.json();
@@ -665,7 +670,6 @@ function showChangeEmailModal() {
                 showNotification(data.error, 'error');
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
-                if (window.hcaptcha) hcaptcha.reset(hcaptchaWidgetId);
             }
         } catch (err) {
             showNotification('请求失败: ' + err.message, 'error');
@@ -683,7 +687,6 @@ function showChangeEmailModal() {
         }
         step2Div.style.display = 'none';
         step1Div.style.display = 'block';
-        if (window.hcaptcha) hcaptcha.reset(hcaptchaWidgetId);
     };
     reloginBtn.onclick = () => {
         logout();

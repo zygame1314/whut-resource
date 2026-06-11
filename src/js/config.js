@@ -91,7 +91,6 @@ async function fetchCached(url, cacheKey, maxAgeMs, options = {}) {
     window.filesApiCache.set(cacheKey, result);
     return result;
 }
-const HCAPTCHA_SITEKEY = '1c847708-56b8-4c60-96ec-3968456c4442';
 window.filterTreeByKeyword = function (container, keyword, options = {}) {
     const {
         nodeSelector = '.folder-tree-node',
