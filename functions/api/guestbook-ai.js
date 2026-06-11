@@ -313,7 +313,8 @@ async function handleReject(entry, reason, env, autoMode) {
         await logAdminAction(env, null, 'ai_reject', 'guestbook', entry.id, reason, JSON.stringify({
             snapshot_content: entry.content,
             nickname: entry.nickname,
-            user_id: entry.user_id
+            user_id: entry.user_id,
+            reject_reason: reason
         }));
         return {
             success: true,
