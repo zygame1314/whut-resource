@@ -386,7 +386,7 @@ function showAuthModal(mode = 'login') {
             if (powData) {
                 payload.powChallenge = powData.powChallenge;
                 payload.powNonce = powData.powNonce;
-                payload.powDifficulty = powData.powDifficulty;
+                payload.powBits = powData.powBits;
             }
             if (isSso) {
                 payload.action = 'whut-login';
@@ -682,7 +682,7 @@ function showAuthModal(mode = 'login') {
                         nickname,
                         powChallenge: powData.powChallenge,
                         powNonce: powData.powNonce,
-                        powDifficulty: powData.powDifficulty
+                        powBits: powData.powBits
                     })
                 });
                 const data = await res.json();

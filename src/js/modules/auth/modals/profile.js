@@ -274,7 +274,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                     newPassword,
                     powChallenge: powPayload.powChallenge,
                     powNonce: powPayload.powNonce,
-                    powDifficulty: powPayload.powDifficulty
+                    powBits: powPayload.powBits
                 })
             });
             const data = await res.json();
@@ -628,7 +628,7 @@ function showChangeEmailModal() {
                     newEmail,
                     powChallenge: powPayload.powChallenge,
                     powNonce: powPayload.powNonce,
-                    powDifficulty: powPayload.powDifficulty
+                    powBits: powPayload.powBits
                 })
             });
             const data = await res.json();

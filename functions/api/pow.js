@@ -1,24 +1,32 @@
 const CHALLENGE_EXPIRES_MS = 5 * 60 * 1000;
 const MAX_CHALLENGES_PER_IP = 30;
-const MIN_DIFFICULTY = 4;
-const MAX_DIFFICULTY = 8;
+const MIN_BITS = 16;
+const MAX_BITS = 24;
 
-function difficultyFromHashRate(hashRate) {
-  if (!hashRate || hashRate <= 0) return MIN_DIFFICULTY;
+function bitsFromHashRate(hashRate) {
+  if (!hashRate || hashRate <= 0) return MIN_BITS;
   const targetHashes = 2 * hashRate;
-  let difficulty = 1;
-  let expected = 16;
-  while (expected * 1.5 < targetHashes && difficulty < MAX_DIFFICULTY) {
-    difficulty++;
-    expected *= 16;
-  }
-  return Math.max(difficulty, MIN_DIFFICULTY);
+  const bits = Math.floor(Math.log2(targetHashes));
+  return Math.max(Math.min(bits, MAX_BITS), MIN_BITS);
 }
 
 async function sha256Hex(data) {
   const encoded = new TextEncoder().encode(data);
   const buf = await crypto.subtle.digest('SHA-256', encoded);
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function checkPowHash(hash, bits) {
+  const fullHexChars = Math.floor(bits / 4);
+  const remainingBits = bits % 4;
+  for (let i = 0; i < fullHexChars; i++) {
+    if (hash[i] !== '0') return false;
+  }
+  if (remainingBits > 0) {
+    const val = parseInt(hash[fullHexChars], 16);
+    if (val >> (4 - remainingBits) !== 0) return false;
+  }
+  return true;
 }
 
 function shouldCleanup() {
@@ -31,30 +39,29 @@ async function lazyCleanup(db) {
   } catch (_) {}
 }
 
-export async function verifyPowSolution(challenge, nonce, difficulty, env) {
-  if (!challenge || nonce === undefined || nonce === null || !difficulty) {
+export async function verifyPowSolution(challenge, nonce, bits, env) {
+  if (!challenge || nonce === undefined || nonce === null || !bits) {
     return { valid: false, error: '缺少 PoW 参数' };
   }
-  difficulty = Number(difficulty);
-  if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 10) {
+  bits = Number(bits);
+  if (!Number.isInteger(bits) || bits < 1 || bits > 32) {
     return { valid: false, error: '难度参数无效' };
   }
   nonce = Number(nonce);
   if (!Number.isInteger(nonce) || nonce < 0) {
     return { valid: false, error: 'nonce 参数无效' };
   }
-  const record = await env.DB.prepare('SELECT difficulty, expires_at FROM pow_challenges WHERE challenge = ? AND expires_at > ?')
+  const record = await env.DB.prepare('SELECT bits, expires_at FROM pow_challenges WHERE challenge = ? AND expires_at > ?')
     .bind(challenge, new Date().toISOString()).first();
   if (!record) {
     return { valid: false, error: '挑战不存在或已过期' };
   }
-  if (difficulty < record.difficulty) {
+  if (bits < record.bits) {
     return { valid: false, error: '难度低于服务端要求' };
   }
   await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
   const hash = await sha256Hex(`${challenge}:${nonce}`);
-  const prefix = '0'.repeat(difficulty);
-  if (!hash.startsWith(prefix)) {
+  if (!checkPowHash(hash, bits)) {
     return { valid: false, error: 'PoW 验证失败' };
   }
   return { valid: true };
@@ -78,7 +85,7 @@ export async function onRequestPost({ request, env }) {
     }
     const body = await request.json().catch(() => ({}));
     const hashRate = Number(body.hashRate) || 0;
-    const difficulty = difficultyFromHashRate(hashRate);
+    const bits = bitsFromHashRate(hashRate);
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const challenge = crypto.randomUUID().replace(/-/g, '');
     const nowISO = new Date().toISOString();
@@ -93,12 +100,12 @@ export async function onRequestPost({ request, env }) {
     }
     await env.DB.prepare(
       'INSERT INTO pow_challenges (challenge, difficulty, ip, issued_at, expires_at) VALUES (?, ?, ?, ?, ?)'
-    ).bind(challenge, difficulty, ip, nowISO, expiresAt).run();
+    ).bind(challenge, bits, ip, nowISO, expiresAt).run();
     if (shouldCleanup()) lazyCleanup(env.DB);
     return new Response(JSON.stringify({
       success: true,
       challenge,
-      difficulty,
+      bits,
       expiresIn: CHALLENGE_EXPIRES_MS / 1000
     }), { status: 200, headers: { 'Content-Type': 'application/json', ...addCors() } });
   } catch (e) {

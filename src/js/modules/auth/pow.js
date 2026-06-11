@@ -1,4 +1,4 @@
-const POW_BENCHMARK_MS = 200;
+const POW_BENCHMARK_MS = 300;
 const POW_TARGET_TIME_MS = 2000;
 
 async function powSha256Hex(message) {
@@ -20,15 +20,24 @@ async function powBenchmark(durationMs) {
     return Math.round(count / (elapsed / 1000));
 }
 
-function difficultyFromHashRate(hashRate) {
+function bitsFromHashRate(hashRate) {
+    if (!hashRate || hashRate <= 0) return 16;
     const targetHashes = (POW_TARGET_TIME_MS / 1000) * hashRate;
-    let difficulty = 1;
-    let expected = 16;
-    while (expected * 1.5 < targetHashes && difficulty < 8) {
-        difficulty++;
-        expected *= 16;
+    const bits = Math.floor(Math.log2(targetHashes));
+    return Math.max(bits, 16);
+}
+
+function checkPowHash(hash, bits) {
+    const fullHexChars = Math.floor(bits / 4);
+    const remainingBits = bits % 4;
+    for (let i = 0; i < fullHexChars; i++) {
+        if (hash[i] !== '0') return false;
     }
-    return difficulty;
+    if (remainingBits > 0) {
+        const val = parseInt(hash[fullHexChars], 16);
+        if (val >> (4 - remainingBits) !== 0) return false;
+    }
+    return true;
 }
 
 async function fetchPowChallenge(hashRate) {
@@ -42,25 +51,29 @@ async function fetchPowChallenge(hashRate) {
     if (!data.success) throw new Error(data.error || '获取 PoW 挑战失败');
     return {
         challenge: data.challenge,
-        difficulty: data.difficulty,
+        bits: data.bits,
         expiresIn: data.expiresIn
     };
 }
 
-async function solvePow(challenge, difficulty, onProgress) {
-    const prefix = '0'.repeat(difficulty);
+async function solvePow(challenge, bits, onProgress) {
     let nonce = 0;
-    const batchSize = 500;
+    const batchSize = 2000;
+    let lastReport = performance.now();
     while (true) {
         const hash = await powSha256Hex(`${challenge}:${nonce}`);
-        if (hash.startsWith(prefix)) {
-            if (onProgress) onProgress({ nonce, hash, phase: 'done', challenge });
+        if (checkPowHash(hash, bits)) {
+            if (onProgress) onProgress({ nonce, hash: hash.substring(0, 12), phase: 'done', challenge });
             return nonce;
         }
         nonce++;
         if (nonce % batchSize === 0) {
-            if (onProgress) onProgress({ nonce, hash: hash.substring(0, 12), phase: 'computing', challenge });
-            await new Promise(r => setTimeout(r, 0));
+            const now = performance.now();
+            if (now - lastReport > 80) {
+                if (onProgress) onProgress({ nonce, hash: hash.substring(0, 12), phase: 'computing', challenge });
+                lastReport = now;
+                await new Promise(r => setTimeout(r, 0));
+            }
         }
     }
 }
@@ -68,13 +81,13 @@ async function solvePow(challenge, difficulty, onProgress) {
 async function solvePowChallenge(onProgress) {
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark', challenge: '' });
     const hashRate = await powBenchmark(POW_BENCHMARK_MS);
-    const clientDifficulty = difficultyFromHashRate(hashRate);
+    const clientBits = bitsFromHashRate(hashRate);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'fetching', challenge: '' });
-    const { challenge, difficulty } = await fetchPowChallenge(hashRate);
-    const finalDifficulty = Math.max(difficulty, clientDifficulty);
+    const { challenge, bits } = await fetchPowChallenge(hashRate);
+    const finalBits = Math.max(bits, clientBits);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'solving', challenge });
-    const nonce = await solvePow(challenge, finalDifficulty, onProgress);
-    return { powChallenge: challenge, powNonce: nonce, powDifficulty: finalDifficulty };
+    const nonce = await solvePow(challenge, finalBits, onProgress);
+    return { powChallenge: challenge, powNonce: nonce, powBits: finalBits };
 }
 
 function updatePowUI(powEl, progress) {
@@ -100,7 +113,7 @@ function updatePowUI(powEl, progress) {
         if (phase === 'benchmark') pct = 5;
         else if (phase === 'fetching') pct = 10;
         else if (phase === 'solving') pct = 25;
-        else if (phase === 'computing') pct = 25 + Math.min(nonce / 80000, 1) * 75;
+        else if (phase === 'computing') pct = 25 + Math.min(nonce / 150000, 1) * 75;
         else if (phase === 'done') pct = 100;
         ring.style.strokeDashoffset = circumference * (1 - pct / 100);
         ring.classList.toggle('pow-ring-done', phase === 'done');
