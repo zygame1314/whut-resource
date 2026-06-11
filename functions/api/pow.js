@@ -90,7 +90,8 @@ export async function onRequestPost({ request, env }) {
     }
     const body = await request.json().catch(() => ({}));
     const hashRate = Number(body.hashRate) || 0;
-    const bits = bitsFromHashRate(hashRate);
+    const minBits = Number(body.minBits) || 0;
+    const bits = Math.max(bitsFromHashRate(hashRate), minBits, MIN_BITS);
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const challenge = crypto.randomUUID().replace(/-/g, '');
     const nowISO = new Date().toISOString();

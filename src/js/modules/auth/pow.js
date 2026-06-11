@@ -125,12 +125,12 @@ function solvePowInWorker(challenge, bits, onProgress) {
     });
 }
 
-async function fetchPowChallenge(hashRate) {
+async function fetchPowChallenge(hashRate, minBits) {
     const powApiUrl = (typeof API_ENDPOINTS !== 'undefined' && API_ENDPOINTS.pow) ? API_ENDPOINTS.pow : '/api/pow';
     const res = await fetch(powApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'challenge', hashRate })
+        body: JSON.stringify({ action: 'challenge', hashRate, minBits: minBits || 0 })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || '获取 PoW 挑战失败');
@@ -147,7 +147,7 @@ async function solvePowChallenge(onProgress, minBits) {
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark_done', challenge: '', hashRate });
     const clientBits = bitsFromHashRate(hashRate);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'fetching', challenge: '' });
-    const { challenge, bits } = await fetchPowChallenge(hashRate);
+    const { challenge, bits } = await fetchPowChallenge(hashRate, minBits);
     const finalBits = Math.max(bits, clientBits, minBits || 0);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'solving', challenge });
     const nonce = await solvePowInWorker(challenge, finalBits, onProgress);
