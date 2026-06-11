@@ -681,12 +681,17 @@ function showAuthModal(mode = 'login') {
             }
             let powData = null;
             if (registerPowCtrl) {
-                if (!registerPowCtrl.isSolved()) {
-                    if (!registerPowCtrl.isSolving()) {
+                if (!registerPowCtrl.isSolved() || !registerPowCtrl.meetsRequired()) {
+                    if (registerPowCtrl.isSolved() && !registerPowCtrl.meetsRequired()) {
+                        registerPowCtrl.reset();
+                        showNotification(`人机验证难度不足，需要 ${registerPowCtrl.requiredBits()} 位难度，请重新验证`, 'error');
+                    } else if (!registerPowCtrl.isSolving()) {
                         registerPowEl.click();
                     }
-                    showNotification('请先完成人机验证', 'error');
-                    return;
+                    if (!registerPowCtrl.isSolved()) {
+                        showNotification('请先完成人机验证', 'error');
+                        return;
+                    }
                 }
                 powData = registerPowCtrl.getResult();
             }
@@ -791,6 +796,10 @@ function showAuthModal(mode = 'login') {
                         });
                     };
                 } else {
+                    if (data.requiredBits && registerPowCtrl) {
+                        registerPowCtrl.reset();
+                        registerPowCtrl.setMinBits(data.requiredBits);
+                    }
                     showNotification(data.error, 'error');
                     getCodeBtn.disabled = false;
                     getCodeBtn.innerHTML = '获取验证码';
