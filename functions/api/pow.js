@@ -1,7 +1,7 @@
 const CHALLENGE_EXPIRES_MS = 5 * 60 * 1000;
 const MAX_CHALLENGES_PER_IP = 30;
-const MIN_BITS = 18;
-const MAX_BITS = 26;
+const MIN_BITS = 14;
+const MAX_BITS = 24;
 
 function bitsFromHashRate(hashRate) {
   if (!hashRate || hashRate <= 0) return MIN_BITS;

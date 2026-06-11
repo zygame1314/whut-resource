@@ -24,7 +24,7 @@ function bitsFromHashRate(hashRate) {
     if (!hashRate || hashRate <= 0) return 18;
     const targetHashes = (POW_TARGET_TIME_MS / 1000) * hashRate;
     const bits = Math.floor(Math.log2(targetHashes));
-    return Math.max(bits, 18);
+    return Math.max(bits, 14);
 }
 
 const POW_WORKER_CODE = `
