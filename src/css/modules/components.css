@@ -6964,7 +6964,7 @@ input#prompt-input {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 0.5rem 0;
+    padding: 1rem 0 0.5rem;
     margin-top: -0.5rem;
 }
 
@@ -6972,31 +6972,51 @@ input#prompt-input {
     background: var(--background-alt);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
-    padding: 0.5rem 1.5rem;
-    border-radius: 10px;
+    padding: 0.6rem 1.8rem;
+    border-radius: 12px;
     cursor: pointer;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    font-size: 0.9rem;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.88rem;
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.4rem;
     font-weight: 600;
+    position: relative;
+    overflow: hidden;
+}
+
+.load-more-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+    transition: left 0.5s;
+}
+
+.load-more-button:hover::before {
+    left: 100%;
 }
 
 .load-more-button:hover {
-    transform: scale(1.05);
-    background: var(--primary-color);
+    transform: scale(1.04);
+    background: var(--primary-gradient);
     color: #fff;
-    border-color: var(--primary-color);
+    border-color: transparent;
+    box-shadow: 0 4px 16px rgba(var(--primary-rgb), 0.25);
 }
 
 .load-more-button:active {
     transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.2);
 }
 
 .load-more-button.loading {
     opacity: 0.7;
     cursor: not-allowed;
+    pointer-events: none;
 }
 
 .load-more-button.loading:hover {
@@ -7004,6 +7024,19 @@ input#prompt-input {
     background: var(--background-alt);
     color: var(--text-primary);
     border-color: var(--border-color);
+    box-shadow: none;
+}
+
+.load-more-button.loading:hover::before {
+    display: none;
+}
+
+.load-more-button i {
+    transition: transform 0.3s ease;
+}
+
+.load-more-button:hover i {
+    transform: translateY(1px);
 }
 
 @media (max-width: 768px) {
