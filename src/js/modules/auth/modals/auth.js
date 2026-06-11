@@ -541,8 +541,16 @@ function showAuthModal(mode = 'login') {
                         if (!loginPowCtrl && loginPowEl) {
                             loginPowCtrl = initPowCard(loginPowEl);
                         }
+                        if (loginPowCtrl && data.requiredBits) {
+                            loginPowCtrl.setMinBits(data.requiredBits);
+                            loginPowCtrl.reset();
+                        }
                         showNotification(data.error, 'error');
                     } else if (needCaptcha) {
+                        if (loginPowCtrl && data.requiredBits) {
+                            loginPowCtrl.setMinBits(data.requiredBits);
+                            loginPowCtrl.reset();
+                        }
                         showNotification(data.error, 'error');
                     } else {
                         showNotification(data.error, 'error');

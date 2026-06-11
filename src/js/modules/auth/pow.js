@@ -118,13 +118,13 @@ async function fetchPowChallenge(hashRate) {
     };
 }
 
-async function solvePowChallenge(onProgress) {
+async function solvePowChallenge(onProgress, minBits) {
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark', challenge: '' });
     const hashRate = await powBenchmarkInWorker(POW_BENCHMARK_MS);
     const clientBits = bitsFromHashRate(hashRate);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'fetching', challenge: '' });
     const { challenge, bits } = await fetchPowChallenge(hashRate);
-    const finalBits = Math.max(bits, clientBits);
+    const finalBits = Math.max(bits, clientBits, minBits || 0);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'solving', challenge });
     const nonce = await solvePowInWorker(challenge, finalBits, onProgress);
     return { powChallenge: challenge, powNonce: nonce, powBits: finalBits };
@@ -173,6 +173,7 @@ function initPowCard(powEl, onSolved) {
     let solved = false;
     let solving = false;
     let result = null;
+    let minBits = 0;
     powEl.classList.add('pow-idle');
     powEl.style.cursor = 'pointer';
 
@@ -181,7 +182,7 @@ function initPowCard(powEl, onSolved) {
         solving = true;
         powEl.style.cursor = 'default';
         try {
-            result = await solvePowChallenge((p) => updatePowUI(powEl, p));
+            result = await solvePowChallenge((p) => updatePowUI(powEl, p), minBits);
             solved = true;
             setTimeout(() => { if (onSolved) onSolved(result); }, 600);
         } catch (e) {
@@ -198,6 +199,8 @@ function initPowCard(powEl, onSolved) {
         getResult: () => result,
         isSolved: () => solved,
         isSolving: () => solving,
+        setMinBits: (b) => { minBits = b; if (!solving && !solved) { solved = false; solving = false; } },
+        reset: () => { solved = false; solving = false; result = null; minBits = 0; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', nonce: 0, hash: '' }); },
         el: powEl
     };
 }

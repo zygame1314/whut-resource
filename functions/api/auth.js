@@ -369,9 +369,18 @@ export async function onRequestPost({ request, env }) {
       const idFailCount = idAttempt?.fail_count || 0;
       const maxFailCount = Math.max(ipFailCount, idFailCount);
       const requireCaptcha = maxFailCount >= 3;
+      const requiredBits = requireCaptcha ? Math.min(14 + Math.floor((maxFailCount - 3) / 5), 22) : 0;
       const isSmsVerification = ssoSmsCode && ssoCookies;
       if (requireCaptcha && !isSmsVerification) {
         if (powChallenge && powNonce !== undefined && powBits) {
+          if (powBits < requiredBits) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: `人机验证难度不足，需要 ${requiredBits} 位难度`,
+              requireCaptcha: true,
+              requiredBits
+            }), { status: 403, headers: addCorsHeaders() });
+          }
           const powResult = await verifyPowSolution(powChallenge, powNonce, powBits, env);
           if (!powResult.valid) {
             return new Response(JSON.stringify({
@@ -384,7 +393,8 @@ export async function onRequestPost({ request, env }) {
           return new Response(JSON.stringify({
             success: false,
             error: '登录失败次数过多，请完成人机验证',
-            requireCaptcha: true
+            requireCaptcha: true,
+            requiredBits
           }), { status: 403, headers: addCorsHeaders() });
         }
       }
@@ -525,8 +535,17 @@ export async function onRequestPost({ request, env }) {
       const emailFailCount = emailAttempt?.fail_count || 0;
       const maxFailCount = Math.max(ipFailCount, emailFailCount);
       const requireCaptcha = maxFailCount >= 3;
+      const requiredBits = requireCaptcha ? Math.min(14 + Math.floor((maxFailCount - 3) / 5), 22) : 0;
       if (requireCaptcha) {
         if (powChallenge && powNonce !== undefined && powBits) {
+          if (powBits < requiredBits) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: `人机验证难度不足，需要 ${requiredBits} 位难度`,
+              requireCaptcha: true,
+              requiredBits
+            }), { status: 403, headers: addCorsHeaders() });
+          }
           const powResult = await verifyPowSolution(powChallenge, powNonce, powBits, env);
           if (!powResult.valid) {
             return new Response(JSON.stringify({
@@ -539,7 +558,8 @@ export async function onRequestPost({ request, env }) {
           return new Response(JSON.stringify({
             success: false,
             error: '登录失败次数过多，请完成人机验证',
-            requireCaptcha: true
+            requireCaptcha: true,
+            requiredBits
           }), { status: 403, headers: addCorsHeaders() });
         }
       }
