@@ -544,13 +544,15 @@ function showAuthModal(mode = 'login') {
                             loginPowCtrl = initPowCard(loginPowEl);
                         }
                         if (loginPowCtrl && data.requiredBits) {
-                            loginPowCtrl.setMinBits(data.requiredBits);
                             loginPowCtrl.reset();
+                            loginPowCtrl.setMinBits(data.requiredBits);
                         }
                         showNotification(data.error, 'error');
                     } else if (needCaptcha) {
                         if (loginPowCtrl && data.requiredBits) {
+                            loginPowCtrl.reset();
                             loginPowCtrl.setMinBits(data.requiredBits);
+                        } else if (loginPowCtrl) {
                             loginPowCtrl.reset();
                         }
                         showNotification(data.error, 'error');

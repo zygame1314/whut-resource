@@ -231,7 +231,7 @@ function initPowCard(powEl, onSolved) {
         isSolved: () => solved,
         isSolving: () => solving,
         setMinBits: (b) => { minBits = b; if (!solving && !solved) { solved = false; solving = false; } },
-        reset: () => { solved = false; solving = false; result = null; minBits = 0; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', nonce: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
+        reset: () => { solved = false; solving = false; result = null; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', nonce: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
         el: powEl
     };
 }
