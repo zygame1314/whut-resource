@@ -21,10 +21,10 @@ async function powBenchmark(durationMs) {
 }
 
 function bitsFromHashRate(hashRate) {
-    if (!hashRate || hashRate <= 0) return 16;
+    if (!hashRate || hashRate <= 0) return 18;
     const targetHashes = (POW_TARGET_TIME_MS / 1000) * hashRate;
     const bits = Math.floor(Math.log2(targetHashes));
-    return Math.max(bits, 16);
+    return Math.max(bits, 18);
 }
 
 function checkPowHash(hash, bits) {
