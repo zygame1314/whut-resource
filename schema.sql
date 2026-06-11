@@ -451,4 +451,13 @@ CREATE TABLE IF NOT EXISTS pow_challenges (
     expires_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pow_challenges_expires ON pow_challenges(expires_at);
-CREATE INDEX IF NOT EXISTS idx_pow_challenges_ip ON pow_challenges(ip, expires_at);
+
+CREATE TABLE IF NOT EXISTS pow_rate_limits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip TEXT NOT NULL,
+    challenge_count INTEGER DEFAULT 1,
+    last_issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL,
+    UNIQUE(ip)
+);
+CREATE INDEX IF NOT EXISTS idx_pow_rate_limits_expires ON pow_rate_limits(expires_at);
