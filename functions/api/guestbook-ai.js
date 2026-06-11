@@ -233,10 +233,27 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         if (message.tool_calls && message.tool_calls.length > 0) {
             const toolCall = message.tool_calls[0];
             const functionName = toolCall.function.name;
+            const validToolNames = toolsToUse.map(t => t.function.name);
+            if (!validToolNames.includes(functionName)) {
+                if (attempt < MAX_NO_ACTION_RETRIES) {
+                    console.warn(`AI 调用了未知工具 ${functionName} (${attempt + 1}/${MAX_NO_ACTION_RETRIES})，重试中...`);
+                    continue;
+                }
+                return {
+                    success: false,
+                    action: 'no_action',
+                    message: `AI 调用了未知工具: ${functionName}`,
+                    ai_response: message.content
+                };
+            }
             let functionArgs;
             try {
                 functionArgs = JSON.parse(toolCall.function.arguments || '{}');
             } catch (e) {
+                if (attempt < MAX_NO_ACTION_RETRIES) {
+                    console.warn(`AI 返回参数解析失败 (${attempt + 1}/${MAX_NO_ACTION_RETRIES})，重试中...`);
+                    continue;
+                }
                 return {
                     success: false,
                     action: 'no_action',
