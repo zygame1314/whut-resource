@@ -114,6 +114,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                             </div>
                             <div class="pow-info">
                                 <div class="pow-label">点击完成人机验证</div>
+                                <div class="pow-rank" style="display:none;"></div>
                                 <div class="pow-hash"><span class="pow-hash-label">hash</span> <span class="pow-hash-value">--------</span></div>
                                 <div class="pow-nonce-row"><span class="pow-nonce-label">nonce</span> <span class="pow-nonce">0</span></div>
                             </div>
@@ -488,6 +489,7 @@ function showChangeEmailModal() {
                             </div>
                             <div class="pow-info">
                                 <div class="pow-label">点击完成人机验证</div>
+                                <div class="pow-rank" style="display:none;"></div>
                                 <div class="pow-hash"><span class="pow-hash-label">hash</span> <span class="pow-hash-value">--------</span></div>
                                 <div class="pow-nonce-row"><span class="pow-nonce-label">nonce</span> <span class="pow-nonce">0</span></div>
                             </div>

@@ -8183,6 +8183,22 @@ input#prompt-input {
     color: var(--text-primary);
     margin-bottom: 4px;
 }
+.pow-rank {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+    font-weight: 500;
+    animation: powFadeIn 0.4s ease;
+}
+.pow-rank-hs {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
 .pow-hash {
     display: flex;
     align-items: center;

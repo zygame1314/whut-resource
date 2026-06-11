@@ -1,6 +1,19 @@
 const POW_BENCHMARK_MS = 300;
 const POW_TARGET_TIME_MS = 2000;
 
+function getDeviceRank(hashRate) {
+    if (!hashRate || hashRate <= 0) return { name: '未知设备', icon: 'fa-question' };
+    if (hashRate < 5000) return { name: '智能冰箱', icon: 'fa-snowflake' };
+    if (hashRate < 15000) return { name: '树莓派', icon: 'fa-microchip' };
+    if (hashRate < 30000) return { name: '千元安卓', icon: 'fa-mobile-screen' };
+    if (hashRate < 50000) return { name: '办公笔记本', icon: 'fa-laptop' };
+    if (hashRate < 80000) return { name: '性能笔记本', icon: 'fa-laptop-code' };
+    if (hashRate < 130000) return { name: '游戏电脑', icon: 'fa-desktop' };
+    if (hashRate < 250000) return { name: '超频主机', icon: 'fa-fire' };
+    if (hashRate < 500000) return { name: '天河二号', icon: 'fa-building' };
+    return { name: '神威·太湖之光', icon: 'fa-mountain-sun' };
+}
+
 function bitsFromHashRate(hashRate) {
     if (!hashRate || hashRate <= 0) return 14;
     const targetHashes = (POW_TARGET_TIME_MS / 1000) * hashRate;
@@ -121,6 +134,7 @@ async function fetchPowChallenge(hashRate) {
 async function solvePowChallenge(onProgress, minBits) {
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark', challenge: '' });
     const hashRate = await powBenchmarkInWorker(POW_BENCHMARK_MS);
+    if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark_done', challenge: '', hashRate });
     const clientBits = bitsFromHashRate(hashRate);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'fetching', challenge: '' });
     const { challenge, bits } = await fetchPowChallenge(hashRate);
@@ -138,6 +152,7 @@ function updatePowUI(powEl, progress) {
     const labelEl = powEl.querySelector('.pow-label');
     const iconEl = powEl.querySelector('.pow-icon');
     const checkEl = powEl.querySelector('.pow-check');
+    const rankEl = powEl.querySelector('.pow-rank');
 
     const phase = progress.phase || 'computing';
     const nonce = progress.nonce || 0;
@@ -145,12 +160,18 @@ function updatePowUI(powEl, progress) {
 
     powEl.classList.remove('pow-idle');
     powEl.classList.toggle('pow-done', phase === 'done');
-    powEl.classList.toggle('pow-working', phase === 'benchmark' || phase === 'fetching' || phase === 'solving' || phase === 'computing');
+    powEl.classList.toggle('pow-working', phase === 'benchmark' || phase === 'benchmark_done' || phase === 'fetching' || phase === 'solving' || phase === 'computing');
+
+    if (rankEl && progress.hashRate) {
+        const rank = getDeviceRank(progress.hashRate);
+        rankEl.innerHTML = `<i class="fas ${rank.icon}"></i> ${rank.name} <span class="pow-rank-hs">${progress.hashRate.toLocaleString()} H/s</span>`;
+        rankEl.style.display = '';
+    }
 
     if (ring) {
         const circumference = 2 * Math.PI * 18;
         let pct = 0;
-        if (phase === 'benchmark') pct = 5;
+        if (phase === 'benchmark' || phase === 'benchmark_done') pct = 5;
         else if (phase === 'fetching') pct = 10;
         else if (phase === 'solving') pct = 25;
         else if (phase === 'computing') pct = 25 + Math.min(nonce / 150000, 1) * 75;
@@ -161,7 +182,7 @@ function updatePowUI(powEl, progress) {
     if (nonceEl) nonceEl.textContent = nonce.toLocaleString();
     if (hashEl) hashEl.textContent = hash || '--------';
     if (labelEl) {
-        const labels = { idle: '点击完成人机验证', benchmark: '正在评估设备性能...', fetching: '正在获取挑战...', solving: '正在计算人机验证...', computing: '正在计算...', done: '验证完成' };
+        const labels = { idle: '点击完成人机验证', benchmark: '正在评估设备性能...', benchmark_done: '正在评估设备性能...', fetching: '正在获取挑战...', solving: '正在计算人机验证...', computing: '正在计算...', done: '验证完成' };
         labelEl.textContent = labels[phase] || '正在计算...';
     }
     if (iconEl) iconEl.style.display = phase === 'done' ? 'none' : '';
@@ -200,7 +221,7 @@ function initPowCard(powEl, onSolved) {
         isSolved: () => solved,
         isSolving: () => solving,
         setMinBits: (b) => { minBits = b; if (!solving && !solved) { solved = false; solving = false; } },
-        reset: () => { solved = false; solving = false; result = null; minBits = 0; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', nonce: 0, hash: '' }); },
+        reset: () => { solved = false; solving = false; result = null; minBits = 0; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', nonce: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
         el: powEl
     };
 }
