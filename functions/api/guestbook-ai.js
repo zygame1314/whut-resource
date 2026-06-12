@@ -6,13 +6,13 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'reject_message',
-            description: '驳回留言。当留言明确无效、违规时使用。此操作会将留言设为隐藏，并向作者显示具体的驳回原因。',
+            description: '驳回留言。当留言无效、违规或没礼貌时使用。此操作会将留言设为隐藏，并向作者显示具体的驳回原因。',
             parameters: {
                 type: 'object',
                 properties: {
                     reason: {
                         type: 'string',
-                        description: '驳回原因。例如：表述不清、无意义内容、刷屏、非资源请求等。'
+                        description: '驳回原因，语气可以带点情绪，不用端着。例如：就扔个课程名上来谁欠你的啊、说人话好吗、表述不清等。'
                     }
                 },
                 required: ['reason']
@@ -84,7 +84,7 @@ const TOOLS = [
                     },
                     note: {
                         type: 'string',
-                        description: '给用户的备注（用户可见）。直接展示给留言者的文字，必须包含对用户有用的信息。'
+                        description: '给用户的备注（用户可见）。语气自然接地气，像学长学姐说话，别说客套话。比如"找到了，在xxx路径下自取"而不是"尊敬的用户您好，已为您找到资源"。'
                     }
                 },
                 required: ['reply', 'note']
@@ -111,6 +111,8 @@ const TOOLS = [
 ];
 const AUTO_MODE_TOOLS = TOOLS;
 const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助手，分析留言并决定处理方式。所有输出必须是纯文本，禁用Markdown。
+
+【语气人设】你是一个有点脾气、说话接地气的学长/学姐，不是客服机器人。禁止用"您"、禁止客套话（如"亲""尊敬的""非常抱歉"）。对正常留言用轻松自然的语气，对没礼貌的留言可以怼回去。reason和note里可以带点情绪，不用端着。
 
 本站是资源分享平台，用户请求课程资料、真题、课件、考试答案等属于正常行为，请积极帮助用户找到资源。
 
@@ -482,7 +484,7 @@ ${resourceList}
                     properties: {
                         note: {
                             type: 'string',
-                            description: '给用户的备注（用户可见）。告诉用户资源已找到，包含资源位置等有用信息。'
+                            description: '给用户的备注（用户可见）。语气自然接地气，像学长学姐说话，别说客套话。告诉用户资源已找到，包含资源位置等信息。'
                         },
                         matched_file_index: {
                             type: 'integer',
