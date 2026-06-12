@@ -112,7 +112,7 @@ async function handlePut(request, env) {
     await env.DB.prepare(
         'UPDATE announcements SET title = ?, content = ?, is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
     ).bind(title.trim(), content.trim(), is_published ? 1 : 0, id).run();
-    await logAdminAction(env, user.id, 'update_announcement', 'announcement', id, '更新公告', JSON.stringify({ title: title.trim(), snapshot_content: announcement.content, target_id: id }));
+    await logAdminAction(env, user.id, 'update_announcement', 'announcement', id, '更新公告', JSON.stringify({ title: title.trim(), snapshot_content: announcement.content }));
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handleDelete(request, env) {

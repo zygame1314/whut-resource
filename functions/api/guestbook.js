@@ -485,7 +485,7 @@ async function handlePut(request, env, context) {
             return new Response(JSON.stringify({ error: '驳回原因过长（最多200字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?').bind('rejected', rejectReason.trim(), id).run();
-        await logAdminAction(env, user.id, 'reject', 'guestbook', id, '驳回留言', JSON.stringify({ snapshot_content: gbEntryReject.content, nickname: gbEntryReject.nickname, user_id: gbEntryReject.user_id, reject_reason: rejectReason.trim() }));
+        await logAdminAction(env, user.id, 'reject', 'guestbook', id, `驳回留言: ${rejectReason.trim()}`, JSON.stringify({ snapshot_content: gbEntryReject.content, nickname: gbEntryReject.nickname, user_id: gbEntryReject.user_id }));
     } else if (action === 'unreject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });

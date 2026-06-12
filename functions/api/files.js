@@ -1050,7 +1050,7 @@ export async function onRequestDelete({ request, env }) {
             await DB.prepare('DELETE FROM files WHERE key = ?').bind(key).run();
             await deleteVectorIndexes(env, fileIdsToDeleteVector);
             const deletedCount = (childItems?.length || 0) + 1;
-            await logAdminAction(env, user.id, 'delete_folder', 'file', fileRecord.id, '删除文件夹', JSON.stringify({ key, resource_path: fileRecord.parent_path, deleted_count: deletedCount }));
+            await logAdminAction(env, user.id, 'delete_folder', 'file', fileRecord.id, '删除文件夹', JSON.stringify({ key, deleted_count: deletedCount }));
             return new Response(JSON.stringify({
                 success: true,
                 message: `成功删除了 ${deletedCount} 个项目。`
@@ -1066,7 +1066,7 @@ export async function onRequestDelete({ request, env }) {
         }
         await DB.prepare('DELETE FROM files WHERE key = ?').bind(key).run();
         await deleteVectorIndexes(env, [fileIdToDelete]);
-            await logAdminAction(env, user.id, isLink ? 'delete_link' : 'delete_file', 'file', fileIdToDelete, isLink ? '删除链接' : '删除文件', JSON.stringify({ key, resource_path: fileRecord.parent_path, snapshot_content: fileRecord.name }));
+             await logAdminAction(env, user.id, isLink ? 'delete_link' : 'delete_file', 'file', fileIdToDelete, isLink ? '删除链接' : '删除文件', JSON.stringify({ key, snapshot_content: fileRecord.name }));
         return new Response(JSON.stringify({
             success: true,
             message: '删除成功。'

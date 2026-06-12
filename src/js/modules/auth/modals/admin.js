@@ -311,16 +311,16 @@ async function showAdminLogsModal() {
                 if (details.nickname) {
                     detailsHtml += `<div class="admin-log-user-info">目标用户: ${escapeHtml(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
                 }
-                if (details.reject_reason) {
+                if (details.reject_reason && !log.reason?.includes(details.reject_reason)) {
                     detailsHtml += `<div class="admin-log-user-info">驳回原因: ${escapeHtml(details.reject_reason)}</div>`;
                 }
                 if (details.resolve_note) {
                     detailsHtml += `<div class="admin-log-user-info">解决备注: ${escapeHtml(details.resolve_note)}</div>`;
                 }
-                if (details.reply) {
+                if (details.reply && !log.reason?.includes(details.reply)) {
                     detailsHtml += `<div class="admin-log-user-info">审计备注: ${escapeHtml(details.reply)}</div>`;
                 }
-                if (details.note) {
+                if (details.note && !log.reason?.includes(details.note)) {
                     detailsHtml += `<div class="admin-log-user-info">用户备注: ${escapeHtml(details.note)}</div>`;
                 }
                 if (details.review_note) {

@@ -80,14 +80,14 @@ const TOOLS = [
                 properties: {
                     reply: {
                         type: 'string',
-                        description: '管理员审计备注（用户不可见）。供管理员参考的处理说明，如处理依据、分类标记等。'
+                        description: '管理员审计备注（用户不可见）。必须填写，供管理员参考的处理说明，如处理依据、分类标记、判断理由等。'
                     },
                     note: {
                         type: 'string',
                         description: '给用户的备注（用户可见）。直接展示给留言者的文字，必须包含对用户有用的信息。'
                     }
                 },
-                required: ['note']
+                required: ['reply', 'note']
             }
         }
     },
@@ -126,7 +126,7 @@ delete_message: 严重违规（辱骂/色情/恶意诱导攻击如藏头诗等�
 reject_message: 内容无效或不合规范，驳回并告知原因。适用于：无关内容、泄露联系方式、表述过于简陋无法处理、一条留言请求多门课程资源（需拆分提交）等
 ban_user/delete_message 候补：有偿求资源、倒卖资源、付费交易等行为严重违反本站免费分享原则，视情节轻重选择 delete_message 或 ban_user
 search_resources: 资源请求类留言，提取核心课程名搜索。常见缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留课程后缀(A/B/C、一/二)
-mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景
+mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景。必须填写reply（管理员审计备注）和note（用户可见备注），reply需说明处理依据
 keep_pending: 合理请求但暂时无法自动处理，等待人工介入
 
 处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]`;
@@ -330,8 +330,7 @@ async function handleReject(entry, reason, env, autoMode) {
         await logAdminAction(env, null, 'ai_reject', 'guestbook', entry.id, reason, JSON.stringify({
             snapshot_content: entry.content,
             nickname: entry.nickname,
-            user_id: entry.user_id,
-            reject_reason: reason
+            user_id: entry.user_id
         }));
         return {
             success: true,
@@ -365,7 +364,6 @@ async function handleBanUser(guestbookEntry, reason, env, autoMode) {
             env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(guestbookEntry.id)
         ]);
         await logAdminAction(env, null, 'ai_ban_user', 'user', guestbookEntry.user_id, reason, JSON.stringify({
-            deleted_guestbook_id: guestbookEntry.id,
             snapshot_content: guestbookEntry.content,
             nickname: guestbookEntry.nickname,
             user_id: guestbookEntry.user_id
@@ -394,8 +392,7 @@ async function handleDelete(entry, reason, env, autoMode) {
         await logAdminAction(env, null, 'ai_delete', 'guestbook', entry.id, reason, JSON.stringify({
             snapshot_content: entry.content,
             nickname: entry.nickname,
-            user_id: entry.user_id,
-            created_at: entry.created_at
+            user_id: entry.user_id
         }));
         return {
             success: true,
@@ -492,10 +489,10 @@ ${resourceList}
                         },
                         reply: {
                             type: 'string',
-                            description: '管理员审计备注（用户不可见，可选）。供管理员参考的补充说明，如版本差异、匹配依据等。'
+                            description: '管理员审计备注（用户不可见）。必须填写，供管理员参考的补充说明，如匹配依据、版本差异、选择理由等。'
                         }
                     },
-                    required: ['note', 'matched_file_index']
+                    required: ['note', 'matched_file_index', 'reply']
                 }
             }
         },
@@ -594,14 +591,12 @@ async function handleResolve(entry, reply, searchResults = null, resourcePath = 
         await env.DB.prepare(
             'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?'
         ).bind('resolved', resolveValue, entry.id).run();
-        const auditReason = reply || `资源匹配: ${resourcePath || '无路径'}${note ? ' | 用户备注: ' + note : ''}`;
+        const auditReason = reply || `AI自动解决: ${note || '无备注'}`;
         await logAdminAction(env, null, 'ai_resolve', 'guestbook', entry.id, auditReason, JSON.stringify({
             snapshot_content: entry.content,
             nickname: entry.nickname,
             user_id: entry.user_id,
-            resource_path: resourcePath,
-            note: note,
-            reply: reply
+            resource_path: resourcePath
         }));
         return {
             success: true,
