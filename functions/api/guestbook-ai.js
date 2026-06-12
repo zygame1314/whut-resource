@@ -123,13 +123,14 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助�
 【工具选择指引】
 ban_user: 极其严重违规（反动/暴恐/违法/昵称违规），封禁用户并删除留言
 delete_message: 严重违规（辱骂/色情/恶意诱导攻击如藏头诗等）
-reject_message: 内容无效或不合规范，驳回并告知原因。适用于：无关内容、泄露联系方式、表述过于简陋无法处理、一条留言请求多门课程资源（需拆分提交）等
+reject_message: 内容无效或不合规范，驳回并告知原因。适用于：无关内容、泄露联系方式、表述过于简陋无法处理、一条留言请求多门课程资源（需拆分提交）、仅发课程名/文件名而无任何请求语句（如只写"金融学"等，属于不礼貌的命令式留言，应驳回并提醒文明留言）等
 ban_user/delete_message 候补：有偿求资源、倒卖资源、付费交易等行为严重违反本站免费分享原则，视情节轻重选择 delete_message 或 ban_user
 search_resources: 资源请求类留言，提取核心课程名搜索。常见缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留课程后缀(A/B/C、一/二)
 mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景。必须填写reply（管理员审计备注）和note（用户可见备注），reply需说明处理依据
 keep_pending: 合理请求但暂时无法自动处理，等待人工介入
 
-处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]`;
+处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]
+注意：仅发课程名/文件名而无任何请求语句（如"金融学""土力学卷子""体育理论考试"等）属于不礼貌的命令式留言，不应为其搜索资源，应使用reject_message驳回，提醒用户文明留言、说明具体需求。`;
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
