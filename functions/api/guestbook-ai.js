@@ -217,12 +217,12 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         { role: 'system', content: systemPromptToUse },
         { role: 'user', content: userMessage }
     ];
-    const MAX_NO_ACTION_RETRIES = 2;
+    const MAX_NO_ACTION_RETRIES = 1;
     for (let attempt = 0; attempt <= MAX_NO_ACTION_RETRIES; attempt++) {
         const aiResponse = await Promise.race([
             fetchAIChatCompletion(messages, toolsToUse, env, 'auto', 0.7),
             new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('AI处理超时(90s)')), 90000)
+                setTimeout(() => reject(new Error('AI处理超时(25s)')), 25000)
             )
         ]);
         const message = aiResponse.choices?.[0]?.message;
@@ -526,7 +526,7 @@ ${resourceList}
         env,
         'auto',
         0.7,
-        { maxRetries: 1, timeoutMs: 20000 }
+        { maxRetries: 0, timeoutMs: 15000 }
     );
     const message = aiResponse.choices?.[0]?.message;
     if (message?.tool_calls?.length > 0) {
@@ -646,7 +646,7 @@ export async function onRequestGet(context) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' })
     });
 }
-async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.7, { maxRetries = 2, timeoutMs = 30000 } = {}) {
+async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', temperature = 0.7, { maxRetries = 1, timeoutMs = 22000 } = {}) {
     if (!env.AI_API_KEY) {
         throw new Error('未配置 AI_API_KEY');
     }
@@ -678,7 +678,7 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
         } finally {
             clearTimeout(timeoutId);
         }
-    }, maxRetries, 1000);
+    }, maxRetries, 500);
 }
 const REPLY_MODERATION_PROMPT = `你是武汉理工大学资源分享网站留言板的内容审核AI，判断回复内容是否合规。
 重要背景：本站是资源分享平台，用户请求课程资料、真题、课件等属于正常行为，不是广告或垃圾信息。

@@ -269,7 +269,7 @@ export async function generateEmbeddings(env, texts) {
   if (!apiKey) throw new Error('未配置 SILICONFLOW_API_KEY');
   return await retryWithBackoff(async () => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     try {
       const response = await fetch(SILICONFLOW_EMBEDDING_URL, {
         method: 'POST',
@@ -299,7 +299,7 @@ export async function generateEmbeddings(env, texts) {
     } finally {
       clearTimeout(timeoutId);
     }
-  }, 3, 1000);
+  }, 1, 500);
 }
 export async function rerankResults(env, query, documents, topN = 20) {
   if (!env.SILICONFLOW_API_KEY) {
@@ -310,7 +310,7 @@ export async function rerankResults(env, query, documents, topN = 20) {
   try {
     return await retryWithBackoff(async () => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
         const response = await fetch(SILICONFLOW_RERANK_URL, {
           method: 'POST',
@@ -336,7 +336,7 @@ export async function rerankResults(env, query, documents, topN = 20) {
       } finally {
         clearTimeout(timeoutId);
       }
-    }, 2, 1000);
+    }, 1, 500);
   } catch (error) {
     console.error('重排请求失败（已重试）:', error);
     return null;
@@ -364,7 +364,7 @@ export async function fetchSiliconFlowChat(env, { messages, tools = null, toolCh
   }
   return await retryWithBackoff(async () => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     try {
       const response = await fetch(SILICONFLOW_CHAT_URL, {
         method: 'POST',
@@ -384,8 +384,9 @@ export async function fetchSiliconFlowChat(env, { messages, tools = null, toolCh
     } finally {
       clearTimeout(timeoutId);
     }
-  }, 3, 1000);
+  }, 1, 500);
 }
+
 export async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
