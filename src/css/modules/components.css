@@ -1810,6 +1810,8 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    max-height: 600px;
+    overflow-y: auto;
 }
 
 .guestbook-list {
@@ -4924,6 +4926,21 @@ textarea.form-input {
 
     .reply-form-actions {
         flex-wrap: wrap;
+    }
+
+    .guestbook-card {
+        padding: 1rem;
+    }
+
+    .guestbook-pinned-area {
+        padding: 0.6rem 0.75rem;
+        border-radius: 12px;
+        margin-bottom: 0.75rem;
+    }
+
+    .guestbook-pinned-list .guestbook-item {
+        padding: 0.75rem;
+        border-radius: 10px;
     }
 }
 

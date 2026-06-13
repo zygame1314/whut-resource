@@ -133,7 +133,7 @@ async function handleGet(request, env) {
             pinnedParams.push(currentUserId);
         }
         const pinnedWhere = 'WHERE ' + pinnedConditions.join(' AND ');
-        const pinnedQuery = `SELECT ${selectFields} FROM guestbook g LEFT JOIN users u ON g.user_id = u.id ${pinnedWhere} ORDER BY g.id DESC`;
+        const pinnedQuery = `SELECT ${selectFields} FROM guestbook g LEFT JOIN users u ON g.user_id = u.id ${pinnedWhere} ORDER BY g.id DESC LIMIT 10`;
         const pinnedResult = await env.DB.prepare(pinnedQuery).bind(...pinnedParams).all();
         pinnedItems = pinnedResult.results || [];
     }
@@ -471,6 +471,12 @@ async function handlePut(request, env, context) {
             }
         }
         const isPinned = action === 'pin';
+        if (isPinned) {
+            const pinnedCount = await env.DB.prepare('SELECT COUNT(*) as count FROM guestbook WHERE is_pinned = 1 AND parent_id IS NULL').first();
+            if (pinnedCount.count >= 10) {
+                return new Response(JSON.stringify({ error: '置顶留言已达上限（10条），请先取消其他置顶' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            }
+        }
         await env.DB.prepare('UPDATE guestbook SET is_pinned = ? WHERE id = ?').bind(isPinned ? 1 : 0, id).run();
         await logAdminAction(env, user.id, action, 'guestbook', id, action === 'pin' ? '置顶留言' : '取消置顶留言', JSON.stringify({ snapshot_content: gbEntryPin.content, nickname: gbEntryPin.nickname, user_id: gbEntryPin.user_id }));
     } else if (action === 'resolve' || action === 'unresolve') {
