@@ -64,8 +64,10 @@ function refreshGuestbook() {
     guestbookCursorStack = [];
     guestbookPageIndex = -1;
     pinnedGuestbookMessages = [];
+    _pinnedItemIds = '';
     _pinnedCarouselBound = false;
     guestbookLoadInitial();
+    requestAnimationFrame(() => initPinnedCarouselObserver());
 }
 function updateGuestbookCache(id, updates) {
     if (updates.hasOwnProperty('is_pinned')) {

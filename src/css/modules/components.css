@@ -1790,6 +1790,7 @@
     border: 1px solid rgba(var(--primary-rgb), 0.15);
     border-radius: 16px;
     padding: 1rem 1.25rem;
+    contain: layout style;
 }
 
 .guestbook-pinned-header {
@@ -1808,10 +1809,12 @@
 
 .guestbook-pinned-carousel {
     position: relative;
+    contain: layout style;
 }
 
 .guestbook-pinned-viewport {
     overflow: hidden;
+    contain: layout style paint;
 }
 
 .guestbook-pinned-viewport .guestbook-item .guestbook-main {
@@ -1994,7 +1997,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    max-height: 280px;
+    max-height: 420px;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -2174,7 +2177,6 @@
 .reply-btn:hover {
     color: #667eea;
     border-color: #667eea;
-    transform: scale(1.05);
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
 }
 
@@ -2189,11 +2191,9 @@
 .reply-form-container {
     margin-top: 0.75rem;
     display: none;
-    animation: slideDown 0.25s ease forwards;
 }
 
 .reply-form-container.closing {
-    animation: slideUp 0.2s ease forwards;
 }
 
 .reply-form-wrapper {
@@ -4987,7 +4987,9 @@ textarea.form-input {
     }
 
     .guestbook-main {
-        max-height: 350px;
+        max-height: 500px;
+        padding-right: 4px;
+        scrollbar-gutter: stable;
     }
 
     .user-avatar-placeholder {

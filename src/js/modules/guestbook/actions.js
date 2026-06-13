@@ -157,24 +157,37 @@ window.showReplyForm = function (parentId) {
             hideReplyFormAnimated(el);
         }
     });
-    formContainer.classList.remove('closing');
+    cleanupReplyAnimation(formContainer);
     formContainer.style.display = 'block';
+    formContainer.offsetHeight;
     formContainer.style.animation = 'slideDown 0.25s ease forwards';
     const input = document.getElementById(`reply-input-${parentId}`);
     if (input) input.focus();
 };
+function cleanupReplyAnimation(el) {
+    if (el._replyAnimHandler) {
+        el.removeEventListener('animationend', el._replyAnimHandler);
+        el._replyAnimHandler = null;
+    }
+    el.classList.remove('closing');
+    el.style.animation = '';
+}
 function hideReplyFormAnimated(el) {
     if (!el || el.classList.contains('closing')) return;
+    cleanupReplyAnimation(el);
     el.classList.add('closing');
     el.style.animation = 'slideUp 0.2s ease forwards';
     const input = el.querySelector('textarea');
     if (input) input.value = '';
-    el.addEventListener('animationend', function handler() {
+    const handler = function () {
         el.removeEventListener('animationend', handler);
+        el._replyAnimHandler = null;
         el.style.display = 'none';
         el.style.animation = '';
         el.classList.remove('closing');
-    });
+    };
+    el._replyAnimHandler = handler;
+    el.addEventListener('animationend', handler);
 }
 window.hideReplyForm = function (parentId) {
     const formContainer = document.getElementById(`reply-form-${parentId}`);
@@ -211,6 +224,11 @@ window.submitReply = async function (parentId) {
 };
 
 let _pinnedRafId = null;
+let _pinnedRestartTimer = null;
+let _pinnedScrollPauseTimer = null;
+let _pinnedObserver = null;
+let _pinnedScrollBound = false;
+let _pinnedVisible = false;
 function updatePinnedCarousel() {
     const track = document.getElementById('guestbook-pinned-track');
     if (!track) return;
@@ -242,6 +260,36 @@ function stopPinnedCarousel() {
         clearInterval(pinnedCarouselTimer);
         pinnedCarouselTimer = null;
     }
+}
+
+function pausePinnedCarouselForScroll() {
+    if (!_pinnedVisible) return;
+    stopPinnedCarousel();
+    clearTimeout(_pinnedScrollPauseTimer);
+    _pinnedScrollPauseTimer = setTimeout(startPinnedCarousel, 1500);
+}
+
+function bindPinnedScrollListener() {
+    if (_pinnedScrollBound) return;
+    _pinnedScrollBound = true;
+    window.addEventListener('scroll', pausePinnedCarouselForScroll, { passive: true });
+}
+
+function initPinnedCarouselObserver() {
+    const pinnedArea = document.getElementById('guestbook-pinned-area');
+    if (!pinnedArea || _pinnedObserver) return;
+    _pinnedObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            _pinnedVisible = entry.isIntersecting;
+            if (entry.isIntersecting) {
+                startPinnedCarousel();
+                bindPinnedScrollListener();
+            } else {
+                stopPinnedCarousel();
+            }
+        }
+    }, { threshold: 0.1 });
+    _pinnedObserver.observe(pinnedArea);
 }
 
 window.pinnedCarouselPrev = function () {
