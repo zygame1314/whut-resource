@@ -1,11 +1,33 @@
 function renderGuestbook(messages) {
     if (!guestbookList) return;
     const pinnedArea = document.getElementById('guestbook-pinned-area');
-    const pinnedList = document.getElementById('guestbook-pinned-list');
-    if (pinnedArea && pinnedList) {
+    const pinnedTrack = document.getElementById('guestbook-pinned-track');
+    const pinnedDots = document.getElementById('guestbook-pinned-dots');
+    if (pinnedArea && pinnedTrack) {
         if (pinnedGuestbookMessages.length > 0) {
             pinnedArea.style.display = '';
-            pinnedList.innerHTML = pinnedGuestbookMessages.map(msg => renderGuestbookItem(msg)).join('');
+            pinnedTrack.innerHTML = pinnedGuestbookMessages.map(msg => renderGuestbookItem(msg)).join('');
+            if (pinnedDots) {
+                if (pinnedGuestbookMessages.length > 1) {
+                    pinnedDots.style.display = '';
+                    pinnedDots.innerHTML = pinnedGuestbookMessages.map((_, i) =>
+                        `<button class="guestbook-pinned-dot${i === 0 ? ' active' : ''}" onclick="pinnedCarouselGoTo(${i})"></button>`
+                    ).join('');
+                } else {
+                    pinnedDots.style.display = 'none';
+                }
+            }
+            pinnedCarouselIndex = 0;
+            updatePinnedCarousel();
+            startPinnedCarousel();
+            const carouselEl = pinnedArea.querySelector('.guestbook-pinned-carousel');
+            if (carouselEl) {
+                carouselEl.addEventListener('mouseenter', stopPinnedCarousel);
+                carouselEl.addEventListener('mouseleave', startPinnedCarousel);
+                carouselEl.addEventListener('touchstart', stopPinnedCarousel, { passive: true });
+                carouselEl.addEventListener('touchend', startPinnedCarousel);
+            }
+            window.addEventListener('resize', updatePinnedCarousel);
         } else {
             pinnedArea.style.display = 'none';
         }

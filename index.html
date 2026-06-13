@@ -559,7 +559,14 @@
 
                 <div id="guestbook-pinned-area" class="guestbook-pinned-area" style="display: none;">
                     <div class="guestbook-pinned-header"><i class="fas fa-thumbtack"></i> 置顶留言</div>
-                    <div id="guestbook-pinned-list" class="guestbook-pinned-list"></div>
+                    <div class="guestbook-pinned-carousel">
+                        <div class="guestbook-pinned-viewport">
+                            <div id="guestbook-pinned-track" class="guestbook-pinned-track"></div>
+                        </div>
+                        <button class="guestbook-pinned-nav prev" onclick="pinnedCarouselPrev()" aria-label="上一条"><i class="fas fa-chevron-left"></i></button>
+                        <button class="guestbook-pinned-nav next" onclick="pinnedCarouselNext()" aria-label="下一条"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div id="guestbook-pinned-dots" class="guestbook-pinned-dots"></div>
                 </div>
 
                 <div class="guestbook-form-container">

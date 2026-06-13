@@ -1806,19 +1806,103 @@
     font-size: 0.85rem;
 }
 
-.guestbook-pinned-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    max-height: 600px;
-    overflow-y: auto;
-    overflow-x: hidden;
+.guestbook-pinned-carousel {
+    position: relative;
 }
 
-.guestbook-pinned-list .guestbook-item:hover {
+.guestbook-pinned-viewport {
+    overflow: hidden;
+    transition: height 0.3s ease;
+}
+
+.guestbook-pinned-track {
+    display: flex;
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    align-items: flex-start;
+}
+
+.guestbook-pinned-track .guestbook-item {
+    flex-shrink: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.guestbook-pinned-track {
+    display: flex;
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.guestbook-pinned-track .guestbook-item {
+    flex-shrink: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.guestbook-pinned-track .guestbook-item:hover {
     transform: none;
     box-shadow: none;
     border-color: rgba(var(--primary-rgb), 0.4);
+}
+
+.guestbook-pinned-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 0.6rem;
+}
+
+.guestbook-pinned-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border-color);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.guestbook-pinned-dot.active {
+    background: var(--primary-color);
+    transform: scale(1.2);
+}
+
+.guestbook-pinned-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: var(--background);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    z-index: 2;
+    opacity: 0;
+}
+
+.guestbook-pinned-carousel:hover .guestbook-pinned-nav {
+    opacity: 1;
+}
+
+.guestbook-pinned-nav:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.guestbook-pinned-nav.prev {
+    left: -14px;
+}
+
+.guestbook-pinned-nav.next {
+    right: -14px;
 }
 
 .guestbook-list {
@@ -4945,9 +5029,24 @@ textarea.form-input {
         margin-bottom: 0.75rem;
     }
 
-    .guestbook-pinned-list .guestbook-item {
+    .guestbook-pinned-track .guestbook-item {
         padding: 0.75rem;
         border-radius: 10px;
+    }
+
+    .guestbook-pinned-nav {
+        opacity: 1;
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+    }
+
+    .guestbook-pinned-nav.prev {
+        left: -10px;
+    }
+
+    .guestbook-pinned-nav.next {
+        right: -10px;
     }
 }
 

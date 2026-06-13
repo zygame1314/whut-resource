@@ -20,4 +20,6 @@ const REJECT_PRESETS = [
     '无法实现',
 ];
 let isAiProcessing = false;
+let pinnedCarouselIndex = 0;
+let pinnedCarouselTimer = null;
 const guestbookActionPending = new Set();
