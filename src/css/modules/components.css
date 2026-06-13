@@ -1872,9 +1872,9 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    border: 1px solid var(--border-color);
-    background: var(--background);
-    color: var(--text-secondary);
+    border: 1px solid rgba(var(--primary-rgb), 0.35);
+    background: rgba(var(--primary-rgb), 0.12);
+    color: var(--primary);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1883,6 +1883,8 @@
     transition: all 0.2s ease;
     z-index: 2;
     opacity: 0;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 .guestbook-pinned-carousel:hover .guestbook-pinned-nav {
@@ -1891,8 +1893,9 @@
 
 .guestbook-pinned-nav:hover {
     background: var(--primary);
-    color: white;
+    color: #fff;
     border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.4);
 }
 
 .guestbook-pinned-nav.prev {
