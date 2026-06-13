@@ -55,12 +55,20 @@ let announcementReachedBottomAt = 0;
 let isAnnouncementScrollingBackUp = false;
 let announcementItemAnimId = 0;
 let fetchAnnouncementsRequestId = 0;
+let _announcementsFetchedOnLoad = false;
 document.addEventListener('DOMContentLoaded', () => {
-    fetchAndDisplayAnnouncements(currentAnnouncementPage);
+    const token = localStorage.getItem('authToken');
+    if (token) {
+        fetchAndDisplayAnnouncements(currentAnnouncementPage);
+        _announcementsFetchedOnLoad = true;
+    }
     initAnnouncementManager();
 });
 document.addEventListener('authSuccess', () => {
-    fetchAndDisplayAnnouncements(currentAnnouncementPage);
+    if (!_announcementsFetchedOnLoad) {
+        fetchAndDisplayAnnouncements(currentAnnouncementPage);
+    }
+    _announcementsFetchedOnLoad = false;
 });
 async function fetchAndDisplayAnnouncements(page = 1) {
     const requestId = ++fetchAnnouncementsRequestId;

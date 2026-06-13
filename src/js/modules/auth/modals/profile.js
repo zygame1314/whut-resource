@@ -339,7 +339,6 @@ function showForgotPasswordModal(prefillEmail = '') {
                                     localStorage.setItem('authToken', token);
                                     currentUser = loginData.user;
                                     window.currentUser = currentUser;
-                                    updateAuthUI();
                                     document.dispatchEvent(new Event('authSuccess'));
                                     if (window.releaseRequests) window.releaseRequests(true);
                                 }

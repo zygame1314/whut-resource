@@ -23,7 +23,6 @@ async function checkAuth() {
         logout();
         if (window.releaseRequests) window.releaseRequests(true);
     }
-    updateAuthUI();
 }
 async function checkMaintenanceMode() {
     if (window._maintenanceChecked) return;

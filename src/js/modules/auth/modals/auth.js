@@ -428,7 +428,6 @@ function showAuthModal(mode = 'login') {
                     localStorage.setItem('authToken', token);
                     currentUser = data.user;
                     window.currentUser = currentUser;
-                    updateAuthUI();
                     if (window.releaseRequests) window.releaseRequests(true);
                     if (isSso && data.needsActivation) {
                         closeAuthModal(modal);
@@ -629,7 +628,6 @@ function showAuthModal(mode = 'login') {
                             localStorage.setItem('authToken', token);
                             currentUser = verifyData.user;
                             window.currentUser = currentUser;
-                            updateAuthUI();
                             document.dispatchEvent(new Event('authSuccess'));
                             if (window.releaseRequests) window.releaseRequests(true);
                             closeAuthModal(modal);
@@ -773,7 +771,6 @@ function showAuthModal(mode = 'login') {
                                         localStorage.setItem('authToken', token);
                                         currentUser = loginData.user;
                                         window.currentUser = currentUser;
-                                        updateAuthUI();
                                         document.dispatchEvent(new Event('authSuccess'));
                                         if (window.releaseRequests) window.releaseRequests(true);
                                     }
