@@ -210,16 +210,22 @@ window.submitReply = async function (parentId) {
     }
 };
 
+let _pinnedRafId = null;
 function updatePinnedCarousel() {
     const track = document.getElementById('guestbook-pinned-track');
     if (!track) return;
-    track.style.transform = `translateX(-${pinnedCarouselIndex * 100}%)`;
-    const dots = document.getElementById('guestbook-pinned-dots');
-    if (dots) {
-        dots.querySelectorAll('.guestbook-pinned-dot').forEach((dot, i) => {
-            dot.classList.toggle('active', i === pinnedCarouselIndex);
-        });
-    }
+    if (_pinnedRafId) cancelAnimationFrame(_pinnedRafId);
+    _pinnedRafId = requestAnimationFrame(() => {
+        track.style.transform = `translateX(-${pinnedCarouselIndex * 100}%)`;
+        const dots = document.getElementById('guestbook-pinned-dots');
+        if (dots) {
+            const dotBtns = dots.querySelectorAll('.guestbook-pinned-dot');
+            for (let i = 0, len = dotBtns.length; i < len; i++) {
+                dotBtns[i].classList.toggle('active', i === pinnedCarouselIndex);
+            }
+        }
+        _pinnedRafId = null;
+    });
 }
 
 function startPinnedCarousel() {

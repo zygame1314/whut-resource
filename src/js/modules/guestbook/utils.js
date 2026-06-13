@@ -64,6 +64,7 @@ function refreshGuestbook() {
     guestbookCursorStack = [];
     guestbookPageIndex = -1;
     pinnedGuestbookMessages = [];
+    _pinnedCarouselBound = false;
     guestbookLoadInitial();
 }
 function updateGuestbookCache(id, updates) {
@@ -83,6 +84,7 @@ function updateGuestbookCache(id, updates) {
             if (ri !== -1) { Object.assign(msg.replies[ri], updates); found = true; break; }
         }
     }
+    if (found) renderPinnedGuestbook();
     if (!found) {
         for (const page of guestbookCursorStack) {
             if (!page.messages) continue;
@@ -106,6 +108,7 @@ function removeFromGuestbookCache(id) {
     if (pi !== -1) {
         pinnedGuestbookMessages.splice(pi, 1);
         found = true;
+        renderPinnedGuestbook();
     }
     if (!found) {
         for (const page of guestbookCursorStack) {

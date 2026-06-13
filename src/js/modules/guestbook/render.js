@@ -1,36 +1,51 @@
-function renderGuestbook(messages) {
-    if (!guestbookList) return;
+function renderPinnedGuestbook() {
     const pinnedArea = document.getElementById('guestbook-pinned-area');
     const pinnedTrack = document.getElementById('guestbook-pinned-track');
     const pinnedDots = document.getElementById('guestbook-pinned-dots');
-    if (pinnedArea && pinnedTrack) {
-        if (pinnedGuestbookMessages.length > 0) {
-            pinnedArea.style.display = '';
-            pinnedTrack.innerHTML = pinnedGuestbookMessages.map(msg => renderGuestbookItem(msg)).join('');
-            if (pinnedDots) {
-                if (pinnedGuestbookMessages.length > 1) {
-                    pinnedDots.style.display = '';
-                    pinnedDots.innerHTML = pinnedGuestbookMessages.map((_, i) =>
-                        `<button class="guestbook-pinned-dot${i === 0 ? ' active' : ''}" onclick="pinnedCarouselGoTo(${i})"></button>`
-                    ).join('');
-                } else {
-                    pinnedDots.style.display = 'none';
-                }
-            }
-            pinnedCarouselIndex = 0;
-            updatePinnedCarousel();
-            startPinnedCarousel();
-            const carouselEl = pinnedArea.querySelector('.guestbook-pinned-carousel');
-            if (carouselEl) {
-                carouselEl.addEventListener('mouseenter', stopPinnedCarousel);
-                carouselEl.addEventListener('mouseleave', startPinnedCarousel);
-                carouselEl.addEventListener('touchstart', stopPinnedCarousel, { passive: true });
-                carouselEl.addEventListener('touchend', startPinnedCarousel);
-            }
-        } else {
-            pinnedArea.style.display = 'none';
+    if (!pinnedArea || !pinnedTrack) return;
+    if (pinnedGuestbookMessages.length > 0) {
+        pinnedArea.style.display = '';
+        const currentHTML = pinnedTrack.innerHTML;
+        const newHTML = pinnedGuestbookMessages.map(msg => renderGuestbookItem(msg)).join('');
+        if (currentHTML !== newHTML) {
+            pinnedTrack.innerHTML = newHTML;
         }
+        if (pinnedDots) {
+            if (pinnedGuestbookMessages.length > 1) {
+                pinnedDots.style.display = '';
+                const dotsHTML = pinnedGuestbookMessages.map((_, i) =>
+                    `<button class="guestbook-pinned-dot${i === pinnedCarouselIndex ? ' active' : ''}" onclick="pinnedCarouselGoTo(${i})"></button>`
+                ).join('');
+                if (pinnedDots.innerHTML !== dotsHTML) {
+                    pinnedDots.innerHTML = dotsHTML;
+                }
+            } else {
+                pinnedDots.style.display = 'none';
+            }
+        }
+        updatePinnedCarousel();
+        startPinnedCarousel();
+        bindPinnedCarouselEvents(pinnedArea);
+    } else {
+        pinnedArea.style.display = 'none';
+        stopPinnedCarousel();
     }
+}
+
+let _pinnedCarouselBound = false;
+function bindPinnedCarouselEvents(pinnedArea) {
+    if (_pinnedCarouselBound) return;
+    const carouselEl = pinnedArea.querySelector('.guestbook-pinned-carousel');
+    if (!carouselEl) return;
+    carouselEl.addEventListener('mouseenter', stopPinnedCarousel);
+    carouselEl.addEventListener('mouseleave', startPinnedCarousel);
+    carouselEl.addEventListener('touchstart', stopPinnedCarousel, { passive: true });
+    carouselEl.addEventListener('touchend', startPinnedCarousel);
+    _pinnedCarouselBound = true;
+}
+
+function renderGuestbook(messages) {
+    if (!guestbookList) return;
     if (!messages || messages.length === 0) {
         guestbookList.innerHTML = '<div class="empty-state-small"><i class="far fa-comment-dots" style="font-size:2rem;opacity:0.4;display:block;margin-bottom:0.5rem;"></i>暂无留言，快来发布第一条心愿吧！</div>';
         return;

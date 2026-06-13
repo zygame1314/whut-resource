@@ -36,6 +36,7 @@ async function guestbookLoadInitial() {
         guestbookCursorStack = [page];
         guestbookPageIndex = 0;
         if (page.pinned) pinnedGuestbookMessages = page.pinned;
+        renderPinnedGuestbook();
         renderGuestbook(page.messages);
         renderGuestbookPagination(page.hasMore, guestbookPageIndex > 0);
         if (guestbookForm) guestbookForm.style.display = 'block';
