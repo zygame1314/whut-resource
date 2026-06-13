@@ -12,7 +12,7 @@ const TOOLS = [
                 properties: {
                     reason: {
                         type: 'string',
-                        description: '驳回原因，语气可以带点情绪，不用端着。例如：就扔个课程名上来谁欠你的啊、说人话好吗、表述不清等。'
+                        description: '驳回原因，语气可以带点情绪，不用端着。'
                     }
                 },
                 required: ['reason']
@@ -40,7 +40,7 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'ban_user',
-            description: '封禁用户并删除留言。仅当用户发布极其严重违规内容（如反动、暴恐、违法信息）时使用。此操作会使该账号彻底失效：无法发布留言、无法下载文件。',
+            description: '封禁用户并删除留言。仅当用户发布严重违规内容时使用。此操作会使该账号彻底失效：无法发布留言、无法下载文件。',
             parameters: {
                 type: 'object',
                 properties: {
@@ -63,7 +63,7 @@ const TOOLS = [
                 properties: {
                     query: {
                         type: 'string',
-                        description: '搜索关键词。核心规则：必须仅提取核心课程名或关键名词（如"遗传学"），严禁包含"求"、"有没有"、"资料"、"真题"、"复习"等修饰词或长句。'
+                        description: '搜索关键词。核心规则：必须仅提取核心课程名或关键名词（如"遗传学"）。'
                     }
                 },
                 required: ['query']
@@ -84,7 +84,7 @@ const TOOLS = [
                     },
                     note: {
                         type: 'string',
-                        description: '给用户的备注（用户可见）。语气自然接地气，像学长学姐说话，别说客套话。比如"找到了，在xxx路径下自取"而不是"尊敬的用户您好，已为您找到资源"。'
+                        description: '给用户的备注（用户可见）。'
                     }
                 },
                 required: ['reply', 'note']
@@ -101,7 +101,7 @@ const TOOLS = [
                 properties: {
                     note: {
                         type: 'string',
-                        description: '备注（纯文本），说明为什么需要人工处理'
+                        description: '备注（纯文本），说明为什么需要人工处理。'
                     }
                 },
                 required: ['note']
@@ -112,7 +112,7 @@ const TOOLS = [
 const AUTO_MODE_TOOLS = TOOLS;
 const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助手，分析留言并决定处理方式。所有输出必须是纯文本，禁用Markdown。
 
-【语气人设】你是一个有点脾气、说话接地气的学长/学姐，不是客服机器人。禁止用"您"、禁止客套话（如"亲""尊敬的""非常抱歉"）。对正常留言用轻松自然的语气，对没礼貌的留言可以怼回去。reason和note里可以带点情绪，不用端着。
+【语气人设】你是一个有点脾气、说话接地气的学长/学姐，不是客服机器人。禁止用"您"、禁止客套话（如"亲""尊敬的""非常抱歉"）。对正常留言用轻松自然的语气，对没礼貌的留言可以怼回去。
 
 本站是资源分享平台，用户请求课程资料、真题、课件、考试答案等属于正常行为，请积极帮助用户找到资源。
 
@@ -132,7 +132,7 @@ mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等）
 keep_pending: 合理请求但暂时无法自动处理，等待人工介入
 
 处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]
-注意：仅发课程名/文件名而无任何请求语句（如"金融学""土力学卷子""体育理论考试"等）属于不礼貌的命令式留言，不应为其搜索资源，应使用reject_message驳回，提醒用户文明留言、说明具体需求。`;
+注意：仅发课程名/文件名而无任何请求语句属于不礼貌的命令式留言，不应为其搜索资源，应使用reject_message驳回。`;
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -472,6 +472,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode)
     const secondPrompt = `搜索结果：
 ${resourceList}
 用户留言：${guestbookEntry.content}
+【语气人设】你是一个有点脾气、说话接地气的学长/学姐，不是客服机器人。禁止用"您"、禁止客套话（如"亲""尊敬的""非常抱歉"）。对正常留言用轻松自然的语气，对没礼貌的留言可以怼回去。
 请判断搜索结果中是否有满足用户需求的资源。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。匹配成功请用 mark_resolved，不匹配则用 keep_pending。`;
     const searchTools = [
         {
@@ -484,7 +485,7 @@ ${resourceList}
                     properties: {
                         note: {
                             type: 'string',
-                            description: '给用户的备注（用户可见）。语气自然接地气，像学长学姐说话，别说客套话。告诉用户资源已找到，包含资源位置等信息。'
+                            description: '给用户的备注（用户可见）。'
                         },
                         matched_file_index: {
                             type: 'integer',
