@@ -1835,11 +1835,13 @@
     overflow: hidden;
 }
 
-.guestbook-pinned-viewport .guestbook-item .guestbook-main {
-    max-height: 220px;
+.guestbook-pinned-item .guestbook-main {
+    max-height: none;
+}
+
+.guestbook-pinned-item .guestbook-replies {
+    max-height: 200px;
     overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
 }
 
 .guestbook-pinned-item .guestbook-item:hover {
@@ -2016,10 +2018,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    max-height: 420px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
 }
 
 .user-avatar-placeholder {
@@ -2145,6 +2143,8 @@
     margin-top: 0.15rem;
     position: relative;
     border: 1px solid rgba(var(--primary-rgb), 0.06);
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .guestbook-content::before {
@@ -2212,8 +2212,6 @@
     display: none;
 }
 
-.reply-form-container.closing {}
-
 .reply-form-wrapper {
     display: flex;
     flex-direction: column;
@@ -2254,7 +2252,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
-    max-height: 600px;
+    max-height: 200px;
     overflow-y: auto;
     scrollbar-width: thin;
 }
@@ -5005,7 +5003,6 @@ textarea.form-input {
     }
 
     .guestbook-main {
-        max-height: 500px;
         padding-right: 4px;
         scrollbar-gutter: stable;
     }
@@ -5020,6 +5017,7 @@ textarea.form-input {
     .guestbook-content {
         padding: 0.7rem 0.9rem;
         border-radius: 4px 14px 14px 14px;
+        max-height: 250px;
     }
 
     .guestbook-reply-item {
@@ -5030,6 +5028,7 @@ textarea.form-input {
 
     .guestbook-replies {
         padding: 0.5rem;
+        max-height: 150px;
     }
 
     .reply-avatar {
@@ -5063,16 +5062,12 @@ textarea.form-input {
         border-radius: 10px;
     }
 
-    .guestbook-pinned-viewport .guestbook-item .guestbook-main {
-        max-height: 350px;
+    .guestbook-pinned-item .guestbook-main {
+        max-height: none;
     }
 
-    .guestbook-pinned-viewport .guestbook-item {
-        max-height: 480px;
-    }
-
-    .guestbook-pinned-viewport .guestbook-item .guestbook-main {
-        max-height: 450px;
+    .guestbook-pinned-item .guestbook-replies {
+        max-height: 150px;
     }
 
     .guestbook-pinned-nav {

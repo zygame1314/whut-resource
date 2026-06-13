@@ -196,6 +196,8 @@ window.hideReplyForm = function (parentId) {
 window.submitReply = async function (parentId) {
     const input = document.getElementById(`reply-input-${parentId}`);
     if (!input) return;
+    const submitBtn = input.closest('.reply-form-wrapper').querySelector('.primary-btn');
+    if (submitBtn && submitBtn.disabled) return;
     const content = input.value.trim();
     if (!content) {
         showNotification('回复内容不能为空', 'warning');
@@ -205,7 +207,6 @@ window.submitReply = async function (parentId) {
         showNotification('回复内容过长（最多500字符）', 'warning');
         return;
     }
-    const submitBtn = input.closest('.reply-form-wrapper').querySelector('.primary-btn');
     if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.classList.add('btn-sending');

@@ -64,7 +64,6 @@ function refreshGuestbook() {
     guestbookCursorStack = [];
     guestbookPageIndex = -1;
     pinnedGuestbookMessages = [];
-    _pinnedItemIds = '';
     _pinnedCarouselBound = false;
     guestbookLoadInitial();
     requestAnimationFrame(() => initPinnedCarouselObserver());
@@ -111,6 +110,19 @@ function removeFromGuestbookCache(id) {
         pinnedGuestbookMessages.splice(pi, 1);
         found = true;
         renderPinnedGuestbook();
+    }
+    if (!found) {
+        for (const msg of pinnedGuestbookMessages) {
+            if (msg.replies) {
+                const ri = msg.replies.findIndex(r => r.id === id);
+                if (ri !== -1) {
+                    msg.replies.splice(ri, 1);
+                    found = true;
+                    renderPinnedGuestbook();
+                    break;
+                }
+            }
+        }
     }
     if (!found) {
         for (const page of guestbookCursorStack) {

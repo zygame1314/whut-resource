@@ -1,5 +1,4 @@
 let _pinnedCarouselBound = false;
-let _pinnedItemIds = '';
 let _pinnedAnimId = 0;
 function renderPinnedGuestbook() {
     const pinnedArea = document.getElementById('guestbook-pinned-area');
@@ -8,27 +7,15 @@ function renderPinnedGuestbook() {
     if (!pinnedArea || !pinnedTrack) return;
     if (pinnedGuestbookMessages.length > 0) {
         pinnedArea.style.display = '';
-        const newIds = pinnedGuestbookMessages.map(m =>
-            `${m.id}:${m.status}:${m.is_hidden}:${m.content ? m.content.length : 0}:${m.has_liked ? 1 : 0}:${m.likes}`
-        ).join('|');
-        const trackChanged = _pinnedItemIds !== newIds;
-        if (trackChanged) {
-            _pinnedItemIds = newIds;
-            pinnedTrack.innerHTML = pinnedGuestbookMessages.map((msg, i) =>
-                `<div class="guestbook-pinned-item" data-pinned-index="${i}" style="display:${i === pinnedCarouselIndex ? 'block' : 'none'}">${renderGuestbookItem(msg)}</div>`
-            ).join('');
-        }
+        pinnedTrack.innerHTML = pinnedGuestbookMessages.map((msg, i) =>
+            `<div class="guestbook-pinned-item" data-pinned-index="${i}" style="display:${i === pinnedCarouselIndex ? 'block' : 'none'}">${renderGuestbookItem(msg)}</div>`
+        ).join('');
         if (pinnedDots) {
             if (pinnedGuestbookMessages.length > 1) {
                 pinnedDots.style.display = '';
-                const dotBtns = pinnedDots.querySelectorAll('.guestbook-pinned-dot');
-                if (dotBtns.length !== pinnedGuestbookMessages.length) {
-                    pinnedDots.innerHTML = pinnedGuestbookMessages.map((_, i) =>
-                        `<button class="guestbook-pinned-dot${i === pinnedCarouselIndex ? ' active' : ''}" onclick="pinnedCarouselGoTo(${i})"></button>`
-                    ).join('');
-                } else {
-                    dotBtns.forEach((dot, i) => dot.classList.toggle('active', i === pinnedCarouselIndex));
-                }
+                pinnedDots.innerHTML = pinnedGuestbookMessages.map((_, i) =>
+                    `<button class="guestbook-pinned-dot${i === pinnedCarouselIndex ? ' active' : ''}" onclick="pinnedCarouselGoTo(${i})"></button>`
+                ).join('');
             } else {
                 pinnedDots.style.display = 'none';
             }
@@ -88,6 +75,16 @@ function bindPinnedCarouselEvents(pinnedArea) {
         clearTimeout(_pinnedRestartTimer);
         _pinnedRestartTimer = setTimeout(startPinnedCarousel, 1000);
     }, { passive: true });
+    pinnedArea.addEventListener('focusin', function () {
+        stopPinnedCarousel();
+        clearTimeout(_pinnedRestartTimer);
+    });
+    pinnedArea.addEventListener('focusout', function (e) {
+        if (!pinnedArea.contains(e.relatedTarget)) {
+            clearTimeout(_pinnedRestartTimer);
+            _pinnedRestartTimer = setTimeout(startPinnedCarousel, 1000);
+        }
+    });
     _pinnedCarouselBound = true;
 }
 

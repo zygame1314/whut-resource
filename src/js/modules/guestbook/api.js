@@ -281,13 +281,23 @@ async function handleReplySubmit(parentId, content) {
                 isAdmin: isAdmin,
                 isSuperAdmin: isSuperAdmin
             };
-            for (const page of guestbookCursorStack) {
-                if (!page.messages) continue;
-                const parent = page.messages.find(m => m.id === parentId);
-                if (parent) {
-                    if (!parent.replies) parent.replies = [];
-                    parent.replies.push(newReply);
-                    break;
+            let parentFound = false;
+            const pinnedParent = pinnedGuestbookMessages.find(m => m.id === parentId);
+            if (pinnedParent) {
+                if (!pinnedParent.replies) pinnedParent.replies = [];
+                pinnedParent.replies.push(newReply);
+                parentFound = true;
+                renderPinnedGuestbook();
+            }
+            if (!parentFound) {
+                for (const page of guestbookCursorStack) {
+                    if (!page.messages) continue;
+                    const parent = page.messages.find(m => m.id === parentId);
+                    if (parent) {
+                        if (!parent.replies) parent.replies = [];
+                        parent.replies.push(newReply);
+                        break;
+                    }
                 }
             }
             if (guestbookPageIndex >= 0) {
@@ -307,6 +317,13 @@ async function handleReplySubmit(parentId, content) {
     }
 }
 function getViewLikes(id) {
+    for (const msg of pinnedGuestbookMessages) {
+        if (msg.id === id) return msg.likes || 0;
+        if (msg.replies) {
+            const r = msg.replies.find(r => r.id === id);
+            if (r) return r.likes || 0;
+        }
+    }
     for (const page of guestbookCursorStack) {
         if (!page.messages) continue;
         for (const m of page.messages) {
