@@ -55,7 +55,7 @@ async function handleGet(request, env) {
         ? 'g.*, u.nickname, u.email, u.is_banned, u.role'
         : 'g.*, u.nickname, u.email, u.role';
 
-    const conditions = ['g.parent_id IS NULL'];
+    const conditions = ['g.parent_id IS NULL', 'g.is_pinned = 0'];
     const params = [];
 
     if (!isAdminUser) {
@@ -75,16 +75,16 @@ async function handleGet(request, env) {
 
     let orderClause;
     if (sort === 'likes') {
-        orderClause = 'ORDER BY g.is_pinned DESC, g.likes DESC, g.id DESC';
+        orderClause = 'ORDER BY g.likes DESC, g.id DESC';
         if (cursorObj) {
-            conditions.push('(g.is_pinned < ? OR (g.is_pinned = ? AND g.likes < ?) OR (g.is_pinned = ? AND g.likes = ? AND g.id < ?))');
-            params.push(cursorObj.p, cursorObj.p, cursorObj.l, cursorObj.p, cursorObj.l, cursorObj.i);
+            conditions.push('(g.likes < ? OR (g.likes = ? AND g.id < ?))');
+            params.push(cursorObj.l, cursorObj.l, cursorObj.i);
         }
     } else {
-        orderClause = 'ORDER BY g.is_pinned DESC, g.id DESC';
+        orderClause = 'ORDER BY g.id DESC';
         if (cursorObj) {
-            conditions.push('(g.is_pinned < ? OR (g.is_pinned = ? AND g.id < ?))');
-            params.push(cursorObj.p, cursorObj.p, cursorObj.i);
+            conditions.push('g.id < ?');
+            params.push(cursorObj.i);
         }
     }
 
@@ -102,8 +102,8 @@ async function handleGet(request, env) {
     if (hasMore && pageItems.length > 0) {
         const lastItem = pageItems[pageItems.length - 1];
         const cd = sort === 'likes'
-            ? { p: lastItem.is_pinned, l: lastItem.likes, i: lastItem.id }
-            : { p: lastItem.is_pinned, i: lastItem.id };
+            ? { l: lastItem.likes, i: lastItem.id }
+            : { i: lastItem.id };
         nextCursor = btoa(JSON.stringify(cd));
     }
 
@@ -111,36 +111,73 @@ async function handleGet(request, env) {
     if (pageItems.length > 0) {
         const firstItem = pageItems[0];
         const cd = sort === 'likes'
-            ? { p: firstItem.is_pinned, l: firstItem.likes, i: firstItem.id }
-            : { p: firstItem.is_pinned, i: firstItem.id };
+            ? { l: firstItem.likes, i: firstItem.id }
+            : { i: firstItem.id };
         firstCursor = btoa(JSON.stringify(cd));
     }
 
+    let pinnedItems = [];
+    if (!cursorObj) {
+        const pinnedConditions = ['g.parent_id IS NULL', 'g.is_pinned = 1'];
+        const pinnedParams = [];
+        if (!isAdminUser) {
+            pinnedConditions.push('(g.is_hidden = 0 OR g.user_id = ?)');
+            pinnedParams.push(currentUserId);
+        }
+        if (status !== 'all') {
+            pinnedConditions.push('g.status = ?');
+            pinnedParams.push(status);
+        }
+        if (filter === 'mine') {
+            pinnedConditions.push('g.user_id = ?');
+            pinnedParams.push(currentUserId);
+        }
+        const pinnedWhere = 'WHERE ' + pinnedConditions.join(' AND ');
+        const pinnedQuery = `SELECT ${selectFields} FROM guestbook g LEFT JOIN users u ON g.user_id = u.id ${pinnedWhere} ORDER BY g.id DESC`;
+        const pinnedResult = await env.DB.prepare(pinnedQuery).bind(...pinnedParams).all();
+        pinnedItems = pinnedResult.results || [];
+    }
+
     let replies = [];
-    const parentIds = pageItems.map(m => m.id);
-    if (parentIds.length > 0) {
-        const ph = parentIds.map(() => '?').join(',');
+    const allParentIds = [...pinnedItems.map(m => m.id), ...pageItems.map(m => m.id)];
+    if (allParentIds.length > 0) {
+        const ph = allParentIds.map(() => '?').join(',');
         const replySelect = isAdminUser
             ? 'SELECT g.*, u.nickname, u.email, u.is_banned, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id'
             : 'SELECT g.*, u.nickname, u.email, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id';
-        const replyResult = await env.DB.prepare(`${replySelect} WHERE g.parent_id IN (${ph}) ORDER BY g.created_at ASC`).bind(...parentIds).all();
+        const replyResult = await env.DB.prepare(`${replySelect} WHERE g.parent_id IN (${ph}) ORDER BY g.created_at ASC`).bind(...allParentIds).all();
         replies = replyResult.results;
     }
 
     let likedIds = new Set();
-    const allIds = [...pageItems.map(m => m.id), ...replies.map(r => r.id)];
+    const allIds = [...pinnedItems.map(m => m.id), ...pageItems.map(m => m.id), ...replies.map(r => r.id)];
     if (allIds.length > 0) {
         const ph = allIds.map(() => '?').join(',');
         const likeResult = await env.DB.prepare(`SELECT guestbook_id FROM guestbook_likes WHERE user_id = ? AND guestbook_id IN (${ph})`).bind(currentUserId, ...allIds).all();
         likedIds = new Set(likeResult.results.map(r => r.guestbook_id));
     }
 
+    for (const msg of pinnedItems) {
+        msg.has_liked = likedIds.has(msg.id);
+    }
     for (const msg of pageItems) {
         msg.has_liked = likedIds.has(msg.id);
     }
     for (const r of replies) {
         r.has_liked = likedIds.has(r.id);
     }
+
+    const sanitizedPinned = pinnedItems.map(msg => {
+        if (msg.role === 'admin' || msg.role === 'super_admin') {
+            msg.isAdmin = true;
+            msg.isSuperAdmin = msg.role === 'super_admin';
+        }
+        if (!isAdminUser && msg.email) {
+            const [name, domain] = msg.email.split('@');
+            msg.email = `${name.substring(0, 2)}***@${domain}`;
+        }
+        return msg;
+    });
 
     const sanitizedParents = pageItems.map(msg => {
         if (msg.role === 'admin' || msg.role === 'super_admin') {
@@ -172,6 +209,11 @@ async function handleGet(request, env) {
         replyMap[r.parent_id].push(r);
     }
 
+    const organizedPinned = sanitizedPinned.map(p => ({
+        ...p,
+        replies: replyMap[p.id] || []
+    }));
+
     const organizedData = sanitizedParents.map(p => ({
         ...p,
         replies: replyMap[p.id] || []
@@ -179,6 +221,7 @@ async function handleGet(request, env) {
 
     return new Response(JSON.stringify({
         data: organizedData,
+        pinned: organizedPinned,
         nextCursor,
         firstCursor,
         hasMore

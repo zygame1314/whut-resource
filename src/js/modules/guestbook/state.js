@@ -7,6 +7,7 @@ const submitGuestbookBtn = document.getElementById('submit-guestbook-btn');
 const guestbookPagination = document.getElementById('guestbook-pagination');
 let guestbookCursorStack = [];
 let guestbookPageIndex = -1;
+let pinnedGuestbookMessages = [];
 let currentGuestbookSort = 'time';
 let currentGuestbookFilter = 'all';
 let currentGuestbookStatus = 'all';

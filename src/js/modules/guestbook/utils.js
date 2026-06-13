@@ -63,18 +63,38 @@ window.navigateToPath = function (path) {
 function refreshGuestbook() {
     guestbookCursorStack = [];
     guestbookPageIndex = -1;
+    pinnedGuestbookMessages = [];
     guestbookLoadInitial();
 }
 function updateGuestbookCache(id, updates) {
-    for (const page of guestbookCursorStack) {
-        if (!page.messages) continue;
-        const mi = page.messages.findIndex(m => m.id === id);
-        if (mi !== -1) { page.messages[mi] = { ...page.messages[mi], ...updates }; break; }
-        for (const m of page.messages) {
-            if (m.replies) {
-                const ri = m.replies.findIndex(r => r.id === id);
-                if (ri !== -1) { m.replies[ri] = { ...m.replies[ri], ...updates }; return; }
+    if (updates.hasOwnProperty('is_pinned')) {
+        refreshGuestbook();
+        return;
+    }
+    let found = false;
+    for (const msg of pinnedGuestbookMessages) {
+        if (msg.id === id) {
+            Object.assign(msg, updates);
+            found = true;
+            break;
+        }
+        if (msg.replies) {
+            const ri = msg.replies.findIndex(r => r.id === id);
+            if (ri !== -1) { Object.assign(msg.replies[ri], updates); found = true; break; }
+        }
+    }
+    if (!found) {
+        for (const page of guestbookCursorStack) {
+            if (!page.messages) continue;
+            const mi = page.messages.findIndex(m => m.id === id);
+            if (mi !== -1) { page.messages[mi] = { ...page.messages[mi], ...updates }; found = true; break; }
+            for (const m of page.messages) {
+                if (m.replies) {
+                    const ri = m.replies.findIndex(r => r.id === id);
+                    if (ri !== -1) { m.replies[ri] = { ...m.replies[ri], ...updates }; found = true; break; }
+                }
             }
+            if (found) break;
         }
     }
     const cur = guestbookCursorStack[guestbookPageIndex];
@@ -82,17 +102,24 @@ function updateGuestbookCache(id, updates) {
 }
 function removeFromGuestbookCache(id) {
     let found = false;
-    for (const page of guestbookCursorStack) {
-        if (!page.messages) continue;
-        const mi = page.messages.findIndex(m => m.id === id);
-        if (mi !== -1) { page.messages.splice(mi, 1); found = true; break; }
-        for (const m of page.messages) {
-            if (m.replies) {
-                const ri = m.replies.findIndex(r => r.id === id);
-                if (ri !== -1) { m.replies.splice(ri, 1); found = true; break; }
+    const pi = pinnedGuestbookMessages.findIndex(m => m.id === id);
+    if (pi !== -1) {
+        pinnedGuestbookMessages.splice(pi, 1);
+        found = true;
+    }
+    if (!found) {
+        for (const page of guestbookCursorStack) {
+            if (!page.messages) continue;
+            const mi = page.messages.findIndex(m => m.id === id);
+            if (mi !== -1) { page.messages.splice(mi, 1); found = true; break; }
+            for (const m of page.messages) {
+                if (m.replies) {
+                    const ri = m.replies.findIndex(r => r.id === id);
+                    if (ri !== -1) { m.replies.splice(ri, 1); found = true; break; }
+                }
             }
+            if (found) break;
         }
-        if (found) break;
     }
     const cur = guestbookCursorStack[guestbookPageIndex];
     if (cur && cur.messages) renderGuestbook(cur.messages);

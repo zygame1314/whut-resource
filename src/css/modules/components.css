@@ -1784,6 +1784,34 @@
     font-size: 0.85rem;
 }
 
+.guestbook-pinned-area {
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.04), rgba(var(--primary-rgb), 0.01));
+    border: 1px solid rgba(var(--primary-rgb), 0.15);
+    border-radius: 16px;
+    padding: 1rem 1.25rem;
+}
+
+.guestbook-pinned-header {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.guestbook-pinned-header i {
+    font-size: 0.85rem;
+}
+
+.guestbook-pinned-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
 .guestbook-list {
     display: flex;
     flex-direction: column;

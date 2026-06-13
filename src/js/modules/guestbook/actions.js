@@ -1,5 +1,6 @@
 window.changeGuestbookPage = function (direction) {
-    if (guestbookSection) guestbookSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const scrollTarget = document.querySelector('.guestbook-toolbar') || guestbookSection;
+    if (scrollTarget) scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (direction === 'next') guestbookGoNext();
     else if (direction === 'prev') guestbookGoPrev();
 };

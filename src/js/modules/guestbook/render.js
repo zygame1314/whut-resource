@@ -1,14 +1,26 @@
 function renderGuestbook(messages) {
     if (!guestbookList) return;
+    const pinnedArea = document.getElementById('guestbook-pinned-area');
+    const pinnedList = document.getElementById('guestbook-pinned-list');
+    if (pinnedArea && pinnedList) {
+        if (pinnedGuestbookMessages.length > 0) {
+            pinnedArea.style.display = '';
+            pinnedList.innerHTML = pinnedGuestbookMessages.map(msg => renderGuestbookItem(msg)).join('');
+        } else {
+            pinnedArea.style.display = 'none';
+        }
+    }
     if (!messages || messages.length === 0) {
         guestbookList.innerHTML = '<div class="empty-state-small"><i class="far fa-comment-dots" style="font-size:2rem;opacity:0.4;display:block;margin-bottom:0.5rem;"></i>暂无留言，快来发布第一条心愿吧！</div>';
         return;
     }
+    guestbookList.innerHTML = messages.map(msg => renderGuestbookItem(msg)).join('');
+}
+function renderGuestbookItem(msg) {
     const isAdmin = isGuestbookAdmin(window.currentUser);
     const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
     const currentUserId = window.currentUser ? window.currentUser.id : null;
-    guestbookList.innerHTML = messages.map(msg => {
-        const isAuthor = currentUserId === msg.user_id;
+    const isAuthor = currentUserId === msg.user_id;
         const likedClass = msg.has_liked ? 'active' : '';
         const likeAction = msg.has_liked ? `unlikeGuestbook(${msg.id}, this)` : `likeGuestbook(${msg.id}, this)`;
         const likeIcon = msg.has_liked ? 'fas fa-heart' : 'far fa-heart';
@@ -216,7 +228,6 @@ function renderGuestbook(messages) {
                 </div>
             </div>
         `;
-    }).join('');
 }
 function renderResolveNote(note) {
     if (!note) return '';
@@ -268,12 +279,8 @@ function renderGuestbookPagination(hasMore, hasPrev) {
     }
     guestbookPagination.style.display = 'flex';
     guestbookPagination.innerHTML = `
-        <button class="secondary-btn small" onclick="changeGuestbookPage('prev')" ${!hasPrev ? 'disabled' : ''}>
-            <i class="fas fa-chevron-left"></i> 上一页
-        </button>
+        ${hasPrev ? `<button class="secondary-btn small" onclick="changeGuestbookPage('prev')"><i class="fas fa-chevron-left"></i> <span class="pagination-btn-text">上一页</span></button>` : ''}
         <span class="guestbook-loaded-count" style="color:var(--text-secondary);font-size:0.85rem;">已加载 ${totalLoaded} 条</span>
-        <button class="secondary-btn small" onclick="changeGuestbookPage('next')" ${!hasMore ? 'disabled' : ''}>
-            下一页 <i class="fas fa-chevron-right"></i>
-        </button>
+        ${hasMore ? `<button class="secondary-btn small" onclick="changeGuestbookPage('next')"><span class="pagination-btn-text">下一页</span> <i class="fas fa-chevron-right"></i></button>` : ''}
     `;
 }

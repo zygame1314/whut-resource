@@ -13,6 +13,7 @@ async function guestbookFetchPage(cursor) {
     const data = await response.json();
     return {
         messages: data.data || [],
+        pinned: data.pinned || [],
         nextCursor: data.nextCursor || null,
         hasMore: data.hasMore || false
     };
@@ -34,6 +35,7 @@ async function guestbookLoadInitial() {
         const page = await guestbookFetchPage(null);
         guestbookCursorStack = [page];
         guestbookPageIndex = 0;
+        if (page.pinned) pinnedGuestbookMessages = page.pinned;
         renderGuestbook(page.messages);
         renderGuestbookPagination(page.hasMore, guestbookPageIndex > 0);
         if (guestbookForm) guestbookForm.style.display = 'block';
