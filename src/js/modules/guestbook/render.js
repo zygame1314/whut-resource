@@ -1,5 +1,6 @@
 let _pinnedCarouselBound = false;
 let _pinnedItemIds = '';
+let _pinnedAnimId = 0;
 function renderPinnedGuestbook() {
     const pinnedArea = document.getElementById('guestbook-pinned-area');
     const pinnedTrack = document.getElementById('guestbook-pinned-track');
@@ -13,8 +14,9 @@ function renderPinnedGuestbook() {
         const trackChanged = _pinnedItemIds !== newIds;
         if (trackChanged) {
             _pinnedItemIds = newIds;
-            pinnedTrack.innerHTML = pinnedGuestbookMessages.map(msg => renderGuestbookItem(msg)).join('');
-            _pinnedCarouselBound = false;
+            pinnedTrack.innerHTML = pinnedGuestbookMessages.map((msg, i) =>
+                `<div class="guestbook-pinned-item" data-pinned-index="${i}" style="display:${i === pinnedCarouselIndex ? 'block' : 'none'}">${renderGuestbookItem(msg)}</div>`
+            ).join('');
         }
         if (pinnedDots) {
             if (pinnedGuestbookMessages.length > 1) {
@@ -24,12 +26,13 @@ function renderPinnedGuestbook() {
                     pinnedDots.innerHTML = pinnedGuestbookMessages.map((_, i) =>
                         `<button class="guestbook-pinned-dot${i === pinnedCarouselIndex ? ' active' : ''}" onclick="pinnedCarouselGoTo(${i})"></button>`
                     ).join('');
+                } else {
+                    dotBtns.forEach((dot, i) => dot.classList.toggle('active', i === pinnedCarouselIndex));
                 }
             } else {
                 pinnedDots.style.display = 'none';
             }
         }
-        updatePinnedCarousel();
         startPinnedCarousel();
         bindPinnedCarouselEvents(pinnedArea);
         if (!_pinnedObserver) initPinnedCarouselObserver();
@@ -37,6 +40,38 @@ function renderPinnedGuestbook() {
         pinnedArea.style.display = 'none';
         stopPinnedCarousel();
     }
+}
+
+function updatePinnedCarouselView(direction) {
+    const track = document.getElementById('guestbook-pinned-track');
+    if (!track) return;
+    const items = track.querySelectorAll('.guestbook-pinned-item');
+    if (!items.length) return;
+    const dots = document.querySelectorAll('#guestbook-pinned-dots .guestbook-pinned-dot');
+    dots.forEach((dot, i) => dot.classList.toggle('active', i === pinnedCarouselIndex));
+    if (direction === 0) {
+        items.forEach((item, i) => { item.style.display = i === pinnedCarouselIndex ? 'block' : 'none'; });
+        return;
+    }
+    _pinnedAnimId++;
+    const animId = _pinnedAnimId;
+    const currentItem = [...items].find(el => el.style.display !== 'none');
+    const nextItem = items[pinnedCarouselIndex];
+    if (!currentItem || !nextItem || currentItem === nextItem) return;
+    const outClass = direction > 0 ? 'pinned-slide-out-left' : 'pinned-slide-out-right';
+    const inClass = direction > 0 ? 'pinned-slide-in-right' : 'pinned-slide-in-left';
+    currentItem.classList.add(outClass);
+    setTimeout(() => {
+        if (_pinnedAnimId !== animId) return;
+        currentItem.style.display = 'none';
+        currentItem.classList.remove(outClass);
+        nextItem.style.display = 'block';
+        nextItem.classList.add(inClass);
+        setTimeout(() => {
+            if (_pinnedAnimId !== animId) return;
+            nextItem.classList.remove(inClass);
+        }, 250);
+    }, 250);
 }
 
 function bindPinnedCarouselEvents(pinnedArea) {

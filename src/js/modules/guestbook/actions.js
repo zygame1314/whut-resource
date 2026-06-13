@@ -223,35 +223,18 @@ window.submitReply = async function (parentId) {
     }
 };
 
-let _pinnedRafId = null;
 let _pinnedRestartTimer = null;
 let _pinnedScrollPauseTimer = null;
 let _pinnedObserver = null;
 let _pinnedScrollBound = false;
 let _pinnedVisible = false;
-function updatePinnedCarousel() {
-    const track = document.getElementById('guestbook-pinned-track');
-    if (!track) return;
-    if (_pinnedRafId) cancelAnimationFrame(_pinnedRafId);
-    _pinnedRafId = requestAnimationFrame(() => {
-        track.style.transform = `translateX(-${pinnedCarouselIndex * 100}%)`;
-        const dots = document.getElementById('guestbook-pinned-dots');
-        if (dots) {
-            const dotBtns = dots.querySelectorAll('.guestbook-pinned-dot');
-            for (let i = 0, len = dotBtns.length; i < len; i++) {
-                dotBtns[i].classList.toggle('active', i === pinnedCarouselIndex);
-            }
-        }
-        _pinnedRafId = null;
-    });
-}
-
 function startPinnedCarousel() {
     stopPinnedCarousel();
     if (pinnedGuestbookMessages.length <= 1) return;
     pinnedCarouselTimer = setInterval(() => {
-        pinnedCarouselIndex = (pinnedCarouselIndex + 1) % pinnedGuestbookMessages.length;
-        updatePinnedCarousel();
+        const nextIndex = (pinnedCarouselIndex + 1) % pinnedGuestbookMessages.length;
+        pinnedCarouselIndex = nextIndex;
+        updatePinnedCarouselView(1);
     }, 5000);
 }
 
@@ -295,7 +278,7 @@ function initPinnedCarouselObserver() {
 window.pinnedCarouselPrev = function () {
     if (pinnedGuestbookMessages.length <= 1) return;
     pinnedCarouselIndex = (pinnedCarouselIndex - 1 + pinnedGuestbookMessages.length) % pinnedGuestbookMessages.length;
-    updatePinnedCarousel();
+    updatePinnedCarouselView(-1);
     stopPinnedCarousel();
     startPinnedCarousel();
 };
@@ -303,14 +286,16 @@ window.pinnedCarouselPrev = function () {
 window.pinnedCarouselNext = function () {
     if (pinnedGuestbookMessages.length <= 1) return;
     pinnedCarouselIndex = (pinnedCarouselIndex + 1) % pinnedGuestbookMessages.length;
-    updatePinnedCarousel();
+    updatePinnedCarouselView(1);
     stopPinnedCarousel();
     startPinnedCarousel();
 };
 
 window.pinnedCarouselGoTo = function (index) {
+    if (index === pinnedCarouselIndex) return;
+    const direction = index > pinnedCarouselIndex ? 1 : -1;
     pinnedCarouselIndex = index;
-    updatePinnedCarousel();
+    updatePinnedCarouselView(direction);
     stopPinnedCarousel();
     startPinnedCarousel();
 };
