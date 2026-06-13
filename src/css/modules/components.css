@@ -1812,6 +1812,13 @@
     gap: 1rem;
     max-height: 600px;
     overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.guestbook-pinned-list .guestbook-item:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: rgba(var(--primary-rgb), 0.4);
 }
 
 .guestbook-list {
