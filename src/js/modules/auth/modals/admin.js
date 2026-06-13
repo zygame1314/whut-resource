@@ -303,7 +303,8 @@ async function showAdminLogsModal() {
                 if (details) {
                 const originalContent = details.snapshot_content || details.content;
                 if (originalContent) {
-                    detailsHtml += `<div class="admin-log-details"><strong>原始内容:</strong> ${escapeHtml(originalContent)}</div>`;
+                    const truncated = originalContent.length > 200 ? originalContent.substring(0, 200) + '...' : originalContent;
+                    detailsHtml += `<div class="admin-log-details"><strong>原始内容:</strong> ${escapeHtml(truncated)}</div>`;
                 }
                 if (details.resource_path) {
                     detailsHtml += `<div class="admin-log-resource-path">资源路径: ${escapeHtml(details.resource_path)}</div>`;

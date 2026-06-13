@@ -214,12 +214,6 @@ function updatePinnedCarousel() {
     const track = document.getElementById('guestbook-pinned-track');
     if (!track) return;
     track.style.transform = `translateX(-${pinnedCarouselIndex * 100}%)`;
-    const items = track.querySelectorAll('.guestbook-item');
-    const currentItem = items[pinnedCarouselIndex];
-    const viewport = track.parentElement;
-    if (currentItem && viewport) {
-        viewport.style.height = currentItem.offsetHeight + 'px';
-    }
     const dots = document.getElementById('guestbook-pinned-dots');
     if (dots) {
         dots.querySelectorAll('.guestbook-pinned-dot').forEach((dot, i) => {

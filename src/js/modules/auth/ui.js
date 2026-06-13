@@ -38,14 +38,14 @@ function updateAuthUI() {
                     <button id="user-role-btn" class="dropdown-item"><i class="fas fa-users-cog"></i> 用户管理</button>
                     <button id="sync-btn" class="dropdown-item"><i class="fas fa-sync"></i> 同步R2文件</button>
                     <button id="vector-sync-btn" class="dropdown-item"><i class="fas fa-brain"></i> 同步向量索引</button>
-                    <button id="admin-logs-btn" class="dropdown-item"><i class="fas fa-history"></i> 系统操作日志</button>
+                    <button id="admin-logs-btn" class="dropdown-item"><i class="fas fa-history"></i> 操作日志</button>
                     <button id="oauth-clients-btn" class="dropdown-item"><i class="fas fa-key"></i> SSO客户端</button>
                     <div class="dropdown-divider"></div>
                 `;
             } else if (isAdmin(currentUser)) {
                 dropdownItems += `
                     <div class="dropdown-section-label">管理工具</div>
-                    <button id="admin-logs-btn" class="dropdown-item"><i class="fas fa-history"></i> 系统操作日志</button>
+                    <button id="admin-logs-btn" class="dropdown-item"><i class="fas fa-history"></i> 操作日志</button>
                     <button id="my-requests-btn" class="dropdown-item">
                         <i class="fas fa-tasks"></i> 我的审批请求
                         <span id="my-requests-badge" class="badge u-hidden">0</span>

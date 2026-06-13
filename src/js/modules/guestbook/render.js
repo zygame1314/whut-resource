@@ -27,7 +27,6 @@ function renderGuestbook(messages) {
                 carouselEl.addEventListener('touchstart', stopPinnedCarousel, { passive: true });
                 carouselEl.addEventListener('touchend', startPinnedCarousel);
             }
-            window.addEventListener('resize', updatePinnedCarousel);
         } else {
             pinnedArea.style.display = 'none';
         }
