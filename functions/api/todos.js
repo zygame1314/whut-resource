@@ -65,16 +65,24 @@ async function handleGet(request, env) {
         params = [statusFilter];
     }
     const result = await env.DB.prepare(query).bind(...params).all();
+    const todos = result.results || [];
+    let todosWithMessages = todos;
 
-    const todosWithMessages = [];
-    for (const todo of (result.results || [])) {
-        const messages = await env.DB.prepare(
-            'SELECT g.id, g.content, g.status as guestbook_status, g.created_at, u.nickname, u.role FROM todo_guestbook tg JOIN guestbook g ON tg.guestbook_id = g.id LEFT JOIN users u ON g.user_id = u.id WHERE tg.todo_id = ? ORDER BY g.created_at ASC'
-        ).bind(todo.id).all();
-        todosWithMessages.push({
-            ...todo,
-            messages: messages.results || []
-        });
+    if (todos.length > 0) {
+        const todoIds = todos.map(t => t.id);
+        const ph = todoIds.map(() => '?').join(',');
+        const allMessages = await env.DB.prepare(
+            `SELECT tg.todo_id, g.id, g.content, g.status as guestbook_status, g.created_at, u.nickname, u.role FROM todo_guestbook tg JOIN guestbook g ON tg.guestbook_id = g.id LEFT JOIN users u ON g.user_id = u.id WHERE tg.todo_id IN (${ph}) ORDER BY g.created_at ASC`
+        ).bind(...todoIds).all();
+        const msgMap = {};
+        for (const m of (allMessages.results || [])) {
+            if (!msgMap[m.todo_id]) msgMap[m.todo_id] = [];
+            msgMap[m.todo_id].push(m);
+        }
+        todosWithMessages = todos.map(t => ({
+            ...t,
+            messages: msgMap[t.id] || []
+        }));
     }
 
     return new Response(JSON.stringify({
