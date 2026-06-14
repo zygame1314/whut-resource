@@ -277,6 +277,8 @@ async function resolveTodoFromModal(todoId, modal) {
         confirmClass: 'confirm-btn-primary'
     });
     if (!confirmed) return;
+    const btn = modal.querySelector(`.todo-resolve-btn[data-todo-id="${todoId}"]`);
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(TODOS_API_URL, {
@@ -287,7 +289,7 @@ async function resolveTodoFromModal(todoId, modal) {
         const data = await response.json();
         if (response.ok) {
             showNotification('待办已解决，关联留言已标记为已解决', 'success');
-            loadTodosIntoModal(modal);
+            loadTodosIntoModal(modal, true);
             refreshGuestbook();
         } else {
             showNotification(data.error || '操作失败', 'error');
@@ -295,6 +297,8 @@ async function resolveTodoFromModal(todoId, modal) {
     } catch (e) {
         console.error('解决待办失败:', e);
         showNotification('操作出错', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
     }
 }
 
@@ -306,6 +310,8 @@ async function deleteTodoFromModal(todoId, modal) {
         confirmClass: 'confirm-btn-danger'
     });
     if (!confirmed) return;
+    const btn = modal.querySelector(`.todo-delete-btn[data-todo-id="${todoId}"]`);
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(`${TODOS_API_URL}?id=${todoId}`, {
@@ -315,17 +321,21 @@ async function deleteTodoFromModal(todoId, modal) {
         const data = await response.json();
         if (response.ok) {
             showNotification('待办已删除', 'success');
-            loadTodosIntoModal(modal);
+            loadTodosIntoModal(modal, true);
         } else {
             showNotification(data.error || '删除失败', 'error');
         }
     } catch (e) {
         console.error('删除待办失败:', e);
         showNotification('操作出错', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
     }
 }
 
 async function reopenTodoFromModal(todoId, modal) {
+    const btn = modal.querySelector(`.todo-reopen-btn[data-todo-id="${todoId}"]`);
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
     try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(TODOS_API_URL, {
@@ -336,13 +346,15 @@ async function reopenTodoFromModal(todoId, modal) {
         const data = await response.json();
         if (response.ok) {
             showNotification('待办已重新打开', 'success');
-            loadTodosIntoModal(modal);
+            loadTodosIntoModal(modal, true);
         } else {
             showNotification(data.error || '操作失败', 'error');
         }
     } catch (e) {
         console.error('重新打开待办失败:', e);
         showNotification('操作出错', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
     }
 }
 

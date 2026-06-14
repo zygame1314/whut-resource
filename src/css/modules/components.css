@@ -5462,14 +5462,14 @@ textarea.form-input {
     align-items: center;
     gap: 2px;
     padding: 12px 10px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-gradient);
     color: #fff;
     border: none;
     border-radius: 12px 0 0 12px;
     font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: -2px 0 12px rgba(102, 126, 234, 0.35);
+    box-shadow: -2px 0 12px rgba(var(--primary-rgb), 0.35);
     transition: transform 0.2s, box-shadow 0.2s;
     writing-mode: vertical-rl;
     text-orientation: mixed;
@@ -5499,10 +5499,29 @@ textarea.form-input {
 
 .todo-sidebar-entry:hover {
     transform: translateY(-50%) translateX(-4px);
-    box-shadow: -4px 0 20px rgba(102, 126, 234, 0.5);
+    box-shadow: -4px 0 20px rgba(var(--primary-rgb), 0.5);
 }
 
 .todo-sidebar-entry:active {
+    transform: translateY(-50%) translateX(-2px);
+}
+
+[data-theme="dark"] .todo-sidebar-entry {
+    background: linear-gradient(135deg, #1a3a5c 0%, #0d2137 100%);
+    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.4);
+    color: #8bb8e8;
+}
+
+[data-theme="dark"] .todo-sidebar-entry:hover {
+    box-shadow: -4px 0 20px rgba(0, 123, 255, 0.3);
+}
+
+[data-theme="dark"] .todo-sidebar-dot {
+    background: #ff6b6b;
+    box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.4);
+}
+
+[data-theme="dark"] .todo-sidebar-entry:active {
     transform: translateY(-50%) translateX(-2px);
 }
 
