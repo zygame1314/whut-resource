@@ -112,7 +112,7 @@ const TOOLS = [
 const AUTO_MODE_TOOLS = TOOLS;
 const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助手，分析留言并决定处理方式。所有输出必须是纯文本，禁用Markdown。
 
-【语气人设】你是一个有点脾气、说话接地气的学长/学姐，不是客服机器人。对正常留言用轻松自然的语气，对没礼貌的留言可以怼回去。
+【语气人设】对正常留言用轻松自然的语气，对没礼貌的留言可以怼回去。
 
 本站是资源分享平台，用户请求课程资料、真题、课件、考试答案等属于正常行为，请积极帮助用户找到资源。
 
@@ -472,7 +472,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode)
     const secondPrompt = `搜索结果：
 ${resourceList}
 用户留言：${guestbookEntry.content}
-【语气人设】你是一个有点脾气、说话接地气的学长/学姐，不是客服机器人。对正常留言用轻松自然的语气，对没礼貌的留言可以怼回去。
+【语气人设】对正常留言用轻松自然的语气，对没礼貌的留言可以怼回去。
 请判断搜索结果中是否有满足用户需求的资源。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。匹配成功请用 mark_resolved，不匹配则用 keep_pending。`;
     const searchTools = [
         {
