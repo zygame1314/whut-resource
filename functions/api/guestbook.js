@@ -353,20 +353,27 @@ async function handleDelete(request, env) {
 
 async function cleanupOldGuestbook(env) {
     const cutoff = "datetime('now', '-30 days')";
+    const affectedTodoIds = new Set();
+    const collectTodoIds = async (guestbookIds) => {
+        if (!guestbookIds.length) return;
+        const ph = guestbookIds.map(() => '?').join(',');
+        const rows = await env.DB.prepare(
+            `SELECT DISTINCT todo_id FROM todo_guestbook WHERE guestbook_id IN (${ph})`
+        ).bind(...guestbookIds).all();
+        for (const r of (rows.results || [])) {
+            if (r.todo_id) affectedTodoIds.add(r.todo_id);
+        }
+    };
     const oldReplies = await env.DB.prepare(
         `SELECT id FROM guestbook WHERE parent_id IS NOT NULL AND created_at < ${cutoff} LIMIT 500`
     ).all();
     if (oldReplies.results && oldReplies.results.length > 0) {
-        const ph = oldReplies.results.map(() => '?').join(',');
-        await env.DB.prepare(
-            `DELETE FROM guestbook_likes WHERE guestbook_id IN (${ph})`
-        ).bind(...oldReplies.results.map(r => r.id)).run();
-        await env.DB.prepare(
-            `DELETE FROM todo_guestbook WHERE guestbook_id IN (${ph})`
-        ).bind(...oldReplies.results.map(r => r.id)).run();
-        await env.DB.prepare(
-            `DELETE FROM guestbook WHERE id IN (${ph})`
-        ).bind(...oldReplies.results.map(r => r.id)).run();
+        const replyIds = oldReplies.results.map(r => r.id);
+        const ph = replyIds.map(() => '?').join(',');
+        await collectTodoIds(replyIds);
+        await env.DB.prepare(`DELETE FROM guestbook_likes WHERE guestbook_id IN (${ph})`).bind(...replyIds).run();
+        await env.DB.prepare(`DELETE FROM todo_guestbook WHERE guestbook_id IN (${ph})`).bind(...replyIds).run();
+        await env.DB.prepare(`DELETE FROM guestbook WHERE id IN (${ph})`).bind(...replyIds).run();
     }
     const oldParents = await env.DB.prepare(
         `SELECT id FROM guestbook WHERE parent_id IS NULL AND created_at < ${cutoff} LIMIT 200`
@@ -374,30 +381,34 @@ async function cleanupOldGuestbook(env) {
     if (oldParents.results && oldParents.results.length > 0) {
         const parentIds = oldParents.results.map(r => r.id);
         const ph = parentIds.map(() => '?').join(',');
-        const childLikes = await env.DB.prepare(
-            `SELECT g.id FROM guestbook g JOIN guestbook_likes gl ON g.id = gl.guestbook_id WHERE g.parent_id IN (${ph})`
+        const children = await env.DB.prepare(
+            `SELECT id FROM guestbook WHERE parent_id IN (${ph})`
         ).bind(...parentIds).all();
-        const allIds = [...parentIds, ...(childLikes.results || []).map(c => c.id)];
-        if (allIds.length > 0) {
-            const allPh = allIds.map(() => '?').join(',');
-            await env.DB.prepare(`DELETE FROM guestbook_likes WHERE guestbook_id IN (${allPh})`).bind(...allIds).run();
-            await env.DB.prepare(`DELETE FROM todo_guestbook WHERE guestbook_id IN (${allPh})`).bind(...allIds).run();
+        const childIds = (children.results || []).map(c => c.id);
+        const allGuestbookIds = [...parentIds, ...childIds];
+        await collectTodoIds(allGuestbookIds);
+        const allPh = allGuestbookIds.map(() => '?').join(',');
+        if (childIds.length > 0) {
+            const cPh = childIds.map(() => '?').join(',');
+            await env.DB.prepare(`DELETE FROM guestbook_likes WHERE guestbook_id IN (${cPh})`).bind(...childIds).run();
+            await env.DB.prepare(`DELETE FROM todo_guestbook WHERE guestbook_id IN (${cPh})`).bind(...childIds).run();
+            await env.DB.prepare(`DELETE FROM guestbook WHERE id IN (${cPh})`).bind(...childIds).run();
         }
-        await env.DB.prepare(
-            `DELETE FROM guestbook WHERE parent_id IN (${ph})`
-        ).bind(...parentIds).run();
-        const pPh = parentIds.map(() => '?').join(',');
-        await env.DB.prepare(
-            `DELETE FROM guestbook WHERE id IN (${pPh})`
-        ).bind(...parentIds).run();
+        await env.DB.prepare(`DELETE FROM guestbook_likes WHERE guestbook_id IN (${ph})`).bind(...parentIds).run();
+        await env.DB.prepare(`DELETE FROM todo_guestbook WHERE guestbook_id IN (${ph})`).bind(...parentIds).run();
+        await env.DB.prepare(`DELETE FROM guestbook WHERE id IN (${ph})`).bind(...parentIds).run();
     }
-    const orphanedTodos = await env.DB.prepare(
-        `SELECT t.id FROM todos t LEFT JOIN todo_guestbook tg ON t.id = tg.todo_id WHERE tg.todo_id IS NULL`
-    ).all();
-    if (orphanedTodos.results && orphanedTodos.results.length > 0) {
-        const todoIds = orphanedTodos.results.map(r => r.id);
+    if (affectedTodoIds.size > 0) {
+        const todoIds = [...affectedTodoIds];
         const ph = todoIds.map(() => '?').join(',');
-        await env.DB.prepare(`DELETE FROM todos WHERE id IN (${ph})`).bind(...todoIds).run();
+        const orphans = await env.DB.prepare(
+            `SELECT t.id FROM todos t WHERE t.id IN (${ph}) AND NOT EXISTS (SELECT 1 FROM todo_guestbook tg WHERE tg.todo_id = t.id)`
+        ).bind(...todoIds).all();
+        if (orphans.results && orphans.results.length > 0) {
+            const orphanIds = orphans.results.map(r => r.id);
+            const oPh = orphanIds.map(() => '?').join(',');
+            await env.DB.prepare(`DELETE FROM todos WHERE id IN (${oPh})`).bind(...orphanIds).run();
+        }
     }
 }
 async function handlePut(request, env, context) {
