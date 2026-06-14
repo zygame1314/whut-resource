@@ -52,6 +52,16 @@ async function handleGet(request, env) {
         });
     }
     const url = new URL(request.url);
+    const action = url.searchParams.get('action');
+    if (action === 'pending_exists') {
+        const result = await env.DB.prepare(
+            "SELECT 1 as has_pending FROM todos WHERE status = 'pending' LIMIT 1"
+        ).first();
+        return new Response(JSON.stringify({
+            success: true,
+            has_pending: !!result
+        }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const status = url.searchParams.get('status') || 'pending';
     const validStatuses = ['pending', 'resolved', 'all'];
     const statusFilter = validStatuses.includes(status) ? status : 'pending';
@@ -67,20 +77,20 @@ async function handleGet(request, env) {
     const params = [];
 
     if (statusFilter !== 'all') {
-        whereClause = 'WHERE t.status = ?';
+        whereClause = 'WHERE status = ?';
         params.push(statusFilter);
     }
 
     if (cursorObj && cursorObj.c && cursorObj.i) {
         if (whereClause) {
-            whereClause += ' AND (t.created_at < ? OR (t.created_at = ? AND t.id < ?))';
+            whereClause += ' AND (created_at < ? OR (created_at = ? AND id < ?))';
         } else {
-            whereClause = 'WHERE (t.created_at < ? OR (t.created_at = ? AND t.id < ?))';
+            whereClause = 'WHERE (created_at < ? OR (created_at = ? AND id < ?))';
         }
         params.push(cursorObj.c, cursorObj.c, cursorObj.i);
     }
 
-    const query = `SELECT t.*, COUNT(tg.guestbook_id) as guestbook_count FROM todos t LEFT JOIN todo_guestbook tg ON t.id = tg.todo_id ${whereClause} GROUP BY t.id ORDER BY t.created_at DESC, t.id DESC LIMIT ?`;
+    const query = `SELECT * FROM todos ${whereClause} ORDER BY created_at DESC, id DESC LIMIT ?`;
     params.push(limit + 1);
 
     const result = await env.DB.prepare(query).bind(...params).all();
@@ -99,6 +109,13 @@ async function handleGet(request, env) {
     if (pageItems.length > 0) {
         const todoIds = pageItems.map(t => t.id);
         const ph = todoIds.map(() => '?').join(',');
+        const countResult = await env.DB.prepare(
+            `SELECT todo_id, COUNT(*) as cnt FROM todo_guestbook WHERE todo_id IN (${ph}) GROUP BY todo_id`
+        ).bind(...todoIds).all();
+        const countMap = {};
+        for (const c of (countResult.results || [])) {
+            countMap[c.todo_id] = c.cnt;
+        }
         const allMessages = await env.DB.prepare(
             `SELECT tg.todo_id, g.id, g.content, g.status as guestbook_status, g.created_at, u.nickname, u.role FROM todo_guestbook tg JOIN guestbook g ON tg.guestbook_id = g.id LEFT JOIN users u ON g.user_id = u.id WHERE tg.todo_id IN (${ph}) ORDER BY g.created_at ASC`
         ).bind(...todoIds).all();
@@ -109,6 +126,7 @@ async function handleGet(request, env) {
         }
         todosWithMessages = pageItems.map(t => ({
             ...t,
+            guestbook_count: countMap[t.id] || 0,
             messages: msgMap[t.id] || []
         }));
     }

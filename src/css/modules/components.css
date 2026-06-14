@@ -5485,22 +5485,15 @@ textarea.form-input {
     writing-mode: horizontal-tb;
 }
 
-.todo-sidebar-entry #todo-sidebar-count,
-.todo-sidebar-count {
-    writing-mode: horizontal-tb;
+.todo-sidebar-dot {
     position: absolute;
-    top: -6px;
-    left: -6px;
-    background: #fff;
-    color: #764ba2;
-    border-radius: 10px;
-    padding: 0 5px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    min-width: 1.1rem;
-    text-align: center;
-    line-height: 1.5;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    top: 6px;
+    left: 6px;
+    width: 10px;
+    height: 10px;
+    background: #ff4d4f;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.3);
 }
 
 .todo-sidebar-entry:hover {
@@ -5990,6 +5983,14 @@ textarea.form-input {
     align-items: center;
     justify-content: center;
     animation: pulse 2s ease infinite;
+}
+
+.badge.badge-dot {
+    min-width: 10px;
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    border-radius: 50%;
 }
 
 .custom-select-container {

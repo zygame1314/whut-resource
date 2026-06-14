@@ -353,17 +353,22 @@ function initTodoPanel() {
 }
 
 async function updateTodoBadge() {
-    const countEl = document.getElementById('todo-sidebar-count');
+    const dotEl = document.getElementById('todo-sidebar-dot');
     const sidebarEntry = document.getElementById('todo-sidebar-entry');
-    if (!countEl || !sidebarEntry) return;
+    if (!dotEl || !sidebarEntry) return;
     try {
-        const todos = await fetchTodos('pending');
-        const count = todos.length;
-        if (count > 0) {
-            countEl.textContent = count;
-            countEl.style.display = 'inline';
-        } else {
-            countEl.style.display = 'none';
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        const response = await fetch(`${TODOS_API_URL}?action=pending_exists`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.has_pending) {
+                dotEl.style.display = 'block';
+            } else {
+                dotEl.style.display = 'none';
+            }
         }
     } catch (e) {
         console.error('更新待办计数失败:', e);

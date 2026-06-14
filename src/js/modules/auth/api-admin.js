@@ -116,8 +116,7 @@ async function fetchPendingRequestsCount() {
         });
         if (response.ok) {
             const data = await response.json();
-            const count = data.count || 0;
-            const displayCount = count > 99 ? '99+' : count;
+            const hasPending = !!data.has_pending;
             const badges = [
                 document.getElementById('pending-requests-badge'),
                 document.getElementById('my-requests-badge'),
@@ -125,17 +124,19 @@ async function fetchPendingRequestsCount() {
             ];
             badges.forEach(badge => {
                 if (badge) {
-                    if (count > 0) {
-                        badge.textContent = displayCount;
+                    if (hasPending) {
+                        badge.textContent = '';
+                        badge.classList.add('badge-dot');
                         badge.classList.remove('u-hidden');
                     } else {
                         badge.classList.add('u-hidden');
+                        badge.classList.remove('badge-dot');
                     }
                 }
             });
             const mobileBadge = document.getElementById('mobile-menu-badge');
             if (mobileBadge) {
-                if (count > 0) {
+                if (hasPending) {
                     mobileBadge.classList.remove('u-hidden');
                 } else {
                     mobileBadge.classList.add('u-hidden');
@@ -143,7 +144,7 @@ async function fetchPendingRequestsCount() {
             }
         }
     } catch (e) {
-        console.error('获取待审批数量失败:', e);
+        console.error('获取待审批状态失败:', e);
     }
 }
 async function handleBatchAction(ids, action, refreshCallback, reviewNote = '') {

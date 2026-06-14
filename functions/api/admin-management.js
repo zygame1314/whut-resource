@@ -112,16 +112,17 @@ async function handleGet(request, env, user) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
         }
-        let query = `SELECT COUNT(*) as count FROM admin_requests WHERE status = 'pending'`;
+        let query = `SELECT 1 as has_pending FROM admin_requests WHERE status = 'pending'`;
         const params = [];
         if (!isSuperAdmin(user)) {
             query += ` AND requested_by = ?`;
             params.push(user.id);
         }
+        query += ` LIMIT 1`;
         const result = await env.DB.prepare(query).bind(...params).first();
         return new Response(JSON.stringify({
             success: true,
-            count: result?.count || 0
+            has_pending: !!result
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     if (!isAdmin(user)) {
