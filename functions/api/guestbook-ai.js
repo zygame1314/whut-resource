@@ -105,7 +105,7 @@ const TOOLS = [
                     },
                     category: {
                         type: 'string',
-                        description: '待办分类，用于归类合并同类留言。必须是简短关键词，如"遗传学资料"、"求高数真题"、"C语言课件"等课程名或资源类别。'
+                        description: '待办分类关键词。必须优先匹配已有待办分类（精确匹配或同义词），仅确实无匹配时才用新分类。提取核心课程名，如"遗传学"、"高数真题"，不要加"求""资料"等冗余词。'
                     }
                 },
                 required: ['note', 'category']
@@ -133,7 +133,7 @@ reject_message: 内容无效或不合规范，驳回并告知原因。适用于�
 ban_user/delete_message 候补：有偿求资源、倒卖资源、付费交易等行为严重违反本站免费分享原则，视情节轻重选择 delete_message 或 ban_user
 search_resources: 资源请求类留言，提取核心课程名搜索。常见缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留课程后缀(A/B/C、一/二)
 mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景。必须填写reply（管理员审计备注）和note（用户可见备注），reply需说明处理依据
-keep_pending: 合理请求但暂时无法自动处理，等待人工介入。必须填写category（简短课程名/资源类名，如"遗传学"、"高数真题"），用于归类合并到待办事项
+keep_pending: 合理请求但暂时无法自动处理，等待人工介入。必须填写category（核心课程名/资源类名，优先精确匹配已有待办分类，如"遗传学"、"高数真题"，不加"求""资料"等冗余词），用于归类合并到待办事项
 
 处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]
 注意：仅发课程名/文件名而无任何请求语句属于不礼貌的命令式留言，不应为其搜索资源，应使用reject_message驳回。`;
@@ -213,7 +213,18 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         提交时间：${guestbookEntry.created_at}`;
     const toolsToUse = autoMode ? AUTO_MODE_TOOLS : TOOLS;
     const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-    const basePrompt = SYSTEM_PROMPT + `\n当前时间：${now}`;
+    let basePrompt = SYSTEM_PROMPT + `\n当前时间：${now}`;
+    try {
+        const existingTodos = await env.DB.prepare(
+            "SELECT category FROM todos WHERE status = 'pending' ORDER BY created_at DESC LIMIT 10"
+        ).all();
+        if (existingTodos.results && existingTodos.results.length > 0) {
+            const categories = existingTodos.results.map(t => t.category).join('、');
+            basePrompt += `\n\n【已有待办分类】${categories}\n使用 keep_pending 时，category 必须优先匹配已有分类（精确匹配或同义），避免新建重复待办。仅当确实无匹配时才用新分类。`;
+        }
+    } catch (e) {
+        console.error('查询已有待办分类失败:', e);
+    }
     const systemPromptToUse = autoMode
         ? basePrompt + `\n\n【自动审核模式】当前为自动审核模式，你的操作将直接生效（而非仅提供建议）。请同时完成内容审核和资源匹配，遇到不确定的情况保持待处理等待人工介入。`
         : basePrompt;
@@ -492,7 +503,8 @@ async function handleSearch(query, env) {
 async function handleSearchResults(guestbookEntry, searchResults, env, autoMode) {
     if (!searchResults || searchResults.length === 0) {
         if (autoMode && env && env.DB) {
-            const category = guestbookEntry.content ? guestbookEntry.content.trim().substring(0, 100) : '未分类';
+            const searchQuery = query || '';
+            const category = searchQuery.trim().substring(0, 100) || (guestbookEntry.content ? guestbookEntry.content.trim().substring(0, 50) : '未分类');
             await createOrMergeTodo(guestbookEntry, category, '未找到相关资源', env);
         }
         return {

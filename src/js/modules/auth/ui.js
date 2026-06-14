@@ -64,9 +64,9 @@ function updateAuthUI() {
             if (isMainPage) {
                 dropdownHtml = `
                 <div class="dropdown-container">
-                    <button id="admin-tools-toggle" class="secondary-btn" title="工具菜单">
+                    <button id="admin-tools-toggle" class="secondary-btn" style="position:relative;overflow:visible;" title="工具菜单">
                         <i class="fas fa-tools"></i> 管理
-                        <span id="toggle-requests-badge" class="badge u-hidden">0</span>
+                        <span id="toggle-requests-badge" class="badge badge-dot u-hidden" style="position:absolute;top:-4px;right:-4px;pointer-events:none;margin:0;"></span>
                         <i class="fas fa-chevron-down u-font-small u-margin-left-small"></i>
                     </button>
                     <div id="admin-tools-menu" class="dropdown-menu">
