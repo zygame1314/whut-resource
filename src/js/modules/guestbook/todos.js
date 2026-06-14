@@ -154,10 +154,10 @@ async function loadTodosIntoModal(modal, reset = false) {
     } else {
         if (todosLoadingMore || !todosHasMore || status !== todosCurrentStatus) return;
         todosLoadingMore = true;
-        const existingMore = paginationEl.querySelector('.load-more-btn');
-        if (existingMore) {
-            existingMore.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
-            existingMore.disabled = true;
+        const loadMoreBtn = paginationEl.querySelector('.todo-load-more-btn');
+        if (loadMoreBtn) {
+            loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>加载中...</span>';
+            loadMoreBtn.dataset.loading = 'true';
         }
     }
 
@@ -182,7 +182,7 @@ async function loadTodosIntoModal(modal, reset = false) {
         const emptyText = status === 'resolved' ? '暂无已解决的待办' : status === 'pending' ? '暂无待处理的待办' : '暂无待办事项';
         container.innerHTML = `<div class="admin-empty-state-padded"><div class="admin-empty-state-icon"><i class="${emptyIcon}"></i></div>${emptyText}</div>`;
         paginationEl.innerHTML = '';
-        updateTodoBadge();
+        refreshTodoDotFromData();
         return;
     }
 
@@ -252,7 +252,7 @@ async function loadTodosIntoModal(modal, reset = false) {
 
     todosLoadingMore = false;
     renderTodosPagination(paginationEl, modal);
-    updateTodoBadge();
+    refreshTodoDotFromData();
 }
 
 function renderTodosPagination(paginationEl, modal) {
@@ -260,8 +260,13 @@ function renderTodosPagination(paginationEl, modal) {
         paginationEl.innerHTML = '';
         return;
     }
-    paginationEl.innerHTML = '<button class="secondary-btn small load-more-btn" style="width:100%;"><i class="fas fa-chevron-down"></i> 加载更多</button>';
-    paginationEl.querySelector('.load-more-btn').addEventListener('click', () => loadTodosIntoModal(modal, false));
+    paginationEl.innerHTML = `<button class="todo-load-more-btn" data-loading="false"><i class="fas fa-angle-double-down"></i><span>加载更多</span></button>`;
+    paginationEl.querySelector('.todo-load-more-btn').addEventListener('click', function() {
+        if (this.dataset.loading === 'true') return;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>加载中...</span>';
+        this.dataset.loading = 'true';
+        loadTodosIntoModal(modal, false);
+    });
 }
 
 async function resolveTodoFromModal(todoId, modal) {
@@ -350,6 +355,13 @@ function initTodoPanel() {
     }
     sidebarEntry.style.display = 'flex';
     updateTodoBadge();
+}
+
+function refreshTodoDotFromData() {
+    const dotEl = document.getElementById('todo-sidebar-dot');
+    if (!dotEl) return;
+    const hasPending = todosCurrentStatus === 'pending' && todosData.length > 0;
+    dotEl.style.display = hasPending ? 'block' : 'none';
 }
 
 async function updateTodoBadge() {
