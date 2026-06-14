@@ -153,6 +153,9 @@ async function showAiResultModal(guestbookId, result) {
                 actionColor = 'var(--warning)';
                 actionTitle = 'AI 建议人工处理';
                 actionDescription = `<div class="ai-result-note"><strong>备注：</strong>${escapeHtml(result.note || '需要管理员人工审核处理')}</div>`;
+                if (result.category) {
+                    actionDescription += `<div class="ai-result-note" style="margin-top:0.5rem;"><strong>待办分类：</strong>${escapeHtml(result.category)}</div>`;
+                }
                 buttonsHtml = `<button class="confirm-btn-cancel" data-action="cancel">关闭</button>`;
                 break;
             case 'search_no_results':

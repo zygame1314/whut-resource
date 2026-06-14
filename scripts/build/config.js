@@ -60,6 +60,7 @@ const guestbookModules = [
     'modules/guestbook/modals.js',
     'modules/guestbook/actions.js',
     'modules/guestbook/ai.js',
+    'modules/guestbook/todos.js',
     'modules/guestbook/init.js'
 ];
 const jsBundles = {

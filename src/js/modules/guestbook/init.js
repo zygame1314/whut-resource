@@ -32,5 +32,8 @@ function initGuestbook() {
 }
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
-    document.addEventListener('authSuccess', () => refreshGuestbook());
+    document.addEventListener('authSuccess', () => {
+        refreshGuestbook();
+        initTodoPanel();
+    });
 });

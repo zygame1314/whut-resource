@@ -55,21 +55,49 @@ async function handleGet(request, env) {
     const status = url.searchParams.get('status') || 'pending';
     const validStatuses = ['pending', 'resolved', 'all'];
     const statusFilter = validStatuses.includes(status) ? status : 'pending';
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
+    const cursorStr = url.searchParams.get('cursor') || null;
 
-    let query, params;
-    if (statusFilter === 'all') {
-        query = 'SELECT t.*, COUNT(tg.guestbook_id) as guestbook_count FROM todos t LEFT JOIN todo_guestbook tg ON t.id = tg.todo_id GROUP BY t.id ORDER BY t.created_at DESC';
-        params = [];
-    } else {
-        query = 'SELECT t.*, COUNT(tg.guestbook_id) as guestbook_count FROM todos t LEFT JOIN todo_guestbook tg ON t.id = tg.todo_id WHERE t.status = ? GROUP BY t.id ORDER BY t.created_at DESC';
-        params = [statusFilter];
+    let cursorObj = null;
+    if (cursorStr) {
+        try { cursorObj = JSON.parse(atob(cursorStr)); } catch (e) { cursorObj = null; }
     }
-    const result = await env.DB.prepare(query).bind(...params).all();
-    const todos = result.results || [];
-    let todosWithMessages = todos;
 
-    if (todos.length > 0) {
-        const todoIds = todos.map(t => t.id);
+    let whereClause = '';
+    const params = [];
+
+    if (statusFilter !== 'all') {
+        whereClause = 'WHERE t.status = ?';
+        params.push(statusFilter);
+    }
+
+    if (cursorObj && cursorObj.c && cursorObj.i) {
+        if (whereClause) {
+            whereClause += ' AND (t.created_at < ? OR (t.created_at = ? AND t.id < ?))';
+        } else {
+            whereClause = 'WHERE (t.created_at < ? OR (t.created_at = ? AND t.id < ?))';
+        }
+        params.push(cursorObj.c, cursorObj.c, cursorObj.i);
+    }
+
+    const query = `SELECT t.*, COUNT(tg.guestbook_id) as guestbook_count FROM todos t LEFT JOIN todo_guestbook tg ON t.id = tg.todo_id ${whereClause} GROUP BY t.id ORDER BY t.created_at DESC, t.id DESC LIMIT ?`;
+    params.push(limit + 1);
+
+    const result = await env.DB.prepare(query).bind(...params).all();
+    const rows = result.results || [];
+    const hasMore = rows.length > limit;
+    const pageItems = hasMore ? rows.slice(0, limit) : rows;
+
+    let nextCursor = null;
+    if (hasMore && pageItems.length > 0) {
+        const lastItem = pageItems[pageItems.length - 1];
+        const cd = { c: lastItem.created_at, i: lastItem.id };
+        nextCursor = btoa(JSON.stringify(cd));
+    }
+
+    let todosWithMessages = [];
+    if (pageItems.length > 0) {
+        const todoIds = pageItems.map(t => t.id);
         const ph = todoIds.map(() => '?').join(',');
         const allMessages = await env.DB.prepare(
             `SELECT tg.todo_id, g.id, g.content, g.status as guestbook_status, g.created_at, u.nickname, u.role FROM todo_guestbook tg JOIN guestbook g ON tg.guestbook_id = g.id LEFT JOIN users u ON g.user_id = u.id WHERE tg.todo_id IN (${ph}) ORDER BY g.created_at ASC`
@@ -79,7 +107,7 @@ async function handleGet(request, env) {
             if (!msgMap[m.todo_id]) msgMap[m.todo_id] = [];
             msgMap[m.todo_id].push(m);
         }
-        todosWithMessages = todos.map(t => ({
+        todosWithMessages = pageItems.map(t => ({
             ...t,
             messages: msgMap[t.id] || []
         }));
@@ -87,7 +115,9 @@ async function handleGet(request, env) {
 
     return new Response(JSON.stringify({
         success: true,
-        todos: todosWithMessages
+        todos: todosWithMessages,
+        nextCursor,
+        hasMore
     }), {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' })
     });

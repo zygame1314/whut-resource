@@ -2463,9 +2463,7 @@
 }
 
 .status-badge {
-    display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
     padding: 0.22rem 0.6rem;
     border-radius: 6px 14px 14px 6px;
     font-size: 0.7rem;
@@ -5451,6 +5449,71 @@ textarea.form-input {
 .confirm-btn-warning:hover {
     filter: brightness(1.1);
     transform: scale(1.03);
+}
+
+.todo-sidebar-entry {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 12px 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px 0 0 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: -2px 0 12px rgba(102, 126, 234, 0.35);
+    transition: transform 0.2s, box-shadow 0.2s;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+.todo-sidebar-entry i {
+    writing-mode: horizontal-tb;
+    font-size: 1rem;
+    margin-bottom: 2px;
+}
+
+.todo-sidebar-entry span {
+    writing-mode: horizontal-tb;
+}
+
+.todo-sidebar-entry #todo-sidebar-count,
+.todo-sidebar-count {
+    writing-mode: horizontal-tb;
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    background: #fff;
+    color: #764ba2;
+    border-radius: 10px;
+    padding: 0 5px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    min-width: 1.1rem;
+    text-align: center;
+    line-height: 1.5;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.todo-sidebar-entry:hover {
+    transform: translateY(-50%) translateX(-4px);
+    box-shadow: -4px 0 20px rgba(102, 126, 234, 0.5);
+}
+
+.todo-sidebar-entry:active {
+    transform: translateY(-50%) translateX(-2px);
+}
+
+.u-margin-right-small {
+    margin-right: 0.5rem;
 }
 
 
@@ -8659,7 +8722,8 @@ input#prompt-input {
 
 .admin-logs-modal .auth-box,
 .banned-users-modal .auth-box,
-#admin-requests-modal .auth-box {
+#admin-requests-modal .auth-box,
+#todos-modal .auth-box {
     width: 90%;
     max-width: 800px;
     max-height: 90vh;
@@ -9114,7 +9178,8 @@ input#prompt-input {
 
     .admin-logs-modal .auth-box,
     .banned-users-modal .auth-box,
-    #admin-requests-modal .auth-box {
+    #admin-requests-modal .auth-box,
+    #todos-modal .auth-box {
         width: 95%;
         max-height: 85vh;
         padding: 1.5rem;
@@ -9260,7 +9325,8 @@ input#prompt-input {
 
     .admin-logs-modal .auth-box,
     .banned-users-modal .auth-box,
-    #admin-requests-modal .auth-box {
+    #admin-requests-modal .auth-box,
+    #todos-modal .auth-box {
         width: 98%;
         padding: 1rem;
         border-radius: 16px;
