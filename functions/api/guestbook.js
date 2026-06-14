@@ -312,6 +312,11 @@ async function handlePost(request, env, context) {
             } catch (err) {
                 console.error('自动AI处理失败:', err);
             }
+            try {
+                await cleanupOldGuestbook(env);
+            } catch (cleanupErr) {
+                console.error('留言清理失败:', cleanupErr);
+            }
         })());
     }
     return new Response(JSON.stringify({ success: true, id: newId }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -344,6 +349,56 @@ async function handleDelete(request, env) {
         await logAdminAction(env, user.id, 'delete_guestbook', 'guestbook', id, '管理员删除留言', JSON.stringify({ snapshot_content: entry.content, nickname: entry.nickname, user_id: entry.user_id }));
     }
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+}
+
+async function cleanupOldGuestbook(env) {
+    const cutoff = "datetime('now', '-30 days')";
+    const oldReplies = await env.DB.prepare(
+        `SELECT id FROM guestbook WHERE parent_id IS NOT NULL AND created_at < ${cutoff} LIMIT 500`
+    ).all();
+    if (oldReplies.results && oldReplies.results.length > 0) {
+        const ph = oldReplies.results.map(() => '?').join(',');
+        await env.DB.prepare(
+            `DELETE FROM guestbook_likes WHERE guestbook_id IN (${ph})`
+        ).bind(...oldReplies.results.map(r => r.id)).run();
+        await env.DB.prepare(
+            `DELETE FROM todo_guestbook WHERE guestbook_id IN (${ph})`
+        ).bind(...oldReplies.results.map(r => r.id)).run();
+        await env.DB.prepare(
+            `DELETE FROM guestbook WHERE id IN (${ph})`
+        ).bind(...oldReplies.results.map(r => r.id)).run();
+    }
+    const oldParents = await env.DB.prepare(
+        `SELECT id FROM guestbook WHERE parent_id IS NULL AND created_at < ${cutoff} LIMIT 200`
+    ).all();
+    if (oldParents.results && oldParents.results.length > 0) {
+        const parentIds = oldParents.results.map(r => r.id);
+        const ph = parentIds.map(() => '?').join(',');
+        const childLikes = await env.DB.prepare(
+            `SELECT g.id FROM guestbook g JOIN guestbook_likes gl ON g.id = gl.guestbook_id WHERE g.parent_id IN (${ph})`
+        ).bind(...parentIds).all();
+        const allIds = [...parentIds, ...(childLikes.results || []).map(c => c.id)];
+        if (allIds.length > 0) {
+            const allPh = allIds.map(() => '?').join(',');
+            await env.DB.prepare(`DELETE FROM guestbook_likes WHERE guestbook_id IN (${allPh})`).bind(...allIds).run();
+            await env.DB.prepare(`DELETE FROM todo_guestbook WHERE guestbook_id IN (${allPh})`).bind(...allIds).run();
+        }
+        await env.DB.prepare(
+            `DELETE FROM guestbook WHERE parent_id IN (${ph})`
+        ).bind(...parentIds).run();
+        const pPh = parentIds.map(() => '?').join(',');
+        await env.DB.prepare(
+            `DELETE FROM guestbook WHERE id IN (${pPh})`
+        ).bind(...parentIds).run();
+    }
+    const orphanedTodos = await env.DB.prepare(
+        `SELECT t.id FROM todos t LEFT JOIN todo_guestbook tg ON t.id = tg.todo_id WHERE tg.todo_id IS NULL`
+    ).all();
+    if (orphanedTodos.results && orphanedTodos.results.length > 0) {
+        const todoIds = orphanedTodos.results.map(r => r.id);
+        const ph = todoIds.map(() => '?').join(',');
+        await env.DB.prepare(`DELETE FROM todos WHERE id IN (${ph})`).bind(...todoIds).run();
+    }
 }
 async function handlePut(request, env, context) {
     const user = await getUser(request, env);
@@ -416,6 +471,11 @@ async function handlePut(request, env, context) {
                     }
                 } catch (err) {
                     console.error('自动AI处理失败:', err);
+                }
+                try {
+                    await cleanupOldGuestbook(env);
+                } catch (cleanupErr) {
+                    console.error('留言清理失败:', cleanupErr);
                 }
             })());
         }
