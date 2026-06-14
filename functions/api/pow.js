@@ -65,18 +65,23 @@ export async function verifyPowSolution(challenge, nonce, bits, env) {
   if (!Number.isInteger(nonce) || nonce < 0) {
     return { valid: false, error: 'nonce 参数无效' };
   }
-  const record = await env.DB.prepare('SELECT bits, issued_at, expires_at FROM pow_challenges WHERE challenge = ? AND expires_at > ?')
+  const record = await env.DB.prepare('SELECT bits, issued_at, expires_at, attempts FROM pow_challenges WHERE challenge = ? AND expires_at > ?')
     .bind(challenge, new Date().toISOString()).first();
   if (!record) {
     return { valid: false, error: '挑战不存在或已过期' };
+  }
+  const maxAttempts = 5;
+  if ((record.attempts || 0) >= maxAttempts) {
+    await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
+    return { valid: false, error: '尝试次数过多，请重新获取挑战' };
   }
   if (bits < record.bits) {
     return { valid: false, error: '难度低于服务端要求' };
   }
   const elapsedMs = Date.now() - new Date(record.issued_at).getTime();
-  const minTimeMs = Math.pow(2, record.bits - 4) * 2;
+  const minTimeMs = Math.pow(2, Math.max(record.bits - 10, 0)) * 50;
   if (elapsedMs < minTimeMs) {
-    await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
+    await env.DB.prepare('UPDATE pow_challenges SET attempts = COALESCE(attempts, 0) + 1 WHERE challenge = ?').bind(challenge).run();
     return { valid: false, error: '验证过快，请重试' };
   }
   await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
