@@ -452,3 +452,26 @@ CREATE TABLE IF NOT EXISTS pow_challenges (
     expires_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pow_challenges_expires ON pow_challenges(expires_at);
+
+CREATE TABLE IF NOT EXISTS todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL,
+    description TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME,
+    resolved_by INTEGER,
+    FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_todos_category ON todos(category, status);
+
+CREATE TABLE IF NOT EXISTS todo_guestbook (
+    todo_id INTEGER NOT NULL,
+    guestbook_id INTEGER NOT NULL,
+    PRIMARY KEY (todo_id, guestbook_id),
+    FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE,
+    FOREIGN KEY (guestbook_id) REFERENCES guestbook(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_todo_guestbook_todo ON todo_guestbook(todo_id);
+CREATE INDEX IF NOT EXISTS idx_todo_guestbook_guestbook ON todo_guestbook(guestbook_id);

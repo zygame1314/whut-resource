@@ -95,16 +95,20 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'keep_pending',
-            description: '保持留言待处理状态。当留言是合理请求但暂时无法自动处理时使用。',
+            description: '保持留言待处理状态。当留言是合理请求但暂时无法自动处理时使用。会自动创建或合并到同分类的待办事项。',
             parameters: {
                 type: 'object',
                 properties: {
                     note: {
                         type: 'string',
                         description: '备注（纯文本），说明为什么需要人工处理。'
+                    },
+                    category: {
+                        type: 'string',
+                        description: '待办分类，用于归类合并同类留言。必须是简短关键词，如"遗传学资料"、"求高数真题"、"C语言课件"等课程名或资源类别。'
                     }
                 },
-                required: ['note']
+                required: ['note', 'category']
             }
         }
     }
@@ -129,7 +133,7 @@ reject_message: 内容无效或不合规范，驳回并告知原因。适用于�
 ban_user/delete_message 候补：有偿求资源、倒卖资源、付费交易等行为严重违反本站免费分享原则，视情节轻重选择 delete_message 或 ban_user
 search_resources: 资源请求类留言，提取核心课程名搜索。常见缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留课程后缀(A/B/C、一/二)
 mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景。必须填写reply（管理员审计备注）和note（用户可见备注），reply需说明处理依据
-keep_pending: 合理请求但暂时无法自动处理，等待人工介入
+keep_pending: 合理请求但暂时无法自动处理，等待人工介入。必须填写category（简短课程名/资源类名，如"遗传学"、"高数真题"），用于归类合并到待办事项
 
 处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]
 注意：仅发课程名/文件名而无任何请求语句属于不礼貌的命令式留言，不应为其搜索资源，应使用reject_message驳回。`;
@@ -279,6 +283,9 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
                     autoMode
                 );
             }
+            if (functionName === 'keep_pending' && autoMode && functionArgs.category) {
+                await createOrMergeTodo(guestbookEntry, functionArgs.category, functionArgs.note, env);
+            }
             return toolResult;
         }
         if (attempt < MAX_NO_ACTION_RETRIES) {
@@ -291,6 +298,34 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         action: 'no_action',
         message: 'AI 多次未调用工具，需人工处理'
     };
+}
+async function createOrMergeTodo(guestbookEntry, category, note, env) {
+    if (!category || !env || !env.DB) return;
+    try {
+        const trimmedCategory = category.trim().substring(0, 100);
+        const existing = await env.DB.prepare(
+            'SELECT id FROM todos WHERE category = ? AND status = ?'
+        ).bind(trimmedCategory, 'pending').first();
+        let todoId;
+        if (existing) {
+            todoId = existing.id;
+        } else {
+            const insertResult = await env.DB.prepare(
+                'INSERT INTO todos (category, description, status) VALUES (?, ?, ?)'
+            ).bind(trimmedCategory, note ? note.trim().substring(0, 500) : null, 'pending').run();
+            todoId = insertResult.meta.last_row_id;
+        }
+        const alreadyLinked = await env.DB.prepare(
+            'SELECT 1 FROM todo_guestbook WHERE todo_id = ? AND guestbook_id = ?'
+        ).bind(todoId, guestbookEntry.id).first();
+        if (!alreadyLinked) {
+            await env.DB.prepare(
+                'INSERT INTO todo_guestbook (todo_id, guestbook_id) VALUES (?, ?)'
+            ).bind(todoId, guestbookEntry.id).run();
+        }
+    } catch (e) {
+        console.error('创建/合并待办失败:', e);
+    }
 }
 async function executeToolCall(functionName, args, guestbookEntry, env, autoMode) {
     for (const key in args) {
@@ -315,6 +350,7 @@ async function executeToolCall(functionName, args, guestbookEntry, env, autoMode
                 action: 'keep_pending',
                 message: '留言保持待处理状态',
                 note: args.note,
+                category: args.category || null,
                 auto_applied: false
             };
         default:
@@ -455,6 +491,10 @@ async function handleSearch(query, env) {
 }
 async function handleSearchResults(guestbookEntry, searchResults, env, autoMode) {
     if (!searchResults || searchResults.length === 0) {
+        if (autoMode && env && env.DB) {
+            const category = guestbookEntry.content ? guestbookEntry.content.trim().substring(0, 100) : '未分类';
+            await createOrMergeTodo(guestbookEntry, category, '未找到相关资源', env);
+        }
         return {
             success: true,
             action: 'search_no_results',
@@ -473,7 +513,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode)
 ${resourceList}
 用户留言：${guestbookEntry.content}
 【语气人设】对正常留言用轻松自然的语气，对没礼貌的留言可以怼回去。
-请判断搜索结果中是否有满足用户需求的资源。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。匹配成功请用 mark_resolved，不匹配则用 keep_pending。`;
+请判断搜索结果中是否有满足用户需求的资源。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。匹配成功请用 mark_resolved，不匹配则用 keep_pending（必须填写category，填写课程名或资源类别关键词）。`;
     const searchTools = [
         {
             type: 'function',
@@ -504,16 +544,20 @@ ${resourceList}
             type: 'function',
             function: {
                 name: 'keep_pending',
-                description: '保持留言待处理状态。当搜索结果都不匹配时使用。',
+                description: '保持留言待处理状态。当搜索结果都不匹配时使用。会自动创建或合并到同分类的待办事项。',
                 parameters: {
                     type: 'object',
                     properties: {
                         note: {
                             type: 'string',
                             description: '备注原因'
+                        },
+                        category: {
+                            type: 'string',
+                            description: '待办分类关键词，如"遗传学"、"高数真题"等课程名。'
                         }
                     },
-                    required: ['note']
+                    required: ['note', 'category']
                 }
             }
         }
@@ -568,11 +612,15 @@ ${resourceList}
             );
         }
         if (functionName === 'keep_pending') {
+            if (autoMode && functionArgs.category) {
+                await createOrMergeTodo(guestbookEntry, functionArgs.category, functionArgs.note, env);
+            }
             return {
                 success: true,
                 action: 'keep_pending',
                 message: '资源匹配度不够，保持待处理',
                 note: functionArgs.note,
+                category: functionArgs.category || null,
                 searchResults: searchResults,
                 auto_applied: false
             };
