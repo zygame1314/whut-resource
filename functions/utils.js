@@ -434,6 +434,28 @@ export function validateAIResponse(data, context = '') {
   }
   return data;
 }
+export async function cleanupOrphanTodos(env, guestbookIds) {
+  if (!guestbookIds || guestbookIds.length === 0) return;
+  const ph = guestbookIds.map(() => '?').join(',');
+  const affectedRows = await env.DB.prepare(
+    `SELECT DISTINCT todo_id FROM todo_guestbook WHERE guestbook_id IN (${ph})`
+  ).bind(...guestbookIds).all();
+  await env.DB.prepare(
+    `DELETE FROM todo_guestbook WHERE guestbook_id IN (${ph})`
+  ).bind(...guestbookIds).run();
+  const todoIds = (affectedRows.results || []).map(r => r.todo_id).filter(Boolean);
+  if (todoIds.length > 0) {
+    const tPh = todoIds.map(() => '?').join(',');
+    const orphans = await env.DB.prepare(
+      `SELECT t.id FROM todos t WHERE t.id IN (${tPh}) AND NOT EXISTS (SELECT 1 FROM todo_guestbook tg WHERE tg.todo_id = t.id)`
+    ).bind(...todoIds).all();
+    if (orphans.results && orphans.results.length > 0) {
+      const orphanIds = orphans.results.map(r => r.id);
+      const oPh = orphanIds.map(() => '?').join(',');
+      await env.DB.prepare(`DELETE FROM todos WHERE id IN (${oPh})`).bind(...orphanIds).run();
+    }
+  }
+}
 export async function recordVectorSyncFailure(env, operation, fileId, fileData, errorMessage) {
   if (!env.DB) return;
   try {

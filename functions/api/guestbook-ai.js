@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'gemma4:31b';
 const TOOLS = [
@@ -105,7 +105,7 @@ const TOOLS = [
                     },
                     category: {
                         type: 'string',
-                        description: '待办分类关键词。必须优先匹配已有待办分类（精确匹配或同义词），仅确实无匹配时才用新分类。提取核心课程名，如"遗传学"、"高数真题"，不要加"求""资料"等冗余词。'
+                        description: '待办分类，以课程名为单位。优先精确匹配已有待办分类名，无匹配时使用最通用的标准课程名（如"高等数学"而非"高数"，"大学物理"而非"大物"）。不加"求""资料"等冗余词。'
                     }
                 },
                 required: ['note', 'category']
@@ -133,7 +133,7 @@ reject_message: 内容无效或不合规范，驳回并告知原因。适用于�
 ban_user/delete_message 候补：有偿求资源、倒卖资源、付费交易等行为严重违反本站免费分享原则，视情节轻重选择 delete_message 或 ban_user
 search_resources: 资源请求类留言，提取核心课程名搜索。常见缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留课程后缀(A/B/C、一/二)
 mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景。必须填写reply（管理员审计备注）和note（用户可见备注），reply需说明处理依据
-keep_pending: 合理请求但暂时无法自动处理，等待人工介入。必须填写category（核心课程名/资源类名，优先精确匹配已有待办分类，如"遗传学"、"高数真题"，不加"求""资料"等冗余词），用于归类合并到待办事项
+keep_pending: 合理请求但暂时无法自动处理，等待人工介入。category以课程名为单位，优先精确匹配已有待办分类名；无匹配时使用最通用的标准课程名（如"高等数学"而非"高数"，"大学物理"而非"大物"，"线性代数"而非"线代"），不加"求""资料"等冗余词
 
 处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]
 注意：仅发课程名/文件名而无任何请求语句属于不礼貌的命令式留言，不应为其搜索资源，应使用reject_message驳回。`;
@@ -220,7 +220,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         ).all();
         if (existingTodos.results && existingTodos.results.length > 0) {
             const categories = existingTodos.results.map(t => t.category).join('、');
-            basePrompt += `\n\n【已有待办分类】${categories}\n使用 keep_pending 时，category 必须优先匹配已有分类（精确匹配或同义），避免新建重复待办。仅当确实无匹配时才用新分类。`;
+            basePrompt += `\n\n【已有待办分类】${categories}\n使用 keep_pending 时，category 必须优先精确匹配已有分类名（字符完全一致）。若确实无匹配，则使用最通用的标准课程名（如"高等数学"而非"高数"，"大学物理"而非"大物"，"线性代数"而非"线代"），避免同一课程因缩写不同而创建多个待办。`;
         }
     } catch (e) {
         console.error('查询已有待办分类失败:', e);
@@ -413,6 +413,7 @@ async function handleBanUser(guestbookEntry, reason, env, autoMode) {
             env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id),
             env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(guestbookEntry.id)
         ]);
+        await cleanupOrphanTodos(env, [guestbookEntry.id]);
         await logAdminAction(env, null, 'ai_ban_user', 'user', guestbookEntry.user_id, reason, JSON.stringify({
             snapshot_content: guestbookEntry.content,
             nickname: guestbookEntry.nickname,
@@ -439,6 +440,7 @@ async function handleDelete(entry, reason, env, autoMode) {
         await env.DB.prepare(
             'DELETE FROM guestbook WHERE id = ?'
         ).bind(entry.id).run();
+        await cleanupOrphanTodos(env, [entry.id]);
         await logAdminAction(env, null, 'ai_delete', 'guestbook', entry.id, reason, JSON.stringify({
             snapshot_content: entry.content,
             nickname: entry.nickname,
@@ -521,11 +523,25 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode)
         const typeTag = (f.is_directory === 1 || f.is_directory === true) ? '📁目录' : '📄文件';
         return `${i + 1}. [${typeTag}] ${f.name} (路径: ${path}, 相似度: ${(f.similarity_score * 100).toFixed(1)}%)`;
     }).join('\n');
+    let todoCategoriesStr = '';
+    try {
+        const existingTodos = await env.DB.prepare(
+            "SELECT category FROM todos WHERE status = 'pending' ORDER BY created_at DESC LIMIT 10"
+        ).all();
+        if (existingTodos.results && existingTodos.results.length > 0) {
+            todoCategoriesStr = existingTodos.results.map(t => t.category).join('、');
+        }
+    } catch (e) { console.error('查询已有待办分类失败:', e); }
+
+    const todoHint = todoCategoriesStr
+        ? `\n\n【已有待办分类】${todoCategoriesStr}\n使用 keep_pending 时，category 必须优先精确匹配已有分类名（字符完全一致）。若确实无匹配，则使用最通用的标准课程名（如"高等数学"而非"高数"，"大学物理"而非"大物"，"线性代数"而非"线代"），避免同一课程因缩写不同而创建多个待办。`
+        : '';
     const secondPrompt = `搜索结果：
 ${resourceList}
 用户留言：${guestbookEntry.content}
 【语气人设】对正常留言用轻松自然的语气，对没礼貌的留言可以怼回去。
-请判断搜索结果中是否有满足用户需求的资源。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。匹配成功请用 mark_resolved，不匹配则用 keep_pending（必须填写category，填写课程名或资源类别关键词）。`;
+请判断搜索结果中是否有满足用户需求的资源。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。匹配成功请用 mark_resolved，不匹配则用 keep_pending（必须填写category，优先精确匹配已有待办分类）。${todoHint}`;
+
     const searchTools = [
         {
             type: 'function',
@@ -566,7 +582,7 @@ ${resourceList}
                         },
                         category: {
                             type: 'string',
-                            description: '待办分类关键词，如"遗传学"、"高数真题"等课程名。'
+                            description: '待办分类，以课程名为单位。优先精确匹配已有待办分类名，无匹配时使用最通用的标准课程名（如"高等数学"而非"高数"，"大学物理"而非"大物"）。'
                         }
                     },
                     required: ['note', 'category']

@@ -272,47 +272,6 @@ async function handlePut(request, env) {
         });
     }
 
-    if (action === 'merge') {
-        const { target_todo_id } = body;
-        if (!target_todo_id) {
-            return new Response(JSON.stringify({ error: '缺少目标待办ID' }), {
-                status: 400,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-            });
-        }
-        const targetTodo = await env.DB.prepare('SELECT * FROM todos WHERE id = ?').bind(target_todo_id).first();
-        if (!targetTodo) {
-            return new Response(JSON.stringify({ error: '目标待办不存在' }), {
-                status: 404,
-                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-            });
-        }
-        const sourceLinks = await env.DB.prepare(
-            'SELECT guestbook_id FROM todo_guestbook WHERE todo_id = ?'
-        ).bind(id).all();
-        for (const row of (sourceLinks.results || [])) {
-            const alreadyLinked = await env.DB.prepare(
-                'SELECT 1 FROM todo_guestbook WHERE todo_id = ? AND guestbook_id = ?'
-            ).bind(target_todo_id, row.guestbook_id).first();
-            if (!alreadyLinked) {
-                await env.DB.prepare(
-                    'INSERT INTO todo_guestbook (todo_id, guestbook_id) VALUES (?, ?)'
-                ).bind(target_todo_id, row.guestbook_id).run();
-            }
-        }
-        await env.DB.prepare('DELETE FROM todo_guestbook WHERE todo_id = ?').bind(id).run();
-        await env.DB.prepare('DELETE FROM todos WHERE id = ?').bind(id).run();
-        await logAdminAction(env, user.id, 'merge_todo', 'todo', target_todo_id, `合并待办「${todo.category}」到「${targetTodo.category}」`, null);
-        const mergedTodo = await env.DB.prepare('SELECT * FROM todos WHERE id = ?').bind(target_todo_id).first();
-        const messages = await env.DB.prepare(
-            'SELECT g.id, g.content, g.status as guestbook_status, g.created_at, u.nickname, u.role FROM todo_guestbook tg JOIN guestbook g ON tg.guestbook_id = g.id LEFT JOIN users u ON g.user_id = u.id WHERE tg.todo_id = ? ORDER BY g.created_at ASC'
-        ).bind(target_todo_id).all();
-        return new Response(JSON.stringify({
-            success: true,
-            todo: { ...mergedTodo, messages: messages.results || [], guestbook_count: (messages.results || []).length }
-        }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-    }
-
     if (action === 'add_message') {
         const { guestbook_id } = body;
         if (!guestbook_id) {
