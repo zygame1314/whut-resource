@@ -55,12 +55,11 @@
             activeToasts.clear();
             messageQueue.length = 0;
             if (socket) {
-                if (socket.readyState === WebSocket.OPEN) {
-                    intentionalClose = true;
-                    socket.close();
-                } else if (socket.readyState === WebSocket.CONNECTING) {
-                    intentionalClose = true;
-                    socket.close();
+                intentionalClose = true;
+                const oldSocket = socket;
+                socket = null;
+                if (oldSocket.readyState === WebSocket.OPEN || oldSocket.readyState === WebSocket.CONNECTING) {
+                    oldSocket.close();
                 }
             }
         }
@@ -101,7 +100,9 @@
             if (!isPageVisible && socket && socket.readyState === WebSocket.OPEN) {
                 console.log('页面长时间不可见，断开下载日志连接以节省资源');
                 intentionalClose = true;
-                socket.close();
+                const oldSocket = socket;
+                socket = null;
+                oldSocket.close();
             }
         }, VISIBILITY_DISCONNECT_DELAY);
     }
@@ -136,14 +137,17 @@
             return;
         }
         const wsUrl = `${API_ENDPOINTS.downloadLog}?token=${encodeURIComponent(authToken)}`;
-        socket = new WebSocket(wsUrl);
-        socket.onopen = () => {
+        const ws = new WebSocket(wsUrl);
+        socket = ws;
+        ws.onopen = () => {
+            if (ws !== socket) return;
             console.log('已成功连接到下载日志');
             intentionalClose = false;
             connectFailCount = 0;
             startHeartbeat();
         };
-        socket.onmessage = (event) => {
+        ws.onmessage = (event) => {
+            if (ws !== socket) return;
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'download') {
@@ -156,7 +160,8 @@
                 console.error('解析 WebSocket 消息出错:', e);
             }
         };
-        socket.onclose = () => {
+        ws.onclose = () => {
+            if (ws !== socket) return;
             stopHeartbeat();
             if (intentionalClose || !isPageVisible) {
                 intentionalClose = false;
@@ -176,10 +181,11 @@
             setTimeout(connect, reconnectInterval);
             reconnectInterval = Math.min(reconnectInterval * 2, MAX_RECONNECT_INTERVAL);
         };
-        socket.onerror = (error) => {
+        ws.onerror = (error) => {
+            if (ws !== socket) return;
             if (intentionalClose) return;
             console.error('WebSocket 发生错误:', error);
-            socket.close();
+            ws.close();
         };
     }
     function queueDownloadToast(filename) {
