@@ -414,6 +414,7 @@ async function showAdminLogsModal() {
                 sync_repair: 'neutral', reindex: 'neutral', retry_failed: 'neutral',
                 clear_failures: 'neutral', ai_reject: 'warning', ai_ban_user: 'danger',
                 ai_delete: 'danger', ai_resolve: 'success',
+                resolve_todo: 'success', unresolve_todo: 'neutral', delete_todo: 'danger', merge_todo: 'info',
                 oauth_client_create: 'success', oauth_client_delete: 'danger',
                 oauth_client_update: 'info', oauth_client_toggle: 'neutral',
                 oauth_client_reset_secret: 'warning', oauth_revoke_tokens: 'warning',
