@@ -377,7 +377,7 @@ async function cleanupOldGuestbook(env) {
         await env.DB.prepare(`DELETE FROM guestbook WHERE id IN (${ph})`).bind(...replyIds).run();
     }
     const oldParents = await env.DB.prepare(
-        `SELECT id FROM guestbook WHERE parent_id IS NULL AND created_at < ${cutoff} LIMIT 200`
+        `SELECT id FROM guestbook WHERE parent_id IS NULL AND is_pinned = 0 AND created_at < ${cutoff} LIMIT 200`
     ).all();
     if (oldParents.results && oldParents.results.length > 0) {
         const parentIds = oldParents.results.map(r => r.id);
