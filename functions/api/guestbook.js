@@ -39,40 +39,32 @@ async function handleGet(request, env) {
     }
     const currentUserId = user.id;
     const isAdminUser = isAdmin(user);
-
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '5'), 20);
     const sort = url.searchParams.get('sort') || 'time';
     const filter = url.searchParams.get('filter') || 'all';
     const status = url.searchParams.get('status') || 'all';
     const cursorStr = url.searchParams.get('cursor') || null;
-
     let cursorObj = null;
     if (cursorStr) {
         try { cursorObj = JSON.parse(atob(cursorStr)); } catch (e) { cursorObj = null; }
     }
-
     const selectFields = isAdminUser
         ? 'g.*, u.nickname, u.email, u.is_banned, u.role'
         : 'g.*, u.nickname, u.email, u.role';
-
     const conditions = ['g.parent_id IS NULL', 'g.is_pinned = 0'];
     const params = [];
-
     if (!isAdminUser) {
         conditions.push('(g.is_hidden = 0 OR g.user_id = ?)');
         params.push(currentUserId);
     }
-
     if (status !== 'all') {
         conditions.push('g.status = ?');
         params.push(status);
     }
-
     if (filter === 'mine') {
         conditions.push('g.user_id = ?');
         params.push(currentUserId);
     }
-
     let orderClause;
     if (sort === 'likes') {
         orderClause = 'ORDER BY g.likes DESC, g.id DESC';
@@ -87,17 +79,13 @@ async function handleGet(request, env) {
             params.push(cursorObj.i);
         }
     }
-
     const whereClause = 'WHERE ' + conditions.join(' AND ');
     const query = `SELECT ${selectFields} FROM guestbook g LEFT JOIN users u ON g.user_id = u.id ${whereClause} ${orderClause} LIMIT ?`;
     params.push(limit + 1);
-
     const result = await env.DB.prepare(query).bind(...params).all();
     const rows = result.results;
-
     const hasMore = rows.length > limit;
     const pageItems = hasMore ? rows.slice(0, limit) : rows;
-
     let nextCursor = null;
     if (hasMore && pageItems.length > 0) {
         const lastItem = pageItems[pageItems.length - 1];
@@ -106,7 +94,6 @@ async function handleGet(request, env) {
             : { i: lastItem.id };
         nextCursor = btoa(JSON.stringify(cd));
     }
-
     let firstCursor = null;
     if (pageItems.length > 0) {
         const firstItem = pageItems[0];
@@ -115,7 +102,6 @@ async function handleGet(request, env) {
             : { i: firstItem.id };
         firstCursor = btoa(JSON.stringify(cd));
     }
-
     let pinnedItems = [];
     if (!cursorObj) {
         const pinnedConditions = ['g.parent_id IS NULL', 'g.is_pinned = 1'];
@@ -137,7 +123,6 @@ async function handleGet(request, env) {
         const pinnedResult = await env.DB.prepare(pinnedQuery).bind(...pinnedParams).all();
         pinnedItems = pinnedResult.results || [];
     }
-
     let replies = [];
     const allParentIds = [...pinnedItems.map(m => m.id), ...pageItems.map(m => m.id)];
     if (allParentIds.length > 0) {
@@ -148,7 +133,6 @@ async function handleGet(request, env) {
         const replyResult = await env.DB.prepare(`${replySelect} WHERE g.parent_id IN (${ph}) ORDER BY g.created_at ASC`).bind(...allParentIds).all();
         replies = replyResult.results;
     }
-
     let likedIds = new Set();
     const allIds = [...pinnedItems.map(m => m.id), ...pageItems.map(m => m.id), ...replies.map(r => r.id)];
     if (allIds.length > 0) {
@@ -156,7 +140,6 @@ async function handleGet(request, env) {
         const likeResult = await env.DB.prepare(`SELECT guestbook_id FROM guestbook_likes WHERE user_id = ? AND guestbook_id IN (${ph})`).bind(currentUserId, ...allIds).all();
         likedIds = new Set(likeResult.results.map(r => r.guestbook_id));
     }
-
     for (const msg of pinnedItems) {
         msg.has_liked = likedIds.has(msg.id);
     }
@@ -166,7 +149,6 @@ async function handleGet(request, env) {
     for (const r of replies) {
         r.has_liked = likedIds.has(r.id);
     }
-
     const sanitizedPinned = pinnedItems.map(msg => {
         if (msg.role === 'admin' || msg.role === 'super_admin') {
             msg.isAdmin = true;
@@ -178,7 +160,6 @@ async function handleGet(request, env) {
         }
         return msg;
     });
-
     const sanitizedParents = pageItems.map(msg => {
         if (msg.role === 'admin' || msg.role === 'super_admin') {
             msg.isAdmin = true;
@@ -190,7 +171,6 @@ async function handleGet(request, env) {
         }
         return msg;
     });
-
     const sanitizedReplies = replies.map(r => {
         if (r.role === 'admin' || r.role === 'super_admin') {
             r.isAdmin = true;
@@ -202,23 +182,19 @@ async function handleGet(request, env) {
         }
         return r;
     });
-
     const replyMap = {};
     for (const r of sanitizedReplies) {
         if (!replyMap[r.parent_id]) replyMap[r.parent_id] = [];
         replyMap[r.parent_id].push(r);
     }
-
     const organizedPinned = sanitizedPinned.map(p => ({
         ...p,
         replies: replyMap[p.id] || []
     }));
-
     const organizedData = sanitizedParents.map(p => ({
         ...p,
         replies: replyMap[p.id] || []
     }));
-
     return new Response(JSON.stringify({
         data: organizedData,
         pinned: organizedPinned,
@@ -350,7 +326,6 @@ async function handleDelete(request, env) {
     }
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
-
 async function cleanupOldGuestbook(env) {
     const cutoff = "datetime('now', '-30 days')";
     const affectedTodoIds = new Set();

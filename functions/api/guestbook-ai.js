@@ -294,7 +294,6 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
                     autoMode,
                     functionArgs.query || ''
                 );
-                );
             }
             if (functionName === 'keep_pending' && autoMode && functionArgs.category) {
                 await createOrMergeTodo(guestbookEntry, functionArgs.category, functionArgs.note, env);

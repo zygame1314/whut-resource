@@ -97,21 +97,17 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     ftsLimit = 30,
     minVectorScore = 0.2,
   } = options;
-
   const embeddings = await generateEmbeddings(env, [query.trim()]);
   if (!embeddings?.[0]) {
     throw new Error('AI 嵌入生成失败');
   }
-
   const vectorResults = await VECTORIZE.query(embeddings[0], {
     topK: vectorTopK,
     returnMetadata: 'all'
   });
-
   const candidateIds = new Set();
   const vectorScoreMap = {};
   const ftsHitSet = new Set();
-
   if (vectorResults?.matches) {
     for (const m of vectorResults.matches) {
       if (m.score >= minVectorScore) {
@@ -120,7 +116,6 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
       }
     }
   }
-
   let ftsResults = [];
   try {
     const cleanQuery = query.replace(/"/g, '');
@@ -143,7 +138,6 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
   } catch (e) {
     console.error('FTS搜索失败:', e);
   }
-
   for (const row of ftsResults) {
     candidateIds.add(row.id);
     ftsHitSet.add(row.id);
@@ -151,23 +145,19 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
       vectorScoreMap[row.id] = 0;
     }
   }
-
   if (candidateIds.size === 0) {
     return { results: [], keywords: query };
   }
-
   const idArray = [...candidateIds];
   const placeholders = idArray.map(() => '?').join(',');
   const dbResults = await DB.prepare(
     `SELECT id, name, key, parent_path, is_directory, is_link, link_url, description, contentType, size, downloads, uploaded FROM files WHERE id IN (${placeholders})`
   ).bind(...idArray).all();
-
   let results = (dbResults.results || []).map(file => ({
     ...file,
     vector_score: vectorScoreMap[file.id] || 0,
     fts_hit: ftsHitSet.has(file.id)
   }));
-
   const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 0);
   results = results.map(f => {
     let nameMatchBonus = 0;
@@ -181,13 +171,11 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     }
     return { ...f, name_match: nameMatchBonus };
   });
-
   results.sort((a, b) => {
     const scoreA = a.vector_score + (a.fts_hit ? 0.5 : 0) + a.name_match * 0.3;
     const scoreB = b.vector_score + (b.fts_hit ? 0.5 : 0) + b.name_match * 0.3;
     return scoreB - scoreA;
   });
-
   const RERANK_MAX_DOCS = 20;
   const rerankCandidates = results.slice(0, RERANK_MAX_DOCS);
   const rerankDocs = rerankCandidates.map(f => {
@@ -197,7 +185,6 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     if (f.description && f.description.trim()) parts.push(f.description.trim());
     return parts.join(' | ');
   });
-
   const rerankResult = await rerankResults(env, query, rerankDocs, RERANK_MAX_DOCS);
   const rerankScoreMap = {};
   if (rerankResult) {
@@ -209,18 +196,14 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
       }
     });
   }
-
   results = results.map(f => ({ ...f, rerank_score: rerankScoreMap[f.id] ?? 0 }));
-
   const maxRerank = Math.max(...Object.values(rerankScoreMap), 0.001);
   const maxVector = Math.max(...results.map(f => f.vector_score), 0.001);
-
   results = results.map(f => {
     const rn = f.rerank_score > 0 ? f.rerank_score / maxRerank : 0;
     const vs = f.vector_score > 0 ? f.vector_score / maxVector : 0;
     const ft = f.fts_hit ? 1 : 0;
     const nm = f.name_match || 0;
-
     let combined;
     if (f.rerank_score > 0) {
       combined = 0.60 * rn + 0.20 * vs + 0.20 * nm;
@@ -232,7 +215,6 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
       similarity_score: combined
     };
   });
-
   results.sort((a, b) => b.similarity_score - a.similarity_score);
   return { results: results.slice(0, topK), keywords: query };
 }
@@ -386,7 +368,6 @@ export async function fetchSiliconFlowChat(env, { messages, tools = null, toolCh
     }
   }, 1, 500);
 }
-
 export async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -399,7 +380,6 @@ export async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
     }
   }
 }
-
 export function validateAIResponse(data, context = '') {
   if (!data || !data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
     throw new Error(`${context}AI 返回数据结构异常: ${JSON.stringify(data).substring(0, 200)}`);
@@ -456,7 +436,6 @@ export async function cleanupOrphanTodos(env, guestbookIds) {
     }
   }
 }
-
 export async function deleteGuestbookWithChildren(env, guestbookId) {
   const childIds = await env.DB.prepare('SELECT id FROM guestbook WHERE parent_id = ?').bind(guestbookId).all();
   const allIds = [guestbookId, ...(childIds.results || []).map(r => r.id)];
@@ -465,19 +444,6 @@ export async function deleteGuestbookWithChildren(env, guestbookId) {
     `SELECT DISTINCT todo_id FROM todo_guestbook WHERE guestbook_id IN (${ph})`
   ).bind(...allIds).all();
   const affectedTodoIds = (affectedTodos.results || []).map(r => r.todo_id).filter(Boolean);
-  await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(guestbookId).run();
-  if (affectedTodoIds.length > 0) {
-    const tPh = affectedTodoIds.map(() => '?').join(',');
-    const orphans = await env.DB.prepare(
-      `SELECT t.id FROM todos t WHERE t.id IN (${tPh}) AND NOT EXISTS (SELECT 1 FROM todo_guestbook tg WHERE tg.todo_id = t.id)`
-    ).bind(...affectedTodoIds).all();
-    if (orphans.results && orphans.results.length > 0) {
-      const orphanIds = orphans.results.map(r => r.id);
-      const oPh = orphanIds.map(() => '?').join(',');
-      await env.DB.prepare(`DELETE FROM todos WHERE id IN (${oPh})`).bind(...orphanIds).run();
-    }
-  }
-}
   await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(guestbookId).run();
   if (affectedTodoIds.length > 0) {
     const tPh = affectedTodoIds.map(() => '?').join(',');

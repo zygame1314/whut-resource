@@ -428,7 +428,6 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 SELECT *
                 FROM files
             `;
-
             if (hasCursor) {
                 const cursorQuery = `
                     ${selectClause}
@@ -701,7 +700,6 @@ export async function onRequestPut({ request, env }) {
         await deleteVectorIndexes(env, [oldFileId]);
         const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
         if (newFileRecord) {
-
             await createVectorIndexes(env, [newFileRecord]);
         }
         await logAdminAction(env, user.id, 'rename_file', 'file', oldFileId, '重命名文件', JSON.stringify({ old_key: key, new_key: newKey }));
@@ -1075,7 +1073,7 @@ export async function onRequestDelete({ request, env }) {
         }
         await DB.prepare('DELETE FROM files WHERE key = ?').bind(key).run();
         await deleteVectorIndexes(env, [fileIdToDelete]);
-             await logAdminAction(env, user.id, isLink ? 'delete_link' : 'delete_file', 'file', fileIdToDelete, isLink ? '删除链接' : '删除文件', JSON.stringify({ key, snapshot_content: fileRecord.name }));
+        await logAdminAction(env, user.id, isLink ? 'delete_link' : 'delete_file', 'file', fileIdToDelete, isLink ? '删除链接' : '删除文件', JSON.stringify({ key, snapshot_content: fileRecord.name }));
         return new Response(JSON.stringify({
             success: true,
             message: '删除成功。'
