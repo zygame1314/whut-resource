@@ -9,12 +9,13 @@ CREATE TABLE users (
     quota_used INTEGER DEFAULT 0,
     last_download_date TEXT,
     is_banned BOOLEAN DEFAULT FALSE,
-    school_id TEXT UNIQUE,
+    school_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_users_banned ON users(is_banned, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_email_role ON users(email, role);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_id ON users(school_id);
 
 DROP TABLE IF EXISTS files;
 CREATE TABLE files (
