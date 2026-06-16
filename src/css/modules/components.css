@@ -4105,7 +4105,7 @@
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
     opacity: 0;
-    transition: left 0.6s, opacity 0.3s;
+    animation: shimmerSweep 3s ease-in-out infinite;
     pointer-events: none;
 }
 
@@ -4118,7 +4118,7 @@
 }
 
 .user-info:hover::before {
-    left: 120%;
+    animation-play-state: paused;
     opacity: 1;
 }
 
