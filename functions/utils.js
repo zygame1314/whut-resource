@@ -456,6 +456,41 @@ export async function cleanupOrphanTodos(env, guestbookIds) {
     }
   }
 }
+
+export async function deleteGuestbookWithChildren(env, guestbookId) {
+  const childIds = await env.DB.prepare('SELECT id FROM guestbook WHERE parent_id = ?').bind(guestbookId).all();
+  const allIds = [guestbookId, ...(childIds.results || []).map(r => r.id)];
+  const ph = allIds.map(() => '?').join(',');
+  const affectedTodos = await env.DB.prepare(
+    `SELECT DISTINCT todo_id FROM todo_guestbook WHERE guestbook_id IN (${ph})`
+  ).bind(...allIds).all();
+  const affectedTodoIds = (affectedTodos.results || []).map(r => r.todo_id).filter(Boolean);
+  await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(guestbookId).run();
+  if (affectedTodoIds.length > 0) {
+    const tPh = affectedTodoIds.map(() => '?').join(',');
+    const orphans = await env.DB.prepare(
+      `SELECT t.id FROM todos t WHERE t.id IN (${tPh}) AND NOT EXISTS (SELECT 1 FROM todo_guestbook tg WHERE tg.todo_id = t.id)`
+    ).bind(...affectedTodoIds).all();
+    if (orphans.results && orphans.results.length > 0) {
+      const orphanIds = orphans.results.map(r => r.id);
+      const oPh = orphanIds.map(() => '?').join(',');
+      await env.DB.prepare(`DELETE FROM todos WHERE id IN (${oPh})`).bind(...orphanIds).run();
+    }
+  }
+}
+  await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(guestbookId).run();
+  if (affectedTodoIds.length > 0) {
+    const tPh = affectedTodoIds.map(() => '?').join(',');
+    const orphans = await env.DB.prepare(
+      `SELECT t.id FROM todos t WHERE t.id IN (${tPh}) AND NOT EXISTS (SELECT 1 FROM todo_guestbook tg WHERE tg.todo_id = t.id)`
+    ).bind(...affectedTodoIds).all();
+    if (orphans.results && orphans.results.length > 0) {
+      const orphanIds = orphans.results.map(r => r.id);
+      const oPh = orphanIds.map(() => '?').join(',');
+      await env.DB.prepare(`DELETE FROM todos WHERE id IN (${oPh})`).bind(...orphanIds).run();
+    }
+  }
+}
 export async function recordVectorSyncFailure(env, operation, fileId, fileData, errorMessage) {
   if (!env.DB) return;
   try {

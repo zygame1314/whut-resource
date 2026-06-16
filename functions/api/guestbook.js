@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupOrphanTodos } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren } from '../utils.js';
 import { processWithAIAgent, processReplyWithAI } from './guestbook-ai.js';
 export async function onRequest(context) {
     const { request, env } = context;
@@ -344,8 +344,7 @@ async function handleDelete(request, env) {
             return new Response(JSON.stringify({ error: '普通管理员不能删除超级管理员的留言' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
     }
-    await env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(id).run();
-    await cleanupOrphanTodos(env, [parseInt(id)]);
+    await deleteGuestbookWithChildren(env, parseInt(id));
     if (isAdmin(user) && entry.user_id !== user.id) {
         await logAdminAction(env, user.id, 'delete_guestbook', 'guestbook', id, '管理员删除留言', JSON.stringify({ snapshot_content: entry.content, nickname: entry.nickname, user_id: entry.user_id }));
     }
@@ -447,6 +446,9 @@ async function handlePut(request, env, context) {
             if (entryAuthor && entryAuthor.role === 'super_admin' && !isSuperAdmin(user)) {
                 return new Response(JSON.stringify({ error: '普通管理员不能修改超级管理员的留言' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
             }
+        }
+        if (!guestbookEntry.parent_id) {
+            await cleanupOrphanTodos(env, [parseInt(id)]);
         }
         if (isAdmin(user)) {
             await env.DB.prepare('UPDATE guestbook SET content = ? WHERE id = ?').bind(content.trim(), id).run();

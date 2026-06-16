@@ -642,6 +642,8 @@ export async function onRequestPut({ request, env }) {
                     `).bind(newChildKey, child.name, child.size, child.uploaded, child.contentType, newChildParentPath, child.is_directory, child.is_link, child.link_url, child.downloads, child.uploader_id)
                 );
                 batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+                batchOperations.push(DB.prepare('UPDATE file_reactions SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+                batchOperations.push(DB.prepare('UPDATE file_boosts SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
             }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
@@ -692,11 +694,14 @@ export async function onRequestPut({ request, env }) {
                 FROM files WHERE key = ?
             `).bind(newKey, newName, key),
             DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, key),
+            DB.prepare('UPDATE file_reactions SET file_key = ? WHERE file_key = ?').bind(newKey, key),
+            DB.prepare('UPDATE file_boosts SET file_key = ? WHERE file_key = ?').bind(newKey, key),
             DB.prepare('DELETE FROM files WHERE key = ?').bind(key)
         ]);
         await deleteVectorIndexes(env, [oldFileId]);
         const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
         if (newFileRecord) {
+
             await createVectorIndexes(env, [newFileRecord]);
         }
         await logAdminAction(env, user.id, 'rename_file', 'file', oldFileId, '重命名文件', JSON.stringify({ old_key: key, new_key: newKey }));
@@ -860,6 +865,8 @@ export async function onRequestPost({ request, env }) {
                     `).bind(newChildKey, child.name, child.size, child.uploaded, child.contentType, newChildParentPath, child.is_directory, child.is_link, child.link_url, child.downloads, child.uploader_id)
                 );
                 batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+                batchOperations.push(DB.prepare('UPDATE file_reactions SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+                batchOperations.push(DB.prepare('UPDATE file_boosts SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
             }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
@@ -916,6 +923,8 @@ export async function onRequestPost({ request, env }) {
                 FROM files WHERE key = ?
             `).bind(newKey, newParentPath, sourceKey),
             DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
+            DB.prepare('UPDATE file_reactions SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
+            DB.prepare('UPDATE file_boosts SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
             DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey)
         ]);
         await deleteVectorIndexes(env, [oldFileId]);

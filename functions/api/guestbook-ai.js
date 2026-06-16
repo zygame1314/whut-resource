@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'gemma4:31b';
 const TOOLS = [
@@ -291,7 +291,9 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
                     guestbookEntry,
                     toolResult.searchResults,
                     env,
-                    autoMode
+                    autoMode,
+                    functionArgs.query || ''
+                );
                 );
             }
             if (functionName === 'keep_pending' && autoMode && functionArgs.category) {
@@ -409,11 +411,8 @@ async function handleBanUser(guestbookEntry, reason, env, autoMode) {
         };
     }
     if (autoMode) {
-        await env.DB.batch([
-            env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id),
-            env.DB.prepare('DELETE FROM guestbook WHERE id = ?').bind(guestbookEntry.id)
-        ]);
-        await cleanupOrphanTodos(env, [guestbookEntry.id]);
+        await env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id).run();
+        await deleteGuestbookWithChildren(env, guestbookEntry.id);
         await logAdminAction(env, null, 'ai_ban_user', 'user', guestbookEntry.user_id, reason, JSON.stringify({
             snapshot_content: guestbookEntry.content,
             nickname: guestbookEntry.nickname,
@@ -437,10 +436,7 @@ async function handleBanUser(guestbookEntry, reason, env, autoMode) {
 }
 async function handleDelete(entry, reason, env, autoMode) {
     if (autoMode) {
-        await env.DB.prepare(
-            'DELETE FROM guestbook WHERE id = ?'
-        ).bind(entry.id).run();
-        await cleanupOrphanTodos(env, [entry.id]);
+        await deleteGuestbookWithChildren(env, entry.id);
         await logAdminAction(env, null, 'ai_delete', 'guestbook', entry.id, reason, JSON.stringify({
             snapshot_content: entry.content,
             nickname: entry.nickname,
@@ -502,11 +498,10 @@ async function handleSearch(query, env) {
         };
     }
 }
-async function handleSearchResults(guestbookEntry, searchResults, env, autoMode) {
+async function handleSearchResults(guestbookEntry, searchResults, env, autoMode, query = '') {
     if (!searchResults || searchResults.length === 0) {
         if (autoMode && env && env.DB) {
-            const searchQuery = query || '';
-            const category = searchQuery.trim().substring(0, 100) || (guestbookEntry.content ? guestbookEntry.content.trim().substring(0, 50) : '未分类');
+            const category = query.trim().substring(0, 100) || (guestbookEntry.content ? guestbookEntry.content.trim().substring(0, 50) : '未分类');
             await createOrMergeTodo(guestbookEntry, category, '未找到相关资源', env);
         }
         return {
