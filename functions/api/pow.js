@@ -50,10 +50,22 @@ function validateBrowserProof(bp) {
 async function lazyCleanup(db) {
   try {
     await db.prepare('DELETE FROM pow_challenges WHERE expires_at < ?').bind(new Date().toISOString()).run();
-  } catch (_) {}
+  } catch (e) {
+    console.error('pow cleanup failed:', e && e.message ? e.message : e);
+  }
 }
 
-export async function verifyPowSolution(challenge, nonce, bits, env) {
+function maybeCleanup(db, ctx) {
+  if (!shouldCleanup()) return null;
+  const p = lazyCleanup(db);
+  if (ctx && typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(p);
+    return null;
+  }
+  return p;
+}
+
+export async function verifyPowSolution(challenge, nonce, bits, env, ctx) {
   if (!challenge || nonce === undefined || nonce === null || !bits) {
     return { valid: false, error: '缺少 PoW 参数' };
   }
@@ -68,11 +80,13 @@ export async function verifyPowSolution(challenge, nonce, bits, env) {
   const record = await env.DB.prepare('SELECT bits, issued_at, expires_at, attempts FROM pow_challenges WHERE challenge = ? AND expires_at > ?')
     .bind(challenge, new Date().toISOString()).first();
   if (!record) {
+    maybeCleanup(env.DB, ctx);
     return { valid: false, error: '挑战不存在或已过期' };
   }
   const maxAttempts = 5;
   if ((record.attempts || 0) >= maxAttempts) {
     await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
+    maybeCleanup(env.DB, ctx);
     return { valid: false, error: '尝试次数过多，请重新获取挑战' };
   }
   if (bits < record.bits) {
@@ -82,6 +96,7 @@ export async function verifyPowSolution(challenge, nonce, bits, env) {
   const minTimeMs = Math.pow(2, Math.max(record.bits - 10, 0)) * 50;
   if (elapsedMs < minTimeMs) {
     await env.DB.prepare('UPDATE pow_challenges SET attempts = COALESCE(attempts, 0) + 1 WHERE challenge = ?').bind(challenge).run();
+    maybeCleanup(env.DB, ctx);
     return { valid: false, error: '验证过快，请重试' };
   }
   await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
@@ -101,7 +116,8 @@ function addCors() {
   };
 }
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
+  const ctx = { waitUntil };
   try {
     if (!env.DB) {
       return new Response(JSON.stringify({ success: false, error: '数据库未配置' }), {
@@ -128,7 +144,7 @@ export async function onRequestPost({ request, env }) {
     await env.DB.prepare(
       'INSERT INTO pow_challenges (challenge, bits, ip, issued_at, expires_at) VALUES (?, ?, ?, ?, ?)'
     ).bind(challenge, bits, ip, nowISO, expiresAt).run();
-    if (shouldCleanup()) lazyCleanup(env.DB);
+    maybeCleanup(env.DB, ctx);
     return new Response(JSON.stringify({
       success: true,
       challenge,
