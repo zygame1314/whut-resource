@@ -132,6 +132,7 @@
 .page-viewer-body {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 2rem 1.5rem;
     scroll-behavior: smooth;
 }
