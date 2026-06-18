@@ -1,8 +1,9 @@
 const CHALLENGE_EXPIRES_MS = 5 * 60 * 1000;
-const MIN_BITS = 18;
-const MAX_BITS = 24;
+const MIN_BITS = 20;
+const MAX_BITS = 28;
 const TARGET_WORK_SECONDS = 5;
 const ASSUMED_ATTACKER_HPS = 1_000_000;
+const HIGH_RISK_MIN_BITS = 24;
 
 function bitsFromHashRate(hashRate) {
   if (!hashRate || hashRate <= 0) return MIN_BITS;
@@ -17,9 +18,22 @@ async function sha256Hex(data) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function bpHashHex(bp) {
+async function hmacSha256Hex(key, message) {
+  const keyData = new TextEncoder().encode(key);
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function bpHashHex(bp, env) {
   const stable = JSON.stringify(bp);
-  return sha256Hex(stable).then(h => h.slice(0, 16));
+  const key = env && env.POW_HMAC_KEY;
+  if (key) {
+    return (await hmacSha256Hex(key, stable)).slice(0, 16);
+  }
+  return (await sha256Hex(stable)).slice(0, 16);
 }
 
 let _schemaEnsured = false;
@@ -198,6 +212,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const body = await request.json().catch(() => ({}));
     const hashRate = Number(body.hashRate) || 0;
     const minBits = Number(body.minBits) || 0;
+    const action = body.action || '';
     const bp = body.bp || null;
     let bpHash = '';
     if (bp) {
@@ -207,10 +222,12 @@ export async function onRequestPost({ request, env, waitUntil }) {
           status: 403, headers: { 'Content-Type': 'application/json', ...addCors() }
         });
       }
-      bpHash = await bpHashHex(bp);
+      bpHash = await bpHashHex(bp, env);
     }
     await ensurePowSchema(env);
-    const bits = Math.max(bitsFromHashRate(hashRate), minBits, MIN_BITS);
+    const highRisk = ['prepare-register', 'prepare-reset', 'prepare-change-email'].includes(action);
+    const floor = highRisk ? HIGH_RISK_MIN_BITS : MIN_BITS;
+    const bits = Math.max(bitsFromHashRate(hashRate), minBits, floor);
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const challenge = crypto.randomUUID().replace(/-/g, '');
     const nowISO = new Date().toISOString();

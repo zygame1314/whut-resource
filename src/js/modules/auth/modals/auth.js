@@ -645,7 +645,7 @@ function showAuthModal(mode = 'login') {
         }
     } else {
         const registerPowEl = modal.querySelector('#pow-register-status');
-        const registerPowCtrl = registerPowEl ? initPowCard(registerPowEl) : null;
+        const registerPowCtrl = registerPowEl ? initPowCard(registerPowEl, undefined, 'prepare-register') : null;
         const step1Form = modal.querySelector('#register-form-step1');
         const step1Div = modal.querySelector('#register-step-1');
         const step2Div = modal.querySelector('#register-step-2');

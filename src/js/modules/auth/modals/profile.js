@@ -209,7 +209,7 @@ function showForgotPasswordModal(prefillEmail = '') {
     document.body.appendChild(modal);
     initPasswordToggles(modal);
     const resetPowEl = modal.querySelector('#pow-reset-status');
-    const resetPowCtrl = resetPowEl ? initPowCard(resetPowEl) : null;
+    const resetPowCtrl = resetPowEl ? initPowCard(resetPowEl, undefined, 'prepare-reset') : null;
     const closeBtn = modal.querySelector('#close-modal');
     const backToLoginLink = modal.querySelector('#back-to-login');
     closeBtn.onclick = () => {
@@ -578,7 +578,7 @@ function showChangeEmailModal() {
     `;
     document.body.appendChild(modal);
     const changeEmailPowEl = modal.querySelector('#pow-change-email-status');
-    const changeEmailPowCtrl = changeEmailPowEl ? initPowCard(changeEmailPowEl) : null;
+    const changeEmailPowCtrl = changeEmailPowEl ? initPowCard(changeEmailPowEl, undefined, 'prepare-change-email') : null;
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => {
         if (window.changePollingTimer) clearInterval(window.changePollingTimer);

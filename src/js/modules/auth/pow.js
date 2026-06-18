@@ -236,12 +236,12 @@ function solvePowInWorker(challenge, bits, bpHash, onProgress) {
     });
 }
 
-async function fetchPowChallenge(hashRate, minBits, browserProof) {
+async function fetchPowChallenge(hashRate, minBits, browserProof, action) {
     const powApiUrl = (typeof API_ENDPOINTS !== 'undefined' && API_ENDPOINTS.pow) ? API_ENDPOINTS.pow : '/api/pow';
     const res = await fetch(powApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'challenge', hashRate, minBits: minBits || 0, bp: browserProof || null })
+        body: JSON.stringify({ action: action || 'challenge', hashRate, minBits: minBits || 0, bp: browserProof || null })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || '获取 PoW 挑战失败');
@@ -253,13 +253,13 @@ async function fetchPowChallenge(hashRate, minBits, browserProof) {
     };
 }
 
-async function solvePowChallenge(onProgress, minBits, browserProof) {
+async function solvePowChallenge(onProgress, minBits, browserProof, action) {
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark', challenge: '' });
     const hashRate = await powBenchmarkInWorker(POW_BENCHMARK_MS);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark_done', challenge: '', hashRate });
     const clientBits = bitsFromHashRate(hashRate);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'fetching', challenge: '' });
-    const { challenge, bits, bpHash } = await fetchPowChallenge(hashRate, minBits, browserProof);
+    const { challenge, bits, bpHash } = await fetchPowChallenge(hashRate, minBits, browserProof, action);
     const finalBits = Math.max(bits, clientBits, minBits || 0);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'solving', challenge });
     const nonce = await solvePowInWorker(challenge, finalBits, bpHash, onProgress);
@@ -311,13 +311,14 @@ function updatePowUI(powEl, progress) {
     if (checkEl) checkEl.style.display = phase === 'done' ? '' : 'none';
 }
 
-function initPowCard(powEl, onSolved) {
+function initPowCard(powEl, onSolved, riskAction) {
     if (!powEl) return;
     let solved = false;
     let solving = false;
     let result = null;
     let minBits = 0;
     let browserProof = null;
+    let action = riskAction || '';
     powEl.classList.add('pow-idle');
     powEl.style.cursor = 'pointer';
 
@@ -341,7 +342,7 @@ function initPowCard(powEl, onSolved) {
         solving = true;
         powEl.style.cursor = 'default';
         try {
-            result = await solvePowChallenge((p) => updatePowUI(powEl, p), minBits, proof);
+            result = await solvePowChallenge((p) => updatePowUI(powEl, p), minBits, proof, action);
             solved = true;
             setTimeout(() => { if (onSolved) onSolved(result); }, 600);
         } catch (e) {
