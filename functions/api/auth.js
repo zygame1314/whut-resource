@@ -1,31 +1,31 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
 import { verifyPowSolution } from './pow.js';
-const NICKNAME_MODERATION_PROMPT = `你是严格的昵称审核助手。逐条检查以下规则，命中任意一条即 REJECT�?
+const NICKNAME_MODERATION_PROMPT = `你是严格的昵称审核助手。逐条检查以下规则，命中任意一条即 REJECT。
 
-【必须拒绝的类型�?
+【必须拒绝的类型】
 1. 辱骂/色情/暴恐/违法/政治敏感 -> REJECT:违规内容
-2. 广告/推广/引流/营销/带货/代理/加群/关注 -> REJECT:含广告引�?
-3. 冒充官方/管理�?系统/客服/老师/学校/通知/公告 -> REJECT:冒充身份
-4. 含QQ/微信/手机�?网址/链接/联系方式/加我/私聊 -> REJECT:含联系方�?
-5. 诱导点击/钓鱼/诈骗/中奖/免费�?兼职/刷单/贷款 -> REJECT:涉嫌欺诈诱导
-6. 含特殊符号伪装官方标签如【】《》「」[ ]�?官方/通知/系统等词 -> REJECT:伪装官方标识
-7. 攻击/侮辱/歧视/人身攻击/地域�?性别歧视 -> REJECT:含攻击性内�?
-8. 含不�?低俗/擦边/性暗�?谐音脏话 -> REJECT:含不雅内�?
-9. 名称过短无意�?如单个字�?数字)或纯乱码 -> REJECT:无效昵称
-10. 模仿系统消息/弹窗提示/紧急通知等欺骗性内�?-> REJECT:伪装系统消息
+2. 广告/推广/引流/营销/带货/代理/加群/关注 -> REJECT:含广告引流
+3. 冒充官方/管理员/系统/客服/老师/学校/通知/公告 -> REJECT:冒充身份
+4. 含QQ/微信/手机号/网址/链接/联系方式/加我/私聊 -> REJECT:含联系方式
+5. 诱导点击/钓鱼/诈骗/中奖/免费领/兼职/刷单/贷款 -> REJECT:涉嫌欺诈诱导
+6. 含特殊符号伪装官方标签如【】《》「」[ ]等+官方/通知/系统等词 -> REJECT:伪装官方标识
+7. 攻击/侮辱/歧视/人身攻击/地域黑/性别歧视 -> REJECT:含攻击性内容
+8. 含不雅/低俗/擦边/性暗示/谐音脏话 -> REJECT:含不雅内容
+9. 名称过短无意义(如单个字母/数字)或纯乱码 -> REJECT:无效昵称
+10. 模仿系统消息/弹窗提示/紧急通知等欺骗性内容 -> REJECT:伪装系统消息
 
-【通过条件�?
-仅当昵称是正常、无害、无误导性的普通用户名�?-> PASS
+【通过条件】
+仅当昵称是正常、无害、无误导性的普通用户名时 -> PASS
 
 【输出格式】只输出一行：
 PASS
-�?
+或
 REJECT:原因（不超过15字）
 严禁输出其他任何内容。`;
 async function moderateNickname(nickname, env) {
   if (!env.SILICONFLOW_API_KEY) {
-    console.warn('未配�?SILICONFLOW_API_KEY，跳过昵称审�?);
+    console.warn('未配置 SILICONFLOW_API_KEY，跳过昵称审核');
     return { pass: true };
   }
   try {
@@ -41,11 +41,11 @@ async function moderateNickname(nickname, env) {
     result = result.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
     if (result.startsWith('REJECT:')) {
       const reason = result.substring(7).trim();
-      return { pass: false, reason: reason || '昵称不合�? };
+      return { pass: false, reason: reason || '昵称不合规' };
     }
     return { pass: true };
   } catch (error) {
-    console.error('昵称审核失败，放�?', error);
+    console.error('昵称审核失败，放行:', error);
     return { pass: true };
   }
 }
@@ -81,26 +81,26 @@ export async function onRequestPost({ request, env, waitUntil }) {
           return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
       } else {
-        return new Response(JSON.stringify({ success: false, error: '请完成人机验�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
       }
       const emailPrefix = body.emailPrefix || body.studentId;
       if (!emailPrefix) {
-        return new Response(JSON.stringify({ success: false, error: '请输入邮箱前缀�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '请输入邮箱前缀。' }), { status: 400, headers: addCorsHeaders() });
       }
       const email = `${emailPrefix}@whut.edu.cn`;
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
       if (existing) {
-        return new Response(JSON.stringify({ success: false, error: '用户已存在�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '用户已存在。' }), { status: 400, headers: addCorsHeaders() });
       }
       if (!password || password.length < 6) {
-        return new Response(JSON.stringify({ success: false, error: '密码至少需�?个字符�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });
       }
       const lastPending = await env.DB.prepare('SELECT created_at FROM pending_registrations WHERE email_prefix = ? ORDER BY created_at DESC LIMIT 1').bind(emailPrefix).first();
       if (lastPending) {
         const lastTime = new Date(lastPending.created_at).getTime();
         const now = Date.now();
         if (now - lastTime < 60 * 1000) {
-          return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请 60 秒后再试�? }), { status: 429, headers: addCorsHeaders() });
+          return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请 60 秒后再试。' }), { status: 429, headers: addCorsHeaders() });
         }
       }
       const now = Date.now();
@@ -128,7 +128,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       if (nickname && nickname.trim()) {
         const nicknameModeration = await moderateNickname(sanitizedNickname, env);
         if (!nicknameModeration.pass) {
-          return new Response(JSON.stringify({ success: false, error: `昵称未通过审核�?{nicknameModeration.reason}` }), { status: 451, headers: addCorsHeaders() });
+          return new Response(JSON.stringify({ success: false, error: `昵称未通过审核：${nicknameModeration.reason}` }), { status: 451, headers: addCorsHeaders() });
         }
       }
       await env.DB.prepare('DELETE FROM pending_registrations WHERE email_prefix = ?').bind(emailPrefix).run();
@@ -141,7 +141,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         verifyCode,
         botEmail,
         expiresIn: 30,
-        message: '请使用你的学校邮箱发送验证码到指定地址�?
+        message: '请使用你的学校邮箱发送验证码到指定地址。'
       }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'check-register-status') {
@@ -152,7 +152,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const email = `${emailPrefix}@whut.edu.cn`;
       const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
       if (user) {
-        return new Response(JSON.stringify({ success: true, activated: true, message: '账户已激活，请登录�? }), { status: 200, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: true, activated: true, message: '账户已激活，请登录。' }), { status: 200, headers: addCorsHeaders() });
       }
       const pending = await env.DB.prepare('SELECT expires_at, wrong_sender FROM pending_registrations WHERE email_prefix = ? AND expires_at > ?')
         .bind(emailPrefix, new Date().toISOString()).first();
@@ -173,25 +173,25 @@ export async function onRequestPost({ request, env, waitUntil }) {
           return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
       } else {
-        return new Response(JSON.stringify({ success: false, error: '请完成人机验�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
       }
       const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
       if (!email || !emailRegex.test(email)) {
-        return new Response(JSON.stringify({ success: false, error: '请输入有效的学校邮箱地址�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '请输入有效的学校邮箱地址。' }), { status: 400, headers: addCorsHeaders() });
       }
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
       if (!existing) {
-        return new Response(JSON.stringify({ success: false, error: '该邮箱未注册�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '该邮箱未注册。' }), { status: 400, headers: addCorsHeaders() });
       }
       if (!newPassword || newPassword.length < 6) {
-        return new Response(JSON.stringify({ success: false, error: '新密码至少需�?个字符�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '新密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });
       }
       const lastPending = await env.DB.prepare('SELECT created_at FROM pending_resets WHERE email = ? ORDER BY created_at DESC LIMIT 1').bind(email).first();
       if (lastPending) {
         const lastTime = new Date(lastPending.created_at).getTime();
         const now = Date.now();
         if (now - lastTime < 60 * 1000) {
-          return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请 60 秒后再试�? }), { status: 429, headers: addCorsHeaders() });
+          return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请 60 秒后再试。' }), { status: 429, headers: addCorsHeaders() });
         }
       }
       await env.DB.prepare('DELETE FROM pending_resets WHERE expires_at < ?').bind(new Date().toISOString()).run();
@@ -214,7 +214,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         verifyCode,
         botEmail,
         expiresIn: 30,
-        message: '请使用你的学校邮箱发送验证码到指定地址�?
+        message: '请使用你的学校邮箱发送验证码到指定地址。'
       }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'check-reset-status') {
@@ -230,13 +230,13 @@ export async function onRequestPost({ request, env, waitUntil }) {
         }
         return new Response(JSON.stringify(result), { status: 200, headers: addCorsHeaders() });
       }
-      return new Response(JSON.stringify({ success: true, completed: true, pending: false, message: '请求已处理或已过期�? }), { status: 200, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: true, completed: true, pending: false, message: '请求已处理或已过期。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'prepare-change-email') {
       const { newEmail, powChallenge, powNonce, powBits } = body;
       const user = await getUserFromRequest(request, env);
       if (!user) {
-        return new Response(JSON.stringify({ success: false, error: '未授�? }), { status: 401, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
       }
       if (powChallenge && powNonce !== undefined && powBits) {
         const powResult = await verifyPowSolution(powChallenge, powNonce, powBits, env, ctx);
@@ -244,15 +244,15 @@ export async function onRequestPost({ request, env, waitUntil }) {
           return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
       } else {
-        return new Response(JSON.stringify({ success: false, error: '请完成人机验�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { status: 400, headers: addCorsHeaders() });
       }
       const emailRegex = /^[^\s@]+@whut\.edu\.cn$/;
       if (!newEmail || !emailRegex.test(newEmail)) {
-        return new Response(JSON.stringify({ success: false, error: '请输入有效的学校邮箱地址�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '请输入有效的学校邮箱地址。' }), { status: 400, headers: addCorsHeaders() });
       }
       const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(newEmail).first();
       if (existing) {
-        return new Response(JSON.stringify({ success: false, error: '该邮箱已被占用�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '该邮箱已被占用。' }), { status: 400, headers: addCorsHeaders() });
       }
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let randomCode = '';
@@ -271,12 +271,12 @@ export async function onRequestPost({ request, env, waitUntil }) {
         verifyCode,
         botEmail,
         expiresAt,
-        message: '请使用你的学校邮箱发送验证码到指定地址�?
+        message: '请使用你的学校邮箱发送验证码到指定地址。'
       }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'check-email-change-status') {
       const user = await getUserFromRequest(request, env);
-      if (!user) return new Response(JSON.stringify({ success: false, error: '未授�? }), { status: 401, headers: addCorsHeaders() });
+      if (!user) return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
       const pending = await env.DB.prepare('SELECT id, wrong_sender FROM pending_email_changes WHERE user_id = ? AND expires_at > ?')
         .bind(user.id, new Date().toISOString()).first();
       if (pending) {
@@ -286,42 +286,42 @@ export async function onRequestPost({ request, env, waitUntil }) {
         }
         return new Response(JSON.stringify(result), { status: 200, headers: addCorsHeaders() });
       }
-      return new Response(JSON.stringify({ success: true, completed: true, message: '邮箱换绑完成或请求已过期�? }), { status: 200, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: true, completed: true, message: '邮箱换绑完成或请求已过期。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'change-nickname') {
       const { newNickname } = body;
       const currentUser = await getUserFromRequest(request, env);
       if (!currentUser) {
-        return new Response(JSON.stringify({ success: false, error: '未授�? }), { status: 401, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
       }
       if (!newNickname || newNickname.trim().length === 0) {
-        return new Response(JSON.stringify({ success: false, error: '昵称不能为空�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '昵称不能为空。' }), { status: 400, headers: addCorsHeaders() });
       }
       if (newNickname.length > 20) {
-        return new Response(JSON.stringify({ success: false, error: '昵称过长（最�?0字符）�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '昵称过长（最多20字符）。' }), { status: 400, headers: addCorsHeaders() });
       }
       if (!isAdmin(currentUser)) {
         const nicknameModeration = await moderateNickname(newNickname, env);
         if (!nicknameModeration.pass) {
-          return new Response(JSON.stringify({ success: false, error: `昵称未通过审核�?{nicknameModeration.reason}` }), { status: 451, headers: addCorsHeaders() });
+          return new Response(JSON.stringify({ success: false, error: `昵称未通过审核：${nicknameModeration.reason}` }), { status: 451, headers: addCorsHeaders() });
         }
       }
       await env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?')
         .bind(newNickname, currentUser.id)
         .run();
-      return new Response(JSON.stringify({ success: true, message: '昵称修改成功�? }), { status: 200, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: true, message: '昵称修改成功。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'change-password') {
       const { oldPassword, newPassword } = body;
       if (!oldPassword || !newPassword) {
-        return new Response(JSON.stringify({ success: false, error: '需要旧密码和新密码�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '需要旧密码和新密码。' }), { status: 400, headers: addCorsHeaders() });
       }
       if (newPassword.length < 6) {
-        return new Response(JSON.stringify({ success: false, error: '新密码至少需�?个字符�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '新密码至少需要6个字符。' }), { status: 400, headers: addCorsHeaders() });
       }
       const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
       if (!user) {
-        return new Response(JSON.stringify({ success: false, error: '用户不存在�? }), { status: 404, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '用户不存在。' }), { status: 404, headers: addCorsHeaders() });
       }
       const authHeader = request.headers.get('Authorization');
       if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -329,20 +329,20 @@ export async function onRequestPost({ request, env, waitUntil }) {
           const token = authHeader.split(' ')[1];
           const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
           if (payload && payload.id !== user.id) {
-            return new Response(JSON.stringify({ success: false, error: '操作被拒绝：无法修改其他用户的密�? }), { status: 403, headers: addCorsHeaders() });
+            return new Response(JSON.stringify({ success: false, error: '操作被拒绝：无法修改其他用户的密码' }), { status: 403, headers: addCorsHeaders() });
           }
         } catch (e) {
         }
       }
       const isValid = await verifyPasswordHash(oldPassword, user.password_hash, env.SALT);
       if (!isValid) {
-        return new Response(JSON.stringify({ success: false, error: '旧密码错误�? }), { status: 401, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '旧密码错误。' }), { status: 401, headers: addCorsHeaders() });
       }
       const passwordHash = await hashPassword(newPassword, env.SALT);
       await env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
         .bind(passwordHash, user.id)
         .run();
-      return new Response(JSON.stringify({ success: true, message: '密码修改成功�? }), { status: 200, headers: addCorsHeaders() });
+      return new Response(JSON.stringify({ success: true, message: '密码修改成功。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'sso-refresh-captcha') {
       const { ssoCookies } = body;
@@ -355,11 +355,11 @@ export async function onRequestPost({ request, env, waitUntil }) {
     if (action === 'whut-login') {
       const { studentId: inputId, password, powChallenge, powNonce, powBits, ssoCode, ssoCookies, ssoSmsCode } = body;
       if (!inputId || !password) {
-        return new Response(JSON.stringify({ success: false, error: '学号/卡号和密码不能为空�? }), { status: 400, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '学号/卡号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
       }
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const now = new Date().toISOString();
-      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => {});
+      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => { });
       const ipAttempt = await env.DB.prepare(
         'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
       ).bind(ip, 'ip', now).first();
@@ -377,7 +377,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
           if (powBits < requiredBits) {
             return new Response(JSON.stringify({
               success: false,
-              error: `人机验证难度不足，需�?${requiredBits} 位难度`,
+              error: `人机验证难度不足，需要 ${requiredBits} 位难度`,
               requireCaptcha: true,
               requiredBits
             }), { status: 403, headers: addCorsHeaders() });
@@ -428,7 +428,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         const newMaxFail = Math.max(ipFailCount + 1, idFailCount + 1);
         return new Response(JSON.stringify({
           success: false,
-          error: ssoResult.error || '无法同步学校资料，请确认为学号登录并稍后重试�?,
+          error: ssoResult.error || '无法同步学校资料，请确认为学号登录并稍后重试。',
           requireCaptcha: newMaxFail >= 3,
           ssoCaptchaRequired: ssoResult.captchaRequired,
           ssoCaptchaImage: ssoResult.captchaImage,
@@ -454,7 +454,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
           const finalNickname = ssoResult.nickname || `学生_${studentId}`;
           const collision = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(ssoEmail).first();
           if (collision) {
-            return new Response(JSON.stringify({ success: false, error: '该邮箱已被注册，请尝试使用账号密码登录�? }), { status: 409, headers: addCorsHeaders() });
+            return new Response(JSON.stringify({ success: false, error: '该邮箱已被注册，请尝试使用账号密码登录。' }), { status: 409, headers: addCorsHeaders() });
           }
           await env.DB.prepare('INSERT INTO users (email, nickname, password_hash, role, school_id) VALUES (?, ?, ?, ?, ?)')
             .bind(ssoEmail, finalNickname, defaultPasswordHash, 'user', studentId)
@@ -518,14 +518,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
         }
         return new Response(JSON.stringify(responseData), { status: 200, headers: addCorsHeaders() });
       } catch (e) {
-        return new Response(JSON.stringify({ success: false, error: 'SSO 登录集成维护�? ' + e.message }), { status: 500, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: 'SSO 登录集成维护中: ' + e.message }), { status: 500, headers: addCorsHeaders() });
       }
     }
     if (action === 'login') {
       const { powChallenge, powNonce, powBits } = body;
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const now = new Date().toISOString();
-      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => {});
+      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => { });
       const ipAttempt = await env.DB.prepare(
         'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
       ).bind(ip, 'ip', now).first();
@@ -542,7 +542,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
           if (powBits < requiredBits) {
             return new Response(JSON.stringify({
               success: false,
-              error: `人机验证难度不足，需�?${requiredBits} 位难度`,
+              error: `人机验证难度不足，需要 ${requiredBits} 位难度`,
               requireCaptcha: true,
               requiredBits
             }), { status: 403, headers: addCorsHeaders() });
@@ -578,7 +578,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         const newMaxFail = Math.max(ipFailCount + 1, emailFailCount + 1);
         return new Response(JSON.stringify({
           success: false,
-          error: '用户名或密码错误�?,
+          error: '用户名或密码错误。',
           requireCaptcha: newMaxFail >= 3
         }), { status: 401, headers: addCorsHeaders() });
       }
@@ -589,7 +589,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         const newMaxFail = Math.max(ipFailCount + 1, emailFailCount + 1);
         return new Response(JSON.stringify({
           success: false,
-          error: '用户名或密码错误�?,
+          error: '用户名或密码错误。',
           requireCaptcha: newMaxFail >= 3
         }), { status: 401, headers: addCorsHeaders() });
       }
@@ -614,7 +614,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
 export async function onRequestGet({ request, env }) {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ success: false, error: '未授�? }), { status: 401, headers: addCorsHeaders() });
+    return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
   }
   const token = authHeader.substring(7);
   const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
