@@ -4,6 +4,10 @@ const MAX_BITS = 24;
 const TARGET_WORK_SECONDS = 5;
 const ASSUMED_ATTACKER_HPS = 1_000_000;
 const HIGH_RISK_MIN_BITS = 18;
+const MIN_VERIFY_MS = 1500;
+const IP_RATE_WINDOW_MS = 5 * 60 * 1000;
+const IP_RATE_BASE_COUNT = 3;
+const IP_RATE_BITS_STEP = 1;
 
 function bitsFromHashRate(hashRate) {
   if (!hashRate || hashRate <= 0) return MIN_BITS;
@@ -41,14 +45,32 @@ async function ensurePowSchema(env) {
   if (_schemaEnsured) return;
   try {
     await env.DB.prepare('SELECT bp_hash FROM pow_challenges LIMIT 1').run();
-    _schemaEnsured = true;
   } catch (e) {
     try {
       await env.DB.prepare('ALTER TABLE pow_challenges ADD COLUMN bp_hash TEXT').run();
-      _schemaEnsured = true;
     } catch (alterError) {
       console.error('pow schema migrate failed:', alterError && alterError.message ? alterError.message : alterError);
     }
+  }
+  try {
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_pow_challenges_ip_issued ON pow_challenges(ip, issued_at)').run();
+  } catch (e) {
+  }
+  _schemaEnsured = true;
+}
+
+async function ipPenaltyBits(env, ip) {
+  if (!ip || ip === 'unknown') return 0;
+  try {
+    const since = new Date(Date.now() - IP_RATE_WINDOW_MS).toISOString();
+    const row = await env.DB.prepare(
+      'SELECT COUNT(*) AS cnt FROM pow_challenges WHERE ip = ? AND issued_at > ?'
+    ).bind(ip, since).first();
+    const count = (row && row.cnt) || 0;
+    if (count <= IP_RATE_BASE_COUNT) return 0;
+    return Math.min((count - IP_RATE_BASE_COUNT) * IP_RATE_BITS_STEP, MAX_BITS - MIN_BITS);
+  } catch (e) {
+    return 0;
   }
 }
 
@@ -177,7 +199,8 @@ export async function verifyPowSolution(challenge, nonce, bits, env, ctx) {
     return { valid: false, error: '难度低于服务端要求' };
   }
   const elapsedMs = Date.now() - new Date(record.issued_at).getTime();
-  const minTimeMs = (Math.pow(2, record.bits) / ASSUMED_ATTACKER_HPS) * 1000;
+  const formulaMs = (Math.pow(2, record.bits) / ASSUMED_ATTACKER_HPS) * 1000;
+  const minTimeMs = Math.max(formulaMs, MIN_VERIFY_MS);
   if (elapsedMs < minTimeMs) {
     await env.DB.prepare('UPDATE pow_challenges SET attempts = COALESCE(attempts, 0) + 1 WHERE challenge = ?').bind(challenge).run();
     maybeCleanup(env.DB, ctx);
@@ -227,8 +250,9 @@ export async function onRequestPost({ request, env, waitUntil }) {
     await ensurePowSchema(env);
     const highRisk = ['prepare-register', 'prepare-reset', 'prepare-change-email'].includes(action);
     const floor = highRisk ? HIGH_RISK_MIN_BITS : MIN_BITS;
-    const bits = Math.max(bitsFromHashRate(hashRate), minBits, floor);
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const penalty = await ipPenaltyBits(env, ip);
+    const bits = Math.min(Math.max(bitsFromHashRate(hashRate), minBits, floor, floor + penalty), MAX_BITS);
     const challenge = crypto.randomUUID().replace(/-/g, '');
     const nowISO = new Date().toISOString();
     const expiresAt = new Date(Date.now() + CHALLENGE_EXPIRES_MS).toISOString();

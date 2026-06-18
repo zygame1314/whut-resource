@@ -455,6 +455,7 @@ CREATE TABLE IF NOT EXISTS pow_challenges (
     expires_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pow_challenges_expires ON pow_challenges(expires_at);
+CREATE INDEX IF NOT EXISTS idx_pow_challenges_ip_issued ON pow_challenges(ip, issued_at);
 
 CREATE TABLE IF NOT EXISTS todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
