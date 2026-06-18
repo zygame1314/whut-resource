@@ -3,7 +3,7 @@ const MIN_BITS = 20;
 const MAX_BITS = 28;
 const TARGET_WORK_SECONDS = 5;
 const ASSUMED_ATTACKER_HPS = 1_000_000;
-const HIGH_RISK_MIN_BITS = 24;
+const HIGH_RISK_MIN_BITS = 22;
 
 function bitsFromHashRate(hashRate) {
   if (!hashRate || hashRate <= 0) return MIN_BITS;
