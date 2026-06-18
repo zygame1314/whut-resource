@@ -532,9 +532,12 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode,
         : '';
     const secondPrompt = `搜索结果：
 ${resourceList}
+
 用户留言：${guestbookEntry.content}
+
 【语气人设】你不是客服，正常交流即可，不用拘谨，对没礼貌的留言可以怼回去。
-请判断搜索结果中是否有满足用户需求的资源。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。匹配成功请用 mark_resolved，不匹配则用 keep_pending（必须填写category，优先精确匹配已有待办分类）。${todoHint}`;
+
+判断搜索结果中是否有满足用户需求的资源，如果没有就保持未解决，不要硬凑。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。匹配成功请用 mark_resolved，不匹配则用 keep_pending（必须填写category，优先精确匹配已有待办分类）。${todoHint}`;
 
     const searchTools = [
         {
