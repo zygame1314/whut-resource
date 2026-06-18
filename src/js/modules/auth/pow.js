@@ -135,10 +135,10 @@ function getDeviceRank(hashRate) {
 }
 
 function bitsFromHashRate(hashRate) {
-    if (!hashRate || hashRate <= 0) return 18;
+    if (!hashRate || hashRate <= 0) return 16;
     const targetHashes = (POW_TARGET_TIME_MS / 1000) * hashRate;
     const bits = Math.floor(Math.log2(targetHashes));
-    return Math.max(Math.min(bits, 24), 18);
+    return Math.max(Math.min(bits, 24), 16);
 }
 
 const POW_WORKER_CODE = `
