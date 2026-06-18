@@ -48,40 +48,67 @@ function collectBrowserProof() {
     proof.np = navigator.plugins ? navigator.plugins.length : 0;
     proof.wb = typeof window.__nightmare !== 'undefined' || typeof window.callPhantom !== 'undefined' || typeof window._phantom !== 'undefined';
     proof.hr = window.innerWidth > 0 && window.innerHeight > 0;
+    proof.hrw = window.innerWidth;
+    proof.hrh = window.innerHeight;
 
     proof.ts = Date.now();
 
     return proof;
 }
 
+const BP_PASS_SCORE = 60;
+const BP_TS_WINDOW_MS = 10 * 60 * 1000;
+
 function validateBrowserProof(proof) {
     if (!proof) return { valid: false, score: 0, reason: '无验证数据' };
     let score = 0;
     const reasons = [];
 
-    if (proof.wd) { reasons.push('webdriver'); }
-    else { score += 30; }
+    if (proof.wd) { return { valid: false, score: 0, reasons: ['webdriver'] }; }
+    if (proof.wb) { return { valid: false, score: 0, reasons: ['headless'] }; }
 
-    if (proof.wb) { reasons.push('headless'); }
-    else { score += 20; }
+    const ts = Number(proof.ts);
+    if (Number.isFinite(ts) && ts > 0 && Math.abs(Date.now() - ts) <= BP_TS_WINDOW_MS) {
+        score += 10;
+    } else {
+        reasons.push('proof 时效异常');
+    }
 
-    if (proof.cg > 1000) { score += 15; }
+    if (proof.cg > 1000 && proof.cg < 500000) { score += 25; }
     else { reasons.push('canvas异常'); }
 
-    if (proof.gl === 2) { score += 10; }
-    else if (proof.gl === 1) { score += 5; }
+    if (proof.gl === 2) { score += 20; }
+    else if (proof.gl === 1) { score += 10; }
+    else { reasons.push('webgl异常'); }
 
-    if (proof.mm) { score += 10; }
+    if (proof.mm) { score += 15; }
     else { reasons.push('无鼠标移动'); }
 
-    if (proof.mc > 2) { score += 5; }
+    const mc = Number(proof.mc);
+    if (Number.isFinite(mc) && mc > 2 && mc <= 20) {
+        if (!proof.mm) { reasons.push('鼠标数据矛盾'); }
+        else { score += 10; }
+    }
 
-    if (proof.ct && proof.ct > 0 && proof.ct < 5000) { score += 5; }
+    const ct = Number(proof.ct);
+    if (Number.isFinite(ct) && ct > 0 && ct < 5000) { score += 10; }
 
-    if (proof.hr) { score += 5; }
-    else { reasons.push('窗口异常'); }
+    if (proof.hr) {
+        const w = Number(proof.hrw);
+        const h = Number(proof.hrh);
+        if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0 && w < 10000 && h < 10000) {
+            score += 10;
+        } else {
+            reasons.push('窗口尺寸异常');
+        }
+    } else {
+        reasons.push('窗口异常');
+    }
 
-    return { valid: score >= 50, score, reasons: reasons.length > 0 ? reasons : undefined };
+    const np = Number(proof.np);
+    if (Number.isFinite(np) && np > 0 && np <= 10) { score += 5; }
+
+    return { valid: score >= BP_PASS_SCORE, score, reasons: reasons.length > 0 ? reasons : undefined };
 }
 
 const DEVICE_RANKS = [
@@ -108,10 +135,10 @@ function getDeviceRank(hashRate) {
 }
 
 function bitsFromHashRate(hashRate) {
-    if (!hashRate || hashRate <= 0) return 14;
+    if (!hashRate || hashRate <= 0) return 18;
     const targetHashes = (POW_TARGET_TIME_MS / 1000) * hashRate;
     const bits = Math.floor(Math.log2(targetHashes));
-    return Math.max(bits, 15);
+    return Math.max(Math.min(bits, 24), 18);
 }
 
 const POW_WORKER_CODE = `
@@ -154,9 +181,10 @@ self.onmessage = async function(e) {
     if (e.data.type === 'solve') {
         var challenge = e.data.challenge;
         var bits = e.data.bits;
+        var bpHash = e.data.bpHash || '';
         var nonce = 0;
         while (true) {
-            var hash = await sha256Hex(challenge + ':' + nonce);
+            var hash = await sha256Hex(challenge + ':' + nonce + ':' + bpHash);
             if (checkPowHash(hash, bits)) {
                 self.postMessage({ type: 'solve', nonce: nonce, hash: hash.substring(0, 12), phase: 'done' });
                 return;
@@ -190,7 +218,7 @@ function powBenchmarkInWorker(durationMs) {
     });
 }
 
-function solvePowInWorker(challenge, bits, onProgress) {
+function solvePowInWorker(challenge, bits, bpHash, onProgress) {
     return new Promise((resolve, reject) => {
         let worker;
         try { worker = createPowWorker(); } catch (e) { reject(e); return; }
@@ -204,7 +232,7 @@ function solvePowInWorker(challenge, bits, onProgress) {
             }
         };
         worker.onerror = (e) => { worker.terminate(); reject(new Error(e.message || 'Worker error')); };
-        worker.postMessage({ type: 'solve', challenge, bits });
+        worker.postMessage({ type: 'solve', challenge, bits, bpHash });
     });
 }
 
@@ -220,6 +248,7 @@ async function fetchPowChallenge(hashRate, minBits, browserProof) {
     return {
         challenge: data.challenge,
         bits: data.bits,
+        bpHash: data.bpHash || '',
         expiresIn: data.expiresIn
     };
 }
@@ -230,10 +259,10 @@ async function solvePowChallenge(onProgress, minBits, browserProof) {
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark_done', challenge: '', hashRate });
     const clientBits = bitsFromHashRate(hashRate);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'fetching', challenge: '' });
-    const { challenge, bits } = await fetchPowChallenge(hashRate, minBits, browserProof);
+    const { challenge, bits, bpHash } = await fetchPowChallenge(hashRate, minBits, browserProof);
     const finalBits = Math.max(bits, clientBits, minBits || 0);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'solving', challenge });
-    const nonce = await solvePowInWorker(challenge, finalBits, onProgress);
+    const nonce = await solvePowInWorker(challenge, finalBits, bpHash, onProgress);
     return { powChallenge: challenge, powNonce: nonce, powBits: finalBits };
 }
 

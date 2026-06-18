@@ -450,6 +450,7 @@ CREATE TABLE IF NOT EXISTS pow_challenges (
     bits INTEGER NOT NULL,
     ip TEXT NOT NULL,
     attempts INTEGER DEFAULT 0,
+    bp_hash TEXT,
     issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     expires_at DATETIME NOT NULL
 );

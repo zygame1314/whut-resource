@@ -1,6 +1,7 @@
 name = "whut-resource"
 pages_build_output_dir = "dist"
 compatibility_date = "2024-10-22"
+account_id = "f78fada5fe63d8a55e2b2405879203bf"
 compatibility_flags = ["nodejs_compat"]
 
 [observability]
