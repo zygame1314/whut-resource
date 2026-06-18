@@ -1,5 +1,13 @@
 const POW_BENCHMARK_MS = 300;
 const POW_TARGET_TIME_MS = 2000;
+const POW_MIN_VERIFY_MS = 1500;
+const POW_ASSUMED_ATTACKER_HPS = 1_000_000;
+const POW_VERIFY_MARGIN_MS = 300;
+
+function powMinVerifyMs(bits) {
+    const formulaMs = (Math.pow(2, bits) / POW_ASSUMED_ATTACKER_HPS) * 1000;
+    return Math.max(formulaMs, POW_MIN_VERIFY_MS) + POW_VERIFY_MARGIN_MS;
+}
 
 let _mouseMoved = false;
 let _mousePositions = [];
@@ -262,7 +270,13 @@ async function solvePowChallenge(onProgress, minBits, browserProof, action) {
     const { challenge, bits, bpHash } = await fetchPowChallenge(hashRate, minBits, browserProof, action);
     const finalBits = Math.max(bits, clientBits, minBits || 0);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'solving', challenge });
+    const solveStart = Date.now();
     const nonce = await solvePowInWorker(challenge, finalBits, bpHash, onProgress);
+    const elapsed = Date.now() - solveStart;
+    const minWait = powMinVerifyMs(finalBits);
+    if (elapsed < minWait) {
+        await new Promise(r => setTimeout(r, minWait - elapsed));
+    }
     return { powChallenge: challenge, powNonce: nonce, powBits: finalBits };
 }
 
