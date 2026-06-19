@@ -2463,8 +2463,11 @@
 }
 
 .status-badge {
+    display: inline-flex;
     align-items: center;
+    gap: 0.3rem;
     padding: 0.22rem 0.6rem;
+    vertical-align: middle;
     border-radius: 6px 14px 14px 6px;
     font-size: 0.7rem;
     font-weight: 700;
@@ -2508,6 +2511,11 @@
 
 .status-badge.auditing i {
     animation: pulse 2s ease-in-out infinite;
+}
+
+.status-badge i {
+    line-height: 1;
+    vertical-align: middle;
 }
 
 .reject-reason {
@@ -9450,6 +9458,20 @@ input#prompt-input {
     #admin-list-container .banned-user-nickname > .status-badge i {
         font-size: 0.7rem;
     }
+}
+
+#todos-content .admin-log-user-info > .status-badge {
+    font-size: 0 !important;
+    padding: 0;
+    gap: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+#todos-content .admin-log-user-info > .status-badge i {
+    font-size: 0.7rem;
+    vertical-align: middle;
 }
 
 .oauth-manage-box {
