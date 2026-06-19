@@ -175,8 +175,6 @@
 }
 
 .page-viewer-skeleton-block {
-    display: flex;
-    gap: 1.5rem;
     padding: 1.5rem;
     background: var(--background-alt);
     border-radius: 12px;
@@ -187,6 +185,13 @@
     opacity: 0;
     transform: translateX(30px);
     animation: pvSkeletonSlideIn 0.4s ease-out forwards;
+}
+
+.page-viewer-skeleton-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
 }
 
 .page-viewer-skeleton-block::after {
@@ -206,19 +211,17 @@
 }
 
 .page-viewer-skeleton-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
     background: var(--border-color);
     flex-shrink: 0;
 }
 
 .page-viewer-skeleton-lines {
-    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    padding-top: 0.2rem;
 }
 
 .page-viewer-skeleton-line {
@@ -335,7 +338,7 @@
 
     .page-viewer-panel {
         max-width: 100%;
-        height: 92vh;
+        height: 80vh;
         border-radius: 16px 16px 0 0;
         transform: translateY(100%);
         transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);

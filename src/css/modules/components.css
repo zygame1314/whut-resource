@@ -9119,11 +9119,17 @@ input#prompt-input {
 .banned-user-email {
     font-size: 0.85em;
     color: var(--text-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .banned-user-date {
     font-size: 0.75em;
     color: var(--text-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .banned-user-action {
@@ -9148,9 +9154,6 @@ input#prompt-input {
 .role-user-item .banned-user-nickname {
     font-weight: bold;
     color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .role-user-item .banned-user-email {
@@ -9372,23 +9375,12 @@ input#prompt-input {
         width: 100%;
     }
 
-    .banned-user-item {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
     .banned-user-action {
         margin-top: 0.75rem;
     }
 
     .banned-user-action button {
         width: 100%;
-    }
-
-    .role-user-item {
-        flex-direction: row;
-        flex-wrap: nowrap;
-        align-items: center;
     }
 
     .role-user-item .banned-user-action {
@@ -9444,6 +9436,19 @@ input#prompt-input {
 
     .admin-scrollable-container {
         padding: 8px;
+    }
+
+    #admin-list-container .banned-user-nickname > .status-badge {
+        font-size: 0 !important;
+        padding: 0;
+        gap: 0;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    #admin-list-container .banned-user-nickname > .status-badge i {
+        font-size: 0.7rem;
     }
 }
 

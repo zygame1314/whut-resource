@@ -137,25 +137,31 @@
         bodyEl.innerHTML =
             '<div class="page-viewer-loader">' +
                 '<div class="page-viewer-skeleton-block">' +
-                    '<div class="page-viewer-skeleton-icon"></div>' +
-                    '<div class="page-viewer-skeleton-lines">' +
+                    '<div class="page-viewer-skeleton-title">' +
+                        '<div class="page-viewer-skeleton-icon"></div>' +
                         '<div class="page-viewer-skeleton-line title"></div>' +
+                    '</div>' +
+                    '<div class="page-viewer-skeleton-lines">' +
                         '<div class="page-viewer-skeleton-line"></div>' +
                         '<div class="page-viewer-skeleton-line short"></div>' +
                     '</div>' +
                 '</div>' +
                 '<div class="page-viewer-skeleton-block">' +
-                    '<div class="page-viewer-skeleton-icon"></div>' +
-                    '<div class="page-viewer-skeleton-lines">' +
+                    '<div class="page-viewer-skeleton-title">' +
+                        '<div class="page-viewer-skeleton-icon"></div>' +
                         '<div class="page-viewer-skeleton-line title"></div>' +
+                    '</div>' +
+                    '<div class="page-viewer-skeleton-lines">' +
                         '<div class="page-viewer-skeleton-line medium"></div>' +
                         '<div class="page-viewer-skeleton-line short"></div>' +
                     '</div>' +
                 '</div>' +
                 '<div class="page-viewer-skeleton-block">' +
-                    '<div class="page-viewer-skeleton-icon"></div>' +
-                    '<div class="page-viewer-skeleton-lines">' +
+                    '<div class="page-viewer-skeleton-title">' +
+                        '<div class="page-viewer-skeleton-icon"></div>' +
                         '<div class="page-viewer-skeleton-line title"></div>' +
+                    '</div>' +
+                    '<div class="page-viewer-skeleton-lines">' +
                         '<div class="page-viewer-skeleton-line"></div>' +
                     '</div>' +
                 '</div>' +
