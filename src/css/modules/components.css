@@ -9458,6 +9458,14 @@ input#prompt-input {
     #admin-list-container .banned-user-nickname > .status-badge i {
         font-size: 0.7rem;
     }
+
+    #admin-list-container .banned-user-nickname > .status-badge.auditing i {
+        color: #ff9800;
+    }
+
+    #admin-list-container .banned-user-nickname > .status-badge.rejected i {
+        color: #dc3545;
+    }
 }
 
 #todos-content .admin-log-user-info > .status-badge {
@@ -9472,6 +9480,18 @@ input#prompt-input {
 #todos-content .admin-log-user-info > .status-badge i {
     font-size: 0.7rem;
     vertical-align: middle;
+}
+
+#todos-content .admin-log-user-info > .status-badge.resolved i {
+    color: #28a745;
+}
+
+#todos-content .admin-log-user-info > .status-badge.rejected i {
+    color: #dc3545;
+}
+
+#todos-content .admin-log-user-info > .status-badge.auditing i {
+    color: #ff9800;
 }
 
 .oauth-manage-box {
