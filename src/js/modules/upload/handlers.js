@@ -160,11 +160,13 @@ async function addWatermarkToPDF(file) {
             });
         });
         let pdfBytes = await pdfDoc.save();
-        try {
-            const bakedBytes = await bakeWatermarkIntoPages(pdfBytes);
-            if (bakedBytes) pdfBytes = bakedBytes;
-        } catch (e) {
-            console.warn('像素烘焙水印跳过（不影响常规水印）:', e);
+        if (bakeToggle ? bakeToggle.checked : true) {
+            try {
+                const bakedBytes = await bakeWatermarkIntoPages(pdfBytes);
+                if (bakedBytes) pdfBytes = bakedBytes;
+            } catch (e) {
+                console.warn('像素烘焙水印跳过（不影响常规水印）:', e);
+            }
         }
         const newFile = new File([pdfBytes], file.name, {
             type: 'application/pdf',
@@ -446,7 +448,9 @@ async function retrySingleFileUpload(file) {
     }
     const enableWatermark = watermarkToggle ? watermarkToggle.checked : true;
     let processedFile = enableWatermark ? await addWatermarkToPDF(file) : file;
-    processedFile = await injectTraceCode(processedFile);
+    if (traceToggle ? traceToggle.checked : true) {
+        processedFile = await injectTraceCode(processedFile);
+    }
     formData.append('file', processedFile, fullPath);
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -588,10 +592,11 @@ async function handleUpload(event) {
                 if (batchFiles && batchFiles.length > 0) {
                     try {
                         const enableWatermark = watermarkToggle ? watermarkToggle.checked : true;
+                        const enableTrace = traceToggle ? traceToggle.checked : true;
                         const processedFiles = await Promise.all(batchFiles.map(async (file) => {
                             try {
                                 let f = enableWatermark ? await addWatermarkToPDF(file) : file;
-                                return await injectTraceCode(f);
+                                return enableTrace ? await injectTraceCode(f) : f;
                             } catch (e) {
                                 console.error(`预处理失败: ${file.name}`, e);
                                 return file;

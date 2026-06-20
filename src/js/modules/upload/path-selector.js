@@ -172,7 +172,7 @@ async function initUploadPathSelector() {
     }
     selector.style.display = 'flex';
     const watermarkOption = document.getElementById('watermark-option');
-    if (watermarkOption) watermarkOption.style.display = 'flex';
+    if (watermarkOption) watermarkOption.style.display = 'block';
     updateSelectedPathDisplay();
     const directories = await fetchDirectories();
     if (pathTreeContainer) {

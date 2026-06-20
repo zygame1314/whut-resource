@@ -130,18 +130,46 @@
                                 </div>
                             </div>
                         </div>
-                        <div id="watermark-option" class="upload-option-row" style="display: none;">
-                            <div class="option-info">
-                                <label for="watermark-toggle">
-                                    <i class="fas fa-stamp"></i>
-                                    PDF水印
+                        <div id="watermark-option" class="upload-option-group" style="display: none;">
+                            <div class="upload-option-row">
+                                <div class="option-info">
+                                    <label for="watermark-toggle">
+                                        <i class="fas fa-stamp"></i>
+                                        PDF水印
+                                    </label>
+                                    <span class="option-hint">居中logo水印"武理资源共享平台"，文件名含【xxx】时使用"xxx无偿"</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="watermark-toggle" checked>
+                                    <span class="toggle-slider"></span>
                                 </label>
-                                <span class="option-hint">对所有PDF生效，默认水印"武理资源共享平台"，文件名含【xxx】时使用"xxx无偿"</span>
                             </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="watermark-toggle" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
+                            <div class="upload-option-row upload-option-sub" data-master="watermark-toggle">
+                                <div class="option-info">
+                                    <label for="bake-toggle">
+                                        <i class="fas fa-fire"></i>
+                                        整页烘焙
+                                    </label>
+                                    <span class="option-hint">把水印烤进像素，PDF编辑器无法删除；文字变图片不可搜索，体积会增大</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="bake-toggle" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="upload-option-row">
+                                <div class="option-info">
+                                    <label for="trace-toggle">
+                                        <i class="fas fa-fingerprint"></i>
+                                        追踪码
+                                    </label>
+                                    <span class="option-hint">PDF末尾/图片像素隐写溯源标记，肉眼不可见</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="trace-toggle" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
                         </div>
                         <div class="file-drop-zone" id="file-drop-zone">
                             <div class="drop-zone-content">

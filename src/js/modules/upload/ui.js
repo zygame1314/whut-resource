@@ -17,6 +17,20 @@ const uploadTypeLinkBtn = document.getElementById('upload-type-link');
 const linkUploadZone = document.getElementById('link-upload-zone');
 const watermarkOption = document.getElementById('watermark-option');
 const watermarkToggle = document.getElementById('watermark-toggle');
+const bakeToggle = document.getElementById('bake-toggle');
+const traceToggle = document.getElementById('trace-toggle');
+
+(function initWatermarkSubToggles() {
+    if (!watermarkToggle) return;
+    const sync = () => {
+        document.querySelectorAll('.upload-option-sub[data-master="watermark-toggle"]').forEach(row => {
+            row.style.opacity = watermarkToggle.checked ? '1' : '0.4';
+            row.style.pointerEvents = watermarkToggle.checked ? 'auto' : 'none';
+        });
+    };
+    watermarkToggle.addEventListener('change', sync);
+    sync();
+})();
 
 function animateShow(el, displayValue) {
     if (!el) return;

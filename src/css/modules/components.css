@@ -2658,10 +2658,55 @@
     border: 1px solid var(--border-color);
 }
 
+.upload-option-group {
+    margin-bottom: 1rem;
+}
+
+.upload-option-group .upload-option-row {
+    margin-bottom: 0.6rem;
+}
+
+.upload-option-group .upload-option-row:last-child {
+    margin-bottom: 0;
+}
+
+.upload-option-sub {
+    position: relative;
+    margin-left: 1.5rem;
+    padding-left: 1.4rem;
+    background: var(--background-alt-soft, rgba(0, 0, 0, 0.02));
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+    transition: opacity 0.2s;
+}
+
+.upload-option-sub::before {
+    content: '';
+    position: absolute;
+    left: -1.1rem;
+    top: -0.7rem;
+    width: 1rem;
+    height: calc(50% + 0.6rem);
+    border-left: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--border-color);
+    border-bottom-left-radius: 8px;
+}
+
+.upload-option-sub .option-info label {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+}
+
+.upload-option-sub .option-info label i {
+    color: var(--text-secondary);
+}
+
 .upload-option-row .option-info {
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
+    flex: 1;
+    min-width: 0;
 }
 
 .upload-option-row .option-info label {
@@ -2681,6 +2726,8 @@
 .upload-option-row .option-hint {
     font-size: 0.8rem;
     color: var(--text-secondary);
+    line-height: 1.4;
+    word-break: break-word;
 }
 
 .toggle-switch {
