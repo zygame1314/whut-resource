@@ -1,9 +1,13 @@
 const TODOS_API_URL = API_ENDPOINTS.todos;
+const TODOS_RENDER_CHUNK = 8;
 let todosModal = null;
 let todosNextCursor = null;
 let todosHasMore = false;
 let todosCurrentStatus = 'pending';
 let todosLoadingMore = false;
+let todosData = [];
+let todosRenderQueue = null;
+let todosRenderToken = 0;
 
 function isGuestbookAdmin(user) {
     return user && (user.role === 'admin' || user.role === 'super_admin');
@@ -79,6 +83,24 @@ window.showTodosModal = async function () {
         }
     });
 
+    const contentEl = modal.querySelector('#todos-content');
+    contentEl.addEventListener('click', (e) => {
+        const resolveBtn = e.target.closest('.todo-resolve-btn');
+        if (resolveBtn) {
+            resolveTodoFromModal(parseInt(resolveBtn.dataset.todoId), modal);
+            return;
+        }
+        const deleteBtn = e.target.closest('.todo-delete-btn');
+        if (deleteBtn) {
+            deleteTodoFromModal(parseInt(deleteBtn.dataset.todoId), modal);
+            return;
+        }
+        const reopenBtn = e.target.closest('.todo-reopen-btn');
+        if (reopenBtn) {
+            reopenTodoFromModal(parseInt(reopenBtn.dataset.todoId), modal);
+        }
+    });
+
     const dropdown = modal.querySelector('#todo-status-dropdown');
     const trigger = dropdown.querySelector('.custom-select-trigger');
     const optionsMenu = dropdown.querySelector('.custom-select-options');
@@ -138,11 +160,93 @@ window.showTodosModal = async function () {
     loadTodosIntoModal(modal, true);
 };
 
+function buildTodoHtml(todo, index) {
+    const isResolved = todo.status === 'resolved';
+    const msgCount = todo.messages ? todo.messages.length : (todo.guestbook_count || 0);
+    const statusBadge = isResolved
+        ? '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>'
+        : '<span class="status-badge auditing"><i class="fas fa-clock"></i> 待处理</span>';
+    const countBadge = msgCount > 0
+        ? `<span class="admin-log-action" data-category="info" style="margin-left:6px;">${msgCount} 条留言</span>`
+        : '';
+    const utcDate = todo.created_at && (todo.created_at.endsWith('Z') ? todo.created_at : todo.created_at + 'Z');
+    const dateStr = utcDate ? new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '';
+    const msgsHtml = (todo.messages && todo.messages.length > 0)
+        ? todo.messages.map(m => {
+            const nick = escapeHtml(m.nickname || '匿名用户');
+            const content = escapeHtml((m.content || '').substring(0, 80));
+            const gBadge = m.guestbook_status === 'resolved'
+                ? '<span class="status-badge resolved" style="font-size:0.7rem;padding:1px 5px;"><i class="fas fa-check"></i></span>'
+                : m.guestbook_status === 'rejected'
+                    ? '<span class="status-badge rejected" style="font-size:0.7rem;padding:1px 5px;"><i class="fas fa-times"></i></span>'
+                    : '<span class="status-badge auditing" style="font-size:0.7rem;padding:1px 5px;"><i class="fas fa-clock"></i></span>';
+            return `<div class="admin-log-user-info">${gBadge} <strong>${nick}</strong>: ${content}${m.content && m.content.length > 80 ? '...' : ''}</div>`;
+        }).join('')
+        : '';
+    const descHtml = todo.description ? `<div class="admin-log-details"><strong>备注：</strong>${escapeHtml(todo.description)}</div>` : '';
+    const resolvedHtml = isResolved && todo.resolved_at
+        ? `<div class="admin-log-user-info"><i class="fas fa-user-check" style="color:var(--success, #52c41a);"></i> 解决于 ${formatDateLocal(todo.resolved_at)}</div>`
+        : '';
+    const actionBtns = isResolved
+        ? `<div class="request-actions">
+                <button class="secondary-btn small todo-reopen-btn" data-todo-id="${todo.id}"><i class="fas fa-undo"></i> 重新打开</button>
+                <button class="secondary-btn small todo-delete-btn todo-danger-btn" data-todo-id="${todo.id}"><i class="fas fa-trash"></i> 删除</button>
+            </div>`
+        : `<div class="request-actions">
+                <button class="primary-btn small todo-resolve-btn" data-todo-id="${todo.id}"><i class="fas fa-check"></i> 解决</button>
+                <button class="secondary-btn small todo-delete-btn todo-danger-btn" data-todo-id="${todo.id}"><i class="fas fa-trash"></i> 删除</button>
+            </div>`;
+    return `
+        <div class="request-item" data-todo-id="${todo.id}" data-index="${index}">
+            <div class="request-header todo-header-row">
+                <div class="todo-header-tags">
+                    <span class="request-type"><i class="fas fa-folder-open todo-folder-icon"></i>${escapeHtml(todo.category)}</span>
+                    ${countBadge}
+                    ${statusBadge}
+                </div>
+                <span class="admin-log-timestamp">${dateStr}</span>
+            </div>
+            ${descHtml}
+            ${msgsHtml}
+            ${resolvedHtml}
+            ${actionBtns}
+        </div>
+    `;
+}
+
+function scheduleTodosRender(container, startIndex, modal) {
+    const token = todosRenderToken;
+    todosRenderQueue = (function step(i) {
+        if (todosRenderToken !== token || !container.isConnected) return;
+        const end = Math.min(i + TODOS_RENDER_CHUNK, todosData.length);
+        const frag = document.createDocumentFragment();
+        for (; i < end; i++) {
+            const wrap = document.createElement('div');
+            wrap.innerHTML = buildTodoHtml(todosData[i], i);
+            while (wrap.firstChild) frag.appendChild(wrap.firstChild);
+        }
+        container.appendChild(frag);
+        if (i < todosData.length) {
+            requestAnimationFrame(() => step(i));
+        } else {
+            todosRenderQueue = null;
+            const paginationEl = modal.querySelector('#todos-pagination');
+            todosLoadingMore = false;
+            renderTodosPagination(paginationEl, modal);
+            refreshTodoDotFromData();
+        }
+        return null;
+    })(startIndex);
+}
+
 async function loadTodosIntoModal(modal, reset = false) {
     const container = modal.querySelector('#todos-content');
     const paginationEl = modal.querySelector('#todos-pagination');
     const statusFilter = modal.querySelector('#todo-status-filter');
     const status = statusFilter ? statusFilter.value : 'pending';
+
+    todosRenderToken++;
+    todosRenderQueue = null;
 
     if (reset) {
         todosData = [];
@@ -186,73 +290,8 @@ async function loadTodosIntoModal(modal, reset = false) {
         return;
     }
 
-    container.innerHTML = todosData.map((todo, index) => {
-        const isResolved = todo.status === 'resolved';
-        const msgCount = todo.messages ? todo.messages.length : (todo.guestbook_count || 0);
-        const statusBadge = isResolved
-            ? '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>'
-            : '<span class="status-badge auditing"><i class="fas fa-clock"></i> 待处理</span>';
-        const countBadge = msgCount > 0
-            ? `<span class="admin-log-action" data-category="info" style="margin-left:6px;">${msgCount} 条留言</span>`
-            : '';
-        const utcDate = todo.created_at && (todo.created_at.endsWith('Z') ? todo.created_at : todo.created_at + 'Z');
-        const dateStr = utcDate ? new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '';
-        const msgsHtml = (todo.messages && todo.messages.length > 0)
-            ? todo.messages.map(m => {
-                const nick = escapeHtml(m.nickname || '匿名用户');
-                const content = escapeHtml((m.content || '').substring(0, 80));
-                const gBadge = m.guestbook_status === 'resolved'
-                    ? '<span class="status-badge resolved" style="font-size:0.7rem;padding:1px 5px;"><i class="fas fa-check"></i></span>'
-                    : m.guestbook_status === 'rejected'
-                        ? '<span class="status-badge rejected" style="font-size:0.7rem;padding:1px 5px;"><i class="fas fa-times"></i></span>'
-                        : '<span class="status-badge auditing" style="font-size:0.7rem;padding:1px 5px;"><i class="fas fa-clock"></i></span>';
-                return `<div class="admin-log-user-info">${gBadge} <strong>${nick}</strong>: ${content}${m.content && m.content.length > 80 ? '...' : ''}</div>`;
-            }).join('')
-            : '';
-        const descHtml = todo.description ? `<div class="admin-log-details"><strong>备注：</strong>${escapeHtml(todo.description)}</div>` : '';
-        const resolvedHtml = isResolved && todo.resolved_at
-            ? `<div class="admin-log-user-info"><i class="fas fa-user-check" style="color:var(--success, #52c41a);"></i> 解决于 ${formatDateLocal(todo.resolved_at)}</div>`
-            : '';
-        const actionBtns = isResolved
-            ? `<div class="request-actions">
-                    <button class="secondary-btn small todo-reopen-btn" data-todo-id="${todo.id}"><i class="fas fa-undo"></i> 重新打开</button>
-                    <button class="secondary-btn small todo-delete-btn" data-todo-id="${todo.id}" style="color:#dc2626;border-color:#dc2626;"><i class="fas fa-trash"></i> 删除</button>
-                </div>`
-            : `<div class="request-actions">
-                    <button class="primary-btn small todo-resolve-btn" data-todo-id="${todo.id}"><i class="fas fa-check"></i> 解决</button>
-                    <button class="secondary-btn small todo-delete-btn" data-todo-id="${todo.id}" style="color:#dc2626;border-color:#dc2626;"><i class="fas fa-trash"></i> 删除</button>
-                </div>`;
-        return `
-            <div class="request-item" data-todo-id="${todo.id}" data-index="${index}">
-                <div class="request-header" style="flex-wrap:wrap;gap:0.5rem;">
-                    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-                        <span class="request-type"><i class="fas fa-folder-open" style="color:var(--primary-color);margin-right:4px;"></i>${escapeHtml(todo.category)}</span>
-                        ${countBadge}
-                        ${statusBadge}
-                    </div>
-                    <span class="admin-log-timestamp">${dateStr}</span>
-                </div>
-                ${descHtml}
-                ${msgsHtml}
-                ${resolvedHtml}
-                ${actionBtns}
-            </div>
-        `;
-    }).join('');
-
-    container.querySelectorAll('.todo-resolve-btn').forEach(btn => {
-        btn.addEventListener('click', () => resolveTodoFromModal(parseInt(btn.dataset.todoId), modal));
-    });
-    container.querySelectorAll('.todo-delete-btn').forEach(btn => {
-        btn.addEventListener('click', () => deleteTodoFromModal(parseInt(btn.dataset.todoId), modal));
-    });
-    container.querySelectorAll('.todo-reopen-btn').forEach(btn => {
-        btn.addEventListener('click', () => reopenTodoFromModal(parseInt(btn.dataset.todoId), modal));
-    });
-
-    todosLoadingMore = false;
-    renderTodosPagination(paginationEl, modal);
-    refreshTodoDotFromData();
+    container.innerHTML = '';
+    scheduleTodosRender(container, 0, modal);
 }
 
 function renderTodosPagination(paginationEl, modal) {

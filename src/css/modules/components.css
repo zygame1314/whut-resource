@@ -6239,6 +6239,32 @@ textarea.form-input {
     justify-content: flex-end;
 }
 
+.todo-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.todo-header-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.todo-folder-icon {
+    color: var(--primary-color);
+    margin-right: 4px;
+}
+
+.todo-danger-btn {
+    color: #dc2626;
+    border-color: #dc2626;
+}
+
 .request-actions .primary-btn,
 .request-actions .secondary-btn,
 .request-actions .approve-btn,
@@ -6302,6 +6328,19 @@ textarea.form-input {
     .request-actions button {
         width: 100%;
         justify-content: center;
+    }
+
+    #todos-content .request-item {
+        transition: none;
+    }
+
+    #todos-content .request-item:hover {
+        box-shadow: none;
+        border-color: var(--border-color);
+    }
+
+    #todos-content .request-type {
+        font-size: 0.9rem;
     }
 }
 
