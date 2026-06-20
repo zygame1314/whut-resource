@@ -63,12 +63,12 @@ function updateAuthUI() {
             let dropdownHtml = '';
             if (isMainPage) {
                 dropdownHtml = `
-                <div class="dropdown-container">
-                    <button id="admin-tools-toggle" class="secondary-btn" style="position:relative;overflow:hidden;" title="工具菜单">
+                <div class="dropdown-container" style="position:relative;">
+                    <button id="admin-tools-toggle" class="secondary-btn" title="工具菜单">
                         <i class="fas fa-tools"></i> 管理
-                        <span id="toggle-requests-badge" class="badge badge-dot u-hidden" style="position:absolute;top:-2px;right:-2px;pointer-events:none;margin:0;z-index:1;"></span>
                         <i class="fas fa-chevron-down u-font-small u-margin-left-small"></i>
                     </button>
+                    <span id="toggle-requests-badge" class="badge badge-dot u-hidden" style="position:absolute;top:-2px;right:-2px;pointer-events:none;margin:0;z-index:2;"></span>
                     <div id="admin-tools-menu" class="dropdown-menu">
                         ${dropdownItems}
                     </div>
