@@ -7,8 +7,8 @@ const API_ENDPOINTS = {
     preview: `${API_BASE}/api/preview`,
     sync: `${API_BASE}/api/sync`,
     guestbook: `${API_BASE}/api/guestbook`,
-    guestbookAi:      `${API_BASE}/api/guestbook-ai`,
-    todos:             `${API_BASE}/api/todos`,
+    guestbookAi: `${API_BASE}/api/guestbook-ai`,
+    todos: `${API_BASE}/api/todos`,
     boosts: `${API_BASE}/api/file-boosts`,
     announcements: `${API_BASE}/api/announcements`,
     batchDownload: `${API_BASE}/api/batch-download`,
@@ -48,7 +48,7 @@ window.filesApiCache = {
     _save(key, data, maxAge) {
         try {
             sessionStorage.setItem('fac_' + key, JSON.stringify({ data, timestamp: Date.now(), maxAge }));
-        } catch (e) {}
+        } catch (e) { }
     },
     _remove(key) {
         try {
@@ -58,7 +58,7 @@ window.filesApiCache = {
                     if (k.startsWith('fac_')) sessionStorage.removeItem(k);
                 });
             }
-        } catch (e) {}
+        } catch (e) { }
     },
     get(key, maxAgeMs) {
         const inMem = this._cache[key];

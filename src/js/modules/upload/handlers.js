@@ -62,7 +62,8 @@ async function addWatermarkToPDF(file) {
         return file;
     }
     const match = file.name.match(/【(.+?)】/);
-    const subText = match ? (match[1] + "无偿") : "无偿分享";
+    const bracketText = match ? match[1] : '';
+    const subText = bracketText ? (bracketText + "无偿") : "无偿分享";
     const mainText = "武理资源共享平台";
     try {
         await window.LazyLoader.loadPDFLib();
@@ -146,37 +147,25 @@ async function addWatermarkToPDF(file) {
         const imageBytes = await fetch(imageUrl).then(res => res.arrayBuffer());
         const watermarkImage = await pdfDoc.embedPng(imageBytes);
         const watermarkDims = watermarkImage.scale(1 / scale);
-        let ghostFont = null;
-        try {
-            ghostFont = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
-        } catch (e) {
-            console.warn("幽灵字体加载异常", e);
-        }
-        for (const page of pages) {
+        const tileW = watermarkDims.width;
+        const tileH = watermarkDims.height;
+        pages.forEach((page) => {
             const { width, height } = page.getSize();
-            const xPos = (width - watermarkDims.width) / 2;
-            const yPos = (height - watermarkDims.height) / 2;
             page.drawImage(watermarkImage, {
-                x: xPos,
-                y: yPos,
-                width: watermarkDims.width,
-                height: watermarkDims.height,
-                opacity: 0.3,
+                x: (width - tileW) / 2,
+                y: (height - tileH) / 2,
+                width: tileW,
+                height: tileH,
+                opacity: 0.25,
             });
-            if (ghostFont) {
-                try {
-                    page.drawText("[WARNING: WUT-FREE-SHARE DO NOT SELL]", {
-                        x: width / 2 - 150,
-                        y: height / 2 + 60,
-                        size: 14,
-                        font: ghostFont,
-                        opacity: 0.01
-                    });
-                } catch (e) {
-                }
-            }
+        });
+        let pdfBytes = await pdfDoc.save();
+        try {
+            const bakedBytes = await bakeWatermarkIntoPages(pdfBytes);
+            if (bakedBytes) pdfBytes = bakedBytes;
+        } catch (e) {
+            console.warn('像素烘焙水印跳过（不影响常规水印）:', e);
         }
-        const pdfBytes = await pdfDoc.save();
         const newFile = new File([pdfBytes], file.name, {
             type: 'application/pdf',
             lastModified: Date.now()
@@ -192,22 +181,103 @@ async function addWatermarkToPDF(file) {
         return file;
     }
 }
+async function bakeWatermarkIntoPages(pdfBytes) {
+    const pdfjsLib = await window.LazyLoader.loadPDFJS();
+    if (!pdfjsLib) return null;
+    const srcData = new Uint8Array(pdfBytes);
+    const loadingTask = pdfjsLib.getDocument({ data: srcData.slice(0) });
+    const pdfjsDoc = await loadingTask.promise;
+    const { PDFDocument } = PDFLib;
+    const outDoc = await PDFDocument.create();
+    const toBytes = (canvas, type, q) => new Promise(res => canvas.toBlob(b => b.arrayBuffer().then(res), type, q));
+    for (let i = 1; i <= pdfjsDoc.numPages; i++) {
+        const page = await pdfjsDoc.getPage(i);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const longSide = Math.max(baseViewport.width, baseViewport.height);
+        let scale;
+        if (longSide <= 600) scale = 2;
+        else if (longSide <= 900) scale = 1.6;
+        else scale = 1.4;
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const candidates = [
+            { type: 'image/png', q: undefined },
+            { type: 'image/jpeg', q: 0.72 },
+            { type: 'image/jpeg', q: 0.6 }
+        ];
+        let best = null;
+        for (const c of candidates) {
+            try {
+                const bytes = await toBytes(canvas, c.type, c.q);
+                if (!best || bytes.byteLength < best.bytes.byteLength) {
+                    best = { bytes, type: c.type, q: c.q };
+                }
+            } catch (e) { }
+        }
+        let img;
+        if (best.type === 'image/png') img = await outDoc.embedPng(best.bytes);
+        else img = await outDoc.embedJpg(best.bytes);
+        const ptW = viewport.width / scale;
+        const ptH = viewport.height / scale;
+        const newPage = outDoc.addPage([ptW, ptH]);
+        newPage.drawImage(img, { x: 0, y: 0, width: ptW, height: ptH });
+        page.cleanup();
+    }
+    await pdfjsDoc.destroy();
+    return outDoc.save();
+}
 async function injectTraceCode(file) {
     const excludeExts = [
         'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', '7zip',
         'docx', 'xlsx', 'pptx', 'docm', 'xlsm', 'pptm',
         'doc', 'xls', 'ppt',
         'odt', 'ods', 'odp',
-        'pdf',
         'iso', 'dmg', 'pkg', 'apk', 'ipa',
         'exe', 'msi'
     ];
     const ext = file.name.split('.').pop().toLowerCase();
+    const traceTag = `WUT-FREE|${Date.now().toString(36)}|${(file.size).toString(36)}`;
+    if (ext === 'pdf') {
+        try {
+            const buf = await file.arrayBuffer();
+            const trailer = new TextEncoder().encode(`\n%WUT-FREE-SHARE-TRACE:${traceTag}\n%%EOF-WUT\n`);
+            const merged = new Uint8Array(buf.byteLength + trailer.byteLength);
+            merged.set(new Uint8Array(buf), 0);
+            merged.set(trailer, buf.byteLength);
+            const newFile = new File([merged], file.name, { type: file.type, lastModified: file.lastModified });
+            if (file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath) {
+                newFile._webkitRelativePath = file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath;
+                newFile.originalRelativePath = newFile._webkitRelativePath;
+            }
+            return newFile;
+        } catch (e) {
+            console.warn("PDF 追踪标记失败", e);
+            return file;
+        }
+    }
+    if (['jpg', 'jpeg', 'png'].includes(ext)) {
+        try {
+            const stegoFile = await embedImageLSB(file, traceTag);
+            if (file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath) {
+                stegoFile._webkitRelativePath = file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath;
+                stegoFile.originalRelativePath = stegoFile._webkitRelativePath;
+            }
+            return stegoFile;
+        } catch (e) {
+            console.warn("图片隐写失败", e);
+        }
+    }
     if (excludeExts.includes(ext)) {
         return file;
     }
     try {
-        const traceBuffer = new TextEncoder().encode(`\n[WARNING: WUT-FREE-SHARE DO NOT SELL]\n`);
+        const traceBuffer = new TextEncoder().encode(`\n[WARNING: WUT-FREE-SHARE DO NOT SELL | trace:${traceTag}]\n`);
         const injectedBlob = new Blob([file, traceBuffer], { type: file.type });
         const newFile = new File([injectedBlob], file.name, {
             type: file.type,
@@ -222,6 +292,30 @@ async function injectTraceCode(file) {
         console.warn("注入追踪码失败", e);
         return file;
     }
+}
+async function embedImageLSB(file, tag) {
+    const img = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+    const bytes = new TextEncoder().encode(tag + '\0');
+    if (bytes.length * 3 > data.length) {
+        return file;
+    }
+    for (let i = 0; i < bytes.length; i++) {
+        const base = i * 3;
+        data[base] = (data[base] & 0xFE) | ((bytes[i] >> 7) & 1);
+        data[base + 1] = (data[base + 1] & 0xFE) | ((bytes[i] >> 6) & 1);
+        data[base + 2] = (data[base + 2] & 0xFE) | ((bytes[i] >> 5) & 1);
+    }
+    ctx.putImageData(imgData, 0, 0);
+    const outType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    const blob = await new Promise(res => canvas.toBlob(res, outType, 0.95));
+    return new File([blob], file.name, { type: outType, lastModified: file.lastModified });
 }
 async function handleFileSelect(files, append) {
     showNotification('正在处理文件，图片将被压缩...', 'info');

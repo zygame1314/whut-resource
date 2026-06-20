@@ -26,8 +26,13 @@
 }
 
 @keyframes oauthBgDrift {
-    0% { transform: translate(0, 0) rotate(0deg); }
-    100% { transform: translate(30px, -20px) rotate(2deg); }
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(30px, -20px) rotate(2deg);
+    }
 }
 
 .oauth-authorize-container {
@@ -68,13 +73,25 @@
 }
 
 @keyframes oauthGradientSlide {
-    0% { background-position: 0% 0%; }
-    100% { background-position: 200% 0%; }
+    0% {
+        background-position: 0% 0%;
+    }
+
+    100% {
+        background-position: 200% 0%;
+    }
 }
 
 @keyframes oauthFadeInUp {
-    from { opacity: 0; transform: translateY(24px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .oauth-icon-wrap {
@@ -103,8 +120,15 @@
 }
 
 @keyframes oauthIconFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-4px);
+    }
 }
 
 .oauth-icon i {
@@ -141,7 +165,7 @@
     opacity: 0.5;
 }
 
-.oauth-card > h2 {
+.oauth-card>h2 {
     font-size: 1.6rem;
     font-weight: 800;
     text-align: center;
@@ -156,8 +180,13 @@
 }
 
 @keyframes oauthShimmer {
-    0% { background-position: 0% center; }
-    100% { background-position: 200% center; }
+    0% {
+        background-position: 0% center;
+    }
+
+    100% {
+        background-position: 200% center;
+    }
 }
 
 .oauth-desc {
@@ -412,7 +441,9 @@
 }
 
 @keyframes oauthSpin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @media (max-width: 480px) {
@@ -421,7 +452,7 @@
         border-radius: 18px;
     }
 
-    .oauth-card > h2 {
+    .oauth-card>h2 {
         font-size: 1.4rem;
     }
 

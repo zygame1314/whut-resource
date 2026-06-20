@@ -98,6 +98,17 @@
         await _loadScript('lib/pdf-lib/pdf-lib.min.js');
     }
 
+    async function loadPDFJS() {
+        if (window.pdfjsLib) return window.pdfjsLib;
+        await _loadScript('lib/pdfjs/pdf.min.js');
+        window.pdfjsLib = window.pdfjsLib || window['pdfjs-dist/build/pdf'] || window.pdfjs;
+        if (!window.pdfjsLib) {
+            throw new Error('pdf.js 加载失败：未找到 pdfjsLib 全局对象');
+        }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdfjs/pdf.worker.min.js';
+        return window.pdfjsLib;
+    }
+
     window.LazyLoader = {
         loadMarkdownBase,
         loadHighlight,
@@ -105,6 +116,7 @@
         loadJSZip,
         loadShepherd,
         loadPDFLib,
+        loadPDFJS,
         loadScript: _loadScript
     };
 })();
