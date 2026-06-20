@@ -197,11 +197,11 @@ window.showNotification = function (message, type = 'info', duration = 3000) {
     notification.className = `notification notification-${type}`;
     notification.setAttribute('role', 'alert');
     notification.innerHTML = `
-        <div class="notification-icon"><i class="${icon}"></i></div>
-        <div class="notification-body">
+        <div class="notification-header">
+            <div class="notification-icon"><i class="${icon}"></i></div>
             <div class="notification-title">${titles[type] || titles.info}</div>
-            <div class="notification-message">${message}</div>
         </div>
+        <div class="notification-message">${message}</div>
         <button class="notification-close" aria-label="关闭" type="button">
             <i class="fas fa-times"></i>
         </button>

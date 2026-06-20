@@ -438,15 +438,6 @@ if (themeToggle) {
     };
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     updateThemeIcon(currentTheme === 'dark');
-    themeToggle.addEventListener('click', () => {
-        const isCurrentDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const newTheme = isCurrentDark ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        localStorage.setItem('autoTheme', 'false');
-        updateThemeIcon(newTheme === 'dark');
-        createParticleBackground();
-    });
 }
 window.addEventListener('popstate', (event) => {
     const state = event.state;
