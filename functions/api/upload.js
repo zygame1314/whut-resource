@@ -61,13 +61,31 @@ function isValidUrl(string) {
 }
 function sanitizeFileName(name) {
   if (!name || typeof name !== 'string') return null;
-  let sanitized = name
+  const decoded = name.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
+  let sanitized = decoded
+    .replace(/[\\]+/g, '/')
     .replace(/\.\./g, '')
-    .replace(/^[\/]+/, '')
     .replace(/[<>:"|?*\x00-\x1f]/g, '')
+    .replace(/\/+/g, '/')
+    .replace(/^[\/]+/, '')
+    .replace(/[\/]+$/, '')
     .trim();
   if (sanitized.length === 0 || sanitized.length > 255) return null;
   return sanitized;
+}
+function sanitizePath(path) {
+  if (!path || typeof path !== 'string') return '';
+  const decoded = path.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
+  let sanitized = decoded
+    .replace(/[\\]+/g, '/')
+    .replace(/\.\./g, '')
+    .replace(/[<>:"|?*\x00-\x1f]/g, '')
+    .replace(/\/+/g, '/')
+    .replace(/^[\/]+/, '')
+    .replace(/[\/]+$/, '')
+    .trim();
+  if (sanitized.length === 0 || sanitized.length > 512) return '';
+  return sanitized + '/';
 }
 export async function onRequestPost({ request, env, waitUntil }) {
   try {
@@ -120,6 +138,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         });
       }
       const parentPath = uploadPath || '';
+      const sanitizedParentPath = parentPath ? sanitizePath(parentPath) : '';
       const sanitizedLinkName = sanitizeFileName(linkName);
       if (!sanitizedLinkName) {
         return new Response(JSON.stringify({ success: false, error: '链接名称包含无效字符。' }), {
@@ -127,23 +146,24 @@ export async function onRequestPost({ request, env, waitUntil }) {
           headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
       }
-      const key = parentPath ? `${parentPath}${sanitizedLinkName}` : sanitizedLinkName;
+      const sanitizedLinkNameNoSlash = sanitizedLinkName.replace(/\/+/g, '_');
+      const key = sanitizedParentPath ? `${sanitizedParentPath}${sanitizedLinkNameNoSlash}` : sanitizedLinkNameNoSlash;
       const existingFile = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(key).first();
       if (existingFile) {
         return new Response(JSON.stringify({ success: false, error: '该名称的条目已存在。' }), { status: 409, headers: addCorsHeaders() });
       }
-      if (parentPath) {
+      if (sanitizedParentPath) {
         await ensureDirectoryExists(DB, key, env);
       }
       const linkInsertResult = await DB.prepare(
         'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(
         key,
-        sanitizedLinkName,
+        sanitizedLinkNameNoSlash,
         0,
         new Date().toISOString(),
         'application/x-link',
-        parentPath,
+        sanitizedParentPath,
         false,
         true,
         linkUrl,
@@ -152,14 +172,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
       ).run();
       if (env.VECTORIZE && env.SILICONFLOW_API_KEY && linkInsertResult.meta?.last_row_id) {
         try {
-          const embeddings = await generateEmbeddings(env, [buildRichEmbeddingText({ name: sanitizedLinkName, parent_path: parentPath })]);
+            const embeddings = await generateEmbeddings(env, [buildRichEmbeddingText({ name: sanitizedLinkNameNoSlash, parent_path: sanitizedParentPath })]);
           if (embeddings?.[0]) {
             await retryWithBackoff(async () => {
               await env.VECTORIZE.upsert([{
                 id: linkInsertResult.meta.last_row_id.toString(),
                 values: embeddings[0],
                 metadata: {
-                  name: sanitizedLinkName,
+                  name: sanitizedLinkNameNoSlash,
                   path: key
                 }
               }]);
@@ -167,10 +187,10 @@ export async function onRequestPost({ request, env, waitUntil }) {
           }
         } catch (indexError) {
           console.error('向量索引写入失败（链接，已重试3次）:', indexError);
-          await recordVectorSyncFailure(env, 'create', linkInsertResult.meta.last_row_id, { name: sanitizedLinkName, key }, indexError.message);
+          await recordVectorSyncFailure(env, 'create', linkInsertResult.meta.last_row_id, { name: sanitizedLinkNameNoSlash, key }, indexError.message);
         }
       }
-      await logAdminAction(env, user.id, 'create_link', 'file', linkInsertResult.meta?.last_row_id, '创建链接', JSON.stringify({ key, url: linkUrl, parent_path: parentPath }));
+      await logAdminAction(env, user.id, 'create_link', 'file', linkInsertResult.meta?.last_row_id, '创建链接', JSON.stringify({ key, url: linkUrl, parent_path: sanitizedParentPath }));
       return new Response(JSON.stringify({ success: true, message: '链接创建成功。' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
