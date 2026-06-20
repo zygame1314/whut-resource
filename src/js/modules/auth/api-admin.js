@@ -55,7 +55,7 @@ async function syncFiles() {
         });
         const cleanupData = await cleanupResp.json();
         if (!cleanupData.success) throw new Error(cleanupData.error || '清理阶段失败');
-        showNotification(`同步完成！<br>处理文件: ${totalProcessed}<br>修复目录: ${repairedCount}<br>清理记录: ${cleanupData.deletedFiles || 0}`, 'success');
+        showNotification(`同步完成！<br>处理文件: ${totalProcessed}<br>修复目录: ${repairedCount}<br>清理记录: ${cleanupData.deletedFiles || 0}`, 'success', 6000);
         btn.innerHTML = '<i class="fas fa-check"></i> 完成';
         setTimeout(() => window.location.reload(), 2000);
     } catch (e) {
@@ -178,10 +178,10 @@ async function handleBatchAction(ids, action, refreshCallback, reviewNote = '') 
                 if (failCount > 0) msg += `, 审批失败 ${failCount}`;
                 if (deleteFailures.length > 0) {
                     msg += `<br>文件清理: ${deleteSuccess} 成功, ${deleteFailures.length} 失败`;
-                    showNotification(msg, 'warning');
+                    showNotification(msg, 'warning', 6000);
                 } else {
                     msg += `<br>文件清理: ${deleteSuccess} 个已完成`;
-                    showNotification(msg, 'success');
+                    showNotification(msg, 'success', 6000);
                 }
             } catch (e) {
                 showNotification(`批量处理完成，但文件清理出错: ${e.message}`, 'warning');

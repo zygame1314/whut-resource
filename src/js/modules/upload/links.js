@@ -37,6 +37,12 @@ async function uploadLink() {
         if (linkNameInput) linkNameInput.focus();
         return;
     }
+    const nameCheck = validateItemName(linkName);
+    if (!nameCheck.valid) {
+        showNotification(nameCheck.error, 'error');
+        if (linkNameInput) linkNameInput.focus();
+        return;
+    }
     if (!linkUrl) {
         showNotification('请输入链接地址', 'error');
         if (linkUrlInput) linkUrlInput.focus();
@@ -65,7 +71,7 @@ async function uploadLink() {
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-                linkName: linkName,
+                linkName: nameCheck.value,
                 linkUrl: linkUrl,
                 uploadPath: targetPath
             })

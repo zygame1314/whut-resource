@@ -7,6 +7,16 @@ function formatBytes(bytes, decimals = 2) {
     const size = parseFloat((bytes / Math.pow(k, i)).toFixed(dm));
     return (isNaN(size) ? 0 : size) + ' ' + sizes[i];
 }
+function validateItemName(name, { allowSlash = false, maxLength = 255 } = {}) {
+    if (!name || typeof name !== 'string') return { valid: false, error: '名称不能为空。' };
+    const trimmed = name.trim();
+    if (trimmed.length === 0) return { valid: false, error: '名称不能为空。' };
+    if (trimmed.length > maxLength) return { valid: false, error: `名称不能超过 ${maxLength} 个字符。` };
+    if (trimmed.includes('..')) return { valid: false, error: '名称不能包含 ".." 。' };
+    if (!allowSlash && /[\/\\]/.test(trimmed)) return { valid: false, error: '名称不能包含斜杠 (/ 或 \\) 。' };
+    if (/[<>:"|?*\x00-\x1f]/.test(trimmed)) return { valid: false, error: '名称包含非法字符 (< > : " | ? *)。' };
+    return { valid: true, value: trimmed };
+}
 function formatDate(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);

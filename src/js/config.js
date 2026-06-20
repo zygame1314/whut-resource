@@ -172,7 +172,7 @@ window.escapeHtml = function (text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 };
-window.showNotification = function (message, type = 'info') {
+window.showNotification = function (message, type = 'info', duration = 3000) {
     let container = document.getElementById('notification-container');
     if (!container) {
         container = document.createElement('div');
@@ -180,35 +180,104 @@ window.showNotification = function (message, type = 'info') {
         container.className = 'notification-container';
         document.body.appendChild(container);
     }
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
     const icons = {
         success: 'fas fa-check-circle',
-        error: 'fas fa-exclamation-circle',
+        error: 'fas fa-times-circle',
         warning: 'fas fa-exclamation-triangle',
         info: 'fas fa-info-circle'
     };
     const icon = icons[type] || icons.info;
-    notification.innerHTML = `<i class="${icon}" style="margin-right: 0.5rem;"></i>${message}`;
+    const titles = {
+        success: '成功',
+        error: '错误',
+        warning: '警告',
+        info: '提示'
+    };
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.setAttribute('role', 'alert');
+    notification.innerHTML = `
+        <div class="notification-icon"><i class="${icon}"></i></div>
+        <div class="notification-body">
+            <div class="notification-title">${titles[type] || titles.info}</div>
+            <div class="notification-message">${message}</div>
+        </div>
+        <button class="notification-close" aria-label="关闭" type="button">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="notification-progress"></div>
+    `;
     container.appendChild(notification);
-    notification.offsetHeight;
-    notification.style.transform = 'translateX(0)';
-    notification.style.opacity = '1';
+    // 强制重排以应用基础态，再用双 RAF 触发进入动画
+    void notification.offsetWidth;
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            notification.classList.add('notification-show');
+        });
+    });
+    const progressBar = notification.querySelector('.notification-progress');
+    let lastPct = 1;          // 当前进度比例（1 = 满）
+    let pauseAt = 0;           // 本段计时起点时间戳
+    let elapsedInSlice = 0;    // 本段已用时长
+    let rafId = null;
+    let timeoutId = null;
+    let isRemoved = false;
+
+    const updateProgress = (pct) => {
+        lastPct = pct;
+        if (progressBar) progressBar.style.transform = `scaleX(${pct})`;
+    };
+
+    const tick = (now) => {
+        const elapsed = elapsedInSlice + (now - pauseAt);
+        const pct = Math.max(0, 1 - elapsed / duration);
+        updateProgress(pct);
+        if (pct > 0) {
+            rafId = requestAnimationFrame(tick);
+        } else {
+            removeNotification();
+        }
+    };
     const removeNotification = () => {
-        notification.style.transform = 'translateX(calc(100% + 20px))';
-        notification.style.opacity = '0';
-        notification.addEventListener('transitionend', () => {
+        if (isRemoved) return;
+        isRemoved = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        if (rafId) cancelAnimationFrame(rafId);
+        notification.classList.remove('notification-show');
+        notification.classList.add('notification-leave');
+        const onEnd = () => {
             notification.remove();
             if (container.children.length === 0 && container.parentNode) {
                 container.remove();
             }
-        });
+        };
+        notification.addEventListener('transitionend', onEnd, { once: true });
+        setTimeout(onEnd, 400);
     };
-    const timeoutId = setTimeout(removeNotification, 3000);
-    notification.addEventListener('click', () => {
-        clearTimeout(timeoutId);
+    // 从当前进度继续计时
+    const startTimer = () => {
+        if (lastPct <= 0) return;
+        elapsedInSlice = (1 - lastPct) * duration;
+        pauseAt = performance.now();
+        rafId = requestAnimationFrame(tick);
+        // 仅用 timeout 兜底，进度条由 RAF 驱动
+        timeoutId = setTimeout(removeNotification, lastPct * duration);
+    };
+    const pauseTimer = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (rafId) cancelAnimationFrame(rafId);
+        // 累计本段已用时长，并同步当前进度
+        elapsedInSlice += (performance.now() - pauseAt);
+        updateProgress(Math.max(0, 1 - elapsedInSlice / duration));
+    };
+    notification.addEventListener('mouseenter', pauseTimer);
+    notification.addEventListener('mouseleave', startTimer);
+    notification.addEventListener('click', removeNotification);
+    notification.querySelector('.notification-close').addEventListener('click', (e) => {
+        e.stopPropagation();
         removeNotification();
     });
+    startTimer();
 };
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

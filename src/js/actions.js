@@ -484,6 +484,12 @@ async function renameFile(key, currentName, isDirectory) {
         showNotification('名称无效或未改变，已取消操作。', 'info');
         return;
     }
+    const nameCheck = validateItemName(newName);
+    if (!nameCheck.valid) {
+        showNotification(nameCheck.error, 'error');
+        return;
+    }
+    const safeNewName = nameCheck.value;
     const performRename = async () => {
         const token = localStorage.getItem('authToken');
         if (!token) {
@@ -497,14 +503,14 @@ async function renameFile(key, currentName, isDirectory) {
             },
             body: JSON.stringify({
                 key: key,
-                newName: newName
+                newName: safeNewName
             }),
         });
         const result = await response.json();
         if (!response.ok || !result.success) {
             throw new Error(result.error || '重命名失败，请稍后重试。');
         }
-        showNotification(`成功重命名为 "${newName}"`, 'success');
+        showNotification(`成功重命名为 "${safeNewName}"`, 'success');
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];

@@ -249,7 +249,7 @@ async function handleFileSelect(files, append) {
         }
         if (ignoredFiles.length > 0) {
             console.warn('部分文件被忽略:', ignoredFiles);
-            showNotification(`${ignoredFiles.length} 个文件被忽略 (如: ${ignoredFiles[0].name} ${ignoredFiles[0].error})`, 'warning');
+            showNotification(`${ignoredFiles.length} 个文件被忽略 (如: ${ignoredFiles[0].name} ${ignoredFiles[0].error})`, 'warning', 5000);
         }
         showSelectedFile(validFiles, append);
         if (validFiles.length > 0) {

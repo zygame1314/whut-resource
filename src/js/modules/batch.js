@@ -344,7 +344,7 @@ async function handleBatchDownloadLegacy(fileKeys, directoryKeys, linkKeys, down
             await downloadFileWithDelay(filesToDownload[i], i);
         }
         if (failedCount > 0) {
-            showNotification(`批量下载完成。成功 ${downloadedCount} 个，失败 ${failedCount} 个。`, 'warning');
+            showNotification(`批量下载完成。成功 ${downloadedCount} 个，失败 ${failedCount} 个。`, 'warning', 5000);
         } else {
             showNotification(`所有 ${totalFiles} 个文件已成功开始下载。`, 'success');
         }

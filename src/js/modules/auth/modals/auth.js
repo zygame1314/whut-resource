@@ -378,7 +378,7 @@ function showAuthModal(mode = 'login') {
                 if (!loginPowCtrl.isSolved() || !loginPowCtrl.meetsRequired()) {
                     if (loginPowCtrl.isSolved() && !loginPowCtrl.meetsRequired()) {
                         loginPowCtrl.reset();
-                        showNotification(`人机验证难度不足，需要 ${loginPowCtrl.requiredBits()} 位难度，请重新验证`, 'error');
+                        showNotification(`人机验证难度不足，需要 ${loginPowCtrl.requiredBits()} 位难度，请重新验证`, 'error', 5000);
                     } else if (!loginPowCtrl.isSolving()) {
                         loginPowEl.click();
                     }
@@ -390,8 +390,8 @@ function showAuthModal(mode = 'login') {
                 powData = loginPowCtrl.getResult();
                 if (powData && loginPowCtrl.requiredBits() && powData.powBits < loginPowCtrl.requiredBits()) {
                     loginPowCtrl.reset();
-                    showNotification(`人机验证难度不足，需要 ${loginPowCtrl.requiredBits()} 位难度，请重新验证`, 'error');
-                    return;
+                showNotification(`人机验证难度不足，需要 ${loginPowCtrl.requiredBits()} 位难度，请重新验证`, 'error', 5000);
+                return;
                 }
             }
             let payload = { password };
