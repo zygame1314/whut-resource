@@ -1,4 +1,29 @@
 import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest } from '../utils.js';
+function sanitizeSegment(name) {
+    if (!name || typeof name !== 'string') return null;
+    const decoded = name.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
+    let sanitized = decoded
+        .replace(/[\\]+/g, '/')
+        .replace(/\.\./g, '')
+        .replace(/[<>:"|?*\x00-\x1f\/\\]/g, '')
+        .trim();
+    if (sanitized.length === 0 || sanitized.length > 255) return null;
+    return sanitized;
+}
+function sanitizePath(path) {
+    if (!path || typeof path !== 'string') return '';
+    const decoded = path.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
+    let sanitized = decoded
+        .replace(/[\\]+/g, '/')
+        .replace(/\.\./g, '')
+        .replace(/[<>:"|?*\x00-\x1f]/g, '')
+        .replace(/\/+/g, '/')
+        .replace(/^[\/]+/, '')
+        .replace(/[\/]+$/, '')
+        .trim();
+    if (sanitized.length === 0 || sanitized.length > 512) return '';
+    return sanitized + '/';
+}
 async function fetchLikedFileKeys(DB, userId) {
     try {
         const { results } = await DB.prepare('SELECT file_key FROM file_reactions WHERE user_id = ?').bind(userId).all();
@@ -555,6 +580,13 @@ export async function onRequestPut({ request, env }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
+        const sanitizedNewName = sanitizeSegment(newName);
+        if (!sanitizedNewName) {
+            return new Response(JSON.stringify({ success: false, error: '新名称包含无效字符。' }), {
+                status: 400,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
         const fileRecord = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(key).first();
         if (!fileRecord) {
             return new Response(JSON.stringify({ success: false, error: '文件未找到。' }), {
@@ -567,7 +599,7 @@ export async function onRequestPut({ request, env }) {
         if (isDirectory) {
             const oldFolderKey = key;
             const oldFolderPath = key.endsWith('/') ? key : key + '/';
-            const newFolderKey = parentPath ? `${parentPath}${newName}/` : `${newName}/`;
+            const newFolderKey = parentPath ? `${parentPath}${sanitizedNewName}/` : `${sanitizedNewName}/`;
             if (oldFolderKey === newFolderKey || oldFolderPath === newFolderKey) {
                 return new Response(JSON.stringify({ success: false, error: '新名称与原名称相同。' }), {
                     status: 400,
@@ -598,7 +630,7 @@ export async function onRequestPut({ request, env }) {
                 DB.prepare(`
                     INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id, likes, boost_count, description, last_verified)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `).bind(newFolderKey, newName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, parentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id, fileRecord.likes, fileRecord.boost_count, fileRecord.description, fileRecord.last_verified)
+                `).bind(newFolderKey, sanitizedNewName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, parentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id, fileRecord.likes, fileRecord.boost_count, fileRecord.description, fileRecord.last_verified)
             );
             batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(oldFolderKey));
             const R2_CONCURRENCY = 4;
@@ -660,7 +692,7 @@ export async function onRequestPut({ request, env }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
-        const newKey = parentPath ? `${parentPath}${newName}` : newName;
+        const newKey = parentPath ? `${parentPath}${sanitizedNewName}` : sanitizedNewName;
         const existing = await DB.prepare('SELECT key FROM files WHERE key = ?').bind(newKey).first();
         if (existing) {
             return new Response(JSON.stringify({ success: false, error: '新名称的文件已存在。' }), {
@@ -691,7 +723,7 @@ export async function onRequestPut({ request, env }) {
                 INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id, likes, boost_count, description, last_verified)
                 SELECT ?, ?, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id, likes, boost_count, description, last_verified
                 FROM files WHERE key = ?
-            `).bind(newKey, newName, key),
+            `).bind(newKey, sanitizedNewName, key),
             DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, key),
             DB.prepare('UPDATE file_reactions SET file_key = ? WHERE file_key = ?').bind(newKey, key),
             DB.prepare('UPDATE file_boosts SET file_key = ? WHERE file_key = ?').bind(newKey, key),
@@ -775,10 +807,7 @@ export async function onRequestPost({ request, env }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
-        let newParentPath = destinationPath;
-        if (newParentPath && !newParentPath.endsWith('/')) {
-            newParentPath += '/';
-        }
+        let newParentPath = destinationPath ? sanitizePath(destinationPath) : '';
         const isDirectory = fileRecord.is_directory === 1 || fileRecord.is_directory === true;
         if (isDirectory) {
             const oldFolderPath = sourceKey.endsWith('/') ? sourceKey : sourceKey + '/';
