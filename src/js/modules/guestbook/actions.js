@@ -319,7 +319,7 @@ window.loadMoreReplies = async function (parentId) {
         showNotification('加载更多回复失败', 'error');
         if (loadMoreBtn) {
             loadMoreBtn.disabled = false;
-            loadMoreBtn.innerHTML = '<i class="fas fa-chevron-up"></i> 加载更多回复';
+            loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多回复';
         }
     }
 };

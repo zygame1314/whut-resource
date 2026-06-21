@@ -5111,7 +5111,7 @@ textarea.form-input {
 
     .guestbook-replies {
         padding: 0.5rem;
-        max-height: 150px;
+        max-height: 250px;
     }
 
     .reply-avatar {

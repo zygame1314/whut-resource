@@ -267,7 +267,7 @@ function renderGuestbookItem(msg) {
             if (meta && meta.hasMore) {
                 const remaining = (meta.total != null ? meta.total : 0) - msg.replies.length;
                 const remainingText = remaining > 0 ? `（还有 ${remaining} 条）` : '';
-                loadMoreHtml = `<button class="guestbook-replies-load-more" onclick="loadMoreReplies(${msg.id})"><i class="fas fa-chevron-up"></i> 加载更多回复${remainingText}</button>`;
+                loadMoreHtml = `<button class="guestbook-replies-load-more" onclick="loadMoreReplies(${msg.id})"><i class="fas fa-chevron-down"></i> 加载更多回复${remainingText}</button>`;
             }
             repliesHtml = `<div class="guestbook-replies" id="replies-${msg.id}">${replies}${loadMoreHtml}</div>`;
         }
