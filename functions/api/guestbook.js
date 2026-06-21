@@ -149,7 +149,7 @@ async function handleGet(request, env) {
             : 'SELECT g.*, u.nickname, u.email, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id';
         const nonAdminExtra = !isAdminUser ? ' AND (g.is_hidden = 0 OR g.user_id = ?)' : '';
         const stmts = allParentIds.map(pid => {
-            const sql = `${replySelect} WHERE g.parent_id = ?${nonAdminExtra} ORDER BY g.created_at DESC LIMIT ?`;
+            const sql = `${replySelect} WHERE g.parent_id = ?${nonAdminExtra} ORDER BY g.created_at ASC LIMIT ?`;
             return isAdminUser
                 ? env.DB.prepare(sql).bind(pid, REPLIES_PER_PARENT + 1)
                 : env.DB.prepare(sql).bind(pid, currentUserId, REPLIES_PER_PARENT + 1);
@@ -163,10 +163,10 @@ async function handleGet(request, env) {
             const trimmed = hasMore ? rows.slice(0, REPLIES_PER_PARENT) : rows;
             for (const r of trimmed) replies.push(r);
             if (hasMore) {
-                const oldest = trimmed[trimmed.length - 1];
+                const newest = trimmed[trimmed.length - 1];
                 replyMeta[pid] = {
                     hasMore: true,
-                    replyCursor: btoa(JSON.stringify({ t: oldest.created_at, k: oldest.id, total: null }))
+                    replyCursor: btoa(JSON.stringify({ t: newest.created_at, k: newest.id, total: null }))
                 };
                 needCountPids.push(pid);
             }
@@ -250,20 +250,19 @@ async function handleGetReplies(request, env, parentId) {
         conditions.push('(g.is_hidden = 0 OR g.user_id = ?)');
         params.push(user.id);
     }
-    conditions.push('(g.created_at < ? OR (g.created_at = ? AND g.id < ?))');
+    conditions.push('(g.created_at > ? OR (g.created_at = ? AND g.id > ?))');
     params.push(cursorObj.t, cursorObj.t, cursorObj.k);
-    const query = `${replySelect} WHERE ${conditions.join(' AND ')} ORDER BY g.created_at DESC, g.id DESC LIMIT ?`;
+    const query = `${replySelect} WHERE ${conditions.join(' AND ')} ORDER BY g.created_at ASC, g.id ASC LIMIT ?`;
     const result = await env.DB.prepare(query).bind(...params, limit + 1).all();
     const rows = result.results || [];
     const hasMore = rows.length > limit;
     const newRows = hasMore ? rows.slice(0, limit) : rows;
-    newRows.reverse();
     let totalCount = cursorObj.total;
     if (hasMore && (totalCount == null)) {
         const totalCountResult = await env.DB.prepare('SELECT COUNT(*) as cnt FROM guestbook WHERE parent_id = ?').bind(parentId).first();
         totalCount = totalCountResult ? totalCountResult.cnt : 0;
     }
-    const last = newRows[0];
+    const last = newRows[newRows.length - 1];
     const nextCursor = (hasMore && last)
         ? btoa(JSON.stringify({ t: last.created_at, k: last.id, total: totalCount }))
         : null;

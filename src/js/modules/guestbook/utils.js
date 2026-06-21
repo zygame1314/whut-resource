@@ -120,7 +120,7 @@ function appendRepliesToCache(parentId, newReplies, nextCursor, hasMore, total) 
     const existingIds = new Set(msg.replies.map(r => r.id));
     for (const r of newReplies) {
         if (!existingIds.has(r.id)) {
-            msg.replies.unshift(r);
+            msg.replies.push(r);
             existingIds.add(r.id);
         }
     }
@@ -145,7 +145,6 @@ function appendRepliesToDom(parentId) {
         isAdmin: isGuestbookAdmin(window.currentUser),
         currentUserId: window.currentUser ? window.currentUser.id : null
     };
-    const loadMoreBtn = repliesContainer.querySelector('.guestbook-replies-load-more');
     const html = msg.replies.map(r => renderGuestbookReply(r, ctx)).join('');
     const meta = msg.replyMeta;
     let loadMoreHtml = '';
@@ -154,11 +153,7 @@ function appendRepliesToDom(parentId) {
         const remainingText = remaining > 0 ? `（还有 ${remaining} 条）` : '';
         loadMoreHtml = `<button class="guestbook-replies-load-more" onclick="loadMoreReplies(${parentId})"><i class="fas fa-chevron-up"></i> 加载更多回复${remainingText}</button>`;
     }
-    if (loadMoreBtn) {
-        loadMoreBtn.outerHTML = html + loadMoreHtml;
-    } else {
-        repliesContainer.innerHTML = html + loadMoreHtml;
-    }
+    repliesContainer.innerHTML = html + loadMoreHtml;
 }
 function removeFromGuestbookCache(id) {
     let found = false;
