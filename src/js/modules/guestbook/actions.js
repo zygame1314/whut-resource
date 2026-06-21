@@ -300,3 +300,26 @@ window.pinnedCarouselGoTo = function (index) {
     stopPinnedCarousel();
     startPinnedCarousel();
 };
+window.loadMoreReplies = async function (parentId) {
+    const { msg } = findParentMessage(parentId);
+    if (!msg) return;
+    if (!msg.replyMeta || !msg.replyMeta.hasMore) return;
+    const cursor = msg.replyMeta.replyCursor;
+    const loadMoreBtn = document.querySelector(`#replies-${parentId} .guestbook-replies-load-more`);
+    if (loadMoreBtn) {
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+    }
+    try {
+        const page = await guestbookFetchMoreReplies(parentId, cursor);
+        appendRepliesToCache(parentId, page.replies, page.nextCursor, page.hasMore, page.total);
+        appendRepliesToDom(parentId);
+    } catch (e) {
+        console.error('加载更多回复失败:', e);
+        showNotification('加载更多回复失败', 'error');
+        if (loadMoreBtn) {
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.innerHTML = '<i class="fas fa-chevron-up"></i> 加载更多回复';
+        }
+    }
+};

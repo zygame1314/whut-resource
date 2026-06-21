@@ -96,6 +96,69 @@ function renderGuestbook(messages) {
     }
     guestbookList.innerHTML = messages.map(msg => renderGuestbookItem(msg)).join('');
 }
+function renderGuestbookReply(reply, ctx) {
+    const { isAdmin, currentUserId } = ctx;
+    const replyNickname = reply.nickname || '匿名用户';
+    const replySafeNickname = escapeHtml(replyNickname);
+    const replyAvatarChar = replySafeNickname.charAt(0).toUpperCase();
+    const replyAvatarColor = getAvatarColor(replyNickname);
+    const likedClass = reply.has_liked ? 'active' : '';
+    const likeAction = reply.has_liked ? `unlikeGuestbook(${reply.id}, this)` : `likeGuestbook(${reply.id}, this)`;
+    const likeIcon = reply.has_liked ? 'fas fa-heart' : 'far fa-heart';
+    let replyAdminControls = '';
+    let replyAuthorControls = '';
+    if (isAdmin) {
+        const replyEncodedContent = btoa(encodeURIComponent(reply.content));
+        replyAdminControls = `
+        <div class="guestbook-admin-controls">
+            <button class="icon-btn small" onclick="editGuestbook(${reply.id}, '${replyEncodedContent}')" title="编辑回复">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="icon-btn small danger" onclick="deleteGuestbook(${reply.id})" title="删除回复">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>`;
+    }
+    if (currentUserId === reply.user_id && !isAdmin) {
+        const replyEncodedContent = btoa(encodeURIComponent(reply.content));
+        replyAuthorControls = `
+        <div class="guestbook-author-controls">
+            <button class="icon-btn small" onclick="editGuestbook(${reply.id}, '${replyEncodedContent}')" title="编辑回复">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="icon-btn small danger" onclick="deleteGuestbook(${reply.id})" title="删除回复">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>`;
+    }
+    return `
+        <div class="guestbook-reply-item" data-reply-id="${reply.id}">
+            <div class="guestbook-reply-avatar">
+                <div class="user-avatar-placeholder reply-avatar" style="background: ${replyAvatarColor}">${reply.isAdmin ? `<i class="fas fa-${reply.isSuperAdmin ? 'crown' : 'shield-alt'} avatar-role-icon reply-role-icon${reply.isSuperAdmin ? ' super' : ''}"></i>` : ''}${replyAvatarChar}</div>
+            </div>
+            <div class="guestbook-reply-main">
+                <div class="guestbook-header">
+                    <div class="guestbook-user-info">
+                        <div class="user-info-top">
+                            <div class="nickname-wrapper">
+                                <span class="nickname" title="${replySafeNickname}">${replySafeNickname}</span>
+                                <span class="reply-indicator"><i class="fas fa-reply"></i></span>
+                            </div>
+                            <span class="timestamp">${formatDateLocal(reply.created_at)}</span>
+                        </div>
+                    </div>
+                    ${replyAdminControls}${replyAuthorControls}
+                </div>
+                <div class="guestbook-content">${escapeHtml(reply.content)}</div>
+                <div class="guestbook-footer">
+                    <button class="like-btn ${likedClass}" onclick="${likeAction}">
+                        <i class="${likeIcon}"></i> <span>${reply.likes}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
 function renderGuestbookItem(msg) {
     const isAdmin = isGuestbookAdmin(window.currentUser);
     const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
@@ -198,69 +261,15 @@ function renderGuestbookItem(msg) {
         }
         let repliesHtml = '';
         if (msg.replies && msg.replies.length > 0) {
-            const replies = msg.replies.map(reply => {
-                const replyNickname = reply.nickname || '匿名用户';
-                const replySafeNickname = escapeHtml(replyNickname);
-                const replyAvatarChar = replySafeNickname.charAt(0).toUpperCase();
-                const replyAvatarColor = getAvatarColor(replyNickname);
-                const likedClass = reply.has_liked ? 'active' : '';
-                const likeAction = reply.has_liked ? `unlikeGuestbook(${reply.id}, this)` : `likeGuestbook(${reply.id}, this)`;
-                const likeIcon = reply.has_liked ? 'fas fa-heart' : 'far fa-heart';
-                let replyAdminControls = '';
-                let replyAuthorControls = '';
-                if (isAdmin) {
-                    const replyEncodedContent = btoa(encodeURIComponent(reply.content));
-                    replyAdminControls = `
-                    <div class="guestbook-admin-controls">
-                        <button class="icon-btn small" onclick="editGuestbook(${reply.id}, '${replyEncodedContent}')" title="编辑回复">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="icon-btn small danger" onclick="deleteGuestbook(${reply.id})" title="删除回复">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>`;
-                }
-                if (currentUserId === reply.user_id && !isAdmin) {
-                    const replyEncodedContent = btoa(encodeURIComponent(reply.content));
-                    replyAuthorControls = `
-                    <div class="guestbook-author-controls">
-                        <button class="icon-btn small" onclick="editGuestbook(${reply.id}, '${replyEncodedContent}')" title="编辑回复">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="icon-btn small danger" onclick="deleteGuestbook(${reply.id})" title="删除回复">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>`;
-                }
-                return `
-                    <div class="guestbook-reply-item">
-                        <div class="guestbook-reply-avatar">
-                            <div class="user-avatar-placeholder reply-avatar" style="background: ${replyAvatarColor}">${reply.isAdmin ? `<i class="fas fa-${reply.isSuperAdmin ? 'crown' : 'shield-alt'} avatar-role-icon reply-role-icon${reply.isSuperAdmin ? ' super' : ''}"></i>` : ''}${replyAvatarChar}</div>
-                        </div>
-                        <div class="guestbook-reply-main">
-                            <div class="guestbook-header">
-                                <div class="guestbook-user-info">
-                                    <div class="user-info-top">
-                                        <div class="nickname-wrapper">
-                                            <span class="nickname" title="${replySafeNickname}">${replySafeNickname}</span>
-                                            <span class="reply-indicator"><i class="fas fa-reply"></i></span>
-                                        </div>
-                                        <span class="timestamp">${formatDateLocal(reply.created_at)}</span>
-                                    </div>
-                                </div>
-                                ${replyAdminControls}${replyAuthorControls}
-                            </div>
-                            <div class="guestbook-content">${escapeHtml(reply.content)}</div>
-                            <div class="guestbook-footer">
-                                <button class="like-btn ${likedClass}" onclick="${likeAction}">
-                                    <i class="${likeIcon}"></i> <span>${reply.likes}</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            repliesHtml = `<div class="guestbook-replies">${replies}</div>`;
+            const replies = msg.replies.map(reply => renderGuestbookReply(reply, { isAdmin, currentUserId })).join('');
+            const meta = msg.replyMeta;
+            let loadMoreHtml = '';
+            if (meta && meta.hasMore) {
+                const remaining = (meta.total != null ? meta.total : 0) - msg.replies.length;
+                const remainingText = remaining > 0 ? `（还有 ${remaining} 条）` : '';
+                loadMoreHtml = `<button class="guestbook-replies-load-more" onclick="loadMoreReplies(${msg.id})"><i class="fas fa-chevron-up"></i> 加载更多回复${remainingText}</button>`;
+            }
+            repliesHtml = `<div class="guestbook-replies" id="replies-${msg.id}">${replies}${loadMoreHtml}</div>`;
         }
         return `
             <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''} ${msg.is_pinned ? 'is-pinned' : ''}">

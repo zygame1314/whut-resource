@@ -286,6 +286,9 @@ async function handleReplySubmit(parentId, content) {
             if (pinnedParent) {
                 if (!pinnedParent.replies) pinnedParent.replies = [];
                 pinnedParent.replies.push(newReply);
+                if (pinnedParent.replyMeta) {
+                    pinnedParent.replyMeta.total = (pinnedParent.replyMeta.total || pinnedParent.replies.length) + 1;
+                }
                 parentFound = true;
                 renderPinnedGuestbook();
             }
@@ -296,6 +299,9 @@ async function handleReplySubmit(parentId, content) {
                     if (parent) {
                         if (!parent.replies) parent.replies = [];
                         parent.replies.push(newReply);
+                        if (parent.replyMeta) {
+                            parent.replyMeta.total = (parent.replyMeta.total || parent.replies.length) + 1;
+                        }
                         break;
                     }
                 }
@@ -315,6 +321,23 @@ async function handleReplySubmit(parentId, content) {
         console.error('Error posting reply:', error);
         showNotification('回复出错，请检查网络', 'error');
     }
+}
+async function guestbookFetchMoreReplies(parentId, cursor) {
+    const token = localStorage.getItem('authToken');
+    const params = new URLSearchParams();
+    params.set('parent_id', String(parentId));
+    if (cursor) params.set('cursor', cursor);
+    const response = await fetch(`${GUESTBOOK_API_URL}?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch more replies');
+    const data = await response.json();
+    return {
+        replies: data.replies || [],
+        nextCursor: data.nextCursor || null,
+        hasMore: !!data.hasMore,
+        total: data.total != null ? data.total : 0
+    };
 }
 function getViewLikes(id) {
     for (const msg of pinnedGuestbookMessages) {

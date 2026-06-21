@@ -103,6 +103,63 @@ function updateGuestbookCache(id, updates) {
     const cur = guestbookCursorStack[guestbookPageIndex];
     if (cur && cur.messages) renderGuestbook(cur.messages);
 }
+function findParentMessage(parentId) {
+    const pinned = pinnedGuestbookMessages.find(m => m.id === parentId);
+    if (pinned) return { msg: pinned, isPinned: true };
+    for (const page of guestbookCursorStack) {
+        if (!page.messages) continue;
+        const m = page.messages.find(x => x.id === parentId);
+        if (m) return { msg: m, isPinned: false };
+    }
+    return { msg: null, isPinned: false };
+}
+function appendRepliesToCache(parentId, newReplies, nextCursor, hasMore, total) {
+    const { msg, isPinned } = findParentMessage(parentId);
+    if (!msg) return false;
+    if (!msg.replies) msg.replies = [];
+    const existingIds = new Set(msg.replies.map(r => r.id));
+    for (const r of newReplies) {
+        if (!existingIds.has(r.id)) {
+            msg.replies.unshift(r);
+            existingIds.add(r.id);
+        }
+    }
+    msg.replies.sort((a, b) => {
+        const ta = a.created_at ? String(a.created_at) : '';
+        const tb = b.created_at ? String(b.created_at) : '';
+        return ta < tb ? -1 : ta > tb ? 1 : 0;
+    });
+    msg.replyMeta = {
+        hasMore: !!hasMore,
+        replyCursor: nextCursor || null,
+        total: total != null ? total : (msg.replyMeta ? msg.replyMeta.total : msg.replies.length)
+    };
+    return true;
+}
+function appendRepliesToDom(parentId) {
+    const { msg } = findParentMessage(parentId);
+    if (!msg) return;
+    const repliesContainer = document.getElementById(`replies-${parentId}`);
+    if (!repliesContainer) return;
+    const ctx = {
+        isAdmin: isGuestbookAdmin(window.currentUser),
+        currentUserId: window.currentUser ? window.currentUser.id : null
+    };
+    const loadMoreBtn = repliesContainer.querySelector('.guestbook-replies-load-more');
+    const html = msg.replies.map(r => renderGuestbookReply(r, ctx)).join('');
+    const meta = msg.replyMeta;
+    let loadMoreHtml = '';
+    if (meta && meta.hasMore) {
+        const remaining = (meta.total != null ? meta.total : 0) - msg.replies.length;
+        const remainingText = remaining > 0 ? `（还有 ${remaining} 条）` : '';
+        loadMoreHtml = `<button class="guestbook-replies-load-more" onclick="loadMoreReplies(${parentId})"><i class="fas fa-chevron-up"></i> 加载更多回复${remainingText}</button>`;
+    }
+    if (loadMoreBtn) {
+        loadMoreBtn.outerHTML = html + loadMoreHtml;
+    } else {
+        repliesContainer.innerHTML = html + loadMoreHtml;
+    }
+}
 function removeFromGuestbookCache(id) {
     let found = false;
     const pi = pinnedGuestbookMessages.findIndex(m => m.id === id);

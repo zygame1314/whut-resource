@@ -2257,6 +2257,32 @@
     scrollbar-width: thin;
 }
 
+.guestbook-replies-load-more {
+    align-self: center;
+    margin-top: 0.25rem;
+    padding: 4px 12px;
+    border: 1px solid rgba(var(--primary-rgb), 0.2);
+    background: var(--background-alt);
+    color: var(--primary);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.guestbook-replies-load-more:hover:not(:disabled) {
+    background: rgba(var(--primary-rgb), 0.08);
+    border-color: rgba(var(--primary-rgb), 0.4);
+}
+
+.guestbook-replies-load-more:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
 .guestbook-reply-item {
     display: flex;
     gap: 0.7rem;

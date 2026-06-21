@@ -1,5 +1,6 @@
 import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren } from '../utils.js';
 import { processWithAIAgent, processReplyWithAI } from './guestbook-ai.js';
+const REPLIES_PER_PARENT = 5;
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -31,8 +32,24 @@ async function getUser(request, env) {
     if (!payload) return null;
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }
+function sanitizeEntry(entry, isAdminUser) {
+    if (!entry) return entry;
+    if (entry.role === 'admin' || entry.role === 'super_admin') {
+        entry.isAdmin = true;
+        entry.isSuperAdmin = entry.role === 'super_admin';
+    }
+    if (!isAdminUser && entry.email) {
+        const [name, domain] = entry.email.split('@');
+        entry.email = `${name.substring(0, 2)}***@${domain}`;
+    }
+    return entry;
+}
 async function handleGet(request, env) {
     const url = new URL(request.url);
+    const parentId = url.searchParams.get('parent_id');
+    if (parentId) {
+        return await handleGetReplies(request, env, parseInt(parentId));
+    }
     const user = await getUser(request, env);
     if (!user) {
         return new Response(JSON.stringify({ error: '请先登录' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -124,14 +141,47 @@ async function handleGet(request, env) {
         pinnedItems = pinnedResult.results || [];
     }
     let replies = [];
+    const replyMeta = {};
     const allParentIds = [...pinnedItems.map(m => m.id), ...pageItems.map(m => m.id)];
     if (allParentIds.length > 0) {
-        const ph = allParentIds.map(() => '?').join(',');
         const replySelect = isAdminUser
             ? 'SELECT g.*, u.nickname, u.email, u.is_banned, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id'
             : 'SELECT g.*, u.nickname, u.email, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id';
-        const replyResult = await env.DB.prepare(`${replySelect} WHERE g.parent_id IN (${ph}) ORDER BY g.created_at ASC`).bind(...allParentIds).all();
-        replies = replyResult.results;
+        const nonAdminExtra = !isAdminUser ? ' AND (g.is_hidden = 0 OR g.user_id = ?)' : '';
+        const stmts = allParentIds.map(pid => {
+            const sql = `${replySelect} WHERE g.parent_id = ?${nonAdminExtra} ORDER BY g.created_at DESC LIMIT ?`;
+            return isAdminUser
+                ? env.DB.prepare(sql).bind(pid, REPLIES_PER_PARENT + 1)
+                : env.DB.prepare(sql).bind(pid, currentUserId, REPLIES_PER_PARENT + 1);
+        });
+        const batchResults = await env.DB.batch(stmts);
+        const needCountPids = [];
+        for (let i = 0; i < allParentIds.length; i++) {
+            const pid = allParentIds[i];
+            const rows = batchResults[i].results || [];
+            const hasMore = rows.length > REPLIES_PER_PARENT;
+            const trimmed = hasMore ? rows.slice(0, REPLIES_PER_PARENT) : rows;
+            for (const r of trimmed) replies.push(r);
+            if (hasMore) {
+                const oldest = trimmed[trimmed.length - 1];
+                replyMeta[pid] = {
+                    hasMore: true,
+                    replyCursor: btoa(JSON.stringify({ t: oldest.created_at, k: oldest.id, total: null }))
+                };
+                needCountPids.push(pid);
+            }
+        }
+        if (needCountPids.length > 0) {
+            const ph = needCountPids.map(() => '?').join(',');
+            const countResult = await env.DB.prepare(
+                `SELECT parent_id, COUNT(*) as cnt FROM guestbook WHERE parent_id IN (${ph}) GROUP BY parent_id`
+            ).bind(...needCountPids).all();
+            for (const row of (countResult.results || [])) {
+                const cur = JSON.parse(atob(replyMeta[row.parent_id].replyCursor));
+                replyMeta[row.parent_id].replyCursor = btoa(JSON.stringify({ ...cur, total: row.cnt }));
+            }
+        }
+        replies.sort((a, b) => (a.parent_id - b.parent_id) || (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0));
     }
     let likedIds = new Set();
     const allIds = [...pinnedItems.map(m => m.id), ...pageItems.map(m => m.id), ...replies.map(r => r.id)];
@@ -149,39 +199,9 @@ async function handleGet(request, env) {
     for (const r of replies) {
         r.has_liked = likedIds.has(r.id);
     }
-    const sanitizedPinned = pinnedItems.map(msg => {
-        if (msg.role === 'admin' || msg.role === 'super_admin') {
-            msg.isAdmin = true;
-            msg.isSuperAdmin = msg.role === 'super_admin';
-        }
-        if (!isAdminUser && msg.email) {
-            const [name, domain] = msg.email.split('@');
-            msg.email = `${name.substring(0, 2)}***@${domain}`;
-        }
-        return msg;
-    });
-    const sanitizedParents = pageItems.map(msg => {
-        if (msg.role === 'admin' || msg.role === 'super_admin') {
-            msg.isAdmin = true;
-            msg.isSuperAdmin = msg.role === 'super_admin';
-        }
-        if (!isAdminUser && msg.email) {
-            const [name, domain] = msg.email.split('@');
-            msg.email = `${name.substring(0, 2)}***@${domain}`;
-        }
-        return msg;
-    });
-    const sanitizedReplies = replies.map(r => {
-        if (r.role === 'admin' || r.role === 'super_admin') {
-            r.isAdmin = true;
-            r.isSuperAdmin = r.role === 'super_admin';
-        }
-        if (!isAdminUser && r.email) {
-            const [name, domain] = r.email.split('@');
-            r.email = `${name.substring(0, 2)}***@${domain}`;
-        }
-        return r;
-    });
+    const sanitizedPinned = pinnedItems.map(msg => sanitizeEntry(msg, isAdminUser));
+    const sanitizedParents = pageItems.map(msg => sanitizeEntry(msg, isAdminUser));
+    const sanitizedReplies = replies.map(r => sanitizeEntry(r, isAdminUser));
     const replyMap = {};
     for (const r of sanitizedReplies) {
         if (!replyMap[r.parent_id]) replyMap[r.parent_id] = [];
@@ -189,11 +209,13 @@ async function handleGet(request, env) {
     }
     const organizedPinned = sanitizedPinned.map(p => ({
         ...p,
-        replies: replyMap[p.id] || []
+        replies: replyMap[p.id] || [],
+        replyMeta: replyMeta[p.id] || null
     }));
     const organizedData = sanitizedParents.map(p => ({
         ...p,
-        replies: replyMap[p.id] || []
+        replies: replyMap[p.id] || [],
+        replyMeta: replyMeta[p.id] || null
     }));
     return new Response(JSON.stringify({
         data: organizedData,
@@ -201,6 +223,66 @@ async function handleGet(request, env) {
         nextCursor,
         firstCursor,
         hasMore
+    }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+}
+async function handleGetReplies(request, env, parentId) {
+    const user = await getUser(request, env);
+    if (!user) {
+        return new Response(JSON.stringify({ error: '请先登录' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    const url = new URL(request.url);
+    const isAdminUser = isAdmin(user);
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || String(REPLIES_PER_PARENT)), 20);
+    const cursorStr = url.searchParams.get('cursor') || null;
+    let cursorObj = null;
+    if (cursorStr) {
+        try { cursorObj = JSON.parse(atob(cursorStr)); } catch (e) { cursorObj = null; }
+    }
+    if (!cursorObj || !cursorObj.t) {
+        return new Response(JSON.stringify({ error: '无效的游标' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    const replySelect = isAdminUser
+        ? 'SELECT g.*, u.nickname, u.email, u.is_banned, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id'
+        : 'SELECT g.*, u.nickname, u.email, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id';
+    const conditions = ['g.parent_id = ?'];
+    const params = [parentId];
+    if (!isAdminUser) {
+        conditions.push('(g.is_hidden = 0 OR g.user_id = ?)');
+        params.push(user.id);
+    }
+    conditions.push('(g.created_at < ? OR (g.created_at = ? AND g.id < ?))');
+    params.push(cursorObj.t, cursorObj.t, cursorObj.k);
+    const query = `${replySelect} WHERE ${conditions.join(' AND ')} ORDER BY g.created_at DESC, g.id DESC LIMIT ?`;
+    const result = await env.DB.prepare(query).bind(...params, limit + 1).all();
+    const rows = result.results || [];
+    const hasMore = rows.length > limit;
+    const newRows = hasMore ? rows.slice(0, limit) : rows;
+    newRows.reverse();
+    let totalCount = cursorObj.total;
+    if (hasMore && (totalCount == null)) {
+        const totalCountResult = await env.DB.prepare('SELECT COUNT(*) as cnt FROM guestbook WHERE parent_id = ?').bind(parentId).first();
+        totalCount = totalCountResult ? totalCountResult.cnt : 0;
+    }
+    const last = newRows[0];
+    const nextCursor = (hasMore && last)
+        ? btoa(JSON.stringify({ t: last.created_at, k: last.id, total: totalCount }))
+        : null;
+    const allIds = newRows.map(r => r.id);
+    let likedIds = new Set();
+    if (allIds.length > 0) {
+        const ph = allIds.map(() => '?').join(',');
+        const likeResult = await env.DB.prepare(`SELECT guestbook_id FROM guestbook_likes WHERE user_id = ? AND guestbook_id IN (${ph})`).bind(user.id, ...allIds).all();
+        likedIds = new Set((likeResult.results || []).map(r => r.guestbook_id));
+    }
+    for (const r of newRows) {
+        r.has_liked = likedIds.has(r.id);
+    }
+    const sanitized = newRows.map(r => sanitizeEntry(r, isAdminUser));
+    return new Response(JSON.stringify({
+        replies: sanitized,
+        nextCursor,
+        hasMore,
+        total: totalCount != null ? totalCount : 0
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePost(request, env, context) {
