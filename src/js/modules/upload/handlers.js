@@ -247,11 +247,23 @@ async function injectTraceCode(file) {
     const traceTag = `WUT-FREE|${Date.now().toString(36)}|${(file.size).toString(36)}`;
     if (ext === 'pdf') {
         try {
-            const buf = await file.arrayBuffer();
-            const trailer = new TextEncoder().encode(`\n%WUT-FREE-SHARE-TRACE:${traceTag}\n%%EOF-WUT\n`);
-            const merged = new Uint8Array(buf.byteLength + trailer.byteLength);
-            merged.set(new Uint8Array(buf), 0);
-            merged.set(trailer, buf.byteLength);
+            const buf = new Uint8Array(await file.arrayBuffer());
+            const commentLine = `%WUT-FREE-SHARE-TRACE:${traceTag}\n`;
+            const commentBytes = new TextEncoder().encode(commentLine);
+            let insertPos = -1;
+            for (let i = buf.length - 5; i >= 0; i--) {
+                if (buf[i] === 0x25 && buf[i + 1] === 0x25 && buf[i + 2] === 0x45 && buf[i + 3] === 0x4F && buf[i + 4] === 0x46) {
+                    let j = i - 1;
+                    while (j >= 0 && (buf[j] === 0x0A || buf[j] === 0x0D || buf[j] === 0x20)) j--;
+                    insertPos = j + 1;
+                    break;
+                }
+            }
+            if (insertPos < 0) insertPos = buf.length;
+            const merged = new Uint8Array(buf.byteLength + commentBytes.byteLength);
+            merged.set(buf.subarray(0, insertPos), 0);
+            merged.set(commentBytes, insertPos);
+            merged.set(buf.subarray(insertPos), insertPos + commentBytes.byteLength);
             const newFile = new File([merged], file.name, { type: file.type, lastModified: file.lastModified });
             if (file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath) {
                 newFile._webkitRelativePath = file._webkitRelativePath || file.webkitRelativePath || file.originalRelativePath;
