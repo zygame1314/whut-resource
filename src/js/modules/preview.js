@@ -106,10 +106,14 @@ async function previewFile(fileKey, fileName, fileSize) {
         'go', 'rs', 'php', 'sh', 'bat', 'cmd', 'ps1', 'sql', 'ini', 'toml', 'yaml',
         'yml', 'conf', 'log', 'gitignore', 'env'
     );
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const needsMobileRedirect = isMobile && (officeExtensions.includes(extension) || pdfExtensions.includes(extension));
     const previewLoader = previewModal.querySelector('.preview-loader');
     previewTitle.textContent = `预览: ${fileName}`;
-    previewModal.classList.add('visible');
-    previewLoader.style.display = 'flex';
+    if (!needsMobileRedirect) {
+        previewModal.classList.add('visible');
+        previewLoader.style.display = 'flex';
+    }
     previewIframe.style.display = 'none';
     const existingImageWrapper = previewModal.querySelector('.preview-image-wrapper');
     if (existingImageWrapper) existingImageWrapper.remove();
