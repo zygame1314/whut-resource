@@ -107,10 +107,15 @@ async function previewFile(fileKey, fileName, fileSize) {
         'yml', 'conf', 'log', 'gitignore', 'env'
     );
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const needsMobileRedirect = isMobile && (officeExtensions.includes(extension) || pdfExtensions.includes(extension));
+    const isOfficePreview = officeExtensions.includes(extension);
+    const isPdfPreview = pdfExtensions.includes(extension);
+    const needsMobileRedirect = isMobile && (isOfficePreview || isPdfPreview);
     const previewLoader = previewModal.querySelector('.preview-loader');
     previewTitle.textContent = `预览: ${fileName}`;
-    if (!needsMobileRedirect) {
+    if (needsMobileRedirect) {
+        const confirmed = await showMobilePreviewConfirm(fileName, extension, fileSize);
+        if (!confirmed) return;
+    } else {
         previewModal.classList.add('visible');
         previewLoader.style.display = 'flex';
     }
@@ -129,8 +134,6 @@ async function previewFile(fileKey, fileName, fileSize) {
     if (existingHtmlWrapper) existingHtmlWrapper.remove();
     previewIframe.removeAttribute('srcdoc');
     try {
-        const isOfficePreview = officeExtensions.includes(extension);
-        const isPdfPreview = pdfExtensions.includes(extension);
         const isImagePreview = imageExtensions.includes(extension);
         const isVideoPreview = videoExtensions.includes(extension);
         const isAudioPreview = audioExtensions.includes(extension);
@@ -166,6 +169,18 @@ async function previewFile(fileKey, fileName, fileSize) {
             }
             if (data.quota_deducted && typeof updateQuotaDisplay === 'function') {
                 updateQuotaDisplay(data.quota_used, undefined);
+            }
+            if (needsMobileRedirect) {
+                const previewUrl = data.url;
+                _mobilePreviewRefreshed = true;
+                if (isOfficePreview) {
+                    const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(previewUrl)}`;
+                    window.open(officeViewerUrl, '_blank');
+                } else {
+                    window.open(previewUrl, '_blank');
+                }
+                if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
+                return;
             }
             const hideLoader = () => {
                 previewLoader.style.display = 'none';
@@ -420,31 +435,11 @@ async function previewFile(fileKey, fileName, fileSize) {
                         hideLoader();
                         showNotification('预览加载失败', 'error');
                     };
-                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                     if (isOfficePreview) {
                         const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(previewUrl)}`;
-                        if (isMobile) {
-                            hideLoader();
-                            previewModal.classList.remove('visible');
-                            const confirmed = await showMobilePreviewConfirm(fileName, extension, fileSize);
-                            if (!confirmed) return;
-                            _mobilePreviewRefreshed = true;
-                            window.open(officeViewerUrl, '_blank');
-                            return;
-                        } else {
-                            previewIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
-                            previewIframe.src = officeViewerUrl;
-                        }
+                        previewIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+                        previewIframe.src = officeViewerUrl;
                     } else {
-                        if (isMobile) {
-                            hideLoader();
-                            previewModal.classList.remove('visible');
-                            const confirmed = await showMobilePreviewConfirm(fileName, extension, fileSize);
-                            if (!confirmed) return;
-                            _mobilePreviewRefreshed = true;
-                            window.open(previewUrl, '_blank');
-                            return;
-                        }
                         if (isPdfPreview) {
                             previewIframe.removeAttribute('sandbox');
                         } else {
