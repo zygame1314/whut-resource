@@ -24,33 +24,35 @@ function sanitizePath(path) {
     if (sanitized.length === 0 || sanitized.length > 512) return '';
     return sanitized + '/';
 }
-async function fetchLikedFileKeys(DB, userId) {
+async function fetchStateByKeys(DB, userId, table, keys) {
+    if (!userId || !keys || keys.length === 0) return new Set();
     try {
-        const { results } = await DB.prepare('SELECT file_key FROM file_reactions WHERE user_id = ?').bind(userId).all();
+        const placeholders = keys.map(() => '?').join(',');
+        const { results } = await DB.prepare(`SELECT file_key FROM ${table} WHERE user_id = ? AND file_key IN (${placeholders})`).bind(userId, ...keys).all();
         return new Set(results.map(r => r.file_key));
     } catch {
         return new Set();
     }
 }
-function annotateIsLiked(items, likedSet) {
-    for (const item of items) {
+async function annotateUserState(DB, user, items) {
+    const targets = (items || []).filter(i => i && i.key);
+    for (const item of (items || [])) {
+        if (!item) continue;
+        item.is_liked = 0;
+        item.is_favorited = 0;
+    }
+    if (!user || targets.length === 0) return items || [];
+    const keys = targets.map(i => i.key);
+    const [likedSet, favoritedSet] = await Promise.all([
+        fetchStateByKeys(DB, user.id, 'file_reactions', keys),
+        fetchStateByKeys(DB, user.id, 'favorites', keys)
+    ]);
+    for (const item of (items || [])) {
+        if (!item) continue;
         item.is_liked = likedSet.has(item.key) ? 1 : 0;
-    }
-    return items;
-}
-async function fetchFavoritedFileKeys(DB, userId) {
-    try {
-        const { results } = await DB.prepare('SELECT file_key FROM favorites WHERE user_id = ?').bind(userId).all();
-        return new Set(results.map(r => r.file_key));
-    } catch {
-        return new Set();
-    }
-}
-function annotateIsFavorited(items, favoritedSet) {
-    for (const item of items) {
         item.is_favorited = favoritedSet.has(item.key) ? 1 : 0;
     }
-    return items;
+    return items || [];
 }
 async function deleteVectorIndexes(env, fileIds) {
     if (!env.VECTORIZE || !fileIds || fileIds.length === 0) return;
@@ -120,8 +122,6 @@ export async function onRequestGet({ request, env, waitUntil }) {
     }
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
-    const likedSet = user ? await fetchLikedFileKeys(DB, user.id) : new Set();
-    const favoritedSet = user ? await fetchFavoritedFileKeys(DB, user.id) : new Set();
     try {
         if (action === 'stats') {
             const stmt = DB.prepare('SELECT total_files as fileCount, total_size as totalSize FROM system_stats WHERE id = 1');
@@ -338,8 +338,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 LIMIT ?
             `);
             const { results } = await stmt.bind(limit).all();
-            annotateIsLiked(results, likedSet);
-            annotateIsFavorited(results, favoritedSet);
+            await annotateUserState(DB, user, results);
             return new Response(JSON.stringify({ success: true, files: results }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'downloadHistory') {
@@ -378,8 +377,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
             const { results } = await stmt.bind(...params).all();
             const hasMore = results.length > limit;
             if (hasMore) results.pop();
-            annotateIsLiked(results, likedSet);
-            annotateIsFavorited(results, favoritedSet);
+            await annotateUserState(DB, user, results);
             return new Response(JSON.stringify({
                 success: true,
                 files: results,
@@ -423,10 +421,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
             const { results } = await stmt.bind(...params).all();
             const hasMore = results.length > limit;
             if (hasMore) results.pop();
-            annotateIsLiked(results, likedSet);
-            for (const item of results) {
-                item.is_favorited = 1;
-            }
+            await annotateUserState(DB, user, results);
             return new Response(JSON.stringify({
                 success: true,
                 files: results,
@@ -547,18 +542,14 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 itemsResult = await DB.prepare(combinedQuery).bind(searchPath, MAX_LIMIT).all();
             }
             const items = itemsResult.results || [];
-            annotateIsLiked(items, likedSet);
-            annotateIsFavorited(items, favoritedSet);
             const directories = items.filter(item => item.is_directory);
             const files = items.filter(item => !item.is_directory);
             let currentFolder = null;
             if (!hasCursor && prefix) {
                 currentFolder = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(prefix).first();
-                if (currentFolder) {
-                    annotateIsLiked([currentFolder], likedSet);
-                    annotateIsFavorited([currentFolder], favoritedSet);
-                }
             }
+            const annotateTargets = currentFolder ? [...items, currentFolder] : items;
+            await annotateUserState(DB, user, annotateTargets);
             const lastItem = items.length > 0 ? items[items.length - 1] : null;
             const hasMore = items.length >= MAX_LIMIT;
             let responseData = {
@@ -581,14 +572,10 @@ export async function onRequestGet({ request, env, waitUntil }) {
         let currentFolder = null;
         if (!search && prefix) {
             currentFolder = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(prefix).first();
-            if (currentFolder) {
-                annotateIsLiked([currentFolder], likedSet);
-                annotateIsFavorited([currentFolder], favoritedSet);
-            }
         }
         const items = itemsResult.results || [];
-        annotateIsLiked(items, likedSet);
-        annotateIsFavorited(items, favoritedSet);
+        const annotateTargets = currentFolder ? [...items, currentFolder] : items;
+        await annotateUserState(DB, user, annotateTargets);
         const directories = items.filter(item => item.is_directory);
         const files = items.filter(item => !item.is_directory);
         const totalItems = items.length;
