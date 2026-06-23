@@ -232,8 +232,12 @@ async function handleCleanup(DB, body, VECTORIZE, env, user) {
     }
     try {
         await DB.prepare(`
-            INSERT OR REPLACE INTO system_stats (id, total_files, total_size)
-            SELECT 1, COUNT(*), COALESCE(SUM(size), 0) FROM files WHERE is_directory = FALSE
+            INSERT INTO system_stats (id, total_files, total_size)
+            VALUES (1, 0, 0)
+            ON CONFLICT(id) DO UPDATE SET
+                total_files = (SELECT COUNT(*) FROM files WHERE is_directory = FALSE),
+                total_size = COALESCE((SELECT SUM(size) FROM files WHERE is_directory = FALSE), 0),
+                updated_at = CURRENT_TIMESTAMP
         `).run();
     } catch (e) {
         console.error('更新系统统计失败', e);
