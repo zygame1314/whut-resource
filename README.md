@@ -109,7 +109,7 @@
 | Cloudflare Durable Objects | WebSocket 实时日志 + 在线计数 |
 | Cloudflare Email Workers | 邮箱验证码接收/解析 |
 
-> AI 能力通过 SiliconFlow HTTP API 实现（非 Workers AI 绑定），需在 Pages 环境变量/Secret 中配置 `SILICONFLOW_API_KEY`、`JWT_SECRET`、`BOT_EMAIL`、`GOOGLE_SAFE_BROWSING_API_KEY` 等。
+> AI 能力通过 SiliconFlow HTTP API 实现（非 Workers AI 绑定），需在 Pages 环境变量/Secret 中配置 `SILICONFLOW_API_KEY`、`JWT_SECRET`、`JWT_PRIVATE_KEY`、`BOT_EMAIL`、`GOOGLE_SAFE_BROWSING_API_KEY` 等。
 
 ### AI 服务
 | 模型 / 服务 | 用途 |
@@ -286,7 +286,8 @@ wrangler deploy -c worker/wrangler.toml
 
 在 Cloudflare Pages 控制台配置：
 - `SILICONFLOW_API_KEY` — AI 模型服务密钥
-- `JWT_SECRET` — JWT 签名密钥
+- `JWT_SECRET` — JWT 签名密钥（内部 access_token 验证用，HS256）
+- `JWT_PRIVATE_KEY` — OpenID Connect ID Token 签名用 RSA 私钥（PKCS#8 PEM 格式，RS256），JWKS 公钥由其动态推导
 - `BOT_EMAIL` — 发件邮箱
 - `GOOGLE_SAFE_BROWSING_API_KEY` — 链接安全检测密钥
 

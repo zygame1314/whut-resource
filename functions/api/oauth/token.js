@@ -1,4 +1,4 @@
-import { addCorsHeaders, signToken, verifyPasswordHash } from '../../utils.js';
+import { addCorsHeaders, signIdToken, verifyPasswordHash } from '../../utils.js';
 
 const ACCESS_TOKEN_EXPIRY = 24 * 60 * 60 * 1000;
 
@@ -114,16 +114,18 @@ export async function onRequestPost(context) {
             env.DB.prepare('DELETE FROM oauth_access_tokens WHERE expires_at < ?').bind(now).run();
         }
 
-        const idToken = await signToken({
+        const idToken = await signIdToken({
+            sub: String(user.id),
             id: user.id,
             email: user.email,
             nickname: user.nickname,
             role: user.role,
             school_id: user.school_id,
             aud: authCode.client_id,
-            iss: 'whut-resource',
-            exp: Date.now() + ACCESS_TOKEN_EXPIRY
-        }, env.JWT_SECRET || 'secret');
+            iss: new URL(request.url).origin,
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor((Date.now() + ACCESS_TOKEN_EXPIRY) / 1000)
+        }, env);
 
         return new Response(JSON.stringify({
             access_token: accessToken,

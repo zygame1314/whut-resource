@@ -9,11 +9,17 @@ export async function verifyPasswordHash(password, hash, salt) {
   const computedHash = await hashPassword(password, salt);
   return computedHash === hash;
 }
-function toBase64Url(data) {
+export function toBase64Url(data) {
   const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
   let binary = '';
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+export function fromBase64UrlBytes(str) {
+  const binary = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
 export async function signToken(payload, secret) {
   const header = { alg: "HS256", typ: "JWT" };
@@ -66,6 +72,84 @@ export async function verifyToken(token, secret) {
   } catch (e) {
     return null;
   }
+}
+
+const JWT_KEY_ID = "rsa-1";
+const PEM_HEADER = "-----BEGIN PRIVATE KEY-----";
+const PEM_FOOTER = "-----END PRIVATE KEY-----";
+
+function pemToBase64Der(pem) {
+  const trimmed = pem.replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----/, "")
+    .replace(/-----END [A-Z ]*PRIVATE KEY-----/, "")
+    .replace(/\s+/g, "");
+  const binary = atob(trimmed);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function importRsaPrivateKey(pem) {
+  const der = pemToBase64Der(pem);
+  return await crypto.subtle.importKey(
+    "pkcs8",
+    der,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+}
+
+export async function getRsaPrivateKey(env) {
+  const pem = env.JWT_PRIVATE_KEY;
+  if (!pem || typeof pem !== 'string' || !pem.includes(PEM_HEADER)) {
+    throw new Error('JWT_PRIVATE_KEY 未配置或格式无效（需 PKCS#8 PEM 私钥）');
+  }
+  return await importRsaPrivateKey(pem);
+}
+
+export async function signIdToken(payload, env) {
+  const key = await getRsaPrivateKey(env);
+  const header = { alg: "RS256", typ: "JWT", kid: JWT_KEY_ID };
+  const encodedHeader = toBase64Url(JSON.stringify(header));
+  const encodedPayload = toBase64Url(JSON.stringify(payload));
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
+  );
+  const encodedSignature = toBase64Url(signature);
+  return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
+}
+
+export async function getJwks(env) {
+  const pem = env.JWT_PRIVATE_KEY;
+  if (!pem || typeof pem !== 'string' || !pem.includes(PEM_HEADER)) {
+    return { keys: [] };
+  }
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToBase64Der(pem),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    true,
+    ["sign"]
+  );
+  const jwk = await crypto.subtle.exportKey("jwk", key);
+  return {
+    keys: [
+      {
+        kty: "RSA",
+        kid: JWT_KEY_ID,
+        alg: "RS256",
+        use: "sig",
+        n: jwk.n,
+        e: jwk.e
+      }
+    ]
+  };
+}
+
+export function getJwtKeyId() {
+  return JWT_KEY_ID;
 }
 export function addCorsHeaders(headers = {}) {
   return {

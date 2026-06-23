@@ -37,7 +37,7 @@
 |------|------|
 | 授权模式 | Authorization Code（授权码模式） |
 | PKCE | 支持 `S256` 和 `plain` |
-| OpenID Connect | Token 端点签发 `id_token` (JWT) |
+| OpenID Connect | Token 端点签发 `id_token` (RS256 签名 JWT，提供 JWKS / OIDC 发现端点) |
 | Access Token 有效期 | 24 小时 |
 | 授权码有效期 | 10 分钟 |
 | 支持 Scope | `openid` `profile` `email` |
@@ -54,6 +54,8 @@
 | 授权页面 | `https://resource.haoli.site/authorize.html` | GET | 供用户交互的授权页面 |
 | 令牌端点 | `https://resource.haoli.site/api/oauth/token` | POST | 用授权码换取 access_token + id_token |
 | 用户信息端点 | `https://resource.haoli.site/api/oauth/userinfo` | GET | 用 access_token 获取用户 Claims |
+| JWKS 端点 | `https://resource.haoli.site/.well-known/jwks.json` | GET | 公钥集合，用于本地验证 id_token 签名 |
+| OIDC 发现 | `https://resource.haoli.site/.well-known/openid-configuration` | GET | OIDC Provider 元数据（issuer、端点、算法等） |
 
 > **注意：** 授权端点 (`/api/oauth/authorize`) 使用 **POST** 而非传统的 GET + 302 重定向。接入方需要先在前端引导用户到授权页面 (`authorize.html`)，授权页面内通过 POST 请求与后端交互。授权成功后由授权页面直接将用户 `window.location.href` 重定向到你的 `redirect_uri`。
 
@@ -221,7 +223,7 @@ grant_type=authorization_code
   "token_type": "Bearer",
   "expires_in": 86400,
   "scope": "openid profile email",
-  "id_token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMiL..."
+  "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InJzYS0xIn0.eyJzdWIiOiIxMjMi..."
 }
 ```
 
@@ -231,7 +233,7 @@ grant_type=authorization_code
 | `token_type` | string | 固定 `Bearer` |
 | `expires_in` | number | 有效期秒数，固定 `86400`（24小时） |
 | `scope` | string | 授权的权限范围 |
-| `id_token` | string | JWT 格式的 ID Token，包含用户身份信息 |
+| `id_token` | string | RS256 签名的 JWT（OpenID Connect ID Token），包含用户身份信息，可用 JWKS 公钥本地验证 |
 
 > **授权码一次性：** 授权码使用后立即失效，不可重复使用。
 
@@ -272,41 +274,85 @@ Authorization: Bearer {access_token}
 
 ### Step 6：验证 ID Token (可选)
 
-Token 端点返回的 `id_token` 是一个 HS256 签名的 JWT，你可以在不调用 UserInfo 端点的情况下直接从中获取用户信息。
+Token 端点返回的 `id_token` 是一个 **RS256**（RSASSA-PKCS1-v1_5 + SHA-256）签名的 JWT，遵循 OpenID Connect 规范。你可以在不调用 UserInfo 端点的情况下，使用平台公开的 JWKS 公钥在本地验证签名并直接获取用户信息。
+
+**ID Token Header：**
+
+```json
+{
+  "alg": "RS256",
+  "typ": "JWT",
+  "kid": "rsa-1"
+}
+```
 
 **ID Token Payload：**
 
 ```json
 {
+  "sub": "123",
   "id": 123,
   "email": "zhangsan@whut.edu.cn",
   "nickname": "张三",
   "role": "user",
   "school_id": "2021001234",
   "aud": "whut_aBcDeFgHiJkLmNoPqRsTuVw",
-  "iss": "whut-resource",
+  "iss": "https://resource.haoli.site",
+  "iat": 1717584000,
   "exp": 1717670400
 }
 ```
 
 | 字段 | 说明 |
 |------|------|
+| `sub` | 用户标识（字符串形式的用户 ID，OIDC 标准 Claim） |
 | `id` | 用户数字 ID |
 | `email` | 用户邮箱 |
 | `nickname` | 用户昵称 |
 | `role` | 用户角色 |
 | `school_id` | 学号 |
 | `aud` | 受众 = 你的 `client_id` |
-| `iss` | 签发者 = `whut-resource` |
+| `iss` | 签发者 = 平台 Issuer URL |
+| `iat` | 签发时间戳（秒） |
 | `exp` | 过期时间戳（秒） |
 
 **验证步骤：**
-1. 使用 `client_secret` 作为 HMAC-SHA256 密钥验证签名
-2. 检查 `aud` 是否等于你的 `client_id`
-3. 检查 `iss` 是否为 `whut-resource`
-4. 检查 `exp` 是否未过期
+1. 解析 JWT Header，取出 `kid`（当前为 `rsa-1`）与 `alg`（须为 `RS256`）
+2. 从 JWKS 端点 `GET /.well-known/jwks.json` 获取与 `kid` 匹配的公钥（JWK 的 `n`/`e`），或使用 OIDC 发现端点 `/.well-known/openid-configuration` 中的 `jwks_uri`
+3. 用该公钥以 RSASSA-PKCS1-v1_5 + SHA-256 验证签名
+4. 检查 `aud` 是否等于你的 `client_id`
+5. 检查 `iss` 是否为平台 Issuer（见 OIDC 发现端点 `issuer` 字段）
+6. 检查 `exp` 是否未过期
 
-> **注意：** 平台使用 HS256 算法签名 JWT。由于签名密钥与你的 `client_secret` 不同（使用平台全局 `JWT_SECRET`），你无法在本地验证 ID Token 签名。如需可靠验证用户身份，请始终调用 `/api/oauth/userinfo` 端点。如你确需本地验证 JWT，需联系超管获取 `JWT_SECRET`（不推荐，有安全风险）。
+> **JWKS 缓存：** JWKS 端点响应 1 小时缓存（`Cache-Control: public, max-age=3600`），建议接入方本地缓存公钥以减少请求，并在 `kid` 不命中时重新拉取。
+
+> **与 UserInfo 端点的关系：** `id_token` 已用平台私钥签名，可本地验证，足以确认用户身份；UserInfo 端点适用于需要实时获取最新用户信息或仅持有 `access_token` 的场景。两者返回的用户字段一致。
+
+### OIDC 发现端点
+
+平台提供标准 OIDC Provider Metadata，便于接入方动态发现端点与配置：
+
+```http
+GET https://resource.haoli.site/.well-known/openid-configuration
+```
+
+**响应示例：**
+
+```json
+{
+  "issuer": "https://resource.haoli.site",
+  "authorization_endpoint": "https://resource.haoli.site/api/oauth/authorize",
+  "token_endpoint": "https://resource.haoli.site/api/oauth/token",
+  "userinfo_endpoint": "https://resource.haoli.site/api/oauth/userinfo",
+  "jwks_uri": "https://resource.haoli.site/.well-known/jwks.json",
+  "id_token_signing_alg_values_supported": ["RS256"],
+  "scopes_supported": ["openid", "profile", "email"],
+  "response_types_supported": ["code"],
+  "grant_types_supported": ["authorization_code"],
+  "code_challenge_methods_supported": ["S256", "plain"],
+  "subject_types_supported": ["public"]
+}
+```
 
 ---
 
@@ -468,7 +514,7 @@ function base64UrlEncode(buffer) {
   "token_type": "Bearer",
   "expires_in": 86400,
   "scope": "openid profile email",
-  "id_token": "eyJhbGciOiJIUzI1NiJ9..."
+  "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InJzYS0xIn0..."
 }
 ```
 
