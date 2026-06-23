@@ -479,3 +479,15 @@ CREATE TABLE IF NOT EXISTS todo_guestbook (
 );
 CREATE INDEX IF NOT EXISTS idx_todo_guestbook_todo ON todo_guestbook(todo_id);
 CREATE INDEX IF NOT EXISTS idx_todo_guestbook_guestbook ON todo_guestbook(guestbook_id);
+
+CREATE TABLE IF NOT EXISTS favorites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    file_key TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (file_key) REFERENCES files(key) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_unique ON favorites(user_id, file_key);
+CREATE INDEX IF NOT EXISTS idx_favorites_user_time ON favorites(user_id, created_at DESC, file_key);
+CREATE INDEX IF NOT EXISTS idx_favorites_key ON favorites(file_key);

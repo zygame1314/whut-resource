@@ -38,6 +38,20 @@ function annotateIsLiked(items, likedSet) {
     }
     return items;
 }
+async function fetchFavoritedFileKeys(DB, userId) {
+    try {
+        const { results } = await DB.prepare('SELECT file_key FROM favorites WHERE user_id = ?').bind(userId).all();
+        return new Set(results.map(r => r.file_key));
+    } catch {
+        return new Set();
+    }
+}
+function annotateIsFavorited(items, favoritedSet) {
+    for (const item of items) {
+        item.is_favorited = favoritedSet.has(item.key) ? 1 : 0;
+    }
+    return items;
+}
 async function deleteVectorIndexes(env, fileIds) {
     if (!env.VECTORIZE || !fileIds || fileIds.length === 0) return;
     const idsToDelete = fileIds.map(id => id.toString());
@@ -107,6 +121,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
     const likedSet = user ? await fetchLikedFileKeys(DB, user.id) : new Set();
+    const favoritedSet = user ? await fetchFavoritedFileKeys(DB, user.id) : new Set();
     try {
         if (action === 'stats') {
             const stmt = DB.prepare('SELECT total_files as fileCount, total_size as totalSize FROM system_stats WHERE id = 1');
@@ -324,6 +339,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
             `);
             const { results } = await stmt.bind(limit).all();
             annotateIsLiked(results, likedSet);
+            annotateIsFavorited(results, favoritedSet);
             return new Response(JSON.stringify({ success: true, files: results }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'downloadHistory') {
@@ -363,11 +379,59 @@ export async function onRequestGet({ request, env, waitUntil }) {
             const hasMore = results.length > limit;
             if (hasMore) results.pop();
             annotateIsLiked(results, likedSet);
+            annotateIsFavorited(results, favoritedSet);
             return new Response(JSON.stringify({
                 success: true,
                 files: results,
                 hasMore,
                 nextCursor: hasMore ? results[results.length - 1].downloaded_at : null
+            }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (action === 'favorites') {
+            if (!user) {
+                return new Response(JSON.stringify({ success: false, error: '需要登录' }), {
+                    status: 401,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            const limit = Math.min(parseInt(url.searchParams.get('limit') || '50') || 50, 100);
+            const cursor = url.searchParams.get('cursor');
+            let stmt, params;
+            if (cursor) {
+                stmt = DB.prepare(`
+                    SELECT f.key, f.name, f.parent_path, f.is_directory, f.is_link, f.link_url, f.size, f.downloads, f.contentType,
+                           fav.created_at AS favorited_at
+                    FROM favorites fav
+                    JOIN files f ON fav.file_key = f.key
+                    WHERE fav.user_id = ? AND fav.created_at < ?
+                    ORDER BY fav.created_at DESC
+                    LIMIT ?
+                `);
+                params = [user.id, cursor, limit + 1];
+            } else {
+                stmt = DB.prepare(`
+                    SELECT f.key, f.name, f.parent_path, f.is_directory, f.is_link, f.link_url, f.size, f.downloads, f.contentType,
+                           fav.created_at AS favorited_at
+                    FROM favorites fav
+                    JOIN files f ON fav.file_key = f.key
+                    WHERE fav.user_id = ?
+                    ORDER BY fav.created_at DESC
+                    LIMIT ?
+                `);
+                params = [user.id, limit + 1];
+            }
+            const { results } = await stmt.bind(...params).all();
+            const hasMore = results.length > limit;
+            if (hasMore) results.pop();
+            annotateIsLiked(results, likedSet);
+            for (const item of results) {
+                item.is_favorited = 1;
+            }
+            return new Response(JSON.stringify({
+                success: true,
+                files: results,
+                hasMore,
+                nextCursor: hasMore ? results[results.length - 1].favorited_at : null
             }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'getById') {
@@ -484,12 +548,16 @@ export async function onRequestGet({ request, env, waitUntil }) {
             }
             const items = itemsResult.results || [];
             annotateIsLiked(items, likedSet);
+            annotateIsFavorited(items, favoritedSet);
             const directories = items.filter(item => item.is_directory);
             const files = items.filter(item => !item.is_directory);
             let currentFolder = null;
             if (!hasCursor && prefix) {
                 currentFolder = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(prefix).first();
-                if (currentFolder) annotateIsLiked([currentFolder], likedSet);
+                if (currentFolder) {
+                    annotateIsLiked([currentFolder], likedSet);
+                    annotateIsFavorited([currentFolder], favoritedSet);
+                }
             }
             const lastItem = items.length > 0 ? items[items.length - 1] : null;
             const hasMore = items.length >= MAX_LIMIT;
@@ -513,10 +581,14 @@ export async function onRequestGet({ request, env, waitUntil }) {
         let currentFolder = null;
         if (!search && prefix) {
             currentFolder = await DB.prepare('SELECT * FROM files WHERE key = ?').bind(prefix).first();
-            if (currentFolder) annotateIsLiked([currentFolder], likedSet);
+            if (currentFolder) {
+                annotateIsLiked([currentFolder], likedSet);
+                annotateIsFavorited([currentFolder], favoritedSet);
+            }
         }
         const items = itemsResult.results || [];
         annotateIsLiked(items, likedSet);
+        annotateIsFavorited(items, favoritedSet);
         const directories = items.filter(item => item.is_directory);
         const files = items.filter(item => !item.is_directory);
         const totalItems = items.length;
@@ -727,6 +799,7 @@ export async function onRequestPut({ request, env }) {
             DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, key),
             DB.prepare('UPDATE file_reactions SET file_key = ? WHERE file_key = ?').bind(newKey, key),
             DB.prepare('UPDATE file_boosts SET file_key = ? WHERE file_key = ?').bind(newKey, key),
+            DB.prepare('UPDATE favorites SET file_key = ? WHERE file_key = ?').bind(newKey, key),
             DB.prepare('DELETE FROM files WHERE key = ?').bind(key)
         ]);
         await deleteVectorIndexes(env, [oldFileId]);
@@ -751,7 +824,7 @@ export async function onRequestPost({ request, env }) {
     const user = await getUserFromRequest(request, env);
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
-    if (!user || (!isAdmin(user) && action !== 'toggleReaction')) {
+    if (!user || (!isAdmin(user) && action !== 'toggleReaction' && action !== 'toggleFavorite')) {
         return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -789,6 +862,35 @@ export async function onRequestPost({ request, env }) {
                 success: true,
                 likes: stats ? stats.likes : 0,
                 isLiked: isLiked
+            }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (action === 'toggleFavorite') {
+            const { key } = body;
+            if (!key) {
+                return new Response(JSON.stringify({ success: false, error: '无效的参数' }), {
+                    status: 400,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            const fileExists = await DB.prepare('SELECT id FROM files WHERE key = ?').bind(key).first();
+            if (!fileExists) {
+                return new Response(JSON.stringify({ success: false, error: '资源不存在或已删除' }), {
+                    status: 404,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            const existing = await DB.prepare('SELECT id FROM favorites WHERE user_id = ? AND file_key = ?').bind(user.id, key).first();
+            let isFavorited = false;
+            if (existing) {
+                await DB.prepare('DELETE FROM favorites WHERE user_id = ? AND file_key = ?').bind(user.id, key).run();
+                isFavorited = false;
+            } else {
+                await DB.prepare('INSERT INTO favorites (user_id, file_key) VALUES (?, ?)').bind(user.id, key).run();
+                isFavorited = true;
+            }
+            return new Response(JSON.stringify({
+                success: true,
+                isFavorited: isFavorited
             }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const { sourceKey, destinationPath } = body;
