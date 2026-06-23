@@ -234,7 +234,7 @@ window.showDownloadHistoryModal = function () {
                 <button id="close-download-history-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             </div>
             <div class="download-history-modal-hint">
-                <i class="fas fa-hand-pointer"></i> 长按可查看完整路径
+                <i class="fas fa-hand-pointer"></i> 点击条目定位到所在目录
             </div>
             <div id="download-history-modal-content" class="admin-scrollable-container"></div>
         </div>
