@@ -190,7 +190,7 @@ async function handleGuestbookAction(id, action, btnElement) {
         } else {
             if (action === 'like' || action === 'unlike') {
                 const likes = getViewLikes(id);
-                updateGuestbookCache(id, { likes: action === 'like' ? likes + 1 : Math.max(0, likes - 1), has_liked: action === 'like' });
+                updateGuestbookCache(id, { likes: action === 'like' ? likes + 1 : Math.max(0, likes - 1), has_liked: action === 'like' }, true);
             } else if (action === 'ban_user' || action === 'unban_user') {
                 const d = await response.json();
                 if (d.pending_approval) {

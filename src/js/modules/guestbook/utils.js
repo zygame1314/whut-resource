@@ -68,7 +68,7 @@ function refreshGuestbook() {
     guestbookLoadInitial();
     requestAnimationFrame(() => initPinnedCarouselObserver());
 }
-function updateGuestbookCache(id, updates) {
+function updateGuestbookCache(id, updates, skipRender = false) {
     if (updates.hasOwnProperty('is_pinned')) {
         refreshGuestbook();
         return;
@@ -85,7 +85,7 @@ function updateGuestbookCache(id, updates) {
             if (ri !== -1) { Object.assign(msg.replies[ri], updates); found = true; break; }
         }
     }
-    if (found) renderPinnedGuestbook();
+    if (found && !skipRender) renderPinnedGuestbook();
     if (!found) {
         for (const page of guestbookCursorStack) {
             if (!page.messages) continue;
@@ -100,6 +100,7 @@ function updateGuestbookCache(id, updates) {
             if (found) break;
         }
     }
+    if (skipRender) return;
     const cur = guestbookCursorStack[guestbookPageIndex];
     if (cur && cur.messages) renderGuestbook(cur.messages);
 }
