@@ -349,11 +349,15 @@ async function fetchAndRenderFavorites(targetElement) {
                         }
                     } else {
                         if (searchInput) searchInput.value = '';
-                        await fetchAndDisplayFiles(parentPath || '');
                         if (window._currentFavoritesModal) {
                             closeAuthModal(window._currentFavoritesModal);
-                            window._currentFavoritesModal = null;
                         }
+                        favoritesModal = null;
+                        window._currentFavoritesModal = null;
+                        if (typeof directoryCache !== 'undefined') {
+                            delete directoryCache[parentPath || ''];
+                        }
+                        fetchAndDisplayFiles(parentPath || '');
                     }
                 });
                 const unfavBtn = document.createElement('button');

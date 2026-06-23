@@ -501,6 +501,21 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             const result = await toggleFavorite(item.key, favBtn);
             if (result && result.success !== false) {
                 setFavUI(!!result.isFavorited);
+                if (typeof directoryCache !== 'undefined') {
+                    const favState = result.isFavorited ? 1 : 0;
+                    for (const p in directoryCache) {
+                        const entry = directoryCache[p];
+                        if (!entry || !entry.data) continue;
+                        const updateArr = (arr) => {
+                            if (!arr) return;
+                            for (const f of arr) {
+                                if (f && f.key === item.key) f.is_favorited = favState;
+                            }
+                        };
+                        updateArr(entry.data.directories);
+                        updateArr(entry.data.files);
+                    }
+                }
             } else {
                 setFavUI(wasActive);
             }
