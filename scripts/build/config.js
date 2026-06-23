@@ -26,6 +26,7 @@ const scriptModules = [
     'actions.js',
     'modules/batch.js',
     'core.js',
+    'modules/search-history.js',
     'main.js'
 ];
 const uploadModules = [
