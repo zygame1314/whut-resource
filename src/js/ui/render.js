@@ -497,10 +497,10 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
                 if (icon) icon.className = favorited ? 'fas fa-star' : 'far fa-star';
             };
             setFavUI(newState);
-            if (newState) showNotification('已加入收藏', 'success', 1500);
             const result = await toggleFavorite(item.key, favBtn);
             if (result && result.success !== false) {
                 setFavUI(!!result.isFavorited);
+                if (result.isFavorited) showNotification('已加入收藏', 'success', 1500);
                 if (typeof directoryCache !== 'undefined') {
                     const favState = result.isFavorited ? 1 : 0;
                     for (const p in directoryCache) {
