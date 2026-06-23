@@ -35,5 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('authSuccess', () => {
         refreshGuestbook();
         initTodoPanel();
+        if (typeof initDownloadHistoryPanel === 'function') initDownloadHistoryPanel();
     });
 });

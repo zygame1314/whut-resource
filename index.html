@@ -264,32 +264,6 @@
                         <i class="fas fa-info-circle"></i> 热门文件每天统计一次
                     </div>
                     <div class="sidebar-divider"></div>
-                    <h3 class="section-title">
-                        <i class="fas fa-history"></i> 下载历史
-                    </h3>
-                    <div id="download-history-list">
-                        <div class="sidebar-skeleton-dl">
-                            <div class="skeleton-dl-item">
-                                <div class="skeleton-dl-icon"></div>
-                                <div class="skeleton-dl-text medium"></div>
-                                <div class="skeleton-dl-time"></div>
-                            </div>
-                            <div class="skeleton-dl-item">
-                                <div class="skeleton-dl-icon"></div>
-                                <div class="skeleton-dl-text short"></div>
-                                <div class="skeleton-dl-time"></div>
-                            </div>
-                            <div class="skeleton-dl-item">
-                                <div class="skeleton-dl-icon"></div>
-                                <div class="skeleton-dl-text"></div>
-                                <div class="skeleton-dl-time"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="sidebar-divider"></div>
-                    <div class="sidebar-touch-hint">
-                        <i class="fas fa-hand-pointer"></i> 长按可查看完整路径
-                    </div>
                     <button id="open-graph-btn" class="graph-view-btn" onclick="openKnowledgeGraph()">
                         <i class="fas fa-project-diagram"></i>
                         <span>知识图谱</span>
@@ -865,7 +839,11 @@
     <script src="download-log.js"></script>
     <script src="site-stats.js"></script>
     <script src="donation-popup.js"></script>
-    <div id="todo-sidebar-entry" class="todo-sidebar-entry" style="display:none;" onclick="showTodosModal()">
+    <div id="download-history-entry" class="sidebar-float-entry download-history-entry" style="display:none;" onclick="showDownloadHistoryModal()" title="下载历史">
+        <i class="fas fa-history"></i>
+        <span class="sidebar-float-text">历史</span>
+    </div>
+    <div id="todo-sidebar-entry" class="sidebar-float-entry todo-sidebar-entry" style="display:none;" onclick="showTodosModal()">
         <i class="fas fa-tasks"></i>
         <span class="todo-sidebar-text">待办</span>
         <span id="todo-sidebar-dot" class="todo-sidebar-dot" style="display:none;"></span>

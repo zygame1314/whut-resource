@@ -108,14 +108,15 @@ async function fetchAndRenderHotFolders() {
         showNotification(`请求热门文件夹出错: ${error.message}`, 'error');
     }
 }
-async function fetchAndRenderDownloadHistory() {
-    if (!downloadHistoryListElement) return;
+async function fetchAndRenderDownloadHistory(targetElement) {
+    const container = targetElement || downloadHistoryListElement;
+    if (!container) return;
     const token = localStorage.getItem('authToken');
     if (!token) {
-        downloadHistoryListElement.innerHTML = '<p class="empty-state-small">登录后查看下载历史</p>';
+        container.innerHTML = '<p class="empty-state-small">登录后查看下载历史</p>';
         return;
     }
-    downloadHistoryListElement.innerHTML = `
+    container.innerHTML = `
         <div class="sidebar-skeleton-dl">
             <div class="skeleton-dl-item">
                 <div class="skeleton-dl-icon"></div>
@@ -140,12 +141,12 @@ async function fetchAndRenderDownloadHistory() {
         const result = await response.json();
         if (response.ok && result.success && result.files) {
             if (result.files.length === 0) {
-                downloadHistoryListElement.innerHTML = '<p class="empty-state-small">暂无下载记录</p>';
+                container.innerHTML = '<p class="empty-state-small">暂无下载记录</p>';
                 return;
             }
-            downloadHistoryListElement.innerHTML = '';
+            container.innerHTML = '';
             const ul = document.createElement('ul');
-            ul.className = 'download-history-list';
+            ul.className = 'download-history-list download-history-modal-list';
             result.files.forEach(file => {
                 const li = document.createElement('li');
                 li.className = 'download-history-item';
@@ -195,19 +196,70 @@ async function fetchAndRenderDownloadHistory() {
                     } else {
                         if (searchInput) searchInput.value = '';
                         fetchAndDisplayFiles(parentPath || '');
+                        if (window._currentDownloadHistoryModal) {
+                            closeAuthModal(window._currentDownloadHistoryModal);
+                            window._currentDownloadHistoryModal = null;
+                        }
                     }
                 });
                 ul.appendChild(li);
             });
-            downloadHistoryListElement.appendChild(ul);
+            container.appendChild(ul);
         } else {
-            downloadHistoryListElement.innerHTML = '<p class="empty-state-small">无法加载下载历史。</p>';
+            container.innerHTML = '<p class="empty-state-small">无法加载下载历史。</p>';
             console.error('获取下载历史失败:', result.error);
         }
     } catch (error) {
-        downloadHistoryListElement.innerHTML = '<p class="empty-state-small">加载下载历史时出错。</p>';
+        container.innerHTML = '<p class="empty-state-small">加载下载历史时出错。</p>';
         console.error('请求下载历史出错:', error);
     }
+}
+
+let downloadHistoryModal = null;
+window.showDownloadHistoryModal = function () {
+    if (downloadHistoryModal) {
+        closeAuthModal(downloadHistoryModal);
+        downloadHistoryModal = null;
+        return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.id = 'download-history-modal';
+    downloadHistoryModal = modal;
+    window._currentDownloadHistoryModal = modal;
+    modal.innerHTML = `
+        <div class="auth-box" style="max-width:520px;">
+            <div class="admin-modal-header">
+                <h2 class="auth-title"><i class="fas fa-history u-margin-right-small"></i>下载历史</h2>
+                <button id="close-download-history-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="download-history-modal-hint">
+                <i class="fas fa-hand-pointer"></i> 长按可查看完整路径
+            </div>
+            <div id="download-history-modal-content" class="admin-scrollable-container"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#close-download-history-modal').addEventListener('click', () => {
+        closeAuthModal(modal);
+        downloadHistoryModal = null;
+        window._currentDownloadHistoryModal = null;
+    });
+    modal.addEventListener('mousedown', (e) => {
+        if (e.target === modal) {
+            closeAuthModal(modal);
+            downloadHistoryModal = null;
+            window._currentDownloadHistoryModal = null;
+        }
+    });
+    fetchAndRenderDownloadHistory(modal.querySelector('#download-history-modal-content'));
+};
+
+function initDownloadHistoryPanel() {
+    const entry = document.getElementById('download-history-entry');
+    if (!entry) return;
+    const token = localStorage.getItem('authToken');
+    entry.style.display = token ? 'flex' : 'none';
 }
 function formatHistoryTime(dateStr) {
     if (!dateStr) return '';
