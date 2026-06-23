@@ -311,6 +311,10 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const shareButtonHTML = `<button class="share-button" title="生成分享链">
             <i class="fas fa-share-alt"></i>
         </button>`;
+    const isFavorited = !!(item.is_favorited);
+    const favoriteButtonHTML = `<button class="share-button favorite-toggle-btn${isFavorited ? ' active' : ''}" title="${isFavorited ? '取消收藏' : '收藏'}" data-favorited="${isFavorited ? 1 : 0}">
+            <i class="${isFavorited ? 'fas' : 'far'} fa-star"></i>
+        </button>`;
     const isAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
     let reactionButtonsHTML = '';
     if (!isDirectory) {
@@ -341,6 +345,7 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             ${downloadButtonHTML}
         `}
         ${shareButtonHTML}
+        ${favoriteButtonHTML}
         ${isAdmin ? `
         ${isLink ? `
         <button class="edit-link-button" title="编辑链接地址">
@@ -442,16 +447,24 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             };
             likeBtn.onclick = async (e) => {
                 e.stopPropagation();
+                const wasActive = likeBtn.classList.contains('active');
+                const prevLikes = item.likes || 0;
+                const optimisticLikes = wasActive ? prevLikes - 1 : prevLikes + 1;
+                item.is_liked = wasActive ? 0 : 1;
+                item.likes = optimisticLikes;
+                updateCount(optimisticLikes);
+                likeBtn.classList.toggle('active', !wasActive);
                 const result = await toggleReaction(item.key, likeBtn);
                 if (result) {
                     item.likes = result.likes;
-                    item.is_liked = result.isLiked;
+                    item.is_liked = result.isLiked ? 1 : 0;
                     updateCount(result.likes);
-                    if (result.isLiked) {
-                        likeBtn.classList.add('active');
-                    } else {
-                        likeBtn.classList.remove('active');
-                    }
+                    likeBtn.classList.toggle('active', !!result.isLiked);
+                } else {
+                    item.likes = prevLikes;
+                    item.is_liked = wasActive ? 1 : 0;
+                    updateCount(prevLikes);
+                    likeBtn.classList.toggle('active', wasActive);
                 }
             };
         }
@@ -468,6 +481,29 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         shareBtn.onclick = (e) => {
             e.stopPropagation();
             shareFile(item);
+        };
+    }
+    const favBtn = fileActionsDiv.querySelector('.favorite-toggle-btn');
+    if (favBtn) {
+        favBtn.onclick = async (e) => {
+            e.stopPropagation();
+            const wasActive = !!(item.is_favorited);
+            const newState = !wasActive;
+            const setFavUI = (favorited) => {
+                item.is_favorited = favorited ? 1 : 0;
+                favBtn.classList.toggle('active', favorited);
+                favBtn.title = favorited ? '取消收藏' : '收藏';
+                const icon = favBtn.querySelector('i');
+                if (icon) icon.className = favorited ? 'fas fa-star' : 'far fa-star';
+            };
+            setFavUI(newState);
+            if (newState) showNotification('已加入收藏', 'success', 1500);
+            const result = await toggleFavorite(item.key, favBtn);
+            if (result && result.success !== false) {
+                setFavUI(!!result.isFavorited);
+            } else {
+                setFavUI(wasActive);
+            }
         };
     }
     if (highlightKey && item.key === highlightKey) {

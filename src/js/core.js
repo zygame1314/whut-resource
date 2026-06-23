@@ -261,6 +261,177 @@ function initDownloadHistoryPanel() {
     const token = localStorage.getItem('authToken');
     entry.style.display = token ? 'flex' : 'none';
 }
+async function fetchAndRenderFavorites(targetElement) {
+    const container = targetElement;
+    if (!container) return;
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        container.innerHTML = '<p class="empty-state-small">登录后查看收藏</p>';
+        return;
+    }
+    container.innerHTML = `
+        <div class="sidebar-skeleton-dl">
+            <div class="skeleton-dl-item">
+                <div class="skeleton-dl-icon"></div>
+                <div class="skeleton-dl-text medium"></div>
+                <div class="skeleton-dl-time"></div>
+            </div>
+            <div class="skeleton-dl-item">
+                <div class="skeleton-dl-icon"></div>
+                <div class="skeleton-dl-text short"></div>
+                <div class="skeleton-dl-time"></div>
+            </div>
+            <div class="skeleton-dl-item">
+                <div class="skeleton-dl-icon"></div>
+                <div class="skeleton-dl-text"></div>
+                <div class="skeleton-dl-time"></div>
+            </div>
+        </div>`;
+    try {
+        const response = await fetch(`${FILES_API_URL}?action=favorites&limit=20`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (response.ok && result.success && result.files) {
+            if (result.files.length === 0) {
+                container.innerHTML = '<p class="empty-state-small">还没有收藏，点击文件旁的星标添加收藏</p>';
+                return;
+            }
+            container.innerHTML = '';
+            const ul = document.createElement('ul');
+            ul.className = 'download-history-list download-history-modal-list';
+            result.files.forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'download-history-item favorites-item';
+                const isLink = file.is_link === 1 || file.is_link === true;
+                const isDirectory = file.is_directory === 1 || file.is_directory === true;
+                const iconClass = isLink ? 'fas fa-link' : (isDirectory ? 'fas fa-folder' : getFileIcon(file.name, false));
+                const parentPath = typeof file.parent_path === 'string' ? file.parent_path : '';
+                const normalizedPath = parentPath.endsWith('/') ? parentPath.slice(0, -1) : parentPath;
+                const truncateMiddle = (str, len = 12) => {
+                    if (!str || str.length <= len) return str;
+                    return str.slice(0, Math.ceil(len / 2)) + '...' + str.slice(-Math.floor(len / 2));
+                };
+                const displayPath = normalizedPath ? truncateMiddle(normalizedPath.split('/').pop(), 14) : '根目录';
+                const timeStr = formatHistoryTime(file.favorited_at);
+                li.innerHTML = `
+                    <span class="download-history-name" title="${escapeHtml(file.name)}">
+                       <i class="${iconClass}"></i>
+                       ${escapeHtml(file.name)}
+                    </span>
+                    <span class="download-history-meta">
+                        <span class="download-history-path" title="${escapeHtml(parentPath || '根目录')}"><i class="fas fa-folder-open"></i> ${escapeHtml(displayPath)}</span>
+                        <span class="download-history-time">${timeStr}</span>
+                    </span>
+                `;
+                let pressTimer = null;
+                let isLongPress = false;
+                li.addEventListener('touchstart', (e) => {
+                    isLongPress = false;
+                    pressTimer = setTimeout(() => {
+                        isLongPress = true;
+                        showNotification(`完整路径: ${parentPath || '根目录'}`, 'info');
+                    }, 500);
+                }, { passive: true });
+                li.addEventListener('touchmove', () => { clearTimeout(pressTimer); }, { passive: true });
+                li.addEventListener('touchend', () => { clearTimeout(pressTimer); });
+                li.addEventListener('touchcancel', () => { clearTimeout(pressTimer); });
+                li.addEventListener('contextmenu', (e) => {
+                    if (isLongPress) { e.preventDefault(); e.stopPropagation(); }
+                });
+                li.addEventListener('click', async (e) => {
+                    if (isLongPress) { e.preventDefault(); e.stopPropagation(); return; }
+                    if (isLink && file.link_url) {
+                        if (typeof openLink === 'function') {
+                            openLink(file.key, file.link_url);
+                        } else {
+                            window.open(file.link_url, '_blank');
+                        }
+                    } else {
+                        if (searchInput) searchInput.value = '';
+                        await fetchAndDisplayFiles(parentPath || '');
+                        if (window._currentFavoritesModal) {
+                            closeAuthModal(window._currentFavoritesModal);
+                            window._currentFavoritesModal = null;
+                        }
+                    }
+                });
+                const unfavBtn = document.createElement('button');
+                unfavBtn.className = 'favorites-unfav-btn';
+                unfavBtn.title = '取消收藏';
+                unfavBtn.innerHTML = '<i class="fas fa-star"></i>';
+                unfavBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const res = await toggleFavorite(file.key, unfavBtn);
+                    if (res) {
+                        li.classList.add('favorites-item-removing');
+                        setTimeout(() => {
+                            li.remove();
+                            if (ul.children.length === 0) {
+                                container.innerHTML = '<p class="empty-state-small">还没有收藏，点击文件旁的星标添加收藏</p>';
+                            }
+                        }, 250);
+                    }
+                });
+                li.appendChild(unfavBtn);
+                ul.appendChild(li);
+            });
+            container.appendChild(ul);
+        } else {
+            container.innerHTML = '<p class="empty-state-small">无法加载收藏列表。</p>';
+            console.error('获取收藏列表失败:', result.error);
+        }
+    } catch (error) {
+        container.innerHTML = '<p class="empty-state-small">加载收藏列表时出错。</p>';
+        console.error('请求收藏列表出错:', error);
+    }
+}
+let favoritesModal = null;
+window.showFavoritesModal = function () {
+    if (favoritesModal) {
+        closeAuthModal(favoritesModal);
+        favoritesModal = null;
+        return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.id = 'favorites-modal';
+    favoritesModal = modal;
+    window._currentFavoritesModal = modal;
+    modal.innerHTML = `
+        <div class="auth-box" style="max-width:520px;">
+            <div class="admin-modal-header">
+                <h2 class="auth-title"><i class="fas fa-star u-margin-right-small"></i>我的收藏</h2>
+                <button id="close-favorites-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="download-history-modal-hint">
+                <i class="fas fa-hand-pointer"></i> 点击条目定位到所在目录
+            </div>
+            <div id="favorites-modal-content" class="admin-scrollable-container"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#close-favorites-modal').addEventListener('click', () => {
+        closeAuthModal(modal);
+        favoritesModal = null;
+        window._currentFavoritesModal = null;
+    });
+    modal.addEventListener('mousedown', (e) => {
+        if (e.target === modal) {
+            closeAuthModal(modal);
+            favoritesModal = null;
+            window._currentFavoritesModal = null;
+        }
+    });
+    fetchAndRenderFavorites(modal.querySelector('#favorites-modal-content'));
+};
+function initFavoritesPanel() {
+    const entry = document.getElementById('favorites-entry');
+    if (!entry) return;
+    const token = localStorage.getItem('authToken');
+    entry.style.display = token ? 'flex' : 'none';
+}
 function formatHistoryTime(dateStr) {
     if (!dateStr) return '';
     const date = new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z'));

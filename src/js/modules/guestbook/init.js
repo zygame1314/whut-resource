@@ -36,5 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshGuestbook();
         initTodoPanel();
         if (typeof initDownloadHistoryPanel === 'function') initDownloadHistoryPanel();
+        if (typeof initFavoritesPanel === 'function') initFavoritesPanel();
     });
 });

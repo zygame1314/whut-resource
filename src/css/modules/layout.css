@@ -860,6 +860,7 @@
     gap: 8px;
     max-height: 240px;
     overflow-y: auto;
+    overflow-x: hidden;
     padding-right: 4px;
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) transparent;

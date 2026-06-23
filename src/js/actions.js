@@ -758,6 +758,40 @@ async function toggleReaction(fileKey, btnElement) {
         if (btnElement) btnElement.disabled = false;
     }
 }
+async function toggleFavorite(fileKey, btnElement) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("请先登录后再收藏。", 'error');
+        return null;
+    }
+    if (btnElement) btnElement.disabled = true;
+    try {
+        const response = await fetch(`${FILES_API_URL}?action=toggleFavorite`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                key: fileKey
+            }),
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            window.filesApiCache.invalidate('favorites');
+            return result;
+        } else {
+            showNotification(result.error || '收藏操作失败', 'error');
+            return null;
+        }
+    } catch (error) {
+        console.error('Favorite error:', error);
+        showNotification('收藏操作失败', 'error');
+        return null;
+    } finally {
+        if (btnElement) btnElement.disabled = false;
+    }
+}
 async function fetchBoosts(fileKey, limit = 20, cursor = null) {
     const token = localStorage.getItem('authToken');
     if (!token) {

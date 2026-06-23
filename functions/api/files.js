@@ -872,6 +872,18 @@ export async function onRequestPost({ request, env }) {
                 await DB.prepare('DELETE FROM favorites WHERE user_id = ? AND file_key = ?').bind(user.id, key).run();
                 isFavorited = false;
             } else {
+                const MAX_FAVORITES = 20;
+                const countRow = await DB.prepare('SELECT COUNT(*) as cnt FROM favorites WHERE user_id = ?').bind(user.id).first();
+                const currentCount = countRow ? (countRow.cnt || 0) : 0;
+                if (currentCount >= MAX_FAVORITES) {
+                    return new Response(JSON.stringify({
+                        success: false,
+                        error: `收藏已达上限（${MAX_FAVORITES} 条），请先在「我的收藏」中取消一些不再需要的收藏`
+                    }), {
+                        status: 400,
+                        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                    });
+                }
                 await DB.prepare('INSERT INTO favorites (user_id, file_key) VALUES (?, ?)').bind(user.id, key).run();
                 isFavorited = true;
             }
