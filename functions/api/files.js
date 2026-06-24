@@ -734,6 +734,7 @@ export async function onRequestPut({ request, env }) {
                 batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('UPDATE file_reactions SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('UPDATE file_boosts SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+                batchOperations.push(DB.prepare('UPDATE favorites SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
             }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
@@ -995,6 +996,7 @@ export async function onRequestPost({ request, env }) {
                 batchOperations.push(DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('UPDATE file_reactions SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('UPDATE file_boosts SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
+                batchOperations.push(DB.prepare('UPDATE favorites SET file_key = ? WHERE file_key = ?').bind(newChildKey, child.key));
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
             }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
@@ -1053,6 +1055,7 @@ export async function onRequestPost({ request, env }) {
             DB.prepare('UPDATE downloads SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
             DB.prepare('UPDATE file_reactions SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
             DB.prepare('UPDATE file_boosts SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
+            DB.prepare('UPDATE favorites SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
             DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey)
         ]);
         await deleteVectorIndexes(env, [oldFileId]);
@@ -1181,10 +1184,22 @@ export async function onRequestDelete({ request, env }) {
                 for (let i = 0; i < childKeys.length; i += 100) {
                     const batch = childKeys.slice(i, i + 100);
                     const placeholders = batch.map(() => '?').join(',');
-                    await DB.prepare(`DELETE FROM files WHERE key IN (${placeholders})`).bind(...batch).run();
+                    await DB.batch([
+                        DB.prepare(`DELETE FROM files WHERE key IN (${placeholders})`).bind(...batch),
+                        DB.prepare(`DELETE FROM downloads WHERE file_key IN (${placeholders})`).bind(...batch),
+                        DB.prepare(`DELETE FROM file_reactions WHERE file_key IN (${placeholders})`).bind(...batch),
+                        DB.prepare(`DELETE FROM file_boosts WHERE file_key IN (${placeholders})`).bind(...batch),
+                        DB.prepare(`DELETE FROM favorites WHERE file_key IN (${placeholders})`).bind(...batch)
+                    ]);
                 }
             }
-            await DB.prepare('DELETE FROM files WHERE key = ?').bind(key).run();
+            await DB.batch([
+                DB.prepare('DELETE FROM files WHERE key = ?').bind(key),
+                DB.prepare('DELETE FROM downloads WHERE file_key = ?').bind(key),
+                DB.prepare('DELETE FROM file_reactions WHERE file_key = ?').bind(key),
+                DB.prepare('DELETE FROM file_boosts WHERE file_key = ?').bind(key),
+                DB.prepare('DELETE FROM favorites WHERE file_key = ?').bind(key)
+            ]);
             await deleteVectorIndexes(env, fileIdsToDeleteVector);
             const deletedCount = (childItems?.length || 0) + 1;
             await logAdminAction(env, user.id, 'delete_folder', 'file', fileRecord.id, '删除文件夹', JSON.stringify({ key, deleted_count: deletedCount }));
@@ -1201,7 +1216,13 @@ export async function onRequestDelete({ request, env }) {
         if (!isLink) {
             await R2.delete(key);
         }
-        await DB.prepare('DELETE FROM files WHERE key = ?').bind(key).run();
+        await DB.batch([
+            DB.prepare('DELETE FROM files WHERE key = ?').bind(key),
+            DB.prepare('DELETE FROM downloads WHERE file_key = ?').bind(key),
+            DB.prepare('DELETE FROM file_reactions WHERE file_key = ?').bind(key),
+            DB.prepare('DELETE FROM file_boosts WHERE file_key = ?').bind(key),
+            DB.prepare('DELETE FROM favorites WHERE file_key = ?').bind(key)
+        ]);
         await deleteVectorIndexes(env, [fileIdToDelete]);
         await logAdminAction(env, user.id, isLink ? 'delete_link' : 'delete_file', 'file', fileIdToDelete, isLink ? '删除链接' : '删除文件', JSON.stringify({ key, snapshot_content: fileRecord.name }));
         return new Response(JSON.stringify({
