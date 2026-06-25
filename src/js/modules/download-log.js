@@ -12,6 +12,10 @@
     const MAX_RETRIES = 3;
     const HEARTBEAT_INTERVAL = 30000;
     const VISIBILITY_DISCONNECT_DELAY = 60000;
+    const IDLE_TIMEOUT = 5 * 60 * 1000;
+    const IDLE_EVENTS = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    let idleTimer = null;
+    let isIdleDisconnected = false;
     const isMobile = window.innerWidth <= 768;
     const MAX_VISIBLE_TOASTS = isMobile ? 1 : 3;
     const TOAST_DURATION = isMobile ? 3000 : 5000;
@@ -80,6 +84,34 @@
                 socket.send(JSON.stringify({ type: 'disconnect' }));
             }
         });
+        IDLE_EVENTS.forEach(evt => {
+            document.addEventListener(evt, resetIdleTimer, { passive: true });
+        });
+        resetIdleTimer();
+    }
+    function resetIdleTimer() {
+        if (idleTimer) clearTimeout(idleTimer);
+        if (isIdleDisconnected && isPageVisible && (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING)) {
+            isIdleDisconnected = false;
+            console.log('用户恢复操作，正在重新连接下载日志...');
+            reconnectInterval = 1000;
+            connect();
+        } else if (isIdleDisconnected) {
+            isIdleDisconnected = false;
+        }
+        if (isPageVisible) {
+            idleTimer = setTimeout(() => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    console.log('用户长时间未操作，断开下载日志连接以节省资源');
+                    isIdleDisconnected = true;
+                    intentionalClose = true;
+                    const oldSocket = socket;
+                    socket = null;
+                    stopHeartbeat();
+                    oldSocket.close();
+                }
+            }, IDLE_TIMEOUT);
+        }
     }
     function onPageVisible() {
         if (visibilityDisconnectTimer) {
@@ -96,6 +128,10 @@
     }
     function onPageHidden() {
         stopHeartbeat();
+        if (idleTimer) {
+            clearTimeout(idleTimer);
+            idleTimer = null;
+        }
         visibilityDisconnectTimer = setTimeout(() => {
             if (!isPageVisible && socket && socket.readyState === WebSocket.OPEN) {
                 console.log('页面长时间不可见，断开下载日志连接以节省资源');

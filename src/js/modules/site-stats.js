@@ -94,6 +94,4 @@
     } else {
         fetchSiteStats();
     }
-
-    setInterval(fetchSiteStats, 300000);
 })();
