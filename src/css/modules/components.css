@@ -12370,3 +12370,212 @@ input#prompt-input {
         width: 100%;
     }
 }
+
+/* 分享引导弹窗 */
+.share-popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    z-index: 10003;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.share-popup-overlay.closing {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+.share-popup {
+    background: var(--background);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    max-width: 440px;
+    width: 92%;
+    overflow: hidden;
+    animation: fadeInUp 0.4s ease;
+    position: relative;
+}
+
+.share-popup-overlay.closing .share-popup {
+    animation: slideDownClose 0.3s ease forwards;
+}
+
+.share-popup-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    z-index: 2;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.share-popup-close-btn:hover {
+    background: var(--background-alt);
+    color: var(--text-primary);
+}
+
+.share-popup-header {
+    text-align: center;
+    padding: 2rem 1.5rem 1rem;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.08), rgba(var(--primary-rgb), 0.02));
+}
+
+.share-popup-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 0.75rem;
+    background: var(--primary-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.3);
+}
+
+.share-popup-header h3 {
+    margin: 0 0 0.4rem;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+}
+
+.share-popup-subtitle {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.share-popup-subtitle strong {
+    color: var(--accent-color);
+    font-size: 1.05rem;
+}
+
+.share-popup-body {
+    padding: 1rem 1.5rem;
+}
+
+.share-popup-desc {
+    margin: 0 0 1.25rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    text-align: center;
+}
+
+.share-popup-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.share-popup-actions button {
+    flex: 1;
+    min-width: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.85rem 0.5rem;
+    background: var(--background-alt);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background var(--transition-fast);
+    color: var(--text-primary);
+}
+
+.share-popup-actions button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    background: var(--card-hover-bg, var(--background));
+}
+
+.share-popup-actions button i {
+    font-size: 1.4rem;
+}
+
+.share-popup-copy-btn i { color: var(--primary-color); }
+.share-popup-qq-btn i { color: #12B7F5; }
+.share-popup-qzone-btn i { color: #FBB711; }
+.share-popup-weibo-btn i { color: #E6162D; }
+
+.share-popup-actions button span {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.share-popup-footer {
+    padding: 0.75rem 1.5rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.share-popup-hide-checkbox {
+    font-size: 0.8rem;
+}
+
+.share-popup-dismiss-btn {
+    padding: 0.6rem 1.5rem;
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+}
+
+.share-popup-dismiss-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+}
+
+@media (max-width: 480px) {
+    .share-popup {
+        max-width: 95%;
+    }
+
+    .share-popup-header {
+        padding: 1.5rem 1rem 0.75rem;
+    }
+
+    .share-popup-body {
+        padding: 0.75rem 1rem;
+    }
+
+    .share-popup-footer {
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem 1rem;
+    }
+
+    .share-popup-dismiss-btn {
+        width: 100%;
+    }
+
+    .share-popup-actions button {
+        min-width: 60px;
+        padding: 0.7rem 0.4rem;
+    }
+}

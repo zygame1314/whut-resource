@@ -80,7 +80,8 @@ const jsBundles = {
     'site-stats.js': ['modules/site-stats.js'],
     'browser-guide.js': ['modules/browser-guide.js'],
     'page-viewer.js': ['modules/page-viewer.js'],
-    'donation-popup.js': ['modules/donation-popup.js']
+    'donation-popup.js': ['modules/donation-popup.js'],
+    'share-popup.js': ['modules/share-popup.js']
 };
 const cssBundles = {
     'css/style.css': [
