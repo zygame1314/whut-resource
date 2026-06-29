@@ -92,7 +92,7 @@
                     <p class="share-popup-subtitle">你已累计下载 <strong>${downloadCount}</strong> 份资料，收获满满！</p>
                 </div>
                 <div class="share-popup-body">
-                    <p class="share-popup-desc">这里的资源都是校友们无偿贡献的。如果它帮到了你，不妨把站点分享给身边的同学，让更多人能够收益！</p>
+                    <p class="share-popup-desc">这里的资源都是校友们无偿贡献的。如果它帮到了你，不妨把站点分享给身边的同学，让更多人能够受益！</p>
                     <button class="share-popup-native-btn" style="display:none;" title="唤起系统分享菜单">
                         <i class="fas fa-share-alt"></i>
                         <span>分享给同学</span>
