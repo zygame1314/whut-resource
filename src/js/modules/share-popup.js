@@ -11,8 +11,8 @@
     function getNow() { return Date.now(); }
     function daysMs(days) { return days * 24 * 60 * 60 * 1000; }
 
-    function recordDownload() {
-        const count = Number(localStorage.getItem(STORAGE_DOWNLOAD_COUNT) || 0) + 1;
+    function recordDownload(delta = 1) {
+        const count = Number(localStorage.getItem(STORAGE_DOWNLOAD_COUNT) || 0) + delta;
         localStorage.setItem(STORAGE_DOWNLOAD_COUNT, String(count));
         return count;
     }
@@ -181,9 +181,10 @@
     function bindDownloadTracking() {
         if (!window.DownloadManager) return;
         let pendingCount = 0;
-        window.DownloadManager.on('taskCompleted', () => {
+        window.DownloadManager.on('taskCompleted', ({ task }) => {
             pendingCount++;
-            const count = recordDownload();
+            const fileCount = (task && task.files && task.files.length) || 1;
+            const count = recordDownload(fileCount);
             if (shouldShow(count) && pendingCount >= 1) {
                 pendingCount = 0;
                 setTimeout(() => showSharePopup(count), 1500);
