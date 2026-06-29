@@ -15,6 +15,7 @@ const pathsToRemove = [
     'site-stats.js',
     'download-log.js',
     'donation-popup.js',
+    'share-popup.js',
     'download-manager.js',
     'download-manager-ui.js',
     'oauth.js',

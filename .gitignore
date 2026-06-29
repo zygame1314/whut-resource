@@ -24,6 +24,7 @@ dist/
 /page-viewer.js
 /donation-popup.js
 /oauth.js
+/share-popup.js
 
 # ==========================================
 # 开发模式生成的 CSS 合并文件

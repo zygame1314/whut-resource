@@ -76,6 +76,25 @@
         window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
     }
 
+    function canNativeShare() {
+        return typeof navigator !== 'undefined' &&
+            typeof navigator.share === 'function';
+    }
+
+    async function nativeShare() {
+        const url = window.location.origin + (window.location.pathname === '/' ? '' : window.location.pathname);
+        const title = '武理资源共享平台';
+        const text = '一个无偿共享 WHUT 学习资料的小站，欢迎白嫖也欢迎共建';
+        try {
+            await navigator.share({ title, text, url });
+            return true;
+        } catch (e) {
+            if (e && e.name === 'AbortError') return false;
+            console.warn('原生分享失败:', e);
+            return false;
+        }
+    }
+
     function createModal(downloadCount) {
         const overlay = document.createElement('div');
         overlay.className = 'share-popup-overlay';
@@ -88,7 +107,11 @@
                     <p class="share-popup-subtitle">你已累计下载 <strong>${downloadCount}</strong> 份资料，收获满满！</p>
                 </div>
                 <div class="share-popup-body">
-                    <p class="share-popup-desc">这里的资源都是校友们无偿贡献的。如果它帮到了你，不妨把站点分享给身边的同学，让更多人能收益；也欢迎你把自己整理的笔记、资料上传共建，让这份薪火继续传递～</p>
+                    <p class="share-popup-desc">这里的资料都是校友们无偿贡献的。如果它帮到了你，不妨把站点分享给身边的同学，让更多人能收益；也欢迎你把自己整理的笔记、课件上传共建，让这份薪火继续传递～</p>
+                    <button class="share-popup-native-btn" style="display:none;" title="唤起系统分享菜单">
+                        <i class="fas fa-share-alt"></i>
+                        <span>分享给同学</span>
+                    </button>
                     <div class="share-popup-actions">
                         <button class="share-popup-copy-btn" title="复制站点链接和介绍">
                             <i class="fas fa-link"></i>
@@ -176,6 +199,17 @@
         overlay.querySelector('.share-popup-qq-btn').addEventListener('click', () => shareToSocial('qq'));
         overlay.querySelector('.share-popup-qzone-btn').addEventListener('click', () => shareToSocial('qzone'));
         overlay.querySelector('.share-popup-weibo-btn').addEventListener('click', () => shareToSocial('weibo'));
+
+        const nativeBtn = overlay.querySelector('.share-popup-native-btn');
+        if (nativeBtn && canNativeShare()) {
+            nativeBtn.style.display = '';
+            nativeBtn.addEventListener('click', async () => {
+                const ok = await nativeShare();
+                if (ok && typeof showNotification === 'function') {
+                    showNotification('感谢分享，让更多人受益～', 'success');
+                }
+            });
+        }
     }
 
     function bindDownloadTracking() {
