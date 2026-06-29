@@ -56,28 +56,13 @@
         });
     }
 
-    function shareToSocial(platform) {
-        const url = window.location.origin + (window.location.pathname === '/' ? '' : window.location.pathname);
-        const text = '武理资源共享平台 - WHUT 学习资料无偿共享，欢迎加入，也欢迎共建';
-        let shareUrl = '';
-        switch (platform) {
-            case 'qq':
-                shareUrl = `https://connect.qq.com/widget/shareqq/index.html?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}`;
-                break;
-            case 'weibo':
-                shareUrl = `https://service.weibo.com/share/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}`;
-                break;
-            case 'qzone':
-                shareUrl = `https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}`;
-                break;
-            default:
-                return;
-        }
-        window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
+    function isMobile() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
 
     function canNativeShare() {
-        return typeof navigator !== 'undefined' &&
+        return isMobile() &&
+            typeof navigator !== 'undefined' &&
             typeof navigator.share === 'function';
     }
 
@@ -107,7 +92,7 @@
                     <p class="share-popup-subtitle">你已累计下载 <strong>${downloadCount}</strong> 份资料，收获满满！</p>
                 </div>
                 <div class="share-popup-body">
-                    <p class="share-popup-desc">这里的资料都是校友们无偿贡献的。如果它帮到了你，不妨把站点分享给身边的同学，让更多人能收益；也欢迎你把自己整理的笔记、课件上传共建，让这份薪火继续传递～</p>
+                    <p class="share-popup-desc">这里的资源都是校友们无偿贡献的。如果它帮到了你，不妨把站点分享给身边的同学，让更多人能够收益！</p>
                     <button class="share-popup-native-btn" style="display:none;" title="唤起系统分享菜单">
                         <i class="fas fa-share-alt"></i>
                         <span>分享给同学</span>
@@ -116,18 +101,6 @@
                         <button class="share-popup-copy-btn" title="复制站点链接和介绍">
                             <i class="fas fa-link"></i>
                             <span>复制链接</span>
-                        </button>
-                        <button class="share-popup-qq-btn" title="分享到 QQ">
-                            <i class="fab fa-qq"></i>
-                            <span>QQ</span>
-                        </button>
-                        <button class="share-popup-qzone-btn" title="分享到 QQ 空间">
-                            <i class="fab fa-quora"></i>
-                            <span>QQ空间</span>
-                        </button>
-                        <button class="share-popup-weibo-btn" title="分享到微博">
-                            <i class="fab fa-weibo"></i>
-                            <span>微博</span>
                         </button>
                     </div>
                 </div>
@@ -196,9 +169,6 @@
                 setTimeout(() => { if (span) span.textContent = original; }, 2000);
             }
         });
-        overlay.querySelector('.share-popup-qq-btn').addEventListener('click', () => shareToSocial('qq'));
-        overlay.querySelector('.share-popup-qzone-btn').addEventListener('click', () => shareToSocial('qzone'));
-        overlay.querySelector('.share-popup-weibo-btn').addEventListener('click', () => shareToSocial('weibo'));
 
         const nativeBtn = overlay.querySelector('.share-popup-native-btn');
         if (nativeBtn && canNativeShare()) {
