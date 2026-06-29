@@ -29,7 +29,7 @@
     function getSiteShareText() {
         return [
             '📚 武理资源共享平台',
-            '一个无偿分享 WHUT 学习资料的小站，历年试卷、课件、笔记都有。独乐乐不如众乐乐，欢迎白嫖，也欢迎共建～',
+            '一个无偿分享 WHUT 学习资料的小站，历年试卷、课件、笔记都有。独乐乐不如众乐乐，欢迎加入，也欢迎共建～',
             '🔗 ' + (window.location.origin + (window.location.pathname === '/' ? '' : window.location.pathname))
         ].join('\n');
     }
@@ -58,7 +58,7 @@
 
     function shareToSocial(platform) {
         const url = window.location.origin + (window.location.pathname === '/' ? '' : window.location.pathname);
-        const text = '武理资源共享平台 - WHUT 学习资料无偿共享，欢迎白嫖也欢迎共建';
+        const text = '武理资源共享平台 - WHUT 学习资料无偿共享，欢迎加入，也欢迎共建';
         let shareUrl = '';
         switch (platform) {
             case 'qq':
@@ -84,7 +84,7 @@
     async function nativeShare() {
         const url = window.location.origin + (window.location.pathname === '/' ? '' : window.location.pathname);
         const title = '武理资源共享平台';
-        const text = '一个无偿共享 WHUT 学习资料的小站，欢迎白嫖也欢迎共建';
+        const text = '一个无偿共享 WHUT 学习资料的小站，欢迎加入，也欢迎共建';
         try {
             await navigator.share({ title, text, url });
             return true;
