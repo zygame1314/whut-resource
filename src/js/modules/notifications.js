@@ -195,6 +195,39 @@
         return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
+    function navigateToGuestbook(id) {
+        const section = document.getElementById('guestbook-section');
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const highlightEl = () => {
+            const el = document.getElementById('gb-' + id);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('notification-highlight');
+                setTimeout(() => el.classList.remove('notification-highlight'), 2400);
+            }
+            return !!el;
+        };
+        if (highlightEl()) return;
+        const currentFilterBtn = document.querySelector('.guestbook-filter-btn.active');
+        const isMine = currentFilterBtn && currentFilterBtn.dataset.filter === 'mine';
+        const switchToMine = () => {
+            if (typeof window.changeGuestbookFilter === 'function' && !isMine) {
+                window.changeGuestbookFilter('mine');
+                if (typeof showNotification === 'function') {
+                    showNotification('已切换到「我的留言」以定位该回复', 'info');
+                }
+            } else if (typeof window.refreshGuestbook === 'function') {
+                window.refreshGuestbook();
+            }
+        };
+        switchToMine();
+        const check = (left) => {
+            if (highlightEl()) return;
+            if (left > 0) setTimeout(() => check(left - 1), 500);
+        };
+        check(10);
+    }
+
     function renderItem(n) {
         const meta = metaFor(n.type, n.icon);
         const unread = !n.is_read;
@@ -233,9 +266,12 @@
             if (item.dataset.link) {
                 const link = item.dataset.link;
                 closePanel();
-                if (link.startsWith('#') || link.startsWith('/')) {
-                    window.location.hash = link.startsWith('#') ? link.slice(1) : '';
-                    if (link.startsWith('/')) window.location.href = link;
+                if (link.startsWith('#gb-')) {
+                    navigateToGuestbook(link.slice(4));
+                } else if (link.startsWith('/') || link.startsWith('?')) {
+                    window.location.href = link;
+                } else if (link.startsWith('#')) {
+                    window.location.hash = link.slice(1);
                 } else {
                     window.location.href = link;
                 }

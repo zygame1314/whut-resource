@@ -132,7 +132,7 @@ function renderGuestbookReply(reply, ctx) {
         </div>`;
     }
     return `
-        <div class="guestbook-reply-item" data-reply-id="${reply.id}">
+        <div class="guestbook-reply-item" data-reply-id="${reply.id}" id="gb-${reply.id}">
             <div class="guestbook-reply-avatar">
                 <div class="user-avatar-placeholder reply-avatar" style="background: ${replyAvatarColor}">${reply.isAdmin ? `<i class="fas fa-${reply.isSuperAdmin ? 'crown' : 'shield-alt'} avatar-role-icon reply-role-icon${reply.isSuperAdmin ? ' super' : ''}"></i>` : ''}${replyAvatarChar}</div>
             </div>
@@ -272,7 +272,7 @@ function renderGuestbookItem(msg) {
             repliesHtml = `<div class="guestbook-replies" id="replies-${msg.id}">${replies}${loadMoreHtml}</div>`;
         }
         return `
-            <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''} ${msg.is_pinned ? 'is-pinned' : ''}">
+            <div class="guestbook-item ${msg.is_hidden ? 'is-hidden' : ''} ${msg.is_pinned ? 'is-pinned' : ''}" id="gb-${msg.id}">
                 <div class="guestbook-left">
                     <div class="user-avatar-placeholder" style="background: ${avatarColor}">${msg.isAdmin ? `<i class="fas fa-${msg.isSuperAdmin ? 'crown' : 'shield-alt'} avatar-role-icon${msg.isSuperAdmin ? ' super' : ''}"></i>` : ''}${avatarChar}</div>
                 </div>

@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification } from '../utils.js';
 import { processWithAIAgent, processReplyWithAI } from './guestbook-ai.js';
 const REPLIES_PER_PARENT = 5;
 export async function onRequest(context) {
@@ -346,6 +346,26 @@ async function handlePost(request, env, context) {
             'INSERT INTO guestbook (user_id, content, parent_id, is_hidden) VALUES (?, ?, ?, 0)'
         ).bind(user.id, content.trim(), parentId).run();
         const newId = result.meta.last_row_id;
+        if (context && context.waitUntil) {
+            context.waitUntil((async () => {
+                try {
+                    const parentEntry = await env.DB.prepare('SELECT user_id, content FROM guestbook WHERE id = ?').bind(parentId).first();
+                    if (parentEntry && parentEntry.user_id && parentEntry.user_id !== user.id) {
+                        const preview = content.trim().length > 50 ? content.trim().slice(0, 50) + '...' : content.trim();
+                        await createNotification(env, {
+                            userId: parentEntry.user_id,
+                            type: 'guestbook_reply',
+                            title: `${userNickname} 回复了你的留言`,
+                            body: preview,
+                            link: `#gb-${parentId}`,
+                            payload: { guestbookId: newId, parentId: parentId, replierNickname: userNickname }
+                        });
+                    }
+                } catch (err) {
+                    console.error('生成回复通知失败:', err);
+                }
+            })());
+        }
         return new Response(JSON.stringify({ success: true, id: newId }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     const result = await env.DB.prepare(
