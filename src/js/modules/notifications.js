@@ -119,8 +119,12 @@
         const panel = ensurePanel();
         state.panelOpen = true;
         panel.classList.add('open');
-        if (state.items.length === 0) loadInitial();
-        else if (state.unread) markAllRead();
+        if (state.items.length === 0) {
+            renderList();
+            loadInitial();
+        } else if (state.unread) {
+            markAllRead();
+        }
     }
 
     function closePanel() {

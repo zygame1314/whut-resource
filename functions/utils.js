@@ -575,7 +575,9 @@ export async function createNotification(env, { userId, type, title, body = null
             payload ? JSON.stringify(payload) : null
         ).run();
         const notifId = result.meta?.last_row_id || null;
-        if (notifId) await pushNotificationToUser(env, userId, notifId).catch(() => {});
+        if (notifId) {
+            pushNotificationToUser(env, userId, notifId).catch(e => console.error('[notify] WS推送失败:', e?.message || e));
+        }
         return notifId;
     } catch (e) {
         console.error('创建通知失败:', e);
@@ -599,23 +601,28 @@ export async function broadcastNotification(env, { type, title, body = null, lin
     return inserted;
 }
 async function pushNotificationToUser(env, userId, notifId) {
-    if (!env.DOWNLOAD_LOGGER || !notifId) return;
+    if (!env.DOWNLOAD_LOGGER || !notifId) {
+        console.log('[notify] 跳过推送: DOWNLOAD_LOGGER=', !!env.DOWNLOAD_LOGGER, 'notifId=', notifId);
+        return;
+    }
     try {
         const notif = await env.DB.prepare(
             'SELECT id, user_id, type, title, body, link, icon, payload, created_at FROM notifications WHERE id = ?'
         ).bind(notifId).first();
-        if (!notif) return;
+        if (!notif) { console.log('[notify] 通知记录不存在 id=', notifId); return; }
         if (notif.payload) {
             try { notif.payload = JSON.parse(notif.payload); } catch (e) { notif.payload = null; }
         }
         const id = env.DOWNLOAD_LOGGER.idFromName('global');
         const stub = env.DOWNLOAD_LOGGER.get(id);
-        await stub.fetch('https://internal/broadcast', {
+        console.log('[notify] 准备推送至 DO, userId=', userId, 'notifId=', notifId);
+        const resp = await stub.fetch('https://internal/broadcast', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'notification', target_user_id: userId, notification: notif })
         });
+        console.log('[notify] DO 响应状态:', resp.status);
     } catch (e) {
-        console.error('推送通知到 WebSocket 失败:', e);
+        console.error('推送通知到 WebSocket 失败:', e?.message || e, e?.stack);
     }
 }

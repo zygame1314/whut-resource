@@ -56,6 +56,7 @@
     background: var(--primary-light);
     color: white;
     transform: scale(1.06);
+    will-change: transform;
 }
 
 .icon-btn.active {
