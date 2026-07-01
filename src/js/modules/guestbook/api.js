@@ -264,6 +264,7 @@ async function handleReplySubmit(parentId, content) {
             const isAdmin = isGuestbookAdmin(window.currentUser);
             const isSuperAdmin = isGuestbookSuperAdmin(window.currentUser);
             showNotification('回复发布成功！', 'success');
+            if (typeof _localReplyLog !== 'undefined') _localReplyLog.set(parentId, Date.now());
             const newReply = {
                 id: d.id,
                 user_id: window.currentUser.id,

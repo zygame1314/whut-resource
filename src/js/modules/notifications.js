@@ -387,7 +387,8 @@
         if (!pollSuspended) return;
         pollSuspended = false;
         resetIdleTimer();
-        startPolling();
+        if (state.pollTimer) startPolling();
+        else fetchUnreadCount();
     }
 
     function resetIdleTimer() {
@@ -401,7 +402,7 @@
     function onPageVisible() {
         if (visibilityPauseTimer) { clearTimeout(visibilityPauseTimer); visibilityPauseTimer = null; }
         if (pollSuspended) resumePolling();
-        else if (!state.pollTimer) startPolling();
+        else fetchUnreadCount();
     }
 
     function onPageHidden() {
@@ -428,13 +429,26 @@
         if (!authed()) return;
         ensureBell();
         initVisibilityAndIdle();
-        startPolling();
+        fetchUnreadCount();
+    }
+
+    function onWsConnected() {
+        if (state.pollTimer) stopPolling();
+    }
+
+    function onWsDisconnected() {
+        if (!state.pollTimer) startPolling();
     }
 
     document.addEventListener('authSuccess', init);
     document.addEventListener('authRestored', init);
     document.addEventListener('siteNotification', (e) => {
         if (e.detail && e.detail.notification) handleIncoming(e.detail.notification);
+    });
+    document.addEventListener('siteWsStatus', (e) => {
+        if (!authed()) return;
+        if (e.detail && e.detail.connected) onWsConnected();
+        else onWsDisconnected();
     });
     if (authed()) {
         if (document.readyState === 'loading') {

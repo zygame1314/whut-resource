@@ -192,7 +192,12 @@
                     document.dispatchEvent(new CustomEvent('siteOnlineCount', { detail: { count: data.count } }));
                 } else if (data.type === 'notification' && data.notification) {
                     document.dispatchEvent(new CustomEvent('siteNotification', { detail: { notification: data.notification } }));
+                } else if (data.type === 'guestbook_update') {
+                    document.dispatchEvent(new CustomEvent('siteGuestbookUpdate', { detail: data }));
                 } else if (data.type === 'welcome' || data.type === 'pong') {
+                    if (data.type === 'welcome') {
+                        document.dispatchEvent(new CustomEvent('siteWsStatus', { detail: { connected: true } }));
+                    }
                 }
             } catch (e) {
                 console.error('解析 WebSocket 消息出错:', e);
@@ -201,6 +206,7 @@
         ws.onclose = () => {
             if (ws !== socket) return;
             stopHeartbeat();
+            document.dispatchEvent(new CustomEvent('siteWsStatus', { detail: { connected: false } }));
             if (intentionalClose || !isPageVisible) {
                 intentionalClose = false;
                 return;

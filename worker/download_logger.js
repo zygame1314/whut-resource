@@ -50,8 +50,7 @@ export class DownloadLogger {
             }
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
-            this.state.acceptWebSocket(server);
-            try { this.state.setTag(server, 'user:' + user.id); } catch (e) {}
+            this.state.acceptWebSocket(server, ['user:' + user.id]);
             this.state.setWebSocketAutoResponse(
                 new WebSocketRequestResponsePair(
                     JSON.stringify({ type: 'ping' }),
@@ -66,7 +65,6 @@ export class DownloadLogger {
         }
         if (url.pathname === "/broadcast" && request.method === "POST") {
             const data = await request.json();
-            console.log('[DO] /broadcast 收到:', data?.type, 'target=', data?.target_user_id, 'wsCount=', this.state.getWebSockets().length, 'matched=', data?.type === 'notification' ? this.state.getWebSockets('user:' + data?.target_user_id).length : 'all');
             this.broadcast(data);
             return new Response("OK", { status: 200 });
         }

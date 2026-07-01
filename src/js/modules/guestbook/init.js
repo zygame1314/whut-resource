@@ -38,4 +38,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof initDownloadHistoryPanel === 'function') initDownloadHistoryPanel();
         if (typeof initFavoritesPanel === 'function') initFavoritesPanel();
     });
+    document.addEventListener('siteGuestbookUpdate', (e) => {
+        const d = e.detail;
+        if (!d || !d.guestbookId) return;
+        if (typeof updateGuestbookCache !== 'function') return;
+        if (d.action === 'delete') {
+            removeFromGuestbookCache(d.guestbookId);
+        } else if (d.action === 'reply_added' || d.action === 'new_message') {
+            if (d.action === 'reply_added' && recentLocalReply(d.guestbookId)) return;
+            refreshGuestbook();
+        } else {
+            const updates = {};
+            if (d.status != null) updates.status = d.status;
+            if (d.is_hidden != null) updates.is_hidden = d.is_hidden;
+            if (d.is_pinned != null) {
+                refreshGuestbook();
+                return;
+            }
+            if (Object.keys(updates).length > 0) updateGuestbookCache(d.guestbookId, updates);
+        }
+    });
 });
+
+const _localReplyLog = new Map();
+function recentLocalReply(parentId) {
+    const t = _localReplyLog.get(parentId);
+    return t && (Date.now() - t < 5000);
+}

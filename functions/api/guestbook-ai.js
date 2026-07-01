@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'gemma4:31b';
 const TOOLS = [
@@ -393,6 +393,7 @@ async function handleReject(entry, reason, env, autoMode) {
                 payload: { guestbookId: entry.id, rejectReason: reason }
             }).catch(() => {});
         }
+        broadcastGuestbookUpdate(env, entry.id, 'reject', { status: 'rejected', is_hidden: 1 });
         return {
             success: true,
             action: 'reject',
@@ -427,6 +428,7 @@ async function handleBanUser(guestbookEntry, reason, env, autoMode) {
             nickname: guestbookEntry.nickname,
             user_id: guestbookEntry.user_id
         }));
+        broadcastGuestbookUpdate(env, guestbookEntry.id, 'delete');
         return {
             success: true,
             action: 'ban_user',
@@ -451,6 +453,7 @@ async function handleDelete(entry, reason, env, autoMode) {
             nickname: entry.nickname,
             user_id: entry.user_id
         }));
+        broadcastGuestbookUpdate(env, entry.id, 'delete');
         return {
             success: true,
             action: 'delete',
@@ -695,6 +698,7 @@ async function handleResolve(entry, reply, searchResults = null, resourcePath = 
                 payload: { guestbookId: entry.id, resourcePath: resourcePath, note: note }
             }).catch(() => {});
         }
+        broadcastGuestbookUpdate(env, entry.id, 'resolve', { status: 'resolved', is_hidden: 0 });
         return {
             success: true,
             action: 'resolve',
