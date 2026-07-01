@@ -542,17 +542,80 @@ export async function deleteGuestbookWithChildren(env, guestbookId) {
   }
 }
 export async function recordVectorSyncFailure(env, operation, fileId, fileData, errorMessage) {
-  if (!env.DB) return;
-  try {
-    await env.DB.prepare(
-      'INSERT INTO vector_sync_failures (operation, file_id, file_data, error_message) VALUES (?, ?, ?, ?)'
-    ).bind(
-      operation,
-      fileId || null,
-      fileData ? JSON.stringify(fileData) : null,
-      errorMessage || ''
-    ).run();
-  } catch (dbError) {
-    console.error('记录向量同步失败信息出错:', dbError);
-  }
+    if (!env.DB) return;
+    try {
+        await env.DB.prepare(
+            'INSERT INTO vector_sync_failures (operation, file_id, file_data, error_message) VALUES (?, ?, ?, ?)'
+        ).bind(
+            operation,
+            fileId || null,
+            fileData ? JSON.stringify(fileData) : null,
+            errorMessage || ''
+        ).run();
+    } catch (dbError) {
+        console.error('记录向量同步失败信息出错:', dbError);
+    }
+}
+
+const VALID_NOTIFICATION_TYPES = new Set([
+    'folder_update', 'guestbook_reply', 'todo_update', 'boost_reply',
+    'admin', 'announcement', 'system'
+]);
+export async function createNotification(env, { userId, type, title, body = null, link = null, icon = null, payload = null }) {
+    if (!env || !env.DB || !userId || !type || !title) return null;
+    if (!VALID_NOTIFICATION_TYPES.has(type)) return null;
+    try {
+        const result = await env.DB.prepare(
+            `INSERT INTO notifications (user_id, type, title, body, link, icon, payload) VALUES (?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+            userId, type, String(title).slice(0, 200),
+            body ? String(body).slice(0, 1000) : null,
+            link ? String(link).slice(0, 500) : null,
+            icon ? String(icon).slice(0, 100) : null,
+            payload ? JSON.stringify(payload) : null
+        ).run();
+        const notifId = result.meta?.last_row_id || null;
+        if (notifId) await pushNotificationToUser(env, userId, notifId).catch(() => {});
+        return notifId;
+    } catch (e) {
+        console.error('创建通知失败:', e);
+        return null;
+    }
+}
+export async function broadcastNotification(env, { type, title, body = null, link = null, icon = null, payload = null }) {
+    if (!env || !env.DB || !type || !title) return 0;
+    if (!VALID_NOTIFICATION_TYPES.has(type)) return 0;
+    let inserted = 0;
+    try {
+        const { results } = await env.DB.prepare('SELECT id FROM users WHERE is_banned = FALSE OR is_banned = 0').all();
+        const userIds = (results || []).map(r => r.id);
+        for (const uid of userIds) {
+            const id = await createNotification(env, { userId: uid, type, title, body, link, icon, payload });
+            if (id) inserted++;
+        }
+    } catch (e) {
+        console.error('广播通知失败:', e);
+    }
+    return inserted;
+}
+async function pushNotificationToUser(env, userId, notifId) {
+    if (!env.DOWNLOAD_LOGGER || !notifId) return;
+    try {
+        const notif = await env.DB.prepare(
+            'SELECT id, user_id, type, title, body, link, icon, payload, created_at FROM notifications WHERE id = ?'
+        ).bind(notifId).first();
+        if (!notif) return;
+        if (notif.payload) {
+            try { notif.payload = JSON.parse(notif.payload); } catch (e) { notif.payload = null; }
+        }
+        const id = env.DOWNLOAD_LOGGER.idFromName('global');
+        const stub = env.DOWNLOAD_LOGGER.get(id);
+        await stub.fetch('https://internal/broadcast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'notification', target_user_id: userId, notification: notif })
+        });
+    } catch (e) {
+        console.error('推送通知到 WebSocket 失败:', e);
+    }
 }

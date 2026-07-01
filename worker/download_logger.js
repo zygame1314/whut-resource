@@ -51,6 +51,7 @@ export class DownloadLogger {
             const pair = new WebSocketPair();
             const [client, server] = Object.values(pair);
             this.state.acceptWebSocket(server);
+            try { this.state.setTag(server, 'user:' + user.id); } catch (e) {}
             this.state.setWebSocketAutoResponse(
                 new WebSocketRequestResponsePair(
                     JSON.stringify({ type: 'ping' }),
@@ -85,6 +86,10 @@ export class DownloadLogger {
         const msg = JSON.stringify(data);
         for (const ws of this.state.getWebSockets()) {
             try {
+                if (data && data.type === 'notification' && data.target_user_id != null) {
+                    const tag = ws.tags && ws.tags[0];
+                    if (tag !== ('user:' + data.target_user_id)) continue;
+                }
                 ws.send(msg);
             } catch (err) {
                 ws.close();

@@ -27,6 +27,7 @@ const scriptModules = [
     'modules/batch.js',
     'core.js',
     'modules/search-history.js',
+    'modules/notifications.js',
     'main.js'
 ];
 const uploadModules = [
@@ -94,7 +95,8 @@ const cssBundles = {
         'modules/tutorial.css',
         'modules/browser-guide.css',
         'modules/page-viewer.css',
-        'modules/authorize.css'
+        'modules/authorize.css',
+        'modules/notifications.css'
     ],
     'css/graph.css': ['modules/graph.css']
 };

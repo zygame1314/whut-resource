@@ -190,6 +190,8 @@
                     queueDownloadToast(data.filename);
                 } else if (data.type === 'online_count') {
                     document.dispatchEvent(new CustomEvent('siteOnlineCount', { detail: { count: data.count } }));
+                } else if (data.type === 'notification' && data.notification) {
+                    document.dispatchEvent(new CustomEvent('siteNotification', { detail: { notification: data.notification } }));
                 } else if (data.type === 'welcome' || data.type === 'pong') {
                 }
             } catch (e) {
