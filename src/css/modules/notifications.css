@@ -140,29 +140,6 @@
     color: var(--text-secondary, #999);
 }
 
-.notification-loading {
-    padding: 4px 16px;
-}
-
-.notification-skeleton-item {
-    height: 56px;
-    border-radius: 10px;
-    background: linear-gradient(90deg, var(--background-alt, #f0f0f0) 25%, rgba(var(--primary-rgb, 0,123,255), 0.08) 50%, var(--background-alt, #f0f0f0) 75%);
-    background-size: 200% 100%;
-    animation: skeleton-shimmer 1.4s ease infinite;
-    margin: 8px 0;
-}
-
-@keyframes skeleton-shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-}
-
-[data-theme="dark"] .notification-skeleton-item {
-    background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.05) 75%);
-    background-size: 200% 100%;
-}
-
 .notification-empty i {
     font-size: 2.4rem;
     opacity: 0.4;

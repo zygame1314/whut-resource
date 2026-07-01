@@ -118,7 +118,8 @@
     function renderLoading() {
         const body = document.querySelector('.notification-panel-body');
         if (!body) return;
-        body.innerHTML = `<div class="notification-loading">${'<div class="notification-skeleton-item"></div>'.repeat(4)}</div>`;
+        const item = '<div class="skeleton-dl-item"><div class="skeleton-dl-icon"></div><div class="skeleton-dl-text"></div><div class="skeleton-dl-time"></div></div>';
+        body.innerHTML = `<div class="skeleton-dl-list">${item.repeat(5)}</div>`;
     }
 
     function closePanel() {
