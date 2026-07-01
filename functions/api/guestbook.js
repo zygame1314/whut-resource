@@ -708,7 +708,7 @@ async function handlePut(request, env, context) {
                 payload: { guestbookId: parseInt(id), resourcePath, note: noteText }
             });
         }
-        bcast(parseInt(id), action, { status: action === 'resolve' ? 'resolved' : 'unresolved', resolve_note: action === 'resolve' ? (resolveNote || null) : null });
+        bcast(parseInt(id), action, { status: action === 'resolve' ? 'resolved' : 'unresolved', is_hidden: action === 'resolve' ? 0 : undefined, resolve_note: action === 'resolve' ? (resolveNote || null) : null });
     } else if (action === 'reject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });

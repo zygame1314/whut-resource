@@ -576,7 +576,8 @@ export async function createNotification(env, { userId, type, title, body = null
         ).run();
         const notifId = result.meta?.last_row_id || null;
         if (notifId) {
-            pushNotificationToUser(env, userId, notifId).catch(e => console.error('[notify] WS推送失败:', e?.message || e));
+            try { await pushNotificationToUser(env, userId, notifId); }
+            catch (e) { console.error('[notify] WS推送失败:', e?.message || e); }
         }
         return notifId;
     } catch (e) {
