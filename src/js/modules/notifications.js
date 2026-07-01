@@ -4,10 +4,6 @@
     const BELL_BTN_ID = 'notification-bell-btn';
     const BADGE_ID = 'notification-badge';
     const PANEL_ID = 'notification-panel';
-    const POLL_INTERVAL = 60000;
-    const VISIBILITY_PAUSE_DELAY = 60000;
-    const IDLE_TIMEOUT = 5 * 60 * 1000;
-    const IDLE_EVENTS = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
     const PAGE_SIZE = 20;
 
     const TYPE_META = {
@@ -21,13 +17,12 @@
     };
 
     const state = {
-        unread: 0,
+        unread: false,
         items: [],
         nextCursor: null,
         isLoading: false,
         hasMore: true,
-        panelOpen: false,
-        pollTimer: null
+        panelOpen: false
     };
 
     function authed() {
@@ -62,15 +57,6 @@
         const badge = document.getElementById(BADGE_ID);
         if (!badge) return;
         badge.classList.toggle('u-hidden', !state.unread);
-    }
-
-    async function fetchUnreadCount() {
-        if (!authed()) return;
-        try {
-            const res = await fetch(`${API_ENDPOINTS.notifications}?action=unread_count`, { headers: authHeaders() });
-            const data = await res.json();
-            if (data.success) setBadge(data.has_unread);
-        } catch (e) { }
     }
 
     function ensurePanel() {
@@ -361,83 +347,9 @@
         }
     }
 
-    function startPolling() {
-        stopPolling();
-        fetchUnreadCount();
-        state.pollTimer = setInterval(fetchUnreadCount, POLL_INTERVAL);
-    }
-
-    function stopPolling() {
-        if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
-    }
-
-    let visibilityPauseTimer = null;
-    let idleTimer = null;
-    let pollSuspended = false;
-
-    function suspendPolling(reason) {
-        if (pollSuspended) return;
-        pollSuspended = true;
-        stopPolling();
-        if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
-        if (visibilityPauseTimer) { clearTimeout(visibilityPauseTimer); visibilityPauseTimer = null; }
-    }
-
-    function resumePolling() {
-        if (!pollSuspended) return;
-        pollSuspended = false;
-        resetIdleTimer();
-        if (state.pollTimer) startPolling();
-        else fetchUnreadCount();
-    }
-
-    function resetIdleTimer() {
-        if (idleTimer) clearTimeout(idleTimer);
-        if (document.hidden) return;
-        idleTimer = setTimeout(() => {
-            if (!document.hidden) suspendPolling('idle');
-        }, IDLE_TIMEOUT);
-    }
-
-    function onPageVisible() {
-        if (visibilityPauseTimer) { clearTimeout(visibilityPauseTimer); visibilityPauseTimer = null; }
-        if (pollSuspended) resumePolling();
-        else fetchUnreadCount();
-    }
-
-    function onPageHidden() {
-        visibilityPauseTimer = setTimeout(() => {
-            if (document.hidden) suspendPolling('hidden');
-        }, VISIBILITY_PAUSE_DELAY);
-    }
-
-    function initVisibilityAndIdle() {
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) onPageHidden();
-            else onPageVisible();
-        });
-        IDLE_EVENTS.forEach(evt => {
-            document.addEventListener(evt, () => {
-                if (pollSuspended && !document.hidden) resumePolling();
-                else resetIdleTimer();
-            }, { passive: true });
-        });
-        resetIdleTimer();
-    }
-
     function init() {
         if (!authed()) return;
         ensureBell();
-        initVisibilityAndIdle();
-        fetchUnreadCount();
-    }
-
-    function onWsConnected() {
-        if (state.pollTimer) stopPolling();
-    }
-
-    function onWsDisconnected() {
-        if (!state.pollTimer) startPolling();
     }
 
     document.addEventListener('authSuccess', init);
@@ -445,10 +357,9 @@
     document.addEventListener('siteNotification', (e) => {
         if (e.detail && e.detail.notification) handleIncoming(e.detail.notification);
     });
-    document.addEventListener('siteWsStatus', (e) => {
+    document.addEventListener('siteNotificationUnread', (e) => {
         if (!authed()) return;
-        if (e.detail && e.detail.connected) onWsConnected();
-        else onWsDisconnected();
+        setBadge(e.detail && e.detail.has_unread);
     });
     if (authed()) {
         if (document.readyState === 'loading') {

@@ -76,15 +76,6 @@ async function handleGet(request, env) {
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
 
-    if (action === 'unread_count') {
-        const row = await env.DB.prepare(
-            'SELECT EXISTS(SELECT 1 FROM notifications WHERE user_id = ? AND is_read = FALSE) as has_unread'
-        ).bind(userId).first();
-        return new Response(JSON.stringify({ success: true, has_unread: !!row?.has_unread }), {
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' })
-        });
-    }
-
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
     const filter = url.searchParams.get('filter') || 'all';
     const cursorStr = url.searchParams.get('cursor') || null;

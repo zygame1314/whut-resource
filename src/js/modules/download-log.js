@@ -192,6 +192,8 @@
                     document.dispatchEvent(new CustomEvent('siteOnlineCount', { detail: { count: data.count } }));
                 } else if (data.type === 'notification' && data.notification) {
                     document.dispatchEvent(new CustomEvent('siteNotification', { detail: { notification: data.notification } }));
+                } else if (data.type === 'notification_unread') {
+                    document.dispatchEvent(new CustomEvent('siteNotificationUnread', { detail: { has_unread: data.has_unread } }));
                 } else if (data.type === 'guestbook_update') {
                     document.dispatchEvent(new CustomEvent('siteGuestbookUpdate', { detail: data }));
                 } else if (data.type === 'welcome' || data.type === 'pong') {

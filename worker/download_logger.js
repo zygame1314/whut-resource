@@ -61,6 +61,12 @@ export class DownloadLogger {
             server.send(JSON.stringify({ type: 'welcome', message: '已成功连接到实时下载日志' }));
             server.send(JSON.stringify({ type: 'online_count', count: this.onlineCount }));
             this.broadcast({ type: 'online_count', count: this.onlineCount });
+            try {
+                const row = await this.env.DB.prepare(
+                    'SELECT EXISTS(SELECT 1 FROM notifications WHERE user_id = ? AND is_read = FALSE) as has_unread'
+                ).bind(user.id).first();
+                server.send(JSON.stringify({ type: 'notification_unread', has_unread: !!row?.has_unread }));
+            } catch (e) {}
             return new Response(null, { status: 101, webSocket: client });
         }
         if (url.pathname === "/broadcast" && request.method === "POST") {
