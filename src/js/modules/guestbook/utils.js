@@ -110,6 +110,12 @@ function appendReplyToCache(parentId, reply) {
     }
 }
 function togglePinnedInCache(id, isPinned) {
+    const alreadyPinned = pinnedGuestbookMessages.some(m => m.id === id);
+    if (isPinned && alreadyPinned) return;
+    if (!isPinned && !alreadyPinned) {
+        const inList = guestbookCursorStack.some(p => p.messages && p.messages.some(m => m.id === id));
+        if (inList) return;
+    }
     if (isPinned) {
         let moved = null;
         for (const page of guestbookCursorStack) {

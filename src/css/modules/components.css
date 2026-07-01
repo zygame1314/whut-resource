@@ -7084,9 +7084,9 @@ textarea.form-input {
     max-width: 100%;
     overflow: hidden;
     cursor: pointer;
-    transform: translateX(calc(100% + 30px));
+    transform: translateX(20px);
     opacity: 0;
-    transition: transform 0.45s var(--bounce), opacity 0.3s ease, box-shadow 0.25s ease;
+    transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease;
     word-break: break-word;
     overflow-wrap: break-word;
 }
@@ -7097,9 +7097,9 @@ textarea.form-input {
 }
 
 .notification-leave {
-    transform: translateX(calc(100% + 30px)) scale(0.96);
+    transform: translateX(20px);
     opacity: 0;
-    transition: transform 0.3s ease, opacity 0.25s ease;
+    transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .notification:hover {
@@ -8895,7 +8895,7 @@ input#prompt-input {
 .pow-icon {
     font-size: 16px;
     color: var(--primary-color);
-    animation: powPulse 1.5s ease-in-out infinite;
+    animation: ai-pulse 1.5s ease-in-out infinite;
 }
 
 .pow-idle .pow-icon {
@@ -8983,56 +8983,6 @@ input#prompt-input {
 .pow-nonce {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-}
-
-@keyframes powFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes powPulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
-}
-
-@keyframes powIdlePulse {
-
-    0%,
-    100% {
-        transform: scale(1);
-        opacity: 0.7;
-    }
-
-    50% {
-        transform: scale(1.1);
-        opacity: 1;
-    }
-}
-
-@keyframes powCheckIn {
-    from {
-        transform: scale(0);
-        opacity: 0;
-    }
-
-    to {
-        transform: scale(1);
-        opacity: 1;
-    }
 }
 
 .captcha-widget>iframe,
