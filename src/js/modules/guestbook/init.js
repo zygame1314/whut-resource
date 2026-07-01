@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (d.is_pinned != null) updates.is_pinned = d.is_pinned;
             if ('resolve_note' in d) updates.resolve_note = d.resolve_note;
             if ('reject_reason' in d) updates.reject_reason = d.reject_reason;
+            if ('content' in d) updates.content = d.content;
             if (Object.keys(updates).length > 0) updateGuestbookCache(d.guestbookId, updates);
         }
     });

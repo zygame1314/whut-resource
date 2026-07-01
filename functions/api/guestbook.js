@@ -565,6 +565,7 @@ async function handlePut(request, env, context) {
         } else {
             await env.DB.prepare('UPDATE guestbook SET content = ?, status = ?, reject_reason = NULL, is_hidden = 1 WHERE id = ?').bind(content.trim(), 'unresolved', id).run();
         }
+        bcast(parseInt(id), 'edit', { content: content.trim(), status: 'unresolved', reject_reason: null });
         if (context && context.waitUntil && !guestbookEntry.parent_id) {
             context.waitUntil((async () => {
                 try {
