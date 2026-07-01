@@ -111,12 +111,14 @@
         const panel = ensurePanel();
         state.panelOpen = true;
         panel.classList.add('open');
-        if (state.items.length === 0) {
-            renderList();
-            loadInitial();
-        } else if (state.unread) {
-            markAllRead();
-        }
+        renderLoading();
+        loadInitial();
+    }
+
+    function renderLoading() {
+        const body = document.querySelector('.notification-panel-body');
+        if (!body) return;
+        body.innerHTML = `<div class="notification-loading">${'<div class="notification-skeleton-item"></div>'.repeat(4)}</div>`;
     }
 
     function closePanel() {
