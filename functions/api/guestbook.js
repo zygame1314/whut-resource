@@ -509,6 +509,11 @@ async function handlePut(request, env, context) {
         if (context && context.waitUntil) context.waitUntil(p);
         else p.catch(() => {});
     };
+    const notify = (...args) => {
+        const p = createNotification(env, ...args);
+        if (context && context.waitUntil) context.waitUntil(p);
+        else p.catch(() => {});
+    };
     if (!user) {
         return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
@@ -694,14 +699,14 @@ async function handlePut(request, env, context) {
             if (resolveNote) {
                 try { const p = JSON.parse(resolveNote); noteText = p.note; resourcePath = p.path; } catch (e) { noteText = resolveNote; }
             }
-            createNotification(env, {
+            notify({
                 userId: gbEntryResolve.user_id,
                 type: 'guestbook_reply',
                 title: '你的留言已被解决',
                 body: noteText || (resourcePath ? `资源路径：${resourcePath}` : '已处理'),
                 link: `#gb-${id}`,
                 payload: { guestbookId: parseInt(id), resourcePath, note: noteText }
-            }).catch(() => {});
+            });
         }
         bcast(parseInt(id), action, { status: action === 'resolve' ? 'resolved' : 'unresolved', resolve_note: action === 'resolve' ? (resolveNote || null) : null });
     } else if (action === 'reject') {
@@ -728,14 +733,14 @@ async function handlePut(request, env, context) {
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?').bind('rejected', rejectReason.trim(), id).run();
         await logAdminAction(env, user.id, 'reject', 'guestbook', id, `驳回留言: ${rejectReason.trim()}`, JSON.stringify({ snapshot_content: gbEntryReject.content, nickname: gbEntryReject.nickname, user_id: gbEntryReject.user_id }));
         if (gbEntryReject.user_id) {
-            createNotification(env, {
+            notify({
                 userId: gbEntryReject.user_id,
                 type: 'guestbook_reply',
                 title: '你的留言被驳回',
                 body: rejectReason.trim(),
                 link: `#gb-${id}`,
                 payload: { guestbookId: parseInt(id), rejectReason: rejectReason.trim() }
-            }).catch(() => {});
+            });
         }
         bcast(parseInt(id), 'reject', { status: 'rejected', is_hidden: 1, reject_reason: rejectReason.trim() });
     } else if (action === 'unreject') {
