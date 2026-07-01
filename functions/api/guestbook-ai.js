@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'gemma4:31b';
 const TOOLS = [
@@ -383,6 +383,16 @@ async function handleReject(entry, reason, env, autoMode) {
             nickname: entry.nickname,
             user_id: entry.user_id
         }));
+        if (entry.user_id) {
+            createNotification(env, {
+                userId: entry.user_id,
+                type: 'guestbook_reply',
+                title: '你的留言被驳回',
+                body: reason || '内容不符合规范',
+                link: `#gb-${entry.id}`,
+                payload: { guestbookId: entry.id, rejectReason: reason }
+            }).catch(() => {});
+        }
         return {
             success: true,
             action: 'reject',
@@ -675,6 +685,16 @@ async function handleResolve(entry, reply, searchResults = null, resourcePath = 
             user_id: entry.user_id,
             resource_path: resourcePath
         }));
+        if (entry.user_id) {
+            createNotification(env, {
+                userId: entry.user_id,
+                type: 'guestbook_reply',
+                title: '你的留言已被解决',
+                body: note || (resourcePath ? `资源路径：${resourcePath}` : '已处理'),
+                link: `#gb-${entry.id}`,
+                payload: { guestbookId: entry.id, resourcePath: resourcePath, note: note }
+            }).catch(() => {});
+        }
         return {
             success: true,
             action: 'resolve',

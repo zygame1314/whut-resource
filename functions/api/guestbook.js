@@ -662,6 +662,20 @@ async function handlePut(request, env, context) {
             await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?').bind(status, resolveNote, id).run();
         }
         await logAdminAction(env, user.id, action, 'guestbook', id, action === 'resolve' ? '标记留言为已解决' : '标记留言为未解决', JSON.stringify(logDetails));
+        if (action === 'resolve' && gbEntryResolve.user_id) {
+            let noteText = null, resourcePath = null;
+            if (resolveNote) {
+                try { const p = JSON.parse(resolveNote); noteText = p.note; resourcePath = p.path; } catch (e) { noteText = resolveNote; }
+            }
+            createNotification(env, {
+                userId: gbEntryResolve.user_id,
+                type: 'guestbook_reply',
+                title: '你的留言已被解决',
+                body: noteText || (resourcePath ? `资源路径：${resourcePath}` : '已处理'),
+                link: `#gb-${id}`,
+                payload: { guestbookId: parseInt(id), resourcePath, note: noteText }
+            }).catch(() => {});
+        }
     } else if (action === 'reject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -685,6 +699,16 @@ async function handlePut(request, env, context) {
         }
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?').bind('rejected', rejectReason.trim(), id).run();
         await logAdminAction(env, user.id, 'reject', 'guestbook', id, `驳回留言: ${rejectReason.trim()}`, JSON.stringify({ snapshot_content: gbEntryReject.content, nickname: gbEntryReject.nickname, user_id: gbEntryReject.user_id }));
+        if (gbEntryReject.user_id) {
+            createNotification(env, {
+                userId: gbEntryReject.user_id,
+                type: 'guestbook_reply',
+                title: '你的留言被驳回',
+                body: rejectReason.trim(),
+                link: `#gb-${id}`,
+                payload: { guestbookId: parseInt(id), rejectReason: rejectReason.trim() }
+            }).catch(() => {});
+        }
     } else if (action === 'unreject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
