@@ -83,13 +83,18 @@ export class DownloadLogger {
         }
     }
     broadcast(data) {
+        if (data && data.type === 'notification' && data.target_user_id != null) {
+            const tag = 'user:' + data.target_user_id;
+            const msg = JSON.stringify(data);
+            const targets = this.state.getWebSockets(tag);
+            for (const ws of targets) {
+                try { ws.send(msg); } catch (err) { ws.close(); }
+            }
+            return;
+        }
         const msg = JSON.stringify(data);
         for (const ws of this.state.getWebSockets()) {
             try {
-                if (data && data.type === 'notification' && data.target_user_id != null) {
-                    const tag = ws.tags && ws.tags[0];
-                    if (tag !== ('user:' + data.target_user_id)) continue;
-                }
                 ws.send(msg);
             } catch (err) {
                 ws.close();

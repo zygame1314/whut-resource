@@ -78,9 +78,9 @@ async function handleGet(request, env) {
 
     if (action === 'unread_count') {
         const row = await env.DB.prepare(
-            'SELECT COUNT(*) as cnt FROM notifications WHERE user_id = ? AND is_read = FALSE'
+            'SELECT EXISTS(SELECT 1 FROM notifications WHERE user_id = ? AND is_read = FALSE) as has_unread'
         ).bind(userId).first();
-        return new Response(JSON.stringify({ success: true, unread: row?.cnt || 0 }), {
+        return new Response(JSON.stringify({ success: true, has_unread: !!row?.has_unread }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
@@ -147,9 +147,9 @@ async function handlePost(request, env) {
             ).bind(user.id, ...ids).run();
         }
         const row = await env.DB.prepare(
-            'SELECT COUNT(*) as cnt FROM notifications WHERE user_id = ? AND is_read = FALSE'
+            'SELECT EXISTS(SELECT 1 FROM notifications WHERE user_id = ? AND is_read = FALSE) as has_unread'
         ).bind(user.id).first();
-        return new Response(JSON.stringify({ success: true, unread: row?.cnt || 0 }), {
+        return new Response(JSON.stringify({ success: true, has_unread: !!row?.has_unread }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }
@@ -159,9 +159,9 @@ async function handlePost(request, env) {
             'UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND id = ?'
         ).bind(user.id, body.id).run();
         const row = await env.DB.prepare(
-            'SELECT COUNT(*) as cnt FROM notifications WHERE user_id = ? AND is_read = FALSE'
+            'SELECT EXISTS(SELECT 1 FROM notifications WHERE user_id = ? AND is_read = FALSE) as has_unread'
         ).bind(user.id).first();
-        return new Response(JSON.stringify({ success: true, unread: row?.cnt || 0 }), {
+        return new Response(JSON.stringify({ success: true, has_unread: !!row?.has_unread }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }

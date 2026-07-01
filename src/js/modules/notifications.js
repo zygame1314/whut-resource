@@ -5,6 +5,9 @@
     const BADGE_ID = 'notification-badge';
     const PANEL_ID = 'notification-panel';
     const POLL_INTERVAL = 60000;
+    const VISIBILITY_PAUSE_DELAY = 60000;
+    const IDLE_TIMEOUT = 5 * 60 * 1000;
+    const IDLE_EVENTS = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
     const PAGE_SIZE = 20;
 
     const TYPE_META = {
@@ -49,21 +52,16 @@
         btn.id = BELL_BTN_ID;
         btn.className = 'icon-btn';
         btn.title = '通知';
-        btn.innerHTML = '<i class="fas fa-bell"></i><span id="' + BADGE_ID + '" class="notification-badge u-hidden">0</span>';
+        btn.innerHTML = '<i class="fas fa-bell"></i><span id="' + BADGE_ID + '" class="notification-badge u-hidden"></span>';
         container.appendChild(btn);
         btn.addEventListener('click', togglePanel);
     }
 
-    function setBadge(count) {
-        state.unread = Math.max(0, count | 0);
+    function setBadge(hasUnread) {
+        state.unread = !!hasUnread;
         const badge = document.getElementById(BADGE_ID);
         if (!badge) return;
-        if (state.unread > 0) {
-            badge.textContent = state.unread > 99 ? '99+' : state.unread;
-            badge.classList.remove('u-hidden');
-        } else {
-            badge.classList.add('u-hidden');
-        }
+        badge.classList.toggle('u-hidden', !state.unread);
     }
 
     async function fetchUnreadCount() {
@@ -71,7 +69,7 @@
         try {
             const res = await fetch(`${API_ENDPOINTS.notifications}?action=unread_count`, { headers: authHeaders() });
             const data = await res.json();
-            if (data.success) setBadge(data.unread || 0);
+            if (data.success) setBadge(data.has_unread);
         } catch (e) { }
     }
 
@@ -122,7 +120,7 @@
         state.panelOpen = true;
         panel.classList.add('open');
         if (state.items.length === 0) loadInitial();
-        else if (state.unread > 0) markAllRead();
+        else if (state.unread) markAllRead();
     }
 
     function closePanel() {
@@ -140,6 +138,7 @@
 
     async function loadMore() {
         if (state.isLoading || !state.hasMore) return;
+        const isFirstPage = !state.nextCursor;
         state.isLoading = true;
         updateLoadMore();
         try {
@@ -152,6 +151,7 @@
                 state.nextCursor = data.next_cursor || null;
                 state.hasMore = !!state.nextCursor;
                 renderList();
+                if (isFirstPage && state.unread) markAllRead();
             }
         } catch (e) { } finally {
             state.isLoading = false;
@@ -287,7 +287,7 @@
             });
             const data = await res.json();
             if (data.success) {
-                setBadge(data.unread || 0);
+                setBadge(data.has_unread);
                 state.items.forEach(i => i.is_read = true);
                 renderList();
             }
@@ -301,7 +301,7 @@
             });
             const data = await res.json();
             if (data.success) {
-                setBadge(data.unread || 0);
+                setBadge(data.has_unread);
                 const item = state.items.find(i => String(i.id) === String(id));
                 if (item) item.is_read = true;
                 renderList();
@@ -340,7 +340,7 @@
             const data = await res.json();
             if (data.success) {
                 state.items = [];
-                setBadge(0);
+                setBadge(false);
                 renderList();
             }
         } catch (e) { }
@@ -348,8 +348,7 @@
 
     function handleIncoming(notification) {
         if (!notification) return;
-        state.unread = (state.unread || 0) + 1;
-        setBadge(state.unread);
+        setBadge(true);
         state.items.unshift(notification);
         if (state.items.length > PAGE_SIZE * 2) state.items = state.items.slice(0, PAGE_SIZE * 2);
         if (state.panelOpen) renderList();
@@ -368,9 +367,63 @@
         if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
     }
 
+    let visibilityPauseTimer = null;
+    let idleTimer = null;
+    let pollSuspended = false;
+
+    function suspendPolling(reason) {
+        if (pollSuspended) return;
+        pollSuspended = true;
+        stopPolling();
+        if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+        if (visibilityPauseTimer) { clearTimeout(visibilityPauseTimer); visibilityPauseTimer = null; }
+    }
+
+    function resumePolling() {
+        if (!pollSuspended) return;
+        pollSuspended = false;
+        resetIdleTimer();
+        startPolling();
+    }
+
+    function resetIdleTimer() {
+        if (idleTimer) clearTimeout(idleTimer);
+        if (document.hidden) return;
+        idleTimer = setTimeout(() => {
+            if (!document.hidden) suspendPolling('idle');
+        }, IDLE_TIMEOUT);
+    }
+
+    function onPageVisible() {
+        if (visibilityPauseTimer) { clearTimeout(visibilityPauseTimer); visibilityPauseTimer = null; }
+        if (pollSuspended) resumePolling();
+        else if (!state.pollTimer) startPolling();
+    }
+
+    function onPageHidden() {
+        visibilityPauseTimer = setTimeout(() => {
+            if (document.hidden) suspendPolling('hidden');
+        }, VISIBILITY_PAUSE_DELAY);
+    }
+
+    function initVisibilityAndIdle() {
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) onPageHidden();
+            else onPageVisible();
+        });
+        IDLE_EVENTS.forEach(evt => {
+            document.addEventListener(evt, () => {
+                if (pollSuspended && !document.hidden) resumePolling();
+                else resetIdleTimer();
+            }, { passive: true });
+        });
+        resetIdleTimer();
+    }
+
     function init() {
         if (!authed()) return;
         ensureBell();
+        initVisibilityAndIdle();
         startPolling();
     }
 
