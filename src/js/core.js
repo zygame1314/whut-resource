@@ -456,7 +456,9 @@ async function fetchAndRenderSubscriptions(container) {
         </div>`;
     try {
         const response = await fetch(`${FILES_API_URL}?action=subscriptions`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: '{}'
         });
         const result = await response.json();
         if (response.ok && result.success && result.subscriptions) {

@@ -55,8 +55,14 @@
     function setBadge(hasUnread) {
         state.unread = !!hasUnread;
         const badge = document.getElementById(BADGE_ID);
-        if (!badge) return;
-        badge.classList.toggle('u-hidden', !state.unread);
+        if (badge) {
+            badge.classList.toggle('u-hidden', !state.unread);
+        }
+        const mobileBadge = document.getElementById('mobile-menu-badge');
+        if (mobileBadge) {
+            mobileBadge.setAttribute('data-notif-unread', state.unread ? 'true' : 'false');
+            mobileBadge.classList.toggle('u-hidden', !state.unread);
+        }
     }
 
     function ensurePanel() {

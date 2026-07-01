@@ -38,13 +38,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
     const navActions = document.querySelector('.nav-actions');
     if (mobileMenuToggle && navActions) {
+        const syncToggleState = () => {
+            mobileMenuToggle.classList.toggle('menu-open', navActions.classList.contains('active'));
+        };
         mobileMenuToggle.addEventListener('click', (e) => {
             e.stopPropagation();
             navActions.classList.toggle('active');
+            syncToggleState();
         });
         document.addEventListener('click', (e) => {
             if (navActions.classList.contains('active') && !navActions.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
                 navActions.classList.remove('active');
+                syncToggleState();
             }
         });
     }

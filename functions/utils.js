@@ -654,33 +654,39 @@ export async function notifyFolderUpdates(env, newFiles) {
                 path = idx >= 0 ? path.slice(0, idx + 1) : '';
             }
         }
-        for (const [folderKey, acc] of folderAccum) {
+        await Promise.all(Array.from(folderAccum.entries()).map(async ([folderKey, acc]) => {
             const subs = await env.DB.prepare(
-                'SELECT user_id, has_update, update_count FROM folder_subscriptions WHERE folder_key = ?'
+                'SELECT user_id, has_update FROM folder_subscriptions WHERE folder_key = ?'
             ).bind(folderKey).all();
             const rows = subs.results || [];
-            for (const row of rows) {
-                if (row.has_update) {
-                    await env.DB.prepare(
-                        'UPDATE folder_subscriptions SET has_update = TRUE, update_count = update_count + ?, last_file_name = ? WHERE user_id = ? AND folder_key = ?'
-                    ).bind(acc.count, acc.lastFileName, row.user_id, folderKey).run();
-                } else {
-                    await env.DB.prepare(
-                        'UPDATE folder_subscriptions SET has_update = TRUE, update_count = ?, last_file_name = ? WHERE user_id = ? AND folder_key = ?'
-                    ).bind(acc.count, acc.lastFileName, row.user_id, folderKey).run();
-                    const folderName = folderKey.replace(/\/$/, '').split('/').pop() || folderKey;
-                    const body = acc.count === 1 ? `新增文件：${acc.lastFileName}` : `新增了 ${acc.count} 个文件，最新：${acc.lastFileName}`;
-                    await createNotification(env, {
-                        userId: row.user_id,
-                        type: 'folder_update',
-                        title: `订阅文件夹「${folderName}」有更新`,
-                        body,
-                        link: `?path=${encodeURIComponent(folderKey)}`,
-                        payload: { folderKey, count: acc.count, lastFileName: acc.lastFileName }
-                    });
-                }
+            if (rows.length === 0) return;
+            const toMerge = rows.filter(r => r.has_update);
+            const toNotify = rows.filter(r => !r.has_update);
+            const tasks = [];
+            if (toMerge.length > 0) {
+                tasks.push(env.DB.prepare(
+                    'UPDATE folder_subscriptions SET has_update = TRUE, update_count = update_count + ?, last_file_name = ? WHERE folder_key = ? AND has_update = TRUE'
+                ).bind(acc.count, acc.lastFileName, folderKey).run());
             }
-        }
+            if (toNotify.length > 0) {
+                tasks.push(env.DB.prepare(
+                    'UPDATE folder_subscriptions SET has_update = TRUE, update_count = ?, last_file_name = ? WHERE folder_key = ? AND has_update = FALSE'
+                ).bind(acc.count, acc.lastFileName, folderKey).run());
+            }
+            const folderName = folderKey.replace(/\/$/, '').split('/').pop() || folderKey;
+            const body = acc.count === 1 ? `新增文件：${acc.lastFileName}` : `新增了 ${acc.count} 个文件，最新：${acc.lastFileName}`;
+            for (const row of toNotify) {
+                tasks.push(createNotification(env, {
+                    userId: row.user_id,
+                    type: 'folder_update',
+                    title: `订阅文件夹「${folderName}」有更新`,
+                    body,
+                    link: `?path=${encodeURIComponent(folderKey)}`,
+                    payload: { folderKey, count: acc.count, lastFileName: acc.lastFileName }
+                }));
+            }
+            await Promise.all(tasks);
+        }));
     } catch (e) {
         console.error('文件夹订阅通知失败:', e?.message || e);
     }

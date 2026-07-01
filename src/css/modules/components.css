@@ -5768,7 +5768,13 @@ textarea.form-input {
 }
 
 .todo-sidebar-entry {
-    top: calc(50% + 80px);
+    top: calc(50% + 160px);
+}
+
+@media (max-width: 768px) {
+    .todo-sidebar-entry {
+        top: calc(50% + 130px);
+    }
 }
 
 .download-history-entry {
@@ -5780,12 +5786,12 @@ textarea.form-input {
 }
 
 .subscriptions-entry {
-    top: calc(50% + 160px);
+    top: calc(50% + 80px);
 }
 
 @media (max-width: 768px) {
     .subscriptions-entry {
-        top: calc(50% + 130px);
+        top: calc(50% + 65px);
     }
 }
 
@@ -5818,15 +5824,11 @@ textarea.form-input {
     left: -2px;
     width: 10px;
     height: 10px;
-    background: #ff4d4f;
+    background: var(--accent-color);
     border-radius: 50%;
-    box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.3);
+    box-shadow: 0 0 0 2px var(--background-alt, #fff), 0 0 6px rgba(var(--accent-rgb, 255, 107, 107), 0.5);
     pointer-events: none;
-}
-
-[data-theme="dark"] .todo-sidebar-dot {
-    background: #ff6b6b;
-    box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.4);
+    z-index: 2;
 }
 
 @media (max-width: 768px) {
@@ -6390,11 +6392,12 @@ textarea.form-input {
 }
 
 .badge.badge-dot {
-    min-width: 8px;
-    width: 8px;
-    height: 8px;
+    min-width: 10px;
+    width: 10px;
+    height: 10px;
     padding: 0;
     border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--background-alt, #fff), 0 0 6px rgba(var(--accent-rgb, 255, 107, 107), 0.5);
 }
 
 .dropdown-item .badge.badge-dot {
@@ -6760,11 +6763,6 @@ textarea.form-input {
 }
 
 #admin-tools-toggle .badge.badge-dot {
-    min-width: 8px;
-    width: 8px;
-    height: 8px;
-    padding: 0;
-    border-radius: 50%;
     margin: 0;
     z-index: 1;
 }
