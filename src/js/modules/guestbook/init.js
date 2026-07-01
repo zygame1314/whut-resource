@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (d.is_hidden === 0 && d.action === 'unhide' && !isGuestbookAdmin(window.currentUser)) {
-                refreshGuestbook();
+                if (!isGuestbookInCache(d.guestbookId)) refreshGuestbook();
                 return;
             }
             const updates = {};

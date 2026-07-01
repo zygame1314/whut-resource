@@ -109,6 +109,20 @@ function appendReplyToCache(parentId, reply) {
         if (cur && cur.messages) renderGuestbook(cur.messages);
     }
 }
+function isGuestbookInCache(id) {
+    if (pinnedGuestbookMessages.some(m => m.id === id)) return true;
+    for (const msg of pinnedGuestbookMessages) {
+        if (msg.replies && msg.replies.some(r => r.id === id)) return true;
+    }
+    for (const page of guestbookCursorStack) {
+        if (!page.messages) continue;
+        if (page.messages.some(m => m.id === id)) return true;
+        for (const m of page.messages) {
+            if (m.replies && m.replies.some(r => r.id === id)) return true;
+        }
+    }
+    return false;
+}
 function togglePinnedInCache(id, isPinned) {
     const alreadyPinned = pinnedGuestbookMessages.some(m => m.id === id);
     if (isPinned && alreadyPinned) return;
