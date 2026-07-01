@@ -924,15 +924,19 @@ export async function onRequestPost({ request, env }) {
                     status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
                 });
             }
-            const existing = await DB.prepare('SELECT user_id FROM folder_subscriptions WHERE user_id = ? AND folder_key = ?').bind(user.id, key).first();
+            const row = await DB.prepare(
+                `SELECT EXISTS(SELECT 1 FROM folder_subscriptions WHERE user_id = ? AND folder_key = ?) AS existing,
+                        (SELECT COUNT(*) FROM folder_subscriptions WHERE user_id = ?) AS cnt`
+            ).bind(user.id, key, user.id).first();
+            const existing = !!(row && row.existing === 1);
             let isSubscribed = false;
             if (existing) {
                 await DB.prepare('DELETE FROM folder_subscriptions WHERE user_id = ? AND folder_key = ?').bind(user.id, key).run();
                 isSubscribed = false;
             } else {
-                const MAX_SUBS = 50;
-                const countRow = await DB.prepare('SELECT COUNT(*) as cnt FROM folder_subscriptions WHERE user_id = ?').bind(user.id).first();
-                if ((countRow?.cnt || 0) >= MAX_SUBS) {
+                const MAX_SUBS = 20;
+                const currentCount = row ? (row.cnt || 0) : 0;
+                if (currentCount >= MAX_SUBS) {
                     return new Response(JSON.stringify({ success: false, error: `订阅已达上限（${MAX_SUBS} 个）` }), {
                         status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
                     });

@@ -436,6 +436,155 @@ function initFavoritesPanel() {
     const token = localStorage.getItem('authToken');
     entry.style.display = token ? 'flex' : 'none';
 }
+function initSubscriptionsPanel() {
+    const entry = document.getElementById('subscriptions-entry');
+    if (!entry) return;
+    const token = localStorage.getItem('authToken');
+    entry.style.display = token ? 'flex' : 'none';
+}
+async function fetchAndRenderSubscriptions(container) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        container.innerHTML = '<p class="empty-state-small">请先登录后查看订阅</p>';
+        return;
+    }
+    container.innerHTML = `
+        <div class="skeleton-dl-list">
+            <div class="skeleton-dl-item"><div class="skeleton-dl-icon"></div><div class="skeleton-dl-text"></div><div class="skeleton-dl-time"></div></div>
+            <div class="skeleton-dl-item"><div class="skeleton-dl-icon"></div><div class="skeleton-dl-text"></div><div class="skeleton-dl-time"></div></div>
+            <div class="skeleton-dl-item"><div class="skeleton-dl-icon"></div><div class="skeleton-dl-text"></div><div class="skeleton-dl-time"></div></div>
+        </div>`;
+    try {
+        const response = await fetch(`${FILES_API_URL}?action=subscriptions`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (response.ok && result.success && result.subscriptions) {
+            if (result.subscriptions.length === 0) {
+                container.innerHTML = '<p class="empty-state-small">还没有订阅，在文件夹旁点击铃铛按钮即可订阅更新</p>';
+                return;
+            }
+            container.innerHTML = '';
+            const ul = document.createElement('ul');
+            ul.className = 'download-history-list download-history-modal-list';
+            result.subscriptions.forEach(sub => {
+                const folderKey = sub.folder_key || '';
+                const parentPath = folderKey.endsWith('/') ? folderKey.slice(0, -1) : folderKey;
+                const folderName = parentPath.split('/').pop() || folderKey || '根目录';
+                const hasUpdate = sub.has_update === 1 || sub.has_update === true;
+                const truncateMiddle = (str, len = 16) => {
+                    if (!str || str.length <= len) return str;
+                    return str.slice(0, Math.ceil(len / 2)) + '...' + str.slice(-Math.floor(len / 2));
+                };
+                const displayPath = parentPath.includes('/') ? truncateMiddle(parentPath.slice(0, parentPath.lastIndexOf('/')).split('/').pop() || parentPath, 14) : '根目录';
+                const li = document.createElement('li');
+                li.className = 'download-history-item subscriptions-item' + (hasUpdate ? ' has-update' : '');
+                li.innerHTML = `
+                    <span class="download-history-name" title="${escapeHtml(folderKey)}">
+                       <i class="fas fa-folder"></i>
+                       ${escapeHtml(folderName)}
+                       ${hasUpdate ? '<span class="sub-update-badge"><i class="fas fa-circle" style="font-size:0.5rem;"></i>有更新</span>' : ''}
+                    </span>
+                    <span class="download-history-meta">
+                        <span class="download-history-path" title="${escapeHtml(parentPath)}"><i class="fas fa-folder-open"></i> ${escapeHtml(displayPath)}</span>
+                    </span>
+                `;
+                li.addEventListener('click', (e) => {
+                    if (searchInput) searchInput.value = '';
+                    if (window._currentSubscriptionsModal) {
+                        closeAuthModal(window._currentSubscriptionsModal);
+                    }
+                    subscriptionsModal = null;
+                    window._currentSubscriptionsModal = null;
+                    if (typeof directoryCache !== 'undefined') {
+                        delete directoryCache[folderKey];
+                    }
+                    fetchAndDisplayFiles(folderKey, '', 1, true);
+                });
+                const unsubBtn = document.createElement('button');
+                unsubBtn.className = 'subscriptions-unsub-btn';
+                unsubBtn.title = '取消订阅';
+                unsubBtn.innerHTML = '<i class="fas fa-bell-slash"></i>';
+                unsubBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const res = await toggleSubscribe(folderKey, unsubBtn);
+                    if (res && res.success !== false) {
+                        if (typeof directoryCache !== 'undefined') {
+                            for (const p in directoryCache) {
+                                const entry = directoryCache[p];
+                                if (!entry || !entry.data) continue;
+                                const updateArr = (arr) => {
+                                    if (!arr) return;
+                                    for (const f of arr) {
+                                        if (f && f.key === folderKey) f.is_subscribed = 0;
+                                    }
+                                };
+                                updateArr(entry.data.directories);
+                                updateArr(entry.data.files);
+                            }
+                        }
+                        li.classList.add('subscriptions-item-removing');
+                        setTimeout(() => {
+                            li.remove();
+                            if (ul.children.length === 0) {
+                                container.innerHTML = '<p class="empty-state-small">还没有订阅，在文件夹旁点击铃铛按钮即可订阅更新</p>';
+                            }
+                        }, 250);
+                    }
+                });
+                li.appendChild(unsubBtn);
+                ul.appendChild(li);
+            });
+            container.appendChild(ul);
+        } else {
+            container.innerHTML = '<p class="empty-state-small">无法加载订阅列表。</p>';
+            console.error('获取订阅列表失败:', result.error);
+        }
+    } catch (error) {
+        container.innerHTML = '<p class="empty-state-small">加载订阅列表时出错。</p>';
+        console.error('请求订阅列表出错:', error);
+    }
+}
+let subscriptionsModal = null;
+window.showSubscriptionsModal = function () {
+    if (subscriptionsModal) {
+        closeAuthModal(subscriptionsModal);
+        subscriptionsModal = null;
+        return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'auth-modal';
+    modal.id = 'subscriptions-modal';
+    subscriptionsModal = modal;
+    window._currentSubscriptionsModal = modal;
+    modal.innerHTML = `
+        <div class="auth-box" style="max-width:520px;">
+            <div class="admin-modal-header">
+                <h2 class="auth-title"><i class="fas fa-bell u-margin-right-small"></i>我的订阅</h2>
+                <button id="close-subscriptions-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="download-history-modal-hint">
+                <i class="fas fa-hand-pointer"></i> 点击条目定位到文件夹
+            </div>
+            <div id="subscriptions-modal-content" class="admin-scrollable-container"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#close-subscriptions-modal').addEventListener('click', () => {
+        closeAuthModal(modal);
+        subscriptionsModal = null;
+        window._currentSubscriptionsModal = null;
+    });
+    modal.addEventListener('mousedown', (e) => {
+        if (e.target === modal) {
+            closeAuthModal(modal);
+            subscriptionsModal = null;
+            window._currentSubscriptionsModal = null;
+        }
+    });
+    fetchAndRenderSubscriptions(modal.querySelector('#subscriptions-modal-content'));
+};
 function formatHistoryTime(dateStr) {
     if (!dateStr) return '';
     const date = new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z'));

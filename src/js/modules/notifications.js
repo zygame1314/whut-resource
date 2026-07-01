@@ -258,8 +258,19 @@
                 closePanel();
                 if (link.startsWith('#gb-')) {
                     navigateToGuestbook(link.slice(4));
-                } else if (link.startsWith('/') || link.startsWith('?')) {
-                    window.location.href = link;
+                } else if (link.startsWith('?') || link.startsWith('/?')) {
+                    const searchStr = link.startsWith('/?') ? link.slice(1) : link;
+                    const params = new URLSearchParams(searchStr);
+                    const path = params.get('path') || '';
+                    const highlight = params.get('highlight');
+                    if (typeof fetchAndDisplayFiles === 'function') {
+                        if (typeof searchInput !== 'undefined' && searchInput) searchInput.value = '';
+                        if (typeof directoryCache !== 'undefined') delete directoryCache[path];
+                        if (highlight && typeof highlightKey !== 'undefined') highlightKey = highlight;
+                        fetchAndDisplayFiles(path, '', 1, true);
+                    } else {
+                        window.location.href = link;
+                    }
                 } else if (link.startsWith('#')) {
                     window.location.hash = link.slice(1);
                 } else {

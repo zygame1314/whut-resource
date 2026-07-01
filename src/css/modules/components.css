@@ -1033,6 +1033,70 @@
     transform: translateX(12px);
 }
 
+.subscriptions-unsub-btn {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: #3498db;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.65;
+    transition: opacity 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.subscriptions-unsub-btn:hover {
+    opacity: 1;
+    background: rgba(52, 152, 219, 0.15);
+    transform: translateY(-50%) scale(1.08);
+}
+
+.subscriptions-unsub-btn:active {
+    transform: translateY(-50%) scale(0.9);
+}
+
+.subscriptions-item {
+    position: relative;
+    padding-right: 38px;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.subscriptions-item-removing {
+    opacity: 0;
+    transform: translateX(12px);
+}
+
+.subscriptions-item.has-update .download-history-name {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.subscriptions-item .sub-update-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.7rem;
+    color: #fff;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    padding: 1px 7px;
+    border-radius: 999px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+[data-theme="dark"] .subscriptions-unsub-btn {
+    color: #5dade2;
+}
+
 .upload-btn {
     display: inline-flex;
     align-items: center;
@@ -5713,6 +5777,16 @@ textarea.form-input {
 
 .favorites-entry {
     top: 50%;
+}
+
+.subscriptions-entry {
+    top: calc(50% + 160px);
+}
+
+@media (max-width: 768px) {
+    .subscriptions-entry {
+        top: calc(50% + 130px);
+    }
 }
 
 .sidebar-float-entry:hover {

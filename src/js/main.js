@@ -60,6 +60,7 @@ document.addEventListener('authSuccess', async () => {
     fetchAndRenderHotFolders();
     initDownloadHistoryPanel();
     initFavoritesPanel();
+    initSubscriptionsPanel();
     fetchAndRenderRecentUploads();
     if (typeof checkAdminPermission === 'function') {
         checkAdminPermission();
@@ -90,6 +91,7 @@ document.addEventListener('authRestored', () => {
     fetchAndRenderHotFolders();
     initDownloadHistoryPanel();
     initFavoritesPanel();
+    initSubscriptionsPanel();
     fetchAndRenderRecentUploads();
     if (typeof updateAuthUI === 'function') updateAuthUI();
 });
