@@ -6,20 +6,14 @@ const ASSETS_TO_CACHE = [
     'favicon.png',
     'icon-512.png',
     'logo.webp',
-    'css/style.css',
-    'css/graph.css',
-    'script.js',
-    'config.js',
-    'tutorial.js',
-    'announcements.js',
-    'guestbook.js',
-    'graph.js',
-    'auth.js',
+    'about.html',
+    'authorize.html',
+    'download_help.html',
     'guestbook_rules.html',
     'how_to_upload.html',
+    'search_tips.html',
     'sharing_rules.html',
-    'upload.html',
-    'upload.js'
+    'upload.html'
 ];
 self.addEventListener('install', (event) => {
     self.skipWaiting();

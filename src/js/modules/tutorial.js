@@ -428,14 +428,10 @@ async function startTutorial() {
             }
         });
         {
-            const hasHoverNotif = window.matchMedia('(hover: hover)').matches;
-            const notifTriggerText = !hasHoverNotif
-                ? '点击配额文字 → 弹窗中找到「下载通知」开关'
-                : '悬浮/点击配额文字 → 弹窗中找到「下载通知」开关';
             steps.push({
                 id: 'download-notification',
                 title: '实时下载通知',
-                text: '就像这样！开启后，页面右下角会实时弹出其他同学的下载动态。<br>开启方式：' + notifTriggerText + ' 即可开启或关闭。',
+                text: '就像这样！开启后，页面右下角会实时弹出其他同学的下载动态。<br>开启方式：点击配额文字 → 弹窗中找到「下载通知」开关 即可开启或关闭。',
                 attachTo: {
                     element: '.download-log-item:last-child',
                     on: 'top'

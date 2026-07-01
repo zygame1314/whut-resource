@@ -293,10 +293,6 @@
         flex-direction: column;
         align-items: stretch;
         width: 280px;
-
-    #toggle-requests-badge {
-        display: none !important;
-    }
         padding: 1rem;
         z-index: 100;
         gap: 0.5rem;
@@ -309,6 +305,10 @@
         transition: opacity var(--transition-normal), transform var(--transition-normal), visibility var(--transition-normal);
         pointer-events: none;
         display: flex;
+    }
+
+    #toggle-requests-badge {
+        display: none !important;
     }
 
     .nav-actions.active {

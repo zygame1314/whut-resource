@@ -274,22 +274,12 @@ function initQuotaPopup() {
         popup.style.top = (rect.bottom + 8) + 'px';
         popup.style.right = (window.innerWidth - rect.right) + 'px';
     }
-    const hasHover = window.matchMedia('(hover: hover)').matches;
-    let hideTimer = null;
     const showPopup = () => {
-        clearTimeout(hideTimer);
-        hideTimer = null;
         positionPopup();
         popup.classList.add('visible');
     };
     const hidePopup = () => {
-        hideTimer = setTimeout(() => {
-            popup.classList.remove('visible');
-        }, 150);
-    };
-    const cancelHide = () => {
-        clearTimeout(hideTimer);
-        hideTimer = null;
+        popup.classList.remove('visible');
     };
     const toggle = (e) => {
         e.stopPropagation();
@@ -300,26 +290,13 @@ function initQuotaPopup() {
             showPopup();
         }
     };
-    if (hasHover) {
-        quotaEl.addEventListener('mouseenter', showPopup);
-        quotaEl.addEventListener('mouseleave', hidePopup);
-        popup.addEventListener('mouseenter', cancelHide);
-        popup.addEventListener('mouseleave', hidePopup);
-    }
     quotaEl.addEventListener('click', toggle);
-    quotaEl.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        toggle(e);
-    });
     document.addEventListener('click', (e) => {
         if (!quotaEl.contains(e.target) && !popup.contains(e.target)) {
             hidePopup();
         }
     });
     popup.addEventListener('click', (e) => {
-        e.stopPropagation();
-    });
-    popup.addEventListener('touchend', (e) => {
         e.stopPropagation();
     });
 }
