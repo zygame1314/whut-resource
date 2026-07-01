@@ -15,7 +15,7 @@ function initGuestbook() {
         guestbookList.innerHTML = '<div class="guestbook-loading"><div class="guestbook-loading-icon"><i class="fas fa-comment-dots"></i></div><div class="guestbook-loading-dots"><span></span><span></span><span></span></div><div class="guestbook-loading-text">加载留言中...</div></div>';
     }
     if (guestbookList) {
-        guestbookList.addEventListener('keydown', function(e) {
+        guestbookList.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 const replyInput = e.target.closest('.reply-form-wrapper')?.querySelector('textarea');
                 if (replyInput && e.target === replyInput) {
@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (Object.keys(updates).length > 0) updateGuestbookCache(d.guestbookId, updates);
         }
+    });
 });
 
 const _localReplyLog = new Map();
