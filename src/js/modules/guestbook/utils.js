@@ -142,10 +142,7 @@ function updateGuestbookCache(id, updates, skipRender = false) {
         }
     }
     if (skipRender) return;
-    if (!found) {
-        refreshGuestbook();
-        return;
-    }
+    if (!found) return;
     const cur = guestbookCursorStack[guestbookPageIndex];
     if (cur && cur.messages) renderGuestbook(cur.messages);
 }

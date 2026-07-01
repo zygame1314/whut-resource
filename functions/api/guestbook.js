@@ -384,6 +384,7 @@ async function handlePost(request, env, context) {
                 ).bind(newId).first();
                 if (newEntry && isAdmin(newEntry)) {
                     await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
+                    newEntry.is_hidden = 0;
                     broadcastGuestbookUpdate(env, newId, 'new_message', { message: newEntry });
                 } else if (newEntry) {
                     const aiResult = await processWithAIAgent(newEntry, env, true);
