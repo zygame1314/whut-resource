@@ -52,13 +52,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (d.message) prependMessageToCache(d.message);
             else refreshGuestbook();
         } else {
-            const updates = {};
-            if (d.status != null) updates.status = d.status;
-            if (d.is_hidden != null) updates.is_hidden = d.is_hidden;
-            if (d.is_pinned != null) {
+            if (d.is_hidden === 1 && !isGuestbookAdmin(window.currentUser)) {
+                removeFromGuestbookCache(d.guestbookId);
+                return;
+            }
+            if (d.is_hidden === 0 && d.action === 'unhide' && !isGuestbookAdmin(window.currentUser)) {
                 refreshGuestbook();
                 return;
             }
+            const updates = {};
+            if (d.status != null) updates.status = d.status;
+            if (d.is_hidden != null) updates.is_hidden = d.is_hidden;
+            if (d.is_pinned != null) updates.is_pinned = d.is_pinned;
+            if ('resolve_note' in d) updates.resolve_note = d.resolve_note;
+            if ('reject_reason' in d) updates.reject_reason = d.reject_reason;
             if (Object.keys(updates).length > 0) updateGuestbookCache(d.guestbookId, updates);
         }
     });

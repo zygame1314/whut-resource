@@ -109,9 +109,35 @@ function appendReplyToCache(parentId, reply) {
         if (cur && cur.messages) renderGuestbook(cur.messages);
     }
 }
+function togglePinnedInCache(id, isPinned) {
+    if (isPinned) {
+        let moved = null;
+        for (const page of guestbookCursorStack) {
+            if (!page.messages) continue;
+            const mi = page.messages.findIndex(m => m.id === id);
+            if (mi !== -1) { moved = page.messages.splice(mi, 1)[0]; break; }
+        }
+        if (!moved) { refreshGuestbook(); return; }
+        moved.is_pinned = 1;
+        pinnedGuestbookMessages.unshift(moved);
+    } else {
+        const pi = pinnedGuestbookMessages.findIndex(m => m.id === id);
+        if (pi === -1) { refreshGuestbook(); return; }
+        const moved = pinnedGuestbookMessages.splice(pi, 1)[0];
+        moved.is_pinned = 0;
+        const page = guestbookCursorStack[0];
+        if (page && page.messages) {
+            if (page.messages.length >= GUESTBOOK_PER_PAGE) page.messages.pop();
+            page.messages.unshift(moved);
+        }
+    }
+    renderPinnedGuestbook();
+    const cur = guestbookCursorStack[guestbookPageIndex];
+    if (cur && cur.messages) renderGuestbook(cur.messages);
+}
 function updateGuestbookCache(id, updates, skipRender = false) {
     if (updates.hasOwnProperty('is_pinned')) {
-        refreshGuestbook();
+        togglePinnedInCache(id, updates.is_pinned === 1);
         return;
     }
     let found = false;

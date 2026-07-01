@@ -702,7 +702,7 @@ async function handlePut(request, env, context) {
                 payload: { guestbookId: parseInt(id), resourcePath, note: noteText }
             }).catch(() => {});
         }
-        bcast(parseInt(id), action, { status: action === 'resolve' ? 'resolved' : 'unresolved' });
+        bcast(parseInt(id), action, { status: action === 'resolve' ? 'resolved' : 'unresolved', resolve_note: action === 'resolve' ? (resolveNote || null) : null });
     } else if (action === 'reject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -736,7 +736,7 @@ async function handlePut(request, env, context) {
                 payload: { guestbookId: parseInt(id), rejectReason: rejectReason.trim() }
             }).catch(() => {});
         }
-        bcast(parseInt(id), 'reject', { status: 'rejected', is_hidden: 1 });
+        bcast(parseInt(id), 'reject', { status: 'rejected', is_hidden: 1, reject_reason: rejectReason.trim() });
     } else if (action === 'unreject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -753,7 +753,7 @@ async function handlePut(request, env, context) {
         }
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, is_hidden = 0 WHERE id = ?').bind('unresolved', id).run();
         await logAdminAction(env, user.id, 'unreject', 'guestbook', id, '取消驳回留言', JSON.stringify({ snapshot_content: gbEntryUnreject.content, nickname: gbEntryUnreject.nickname, user_id: gbEntryUnreject.user_id }));
-        bcast(parseInt(id), 'unreject', { status: 'unresolved', is_hidden: 0 });
+        bcast(parseInt(id), 'unreject', { status: 'unresolved', is_hidden: 0, reject_reason: null });
     } else if (action === 'ban_user') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
