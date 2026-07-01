@@ -825,7 +825,7 @@ export async function onRequestPost({ request, env }) {
     const user = await getUserFromRequest(request, env);
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
-    if (!user || (!isAdmin(user) && action !== 'toggleReaction' && action !== 'toggleFavorite')) {
+    if (!user || (!isAdmin(user) && action !== 'toggleReaction' && action !== 'toggleFavorite' && action !== 'toggleSubscribe' && action !== 'subscriptions')) {
         return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
             status: 403,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

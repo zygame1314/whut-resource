@@ -935,6 +935,51 @@
     filter: brightness(1.08);
 }
 
+.subscribe-toggle-btn {
+    background: var(--background-alt, #f0f0f0);
+    color: #3498db;
+    border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.subscribe-toggle-btn:hover {
+    background: rgba(52, 152, 219, 0.18);
+    color: #3498db;
+    transform: scale(1.06);
+}
+
+.subscribe-toggle-btn.active {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: #fff;
+    border-color: transparent;
+}
+
+.subscribe-toggle-btn.active i {
+    animation: heartbeat 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.subscribe-toggle-btn i {
+    transition: transform 0.2s ease;
+}
+
+.subscribe-toggle-btn:hover i {
+    transform: scale(1.15);
+}
+
+.subscribe-toggle-btn.active:hover {
+    filter: brightness(1.08);
+}
+
+[data-theme="dark"] .subscribe-toggle-btn {
+    background: rgba(255, 255, 255, 0.05);
+    color: #5dade2;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .subscribe-toggle-btn.active {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: #fff;
+}
+
 [data-theme="dark"] .favorite-toggle-btn {
     background: rgba(255, 255, 255, 0.05);
     color: #f5b041;
