@@ -506,13 +506,4 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 CREATE INDEX IF NOT EXISTS idx_notif_user_unread ON notifications(user_id, is_read, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notif_user_time ON notifications(user_id, created_at DESC, id DESC);
-CREATE INDEX IF NOT EXISTS idx_notif_type_created ON notifications(type, created_at DESC);
-
-CREATE TABLE IF NOT EXISTS notification_reads (
-    user_id INTEGER NOT NULL,
-    notification_id INTEGER NOT NULL,
-    read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, notification_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
-);
+CREATE INDEX IF NOT EXISTS idx_notif_created ON notifications(created_at);

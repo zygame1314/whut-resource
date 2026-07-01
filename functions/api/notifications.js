@@ -1,11 +1,16 @@
 import { verifyToken, addCorsHeaders } from '../utils.js';
 
+const RETENTION_DAYS = 60;
+const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const CLEANUP_CACHE_ID = 200;
+
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
         return new Response(null, { headers: addCorsHeaders() });
     }
     try {
+        if (context.waitUntil) context.waitUntil(maybeCleanupOldNotifications(env));
         if (request.method === 'GET') return await handleGet(request, env);
         if (request.method === 'POST') return await handlePost(request, env);
         if (request.method === 'DELETE') return await handleDelete(request, env);
@@ -19,6 +24,25 @@ export async function onRequest(context) {
             status: 500,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
+    }
+}
+
+async function maybeCleanupOldNotifications(env) {
+    if (!env.DB) return;
+    try {
+        const row = await env.DB.prepare('SELECT updated_at FROM system_cache WHERE id = ?').bind(CLEANUP_CACHE_ID).first();
+        const now = Date.now();
+        const last = row?.updated_at ? Date.parse(String(row.updated_at).replace(' ', 'T') + 'Z') : 0;
+        if (now - last < CLEANUP_INTERVAL_MS) return;
+        await env.DB.prepare(
+            'INSERT INTO system_cache (id, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP'
+        ).bind(CLEANUP_CACHE_ID, '{}').run();
+        const cutoffExpr = `datetime('now', '-${RETENTION_DAYS} days')`;
+        await env.DB.prepare(
+            `DELETE FROM notifications WHERE created_at < ${cutoffExpr}`
+        ).run();
+    } catch (e) {
+        console.error('通知清理失败:', e);
     }
 }
 
