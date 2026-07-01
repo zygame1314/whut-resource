@@ -68,6 +68,47 @@ function refreshGuestbook() {
     guestbookLoadInitial();
     requestAnimationFrame(() => initPinnedCarouselObserver());
 }
+function prependMessageToCache(message) {
+    if (!message) return;
+    if (message.is_pinned) {
+        pinnedGuestbookMessages.unshift(message);
+        renderPinnedGuestbook();
+        return;
+    }
+    const page = guestbookCursorStack[0];
+    if (!page || !page.messages) { refreshGuestbook(); return; }
+    if (page.messages.some(m => m.id === message.id)) return;
+    let insertIdx = 0;
+    for (let i = 0; i < page.messages.length; i++) {
+        if (!page.messages[i].is_pinned) { insertIdx = i; break; }
+        insertIdx = i + 1;
+    }
+    page.messages.splice(insertIdx, 0, message);
+    if (page.messages.length > GUESTBOOK_PER_PAGE) page.messages.pop();
+    if (guestbookPageIndex === 0) {
+        renderGuestbook(page.messages);
+        renderGuestbookPagination(page.hasMore, false);
+    }
+}
+function appendReplyToCache(parentId, reply) {
+    if (!reply) return;
+    const { msg, isPinned } = findParentMessage(parentId);
+    if (!msg) { refreshGuestbook(); return; }
+    if (!msg.replies) msg.replies = [];
+    if (msg.replies.some(r => r.id === reply.id)) return;
+    msg.replies.push(reply);
+    msg.replies.sort((a, b) => {
+        const ta = a.created_at ? String(a.created_at) : '';
+        const tb = b.created_at ? String(b.created_at) : '';
+        return ta < tb ? -1 : ta > tb ? 1 : 0;
+    });
+    if (msg.replyMeta) msg.replyMeta.total = (msg.replyMeta.total || msg.replies.length) + 1;
+    if (isPinned) renderPinnedGuestbook();
+    else {
+        const cur = guestbookCursorStack[guestbookPageIndex];
+        if (cur && cur.messages) renderGuestbook(cur.messages);
+    }
+}
 function updateGuestbookCache(id, updates, skipRender = false) {
     if (updates.hasOwnProperty('is_pinned')) {
         refreshGuestbook();

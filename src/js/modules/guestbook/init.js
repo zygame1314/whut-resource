@@ -44,9 +44,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof updateGuestbookCache !== 'function') return;
         if (d.action === 'delete') {
             removeFromGuestbookCache(d.guestbookId);
-        } else if (d.action === 'reply_added' || d.action === 'new_message') {
-            if (d.action === 'reply_added' && recentLocalReply(d.guestbookId)) return;
-            refreshGuestbook();
+        } else if (d.action === 'reply_added') {
+            if (recentLocalReply(d.guestbookId)) return;
+            if (d.reply) appendReplyToCache(d.guestbookId, d.reply);
+            else refreshGuestbook();
+        } else if (d.action === 'new_message') {
+            if (d.message) prependMessageToCache(d.message);
+            else refreshGuestbook();
         } else {
             const updates = {};
             if (d.status != null) updates.status = d.status;

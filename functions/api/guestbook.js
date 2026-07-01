@@ -349,7 +349,10 @@ async function handlePost(request, env, context) {
         if (context && context.waitUntil) {
             context.waitUntil((async () => {
                 try {
-                    broadcastGuestbookUpdate(env, parentId, 'reply_added');
+                    const newReply = await env.DB.prepare(
+                        'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
+                    ).bind(newId).first();
+                    broadcastGuestbookUpdate(env, parentId, 'reply_added', { reply: newReply });
                     const parentEntry = await env.DB.prepare('SELECT user_id, content FROM guestbook WHERE id = ?').bind(parentId).first();
                     if (parentEntry && parentEntry.user_id && parentEntry.user_id !== user.id) {
                         const preview = content.trim().length > 50 ? content.trim().slice(0, 50) + '...' : content.trim();
@@ -381,12 +384,15 @@ async function handlePost(request, env, context) {
                 ).bind(newId).first();
                 if (newEntry && isAdmin(newEntry)) {
                     await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
-                    broadcastGuestbookUpdate(env, newId, 'new_message');
+                    broadcastGuestbookUpdate(env, newId, 'new_message', { message: newEntry });
                 } else if (newEntry) {
                     const aiResult = await processWithAIAgent(newEntry, env, true);
                 if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
                     await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
-                    broadcastGuestbookUpdate(env, newId, 'new_message');
+                    const fresh = await env.DB.prepare(
+                        'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
+                    ).bind(newId).first();
+                    broadcastGuestbookUpdate(env, newId, 'new_message', { message: fresh });
                 }
                 }
             } catch (err) {
