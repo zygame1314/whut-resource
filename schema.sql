@@ -507,3 +507,15 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notif_user_unread ON notifications(user_id, is_read, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notif_user_time ON notifications(user_id, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_notif_created ON notifications(created_at);
+
+CREATE TABLE IF NOT EXISTS folder_subscriptions (
+    user_id INTEGER NOT NULL,
+    folder_key TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    has_update BOOLEAN DEFAULT FALSE,
+    update_count INTEGER DEFAULT 0,
+    last_file_name TEXT,
+    PRIMARY KEY (user_id, folder_key),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_folder_subs_folder ON folder_subscriptions(folder_key);

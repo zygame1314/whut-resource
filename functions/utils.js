@@ -636,3 +636,52 @@ export async function broadcastGuestbookUpdate(env, guestbookId, action, extra =
         console.error('广播留言板更新失败:', e?.message || e);
     }
 }
+export async function notifyFolderUpdates(env, newFiles) {
+    if (!env?.DB || !Array.isArray(newFiles) || newFiles.length === 0) return;
+    try {
+        const folderAccum = new Map();
+        for (const f of newFiles) {
+            let path = f.parentPath || '';
+            const seen = new Set();
+            while (path) {
+                if (seen.has(path)) break;
+                seen.add(path);
+                let acc = folderAccum.get(path);
+                if (!acc) { acc = { count: 0, lastFileName: f.fileName }; folderAccum.set(path, acc); }
+                acc.count++;
+                acc.lastFileName = f.fileName;
+                const idx = path.lastIndexOf('/', path.length - 2);
+                path = idx >= 0 ? path.slice(0, idx + 1) : '';
+            }
+        }
+        for (const [folderKey, acc] of folderAccum) {
+            const subs = await env.DB.prepare(
+                'SELECT user_id, has_update, update_count FROM folder_subscriptions WHERE folder_key = ?'
+            ).bind(folderKey).all();
+            const rows = subs.results || [];
+            for (const row of rows) {
+                if (row.has_update) {
+                    await env.DB.prepare(
+                        'UPDATE folder_subscriptions SET has_update = TRUE, update_count = update_count + ?, last_file_name = ? WHERE user_id = ? AND folder_key = ?'
+                    ).bind(acc.count, acc.lastFileName, row.user_id, folderKey).run();
+                } else {
+                    await env.DB.prepare(
+                        'UPDATE folder_subscriptions SET has_update = TRUE, update_count = ?, last_file_name = ? WHERE user_id = ? AND folder_key = ?'
+                    ).bind(acc.count, acc.lastFileName, row.user_id, folderKey).run();
+                    const folderName = folderKey.replace(/\/$/, '').split('/').pop() || folderKey;
+                    const body = acc.count === 1 ? `新增文件：${acc.lastFileName}` : `新增了 ${acc.count} 个文件，最新：${acc.lastFileName}`;
+                    await createNotification(env, {
+                        userId: row.user_id,
+                        type: 'folder_update',
+                        title: `订阅文件夹「${folderName}」有更新`,
+                        body,
+                        link: `?path=${encodeURIComponent(folderKey)}`,
+                        payload: { folderKey, count: acc.count, lastFileName: acc.lastFileName }
+                    });
+                }
+            }
+        }
+    } catch (e) {
+        console.error('文件夹订阅通知失败:', e?.message || e);
+    }
+}

@@ -34,23 +34,36 @@ async function fetchStateByKeys(DB, userId, table, keys) {
         return new Set();
     }
 }
+async function fetchSubscribedFolders(DB, userId, keys) {
+    if (!userId || !keys || keys.length === 0) return new Set();
+    try {
+        const placeholders = keys.map(() => '?').join(',');
+        const { results } = await DB.prepare(`SELECT folder_key FROM folder_subscriptions WHERE user_id = ? AND folder_key IN (${placeholders})`).bind(userId, ...keys).all();
+        return new Set(results.map(r => r.folder_key));
+    } catch {
+        return new Set();
+    }
+}
 async function annotateUserState(DB, user, items) {
     const targets = (items || []).filter(i => i && i.key);
     for (const item of (items || [])) {
         if (!item) continue;
         item.is_liked = 0;
         item.is_favorited = 0;
+        item.is_subscribed = 0;
     }
     if (!user || targets.length === 0) return items || [];
     const keys = targets.map(i => i.key);
-    const [likedSet, favoritedSet] = await Promise.all([
+    const [likedSet, favoritedSet, subscribedSet] = await Promise.all([
         fetchStateByKeys(DB, user.id, 'file_reactions', keys),
-        fetchStateByKeys(DB, user.id, 'favorites', keys)
+        fetchStateByKeys(DB, user.id, 'favorites', keys),
+        fetchSubscribedFolders(DB, user.id, keys)
     ]);
     for (const item of (items || [])) {
         if (!item) continue;
         item.is_liked = likedSet.has(item.key) ? 1 : 0;
         item.is_favorited = favoritedSet.has(item.key) ? 1 : 0;
+        item.is_subscribed = subscribedSet.has(item.key) ? 1 : 0;
     }
     return items || [];
 }
@@ -892,6 +905,52 @@ export async function onRequestPost({ request, env }) {
                 success: true,
                 isFavorited: isFavorited
             }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (action === 'toggleSubscribe') {
+            const { key } = body;
+            if (!key) {
+                return new Response(JSON.stringify({ success: false, error: '无效的参数' }), {
+                    status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            if (!key.endsWith('/')) {
+                return new Response(JSON.stringify({ success: false, error: '只能订阅文件夹' }), {
+                    status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            const fileExists = await DB.prepare('SELECT id FROM files WHERE key = ? AND is_directory = TRUE').bind(key).first();
+            if (!fileExists) {
+                return new Response(JSON.stringify({ success: false, error: '文件夹不存在' }), {
+                    status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            const existing = await DB.prepare('SELECT user_id FROM folder_subscriptions WHERE user_id = ? AND folder_key = ?').bind(user.id, key).first();
+            let isSubscribed = false;
+            if (existing) {
+                await DB.prepare('DELETE FROM folder_subscriptions WHERE user_id = ? AND folder_key = ?').bind(user.id, key).run();
+                isSubscribed = false;
+            } else {
+                const MAX_SUBS = 50;
+                const countRow = await DB.prepare('SELECT COUNT(*) as cnt FROM folder_subscriptions WHERE user_id = ?').bind(user.id).first();
+                if ((countRow?.cnt || 0) >= MAX_SUBS) {
+                    return new Response(JSON.stringify({ success: false, error: `订阅已达上限（${MAX_SUBS} 个）` }), {
+                        status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                    });
+                }
+                await DB.prepare('INSERT INTO folder_subscriptions (user_id, folder_key) VALUES (?, ?)').bind(user.id, key).run();
+                isSubscribed = true;
+            }
+            return new Response(JSON.stringify({ success: true, isSubscribed }), {
+                status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
+        if (action === 'subscriptions') {
+            const { results } = await DB.prepare(
+                'SELECT folder_key, has_update FROM folder_subscriptions WHERE user_id = ? ORDER BY created_at DESC'
+            ).bind(user.id).all();
+            return new Response(JSON.stringify({ success: true, subscriptions: results || [] }), {
+                status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
         }
         const { sourceKey, destinationPath } = body;
         if (!sourceKey || destinationPath === undefined) {

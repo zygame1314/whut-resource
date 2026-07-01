@@ -792,6 +792,37 @@ async function toggleFavorite(fileKey, btnElement) {
         if (btnElement) btnElement.disabled = false;
     }
 }
+async function toggleSubscribe(folderKey, btnElement) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showNotification("请先登录后再订阅。", 'error');
+        return null;
+    }
+    if (btnElement) btnElement.disabled = true;
+    try {
+        const response = await fetch(`${FILES_API_URL}?action=toggleSubscribe`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ key: folderKey }),
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            return result;
+        } else {
+            showNotification(result.error || '订阅操作失败', 'error');
+            return null;
+        }
+    } catch (error) {
+        console.error('Subscribe error:', error);
+        showNotification('订阅操作失败', 'error');
+        return null;
+    } finally {
+        if (btnElement) btnElement.disabled = false;
+    }
+}
 async function fetchBoosts(fileKey, limit = 20, cursor = null) {
     const token = localStorage.getItem('authToken');
     if (!token) {

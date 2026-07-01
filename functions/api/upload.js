@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest } from '../utils.js';
+import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, notifyFolderUpdates } from '../utils.js';
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
@@ -191,6 +191,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         }
       }
       await logAdminAction(env, user.id, 'create_link', 'file', linkInsertResult.meta?.last_row_id, '创建链接', JSON.stringify({ key, url: linkUrl, parent_path: sanitizedParentPath }));
+      waitUntil(notifyFolderUpdates(env, [{ parentPath: sanitizedParentPath, fileName: sanitizedLinkNameNoSlash }]));
       return new Response(JSON.stringify({ success: true, message: '链接创建成功。' }), {
         status: 200,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -277,7 +278,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
             }
           })());
         }
-        return { name: filename, success: true };
+        return { name: filename, key, success: true };
       } catch (err) {
         console.error(`处理文件 ${file?.name} 时出错:`, err);
         return { name: file?.name, success: false, error: err.message };
@@ -289,6 +290,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const successNames = uploadResults.filter(r => r.success).map(r => r.name);
       await logAdminAction(env, user.id, 'create_file', 'file', null, '上传文件', JSON.stringify({ count: successCount, names: successNames.join(',') }));
     }
+    waitUntil((async () => {
+      const successFiles = uploadResults.filter(r => r.success).map(r => {
+        const key = r.key || '';
+        const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
+        return { parentPath, fileName: r.name };
+      });
+      await notifyFolderUpdates(env, successFiles);
+    })());
     return new Response(JSON.stringify({
       success: successCount > 0,
       message: `上传完成: 成功 ${successCount} 个, 失败 ${failCount} 个`,

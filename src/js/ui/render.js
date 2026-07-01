@@ -315,6 +315,10 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     const favoriteButtonHTML = `<button class="share-button favorite-toggle-btn${isFavorited ? ' active' : ''}" title="${isFavorited ? '取消收藏' : '收藏'}" data-favorited="${isFavorited ? 1 : 0}">
             <i class="${isFavorited ? 'fas' : 'far'} fa-star"></i>
         </button>`;
+    const isSubscribed = !!(item.is_subscribed);
+    const subscribeButtonHTML = isDirectory ? `<button class="share-button subscribe-toggle-btn${isSubscribed ? ' active' : ''}" title="${isSubscribed ? '取消订阅' : '订阅文件夹更新'}" data-subscribed="${isSubscribed ? 1 : 0}">
+            <i class="${isSubscribed ? 'fas' : 'far'} fa-bell"></i>
+        </button>` : '';
     const isAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
     let reactionButtonsHTML = '';
     if (!isDirectory) {
@@ -346,6 +350,7 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         `}
         ${shareButtonHTML}
         ${favoriteButtonHTML}
+        ${subscribeButtonHTML}
         ${isAdmin ? `
         ${isLink ? `
         <button class="edit-link-button" title="编辑链接地址">
@@ -518,6 +523,45 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
                 }
             } else {
                 setFavUI(wasActive);
+            }
+        };
+    }
+    const subBtn = fileActionsDiv.querySelector('.subscribe-toggle-btn');
+    if (subBtn) {
+        subBtn.onclick = async (e) => {
+            e.stopPropagation();
+            const wasActive = !!(item.is_subscribed);
+            const newState = !wasActive;
+            const setSubUI = (subscribed) => {
+                item.is_subscribed = subscribed ? 1 : 0;
+                subBtn.classList.toggle('active', subscribed);
+                subBtn.title = subscribed ? '取消订阅' : '订阅文件夹更新';
+                const icon = subBtn.querySelector('i');
+                if (icon) icon.className = subscribed ? 'fas fa-bell' : 'far fa-bell';
+            };
+            setSubUI(newState);
+            const result = await toggleSubscribe(item.key, subBtn);
+            if (result && result.success !== false) {
+                setSubUI(!!result.isSubscribed);
+                if (result.isSubscribed) showNotification('已订阅，该文件夹有新文件时会通知你', 'success', 2000);
+                else showNotification('已取消订阅', 'info', 1500);
+                if (typeof directoryCache !== 'undefined') {
+                    const subState = result.isSubscribed ? 1 : 0;
+                    for (const p in directoryCache) {
+                        const entry = directoryCache[p];
+                        if (!entry || !entry.data) continue;
+                        const updateArr = (arr) => {
+                            if (!arr) return;
+                            for (const f of arr) {
+                                if (f && f.key === item.key) f.is_subscribed = subState;
+                            }
+                        };
+                        updateArr(entry.data.directories);
+                        updateArr(entry.data.files);
+                    }
+                }
+            } else {
+                setSubUI(wasActive);
             }
         };
     }

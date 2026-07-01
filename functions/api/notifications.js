@@ -131,11 +131,26 @@ async function handlePost(request, env) {
             await env.DB.prepare(
                 'UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE'
             ).bind(user.id).run();
+            await env.DB.prepare(
+                'UPDATE folder_subscriptions SET has_update = FALSE, update_count = 0 WHERE user_id = ?'
+            ).bind(user.id).run();
         } else if (ids.length > 0) {
             const placeholders = ids.map(() => '?').join(',');
             await env.DB.prepare(
                 `UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND id IN (${placeholders})`
             ).bind(user.id, ...ids).run();
+            const notifs = await env.DB.prepare(
+                `SELECT payload FROM notifications WHERE user_id = ? AND id IN (${placeholders}) AND type = 'folder_update'`
+            ).bind(user.id, ...ids).all();
+            const folderKeys = new Set();
+            for (const n of (notifs.results || [])) {
+                try { const p = JSON.parse(n.payload); if (p.folderKey) folderKeys.add(p.folderKey); } catch (e) {}
+            }
+            for (const fk of folderKeys) {
+                await env.DB.prepare(
+                    'UPDATE folder_subscriptions SET has_update = FALSE, update_count = 0 WHERE user_id = ? AND folder_key = ?'
+                ).bind(user.id, fk).run();
+            }
         }
         const row = await env.DB.prepare(
             'SELECT EXISTS(SELECT 1 FROM notifications WHERE user_id = ? AND is_read = FALSE) as has_unread'
@@ -149,6 +164,19 @@ async function handlePost(request, env) {
         await env.DB.prepare(
             'UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND id = ?'
         ).bind(user.id, body.id).run();
+        const notif = await env.DB.prepare(
+            'SELECT type, payload FROM notifications WHERE id = ? AND user_id = ?'
+        ).bind(body.id, user.id).first();
+        if (notif && notif.type === 'folder_update' && notif.payload) {
+            try {
+                const p = JSON.parse(notif.payload);
+                if (p.folderKey) {
+                    await env.DB.prepare(
+                        'UPDATE folder_subscriptions SET has_update = FALSE, update_count = 0 WHERE user_id = ? AND folder_key = ?'
+                    ).bind(user.id, p.folderKey).run();
+                }
+            } catch (e) {}
+        }
         const row = await env.DB.prepare(
             'SELECT EXISTS(SELECT 1 FROM notifications WHERE user_id = ? AND is_read = FALSE) as has_unread'
         ).bind(user.id).first();
