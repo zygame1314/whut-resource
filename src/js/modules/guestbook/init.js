@@ -57,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (Object.keys(updates).length > 0) updateGuestbookCache(d.guestbookId, updates);
         }
-    });
 });
 
 const _localReplyLog = new Map();

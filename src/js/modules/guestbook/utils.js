@@ -101,6 +101,10 @@ function updateGuestbookCache(id, updates, skipRender = false) {
         }
     }
     if (skipRender) return;
+    if (!found) {
+        refreshGuestbook();
+        return;
+    }
     const cur = guestbookCursorStack[guestbookPageIndex];
     if (cur && cur.messages) renderGuestbook(cur.messages);
 }

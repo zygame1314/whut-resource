@@ -384,12 +384,10 @@ async function handlePost(request, env, context) {
                     broadcastGuestbookUpdate(env, newId, 'new_message');
                 } else if (newEntry) {
                     const aiResult = await processWithAIAgent(newEntry, env, true);
-                    if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
-                        await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
-                        if (aiResult.action !== 'resolve') {
-                            broadcastGuestbookUpdate(env, newId, 'new_message');
-                        }
-                    }
+                if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
+                    await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
+                    broadcastGuestbookUpdate(env, newId, 'new_message');
+                }
                 }
             } catch (err) {
                 console.error('自动AI处理失败:', err);
