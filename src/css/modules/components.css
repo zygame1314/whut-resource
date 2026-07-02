@@ -5790,6 +5790,10 @@ textarea.form-input {
 }
 
 @media (max-width: 768px) {
+    .download-history-entry {
+        top: calc(50% - 65px);
+    }
+
     .subscriptions-entry {
         top: calc(50% + 65px);
     }
