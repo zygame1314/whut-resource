@@ -73,11 +73,9 @@ export async function verifyToken(token, secret) {
     return null;
   }
 }
-
 const JWT_KEY_ID = "rsa-1";
 const PEM_HEADER = "-----BEGIN PRIVATE KEY-----";
 const PEM_FOOTER = "-----END PRIVATE KEY-----";
-
 function pemToBase64Der(pem) {
   const trimmed = pem.replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----/, "")
     .replace(/-----END [A-Z ]*PRIVATE KEY-----/, "")
@@ -87,7 +85,6 @@ function pemToBase64Der(pem) {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
 }
-
 async function importRsaPrivateKey(pem) {
   const der = pemToBase64Der(pem);
   return await crypto.subtle.importKey(
@@ -98,7 +95,6 @@ async function importRsaPrivateKey(pem) {
     ["sign"]
   );
 }
-
 export async function getRsaPrivateKey(env) {
   const pem = env.JWT_PRIVATE_KEY;
   if (!pem || typeof pem !== 'string' || !pem.includes(PEM_HEADER)) {
@@ -106,7 +102,6 @@ export async function getRsaPrivateKey(env) {
   }
   return await importRsaPrivateKey(pem);
 }
-
 export async function signIdToken(payload, env) {
   const key = await getRsaPrivateKey(env);
   const header = { alg: "RS256", typ: "JWT", kid: JWT_KEY_ID };
@@ -120,7 +115,6 @@ export async function signIdToken(payload, env) {
   const encodedSignature = toBase64Url(signature);
   return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
 }
-
 export async function getJwks(env) {
   const pem = env.JWT_PRIVATE_KEY;
   if (!pem || typeof pem !== 'string' || !pem.includes(PEM_HEADER)) {
@@ -147,7 +141,6 @@ export async function getJwks(env) {
     ]
   };
 }
-
 export function getJwtKeyId() {
   return JWT_KEY_ID;
 }
@@ -542,152 +535,150 @@ export async function deleteGuestbookWithChildren(env, guestbookId) {
   }
 }
 export async function recordVectorSyncFailure(env, operation, fileId, fileData, errorMessage) {
-    if (!env.DB) return;
-    try {
-        await env.DB.prepare(
-            'INSERT INTO vector_sync_failures (operation, file_id, file_data, error_message) VALUES (?, ?, ?, ?)'
-        ).bind(
-            operation,
-            fileId || null,
-            fileData ? JSON.stringify(fileData) : null,
-            errorMessage || ''
-        ).run();
-    } catch (dbError) {
-        console.error('记录向量同步失败信息出错:', dbError);
-    }
+  if (!env.DB) return;
+  try {
+    await env.DB.prepare(
+      'INSERT INTO vector_sync_failures (operation, file_id, file_data, error_message) VALUES (?, ?, ?, ?)'
+    ).bind(
+      operation,
+      fileId || null,
+      fileData ? JSON.stringify(fileData) : null,
+      errorMessage || ''
+    ).run();
+  } catch (dbError) {
+    console.error('记录向量同步失败信息出错:', dbError);
+  }
 }
-
 const VALID_NOTIFICATION_TYPES = new Set([
-    'folder_update', 'guestbook_reply', 'todo_update', 'boost_reply',
-    'admin', 'announcement', 'system'
+  'folder_update', 'guestbook_reply', 'announcement'
 ]);
 export async function createNotification(env, { userId, type, title, body = null, link = null, icon = null, payload = null }) {
-    if (!env || !env.DB || !userId || !type || !title) return null;
-    if (!VALID_NOTIFICATION_TYPES.has(type)) return null;
-    try {
-        const result = await env.DB.prepare(
-            `INSERT INTO notifications (user_id, type, title, body, link, icon, payload) VALUES (?, ?, ?, ?, ?, ?, ?)`
-        ).bind(
-            userId, type, String(title).slice(0, 200),
-            body ? String(body).slice(0, 1000) : null,
-            link ? String(link).slice(0, 500) : null,
-            icon ? String(icon).slice(0, 100) : null,
-            payload ? JSON.stringify(payload) : null
-        ).run();
-        const notifId = result.meta?.last_row_id || null;
-        if (notifId) {
-            try { await pushNotificationToUser(env, userId, notifId); }
-            catch (e) { console.error('[notify] WS推送失败:', e?.message || e); }
-        }
-        return notifId;
-    } catch (e) {
-        console.error('创建通知失败:', e);
-        return null;
+  if (!env || !env.DB || !userId || !type || !title) return null;
+  if (!VALID_NOTIFICATION_TYPES.has(type)) return null;
+  try {
+    const result = await env.DB.prepare(
+      `INSERT INTO notifications (user_id, type, title, body, link, icon, payload) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      userId, type, String(title).slice(0, 200),
+      body ? String(body).slice(0, 1000) : null,
+      link ? String(link).slice(0, 500) : null,
+      icon ? String(icon).slice(0, 100) : null,
+      payload ? JSON.stringify(payload) : null
+    ).run();
+    const notifId = result.meta?.last_row_id || null;
+    if (notifId) {
+      try { await pushNotificationToUser(env, userId, notifId); }
+      catch (e) { console.error('[notify] WS推送失败:', e?.message || e); }
     }
+    return notifId;
+  } catch (e) {
+    console.error('创建通知失败:', e);
+    return null;
+  }
 }
 export async function broadcastNotification(env, { type, title, body = null, link = null, icon = null, payload = null }) {
-    if (!env || !env.DB || !type || !title) return 0;
-    if (!VALID_NOTIFICATION_TYPES.has(type)) return 0;
-    let inserted = 0;
-    try {
-        const { results } = await env.DB.prepare('SELECT id FROM users WHERE is_banned = FALSE OR is_banned = 0').all();
-        const userIds = (results || []).map(r => r.id);
-        for (const uid of userIds) {
-            const id = await createNotification(env, { userId: uid, type, title, body, link, icon, payload });
-            if (id) inserted++;
-        }
-    } catch (e) {
-        console.error('广播通知失败:', e);
+  if (!env || !env.DB || !type || !title) return 0;
+  if (!VALID_NOTIFICATION_TYPES.has(type)) return 0;
+  let inserted = 0;
+  try {
+    const { results } = await env.DB.prepare('SELECT id FROM users WHERE is_banned = FALSE OR is_banned = 0').all();
+    const userIds = (results || []).map(r => r.id);
+    for (const uid of userIds) {
+      const id = await createNotification(env, { userId: uid, type, title, body, link, icon, payload });
+      if (id) inserted++;
     }
-    return inserted;
+  } catch (e) {
+    console.error('广播通知失败:', e);
+  }
+  return inserted;
 }
 async function pushNotificationToUser(env, userId, notifId) {
-    if (!env.DOWNLOAD_LOGGER || !notifId) return;
-    try {
-        const notif = await env.DB.prepare(
-            'SELECT id, user_id, type, title, body, link, icon, payload, created_at FROM notifications WHERE id = ?'
-        ).bind(notifId).first();
-        if (!notif) return;
-        if (notif.payload) {
-            try { notif.payload = JSON.parse(notif.payload); } catch (e) { notif.payload = null; }
-        }
-        const id = env.DOWNLOAD_LOGGER.idFromName('global');
-        const stub = env.DOWNLOAD_LOGGER.get(id);
-        await stub.fetch('https://internal/broadcast', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'notification', target_user_id: userId, notification: notif })
-        });
-    } catch (e) {
-        console.error('推送通知到 WebSocket 失败:', e?.message || e);
+  if (!env.DOWNLOAD_LOGGER || !notifId) return;
+  try {
+    const notif = await env.DB.prepare(
+      'SELECT id, user_id, type, title, body, link, icon, payload, created_at FROM notifications WHERE id = ?'
+    ).bind(notifId).first();
+    if (!notif) return;
+    if (notif.payload) {
+      try { notif.payload = JSON.parse(notif.payload); } catch (e) { notif.payload = null; }
     }
+    const id = env.DOWNLOAD_LOGGER.idFromName('global');
+    const stub = env.DOWNLOAD_LOGGER.get(id);
+    await stub.fetch('https://internal/broadcast', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'notification', target_user_id: userId, notification: notif })
+    });
+  } catch (e) {
+    console.error('推送通知到 WebSocket 失败:', e?.message || e);
+  }
 }
 export async function broadcastGuestbookUpdate(env, guestbookId, action, extra = {}) {
-    if (!env || !env.DOWNLOAD_LOGGER || !guestbookId || !action) return;
-    try {
-        const id = env.DOWNLOAD_LOGGER.idFromName('global');
-        const stub = env.DOWNLOAD_LOGGER.get(id);
-        await stub.fetch('https://internal/broadcast', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'guestbook_update', guestbookId, action, ...extra })
-        });
-    } catch (e) {
-        console.error('广播留言板更新失败:', e?.message || e);
-    }
+  if (!env || !env.DOWNLOAD_LOGGER || !guestbookId || !action) return;
+  try {
+    const id = env.DOWNLOAD_LOGGER.idFromName('global');
+    const stub = env.DOWNLOAD_LOGGER.get(id);
+    await stub.fetch('https://internal/broadcast', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'guestbook_update', guestbookId, action, ...extra })
+    });
+  } catch (e) {
+    console.error('广播留言板更新失败:', e?.message || e);
+  }
 }
 export async function notifyFolderUpdates(env, newFiles) {
-    if (!env?.DB || !Array.isArray(newFiles) || newFiles.length === 0) return;
-    try {
-        const folderAccum = new Map();
-        for (const f of newFiles) {
-            let path = f.parentPath || '';
-            const seen = new Set();
-            while (path) {
-                if (seen.has(path)) break;
-                seen.add(path);
-                let acc = folderAccum.get(path);
-                if (!acc) { acc = { count: 0, lastFileName: f.fileName }; folderAccum.set(path, acc); }
-                acc.count++;
-                acc.lastFileName = f.fileName;
-                const idx = path.lastIndexOf('/', path.length - 2);
-                path = idx >= 0 ? path.slice(0, idx + 1) : '';
-            }
-        }
-        await Promise.all(Array.from(folderAccum.entries()).map(async ([folderKey, acc]) => {
-            const subs = await env.DB.prepare(
-                'SELECT user_id, has_update FROM folder_subscriptions WHERE folder_key = ?'
-            ).bind(folderKey).all();
-            const rows = subs.results || [];
-            if (rows.length === 0) return;
-            const toMerge = rows.filter(r => r.has_update);
-            const toNotify = rows.filter(r => !r.has_update);
-            const tasks = [];
-            if (toMerge.length > 0) {
-                tasks.push(env.DB.prepare(
-                    'UPDATE folder_subscriptions SET has_update = TRUE, update_count = update_count + ?, last_file_name = ? WHERE folder_key = ? AND has_update = TRUE'
-                ).bind(acc.count, acc.lastFileName, folderKey).run());
-            }
-            if (toNotify.length > 0) {
-                tasks.push(env.DB.prepare(
-                    'UPDATE folder_subscriptions SET has_update = TRUE, update_count = ?, last_file_name = ? WHERE folder_key = ? AND has_update = FALSE'
-                ).bind(acc.count, acc.lastFileName, folderKey).run());
-            }
-            const folderName = folderKey.replace(/\/$/, '').split('/').pop() || folderKey;
-            const body = acc.count === 1 ? `新增文件：${acc.lastFileName}` : `新增了 ${acc.count} 个文件，最新：${acc.lastFileName}`;
-            for (const row of toNotify) {
-                tasks.push(createNotification(env, {
-                    userId: row.user_id,
-                    type: 'folder_update',
-                    title: `订阅文件夹「${folderName}」有更新`,
-                    body,
-                    link: `?path=${encodeURIComponent(folderKey)}`,
-                    payload: { folderKey, count: acc.count, lastFileName: acc.lastFileName }
-                }));
-            }
-            await Promise.all(tasks);
-        }));
-    } catch (e) {
-        console.error('文件夹订阅通知失败:', e?.message || e);
+  if (!env?.DB || !Array.isArray(newFiles) || newFiles.length === 0) return;
+  try {
+    const folderAccum = new Map();
+    for (const f of newFiles) {
+      let path = f.parentPath || '';
+      const seen = new Set();
+      while (path) {
+        if (seen.has(path)) break;
+        seen.add(path);
+        let acc = folderAccum.get(path);
+        if (!acc) { acc = { count: 0, lastFileName: f.fileName }; folderAccum.set(path, acc); }
+        acc.count++;
+        acc.lastFileName = f.fileName;
+        const idx = path.lastIndexOf('/', path.length - 2);
+        path = idx >= 0 ? path.slice(0, idx + 1) : '';
+      }
     }
+    await Promise.all(Array.from(folderAccum.entries()).map(async ([folderKey, acc]) => {
+      const subs = await env.DB.prepare(
+        'SELECT user_id, has_update FROM folder_subscriptions WHERE folder_key = ?'
+      ).bind(folderKey).all();
+      const rows = subs.results || [];
+      if (rows.length === 0) return;
+      const toMerge = rows.filter(r => r.has_update);
+      const toNotify = rows.filter(r => !r.has_update);
+      const tasks = [];
+      if (toMerge.length > 0) {
+        tasks.push(env.DB.prepare(
+          'UPDATE folder_subscriptions SET has_update = TRUE, update_count = update_count + ?, last_file_name = ? WHERE folder_key = ? AND has_update = TRUE'
+        ).bind(acc.count, acc.lastFileName, folderKey).run());
+      }
+      if (toNotify.length > 0) {
+        tasks.push(env.DB.prepare(
+          'UPDATE folder_subscriptions SET has_update = TRUE, update_count = ?, last_file_name = ? WHERE folder_key = ? AND has_update = FALSE'
+        ).bind(acc.count, acc.lastFileName, folderKey).run());
+      }
+      const folderName = folderKey.replace(/\/$/, '').split('/').pop() || folderKey;
+      const body = acc.count === 1 ? `新增文件：${acc.lastFileName}` : `新增了 ${acc.count} 个文件，最新：${acc.lastFileName}`;
+      for (const row of toNotify) {
+        tasks.push(createNotification(env, {
+          userId: row.user_id,
+          type: 'folder_update',
+          title: `订阅文件夹「${folderName}」有更新`,
+          body,
+          link: `?path=${encodeURIComponent(folderKey)}`,
+          payload: { folderKey, count: acc.count, lastFileName: acc.lastFileName }
+        }));
+      }
+      await Promise.all(tasks);
+    }));
+  } catch (e) {
+    console.error('文件夹订阅通知失败:', e?.message || e);
+  }
 }

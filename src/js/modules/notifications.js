@@ -9,11 +9,7 @@
     const TYPE_META = {
         folder_update: { icon: 'fas fa-folder-plus', label: '文件夹更新' },
         guestbook_reply: { icon: 'fas fa-comment-dots', label: '留言回复' },
-        todo_update: { icon: 'fas fa-list-check', label: '任务进展' },
-        boost_reply: { icon: 'fas fa-bolt', label: '助推评论' },
-        admin: { icon: 'fas fa-user-shield', label: '系统通知' },
-        announcement: { icon: 'fas fa-bullhorn', label: '公告' },
-        system: { icon: 'fas fa-cog', label: '系统' }
+        announcement: { icon: 'fas fa-bullhorn', label: '公告' }
     };
 
     const state = {
