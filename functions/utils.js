@@ -632,6 +632,16 @@ export async function broadcastGuestbookUpdate(env, guestbookId, action, extra =
     console.error('广播留言板更新失败:', e?.message || e);
   }
 }
+export const MIN_SUBSCRIPTION_DEPTH = 2;
+export function getFolderDepth(folderKey) {
+  if (!folderKey || typeof folderKey !== 'string') return 0;
+  const key = folderKey.endsWith('/') ? folderKey.slice(0, -1) : folderKey;
+  if (key.length === 0) return 0;
+  return key.split('/').filter(Boolean).length;
+}
+export function isFolderSubscribable(folderKey) {
+  return getFolderDepth(folderKey) >= MIN_SUBSCRIPTION_DEPTH;
+}
 export async function notifyFolderUpdates(env, newFiles) {
   if (!env?.DB || !Array.isArray(newFiles) || newFiles.length === 0) return;
   try {
@@ -642,10 +652,12 @@ export async function notifyFolderUpdates(env, newFiles) {
       while (path) {
         if (seen.has(path)) break;
         seen.add(path);
-        let acc = folderAccum.get(path);
-        if (!acc) { acc = { count: 0, lastFileName: f.fileName }; folderAccum.set(path, acc); }
-        acc.count++;
-        acc.lastFileName = f.fileName;
+        if (isFolderSubscribable(path)) {
+          let acc = folderAccum.get(path);
+          if (!acc) { acc = { count: 0, lastFileName: f.fileName }; folderAccum.set(path, acc); }
+          acc.count++;
+          acc.lastFileName = f.fileName;
+        }
         const idx = path.lastIndexOf('/', path.length - 2);
         path = idx >= 0 ? path.slice(0, idx + 1) : '';
       }

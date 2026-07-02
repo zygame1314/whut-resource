@@ -7,6 +7,12 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+function getFolderDepth(folderKey) {
+    if (!folderKey || typeof folderKey !== 'string') return 0;
+    const key = folderKey.endsWith('/') ? folderKey.slice(0, -1) : folderKey;
+    if (key.length === 0) return 0;
+    return key.split('/').filter(Boolean).length;
+}
 function updateReactionCount(btn, count) {
     const countEl = btn.querySelector('.reaction-count');
     if (count > 0) {
@@ -316,7 +322,8 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             <i class="${isFavorited ? 'fas' : 'far'} fa-star"></i>
         </button>`;
     const isSubscribed = !!(item.is_subscribed);
-    const subscribeButtonHTML = isDirectory ? `<button class="share-button subscribe-toggle-btn${isSubscribed ? ' active' : ''}" title="${isSubscribed ? '取消订阅' : '订阅文件夹更新'}" data-subscribed="${isSubscribed ? 1 : 0}">
+    const canSubscribe = isDirectory && (isSubscribed || getFolderDepth(item.key) >= 2);
+    const subscribeButtonHTML = canSubscribe ? `<button class="share-button subscribe-toggle-btn${isSubscribed ? ' active' : ''}" title="${isSubscribed ? '取消订阅' : '订阅文件夹更新'}" data-subscribed="${isSubscribed ? 1 : 0}">
             <i class="${isSubscribed ? 'fas' : 'far'} fa-bell"></i>
         </button>` : '';
     const isAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');

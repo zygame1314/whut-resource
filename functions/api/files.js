@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, folderKeyUpperBound } from '../utils.js';
+import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable } from '../utils.js';
 function sanitizeSegment(name) {
     if (!name || typeof name !== 'string') return null;
     const decoded = name.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
@@ -920,6 +920,14 @@ export async function onRequestPost({ request, env }) {
             }
             if (!key.endsWith('/')) {
                 return new Response(JSON.stringify({ success: false, error: '只能订阅文件夹' }), {
+                    status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            if (!isFolderSubscribable(key)) {
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: '该文件夹层级太浅，订阅后几乎任何上传都会通知，意义不大。请进入具体课程/分类目录后再订阅。'
+                }), {
                     status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
                 });
             }
