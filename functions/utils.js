@@ -1,3 +1,8 @@
+export function folderKeyUpperBound(folderKey) {
+  if (!folderKey) return null;
+  const last = folderKey.charCodeAt(folderKey.length - 1);
+  return folderKey.slice(0, -1) + String.fromCharCode(last + 1);
+}
 export async function hashPassword(password, salt) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + (salt || "default-salt"));

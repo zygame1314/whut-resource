@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest } from '../utils.js';
+import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, folderKeyUpperBound } from '../utils.js';
 function sanitizeSegment(name) {
     if (!name || typeof name !== 'string') return null;
     const decoded = name.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
@@ -752,6 +752,11 @@ export async function onRequestPut({ request, env }) {
             }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
             await DB.batch(batchOperations);
+            const renameOldSubs = await DB.prepare('SELECT user_id, folder_key FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(key, folderKeyUpperBound(key)).all();
+            for (const sub of (renameOldSubs.results || [])) {
+                const newSubKey = key === sub.folder_key ? newFolderKey : newFolderKey + sub.folder_key.slice(key.length);
+                await DB.prepare('UPDATE folder_subscriptions SET folder_key = ? WHERE user_id = ? AND folder_key = ?').bind(newSubKey, sub.user_id, sub.folder_key).run();
+            }
             await deleteVectorIndexes(env, oldFileIds);
             const newFolderPathForQuery = newFolderKey;
             const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
@@ -1064,6 +1069,11 @@ export async function onRequestPost({ request, env }) {
             }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
             await DB.batch(batchOperations);
+            const oldSubs = await DB.prepare('SELECT user_id, folder_key FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(sourceKey, folderKeyUpperBound(sourceKey)).all();
+            for (const sub of (oldSubs.results || [])) {
+                const newSubKey = sourceKey === sub.folder_key ? newFolderKey : newFolderKey + sub.folder_key.slice(sourceKey.length);
+                await DB.prepare('UPDATE folder_subscriptions SET folder_key = ? WHERE user_id = ? AND folder_key = ?').bind(newSubKey, sub.user_id, sub.folder_key).run();
+            }
             await deleteVectorIndexes(env, oldFileIds);
             const newFolderPathForQuery = newFolderKey;
             const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
@@ -1263,6 +1273,10 @@ export async function onRequestDelete({ request, env }) {
                 DB.prepare('DELETE FROM file_boosts WHERE file_key = ?').bind(key),
                 DB.prepare('DELETE FROM favorites WHERE file_key = ?').bind(key)
             ]);
+            if (key.endsWith('/')) {
+                const upper = folderKeyUpperBound(key);
+                await DB.prepare('DELETE FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(key, upper).run();
+            }
             await deleteVectorIndexes(env, fileIdsToDeleteVector);
             const deletedCount = (childItems?.length || 0) + 1;
             await logAdminAction(env, user.id, 'delete_folder', 'file', fileRecord.id, '删除文件夹', JSON.stringify({ key, deleted_count: deletedCount }));

@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, broadcastNotification } from '../utils.js';
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -74,6 +74,17 @@ async function handlePost(request, env) {
         'INSERT INTO announcements (title, content, is_published, author_id) VALUES (?, ?, ?, ?)'
     ).bind(title.trim(), content.trim(), is_published ? 1 : 0, user.id).run();
     await logAdminAction(env, user.id, 'create_announcement', 'announcement', result.meta.last_row_id, '创建公告', JSON.stringify({ title: title.trim() }));
+    if (is_published) {
+        const annId = result.meta.last_row_id;
+        broadcastNotification(env, {
+            type: 'announcement',
+            title: `新公告：${title.trim()}`,
+            body: content.trim().slice(0, 200),
+            link: '#announcement-section',
+            icon: 'fas fa-bullhorn',
+            payload: { announcementId: annId }
+        }).catch(e => console.error('公告通知推送失败:', e?.message || e));
+    }
     return new Response(JSON.stringify({ success: true, id: result.meta.last_row_id }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePut(request, env) {
@@ -89,7 +100,7 @@ async function handlePut(request, env) {
     if (!id) {
         return new Response(JSON.stringify({ error: '缺少ID' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
-    const announcement = await env.DB.prepare('SELECT author_id, content FROM announcements WHERE id = ?').bind(id).first();
+    const announcement = await env.DB.prepare('SELECT author_id, content, is_published FROM announcements WHERE id = ?').bind(id).first();
     if (!announcement) {
         return new Response(JSON.stringify({ error: '公告不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
@@ -113,6 +124,17 @@ async function handlePut(request, env) {
         'UPDATE announcements SET title = ?, content = ?, is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
     ).bind(title.trim(), content.trim(), is_published ? 1 : 0, id).run();
     await logAdminAction(env, user.id, 'update_announcement', 'announcement', id, '更新公告', JSON.stringify({ title: title.trim(), snapshot_content: announcement.content }));
+    const newlyPublished = is_published && !announcement.is_published;
+    if (newlyPublished) {
+        broadcastNotification(env, {
+            type: 'announcement',
+            title: `新公告：${title.trim()}`,
+            body: content.trim().slice(0, 200),
+            link: '#announcement-section',
+            icon: 'fas fa-bullhorn',
+            payload: { announcementId: id }
+        }).catch(e => console.error('公告通知推送失败:', e?.message || e));
+    }
     return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handleDelete(request, env) {
