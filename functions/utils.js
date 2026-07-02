@@ -555,7 +555,7 @@ export async function recordVectorSyncFailure(env, operation, fileId, fileData, 
   }
 }
 const VALID_NOTIFICATION_TYPES = new Set([
-  'folder_update', 'guestbook_reply', 'announcement'
+  'folder_update', 'guestbook_reply'
 ]);
 export async function createNotification(env, { userId, type, title, body = null, link = null, icon = null, payload = null }) {
   if (!env || !env.DB || !userId || !type || !title) return null;
