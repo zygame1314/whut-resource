@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, createNotification } from '../utils.js';
 
 export async function onRequest(context) {
     const { request, env } = context;
@@ -249,13 +249,33 @@ async function handlePut(request, env) {
             'SELECT guestbook_id FROM todo_guestbook WHERE todo_id = ?'
         ).bind(id).all();
         const resolvedIds = [];
+        const toNotifyIds = [];
         for (const row of (linkedMessages.results || [])) {
-            await env.DB.prepare(
-                "UPDATE guestbook SET status = 'resolved', reject_reason = NULL, is_hidden = 0 WHERE id = ? AND status != 'resolved'"
-            ).bind(row.guestbook_id).run();
-            resolvedIds.push(row.guestbook_id);
+            const gb = await env.DB.prepare(
+                'SELECT id, user_id, status FROM guestbook WHERE id = ?'
+            ).bind(row.guestbook_id).first();
+            if (!gb) continue;
+            if (gb.status !== 'resolved') {
+                await env.DB.prepare(
+                    "UPDATE guestbook SET status = 'resolved', reject_reason = NULL, is_hidden = 0 WHERE id = ?"
+                ).bind(row.guestbook_id).run();
+                resolvedIds.push(row.guestbook_id);
+                if (gb.user_id && gb.user_id !== user.id) {
+                    toNotifyIds.push({ id: gb.id, userId: gb.user_id });
+                }
+            }
         }
         await logAdminAction(env, user.id, 'resolve_todo', 'todo', id, `解决待办「${todo.category}」，关联留言: ${resolvedIds.join(', ')}`, null);
+        for (const n of toNotifyIds) {
+            await createNotification(env, {
+                userId: n.userId,
+                type: 'guestbook_reply',
+                title: '你的留言已被解决',
+                body: `已随待办「${todo.category}」一并处理`,
+                link: `#gb-${n.id}`,
+                payload: { guestbookId: n.id, todoId: id, todoCategory: todo.category }
+            });
+        }
         return new Response(JSON.stringify({
             success: true,
             resolved_guestbook_ids: resolvedIds
