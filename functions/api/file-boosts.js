@@ -42,8 +42,8 @@ async function moderateContent(content, nickname, env) {
         }
         return { pass: true };
     } catch (error) {
-        console.error('AI审核失败，放行:', error);
-        return { pass: true };
+        console.error('AI审核失败，拦截:', error);
+        return { pass: false, reason: 'AI审核服务暂时不可用，请稍后重试' };
     }
 }
 export async function onRequestGet({ request, env }) {

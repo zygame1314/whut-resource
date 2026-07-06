@@ -862,7 +862,7 @@ ${contextLines ? contextLines + '\n' : ''}
         }
         return { pass: true };
     } catch (error) {
-        console.error('回复审核失败，放行:', error);
-        return { pass: true };
+        console.error('回复审核失败，拦截:', error);
+        return { pass: false, reason: 'AI审核服务暂时不可用，请稍后重试' };
     }
 }
