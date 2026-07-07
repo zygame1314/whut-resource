@@ -451,11 +451,13 @@ CREATE TABLE IF NOT EXISTS pow_challenges (
     ip TEXT NOT NULL,
     attempts INTEGER DEFAULT 0,
     bp_hash TEXT,
+    colo TEXT,
     issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     expires_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pow_challenges_expires ON pow_challenges(expires_at);
 CREATE INDEX IF NOT EXISTS idx_pow_challenges_ip_issued ON pow_challenges(ip, issued_at);
+CREATE INDEX IF NOT EXISTS idx_pow_challenges_colo_issued ON pow_challenges(colo, issued_at);
 
 CREATE TABLE IF NOT EXISTS todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

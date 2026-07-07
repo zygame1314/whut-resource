@@ -9,116 +9,6 @@ function powMinVerifyMs(bits) {
     return Math.max(formulaMs, POW_MIN_VERIFY_MS) + POW_VERIFY_MARGIN_MS;
 }
 
-let _mouseMoved = false;
-let _mousePositions = [];
-let _clickTimings = [];
-let _lastMouseDownTime = 0;
-
-document.addEventListener('mousemove', () => { _mouseMoved = true; }, { once: true, passive: true });
-document.addEventListener('touchmove', () => { _mouseMoved = true; }, { once: true, passive: true });
-document.addEventListener('mousemove', (e) => {
-    if (_mousePositions.length < 20) _mousePositions.push({ x: e.clientX, y: e.clientY, t: Date.now() });
-}, { passive: true });
-
-function collectBrowserProof() {
-    const proof = {};
-
-    proof.wd = navigator.webdriver === true;
-
-    try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 50; canvas.height = 50;
-        const ctx = canvas.getContext('2d');
-        ctx.textBaseline = 'top';
-        ctx.font = '14px Arial';
-        ctx.fillText('BWV', 2, 2);
-        proof.cg = canvas.toDataURL().length;
-    } catch (_) { proof.cg = 0; }
-
-    proof.gl = (function () {
-        try {
-            const c = document.createElement('canvas');
-            const g = c.getContext('webgl') || c.getContext('experimental-webgl');
-            if (!g) return 0;
-            const d = g.getExtension('WEBGL_debug_renderer_info');
-            return d ? 1 : 2;
-        } catch (_) { return 0; }
-    })();
-
-    proof.mm = _mouseMoved;
-    proof.mc = Math.min(_mousePositions.length, 20);
-
-    if (_clickTimings.length >= 2) {
-        const gap = _clickTimings[_clickTimings.length - 1] - _clickTimings[0];
-        proof.ct = gap;
-    }
-
-    proof.np = navigator.plugins ? navigator.plugins.length : 0;
-    proof.wb = typeof window.__nightmare !== 'undefined' || typeof window.callPhantom !== 'undefined' || typeof window._phantom !== 'undefined';
-    proof.hr = window.innerWidth > 0 && window.innerHeight > 0;
-    proof.hrw = window.innerWidth;
-    proof.hrh = window.innerHeight;
-
-    proof.ts = Date.now();
-
-    return proof;
-}
-
-const BP_PASS_SCORE = 60;
-const BP_TS_WINDOW_MS = 10 * 60 * 1000;
-
-function validateBrowserProof(proof) {
-    if (!proof) return { valid: false, score: 0, reason: '无验证数据' };
-    let score = 0;
-    const reasons = [];
-
-    if (proof.wd) { return { valid: false, score: 0, reasons: ['webdriver'] }; }
-    if (proof.wb) { return { valid: false, score: 0, reasons: ['headless'] }; }
-
-    const ts = Number(proof.ts);
-    if (Number.isFinite(ts) && ts > 0 && Math.abs(Date.now() - ts) <= BP_TS_WINDOW_MS) {
-        score += 10;
-    } else {
-        reasons.push('proof 时效异常');
-    }
-
-    if (proof.cg > 1000 && proof.cg < 500000) { score += 25; }
-    else { reasons.push('canvas异常'); }
-
-    if (proof.gl === 2) { score += 20; }
-    else if (proof.gl === 1) { score += 10; }
-    else { reasons.push('webgl异常'); }
-
-    if (proof.mm) { score += 15; }
-    else { reasons.push('无鼠标移动'); }
-
-    const mc = Number(proof.mc);
-    if (Number.isFinite(mc) && mc > 2 && mc <= 20) {
-        if (!proof.mm) { reasons.push('鼠标数据矛盾'); }
-        else { score += 10; }
-    }
-
-    const ct = Number(proof.ct);
-    if (Number.isFinite(ct) && ct > 0 && ct < 5000) { score += 10; }
-
-    if (proof.hr) {
-        const w = Number(proof.hrw);
-        const h = Number(proof.hrh);
-        if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0 && w < 10000 && h < 10000) {
-            score += 10;
-        } else {
-            reasons.push('窗口尺寸异常');
-        }
-    } else {
-        reasons.push('窗口异常');
-    }
-
-    const np = Number(proof.np);
-    if (Number.isFinite(np) && np > 0 && np <= 10) { score += 5; }
-
-    return { valid: score >= BP_PASS_SCORE, score, reasons: reasons.length > 0 ? reasons : undefined };
-}
-
 const DEVICE_RANKS = [
     { hz: 0, name: '电子垃圾', icon: 'fa-trash-can' },
     { hz: 5000, name: '小霸王', icon: 'fa-gamepad' },
@@ -244,12 +134,12 @@ function solvePowInWorker(challenge, bits, bpHash, onProgress) {
     });
 }
 
-async function fetchPowChallenge(hashRate, minBits, browserProof, action) {
+async function fetchPowChallenge(hashRate, minBits, action) {
     const powApiUrl = (typeof API_ENDPOINTS !== 'undefined' && API_ENDPOINTS.pow) ? API_ENDPOINTS.pow : '/api/pow';
     const res = await fetch(powApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: action || 'challenge', hashRate, minBits: minBits || 0, bp: browserProof || null })
+        body: JSON.stringify({ action: action || 'challenge', hashRate, minBits: minBits || 0 })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || '获取 PoW 挑战失败');
@@ -261,13 +151,13 @@ async function fetchPowChallenge(hashRate, minBits, browserProof, action) {
     };
 }
 
-async function solvePowChallenge(onProgress, minBits, browserProof, action) {
+async function solvePowChallenge(onProgress, minBits, action) {
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark', challenge: '' });
     const hashRate = await powBenchmarkInWorker(POW_BENCHMARK_MS);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark_done', challenge: '', hashRate });
     const clientBits = bitsFromHashRate(hashRate);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'fetching', challenge: '' });
-    const { challenge, bits, bpHash } = await fetchPowChallenge(hashRate, minBits, browserProof, action);
+    const { challenge, bits, bpHash } = await fetchPowChallenge(hashRate, minBits, action);
     const finalBits = Math.max(bits, clientBits, minBits || 0);
     if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'solving', challenge });
     const solveStart = Date.now();
@@ -331,32 +221,16 @@ function initPowCard(powEl, onSolved, riskAction) {
     let solving = false;
     let result = null;
     let minBits = 0;
-    let browserProof = null;
     let action = riskAction || '';
     powEl.classList.add('pow-idle');
     powEl.style.cursor = 'pointer';
 
-    powEl.addEventListener('mousedown', () => { _lastMouseDownTime = Date.now(); }, { passive: true });
-    powEl.addEventListener('click', () => {
-        _clickTimings.push(Date.now());
-        if (_clickTimings.length > 10) _clickTimings.shift();
-    }, { passive: true });
-
     powEl.onclick = async () => {
         if (solved || solving) return;
-        const clickDelta = _lastMouseDownTime ? Date.now() - _lastMouseDownTime : 0;
-        const proof = collectBrowserProof();
-        proof.cd = clickDelta;
-        const validation = validateBrowserProof(proof);
-        if (!validation.valid) {
-            showNotification('人机验证环境异常，请使用正常浏览器', 'error');
-            return;
-        }
-        browserProof = proof;
         solving = true;
         powEl.style.cursor = 'default';
         try {
-            result = await solvePowChallenge((p) => updatePowUI(powEl, p), minBits, proof, action);
+            result = await solvePowChallenge((p) => updatePowUI(powEl, p), minBits, action);
             solved = true;
             setTimeout(() => { if (onSolved) onSolved(result); }, 600);
         } catch (e) {
@@ -374,7 +248,7 @@ function initPowCard(powEl, onSolved, riskAction) {
         isSolved: () => solved,
         isSolving: () => solving,
         setMinBits: (b) => { minBits = b; },
-        reset: () => { solved = false; solving = false; result = null; browserProof = null; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', nonce: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
+        reset: () => { solved = false; solving = false; result = null; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', nonce: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
         meetsRequired: () => solved && result && result.powBits >= minBits,
         requiredBits: () => minBits,
         el: powEl

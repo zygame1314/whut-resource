@@ -53,7 +53,20 @@ async function ensurePowSchema(env) {
     }
   }
   try {
+    await env.DB.prepare('SELECT colo FROM pow_challenges LIMIT 1').run();
+  } catch (e) {
+    try {
+      await env.DB.prepare('ALTER TABLE pow_challenges ADD COLUMN colo TEXT').run();
+    } catch (alterError) {
+      console.error('pow schema migrate (colo) failed:', alterError && alterError.message ? alterError.message : alterError);
+    }
+  }
+  try {
     await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_pow_challenges_ip_issued ON pow_challenges(ip, issued_at)').run();
+  } catch (e) {
+  }
+  try {
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_pow_challenges_colo_issued ON pow_challenges(colo, issued_at)').run();
   } catch (e) {
   }
   _schemaEnsured = true;
@@ -69,6 +82,28 @@ async function ipPenaltyBits(env, ip) {
     const count = (row && row.cnt) || 0;
     if (count <= IP_RATE_BASE_COUNT) return 0;
     return Math.min((count - IP_RATE_BASE_COUNT) * IP_RATE_BITS_STEP, MAX_BITS - MIN_BITS);
+  } catch (e) {
+    return 0;
+  }
+}
+
+const COLO_PROXY_DISTINCT_IPS = 15;
+const COLO_PROXY_TOTAL_COUNT = 20;
+const COLO_PROXY_PENALTY_BITS = 3;
+
+async function coloPenaltyBits(env, colo) {
+  if (!colo) return 0;
+  try {
+    const since = new Date(Date.now() - IP_RATE_WINDOW_MS).toISOString();
+    const row = await env.DB.prepare(
+      'SELECT COUNT(DISTINCT ip) AS distinctIps, COUNT(*) AS cnt FROM pow_challenges WHERE colo = ? AND issued_at > ?'
+    ).bind(colo, since).first();
+    const distinctIps = (row && row.distinctIps) || 0;
+    const cnt = (row && row.cnt) || 0;
+    if (cnt > COLO_PROXY_TOTAL_COUNT && distinctIps > COLO_PROXY_DISTINCT_IPS) {
+      return COLO_PROXY_PENALTY_BITS;
+    }
+    return 0;
   } catch (e) {
     return 0;
   }
@@ -91,66 +126,75 @@ function shouldCleanup() {
   return Math.random() < 0.02;
 }
 
-const BP_TS_WINDOW_MS = 10 * 60 * 1000;
-const BP_PASS_SCORE = 60;
+const SP_PASS_SCORE = 50;
 
-function validateBrowserProof(bp, now) {
-  if (!bp) return { score: 0, reasons: ['无验证数据'] };
-  const reasons = [];
+function collectServerProof(request) {
+  const h = request.headers;
+  const cf = request.cf || {};
+  return {
+    ua: h.get('user-agent') || '',
+    chua: h.get('sec-ch-ua') || '',
+    chuaMobile: h.get('sec-ch-ua-mobile') || '',
+    chuaPlatform: h.get('sec-ch-ua-platform') || '',
+    secFetchSite: h.get('sec-fetch-site') || '',
+    secFetchMode: h.get('sec-fetch-mode') || '',
+    secFetchDest: h.get('sec-fetch-dest') || '',
+    acceptEncoding: h.get('accept-encoding') || '',
+    acceptLang: h.get('accept-language') || '',
+    httpVersion: cf.httpVersion || '',
+    colo: cf.colo || '',
+  };
+}
+
+function scoreServerProof(sp) {
   let score = 0;
+  const reasons = [];
 
-  if (bp.wd) return { score: 0, reasons: ['webdriver'] };
-  if (bp.wb) return { score: 0, reasons: ['headless'] };
-
-  const ts = Number(bp.ts);
-  if (Number.isFinite(ts) && ts > 0) {
-    if (Math.abs((now || Date.now()) - ts) > BP_TS_WINDOW_MS) {
-      reasons.push('proof 时效异常');
-    } else {
-      score += 10;
-    }
-  }
-
-  if (bp.cg && bp.cg > 1000 && bp.cg < 500000) score += 25;
-  else reasons.push('canvas 异常');
-
-  if (bp.gl === 2) score += 20;
-  else if (bp.gl === 1) score += 10;
-  else reasons.push('webgl 异常');
-
-  if (bp.mm) score += 15;
-  else reasons.push('无鼠标移动');
-
-  const mc = Number(bp.mc);
-  if (Number.isFinite(mc) && mc > 2 && mc <= 20) {
-    if (!bp.mm) {
-      reasons.push('鼠标数据矛盾');
-    } else {
-      score += 10;
-    }
-  }
-
-  const ct = Number(bp.ct);
-  if (Number.isFinite(ct) && ct > 0 && ct < 5000) score += 10;
-
-  if (bp.hr) {
-    const w = Number(bp.hrw);
-    const h = Number(bp.hrh);
-    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0 && w < 10000 && h < 10000) {
-      score += 10;
-    } else {
-      reasons.push('窗口尺寸异常');
-    }
+  if (sp.chua && sp.chuaMobile && sp.chuaPlatform) {
+    score += 15;
+    if (/Chrome\/\d/.test(sp.ua) && /Chrome/.test(sp.chua)) score += 10;
+    else reasons.push('sec-ch-ua 与 UA 不自洽');
   } else {
-    reasons.push('窗口异常');
+    reasons.push('缺少 sec-ch-ua 头');
   }
 
-  const np = Number(bp.np);
-  if (Number.isFinite(np)) {
-    if (np > 0 && np <= 10) score += 5;
+  if (sp.secFetchSite && sp.secFetchMode && sp.secFetchDest) {
+    score += 20;
+  } else {
+    reasons.push('缺少 sec-fetch 头');
   }
 
-  return { score, reasons };
+  const ae = (sp.acceptEncoding || '').toLowerCase();
+  if (ae.includes('br') || ae.includes('zstd')) {
+    score += 15;
+  } else if (ae.includes('gzip')) {
+    score += 5;
+    reasons.push('accept-encoding 缺 br');
+  } else {
+    reasons.push('accept-encoding 异常');
+  }
+
+  if (/,/.test(sp.acceptLang) && /q=/.test(sp.acceptLang)) {
+    score += 10;
+  } else if (sp.acceptLang) {
+    score += 3;
+  } else {
+    reasons.push('缺少 accept-language');
+  }
+
+  if (sp.httpVersion === 'HTTP/2' || sp.httpVersion === 'HTTP/3') {
+    score += 10;
+  } else {
+    reasons.push('HTTP/1.1');
+  }
+
+  if (/Mozilla\/5[\.\d].*\(.*?(Windows|Macintosh|Linux|Android|iPhone).*?\)/.test(sp.ua)) {
+    score += 10;
+  } else {
+    reasons.push('UA 非浏览器');
+  }
+
+  return { score, reasons, valid: score >= SP_PASS_SCORE };
 }
 
 async function lazyCleanup(db) {
@@ -236,29 +280,29 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const hashRate = Number(body.hashRate) || 0;
     const minBits = Number(body.minBits) || 0;
     const action = body.action || '';
-    const bp = body.bp || null;
-    let bpHash = '';
-    if (bp) {
-      const { score, reasons } = validateBrowserProof(bp, Date.now());
-      if (score < BP_PASS_SCORE) {
-        return new Response(JSON.stringify({ success: false, error: '浏览器环境验证失败', reasons }), {
-          status: 403, headers: { 'Content-Type': 'application/json', ...addCors() }
-        });
-      }
-      bpHash = await bpHashHex(bp, env);
+
+    const sp = collectServerProof(request);
+    const spResult = scoreServerProof(sp);
+    if (!spResult.valid) {
+      return new Response(JSON.stringify({ success: false, error: '环境验证失败', reasons: spResult.reasons }), {
+        status: 403, headers: { 'Content-Type': 'application/json', ...addCors() }
+      });
     }
+    const bpHash = await bpHashHex(sp, env);
+
     await ensurePowSchema(env);
     const highRisk = ['prepare-register', 'prepare-reset', 'prepare-change-email'].includes(action);
     const floor = highRisk ? HIGH_RISK_MIN_BITS : MIN_BITS;
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const penalty = await ipPenaltyBits(env, ip);
-    const bits = Math.min(Math.max(bitsFromHashRate(hashRate), minBits, floor, floor + penalty), MAX_BITS);
+    const coloPenalty = await coloPenaltyBits(env, sp.colo);
+    const bits = Math.min(Math.max(bitsFromHashRate(hashRate), minBits, floor, floor + penalty + coloPenalty), MAX_BITS);
     const challenge = crypto.randomUUID().replace(/-/g, '');
     const nowISO = new Date().toISOString();
     const expiresAt = new Date(Date.now() + CHALLENGE_EXPIRES_MS).toISOString();
     await env.DB.prepare(
-      'INSERT INTO pow_challenges (challenge, bits, ip, bp_hash, issued_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).bind(challenge, bits, ip, bpHash, nowISO, expiresAt).run();
+      'INSERT INTO pow_challenges (challenge, bits, ip, bp_hash, colo, issued_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(challenge, bits, ip, bpHash, sp.colo, nowISO, expiresAt).run();
     maybeCleanup(env.DB, ctx);
     return new Response(JSON.stringify({
       success: true,
