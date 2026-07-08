@@ -106,7 +106,9 @@
     function openPanel() {
         const panel = ensurePanel();
         state.panelOpen = true;
-        panel.classList.add('open');
+        requestAnimationFrame(() => {
+            panel.classList.add('open');
+        });
         renderLoading();
         loadInitial();
     }
