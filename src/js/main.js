@@ -55,6 +55,7 @@ document.addEventListener('authSuccess', async () => {
         highlightKey = highlightParam;
     }
     fetchAndDisplayFiles(pathParam || '', '', 1, !!(pathParam || highlightParam));
+    if (typeof checkMaintenanceMode === 'function') checkMaintenanceMode(true);
     fetchFileStats();
     fetchAndBuildFolderTree();
     fetchAndRenderHotFolders();

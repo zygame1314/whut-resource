@@ -24,8 +24,8 @@ async function checkAuth() {
         if (window.releaseRequests) window.releaseRequests(true);
     }
 }
-async function checkMaintenanceMode() {
-    if (window._maintenanceChecked) return;
+async function checkMaintenanceMode(force = false) {
+    if (!force && window._maintenanceChecked) return;
     if (!token || !currentUser) {
         if (window.releaseRequests) window.releaseRequests(true);
         return;
