@@ -178,3 +178,26 @@ function getDeviceName() {
     else if (/Safari\//i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
     return browser ? `${device} · ${browser}` : device;
 }
+function showMaintenanceOverlay(message) {
+    let overlay = document.getElementById('maintenance-overlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+    } else {
+        overlay = document.createElement('div');
+        overlay.id = 'maintenance-overlay';
+        overlay.className = 'maintenance-overlay';
+        overlay.style.display = 'flex';
+        overlay.innerHTML = '<div class="maintenance-box">' +
+            '<i class="fas fa-tools maintenance-icon"></i>' +
+            '<h1 class="maintenance-title">系统维护中</h1>' +
+            '<p id="maintenance-message" class="maintenance-message"></p>' +
+            '<div class="maintenance-footer"><span class="loading-dots">正在努力施工</span></div>' +
+            '</div>';
+        document.body.insertBefore(overlay, document.body.firstChild);
+    }
+    const msgEl = document.getElementById('maintenance-message');
+    if (msgEl) msgEl.textContent = message || '系统正在进行升级维护，请稍候访问...';
+    document.body.style.overflow = 'hidden';
+    if (window.releaseRequests) window.releaseRequests(false);
+    console.warn('%c 维护模式已开启 ', 'background: #ff0000; color: #ffffff; font-size: 14px; padding: 4px;');
+}

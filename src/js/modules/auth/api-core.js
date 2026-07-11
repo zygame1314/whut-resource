@@ -47,17 +47,7 @@ async function checkMaintenanceMode() {
         }
         const data = await response.json();
         if (data.success && data.maintenance === true) {
-            const overlay = document.getElementById('maintenance-overlay');
-            if (overlay) {
-                overlay.style.display = 'flex';
-                const msgEl = document.getElementById('maintenance-message');
-                if (msgEl && data.message) {
-                    msgEl.textContent = data.message;
-                }
-                document.body.style.overflow = 'hidden';
-            }
-            console.warn('%c 维护模式已开启 ', 'background: #ff0000; color: #ffffff; font-size: 14px; padding: 4px;');
-            if (window.releaseRequests) window.releaseRequests(false);
+            showMaintenanceOverlay(data.message);
         } else {
             if (window.releaseRequests) window.releaseRequests(true);
         }
