@@ -294,9 +294,10 @@ async function handlePut(request, env, user) {
             console.error('自动清理旧请求失败:', cleanupErr);
         }
         const { request_id, request_ids, review_note } = body;
+        const MAX_REQUEST_IDS = 100;
         let idsToProcess = [];
         if (request_ids && Array.isArray(request_ids)) {
-            idsToProcess = request_ids;
+            idsToProcess = request_ids.slice(0, MAX_REQUEST_IDS);
         } else if (request_id) {
             idsToProcess = [request_id];
         } else {

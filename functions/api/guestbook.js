@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, checkRateLimit, getUserRateLimitKey } from '../utils.js';
 import { processWithAIAgent, processReplyWithAI } from './guestbook-ai.js';
 const REPLIES_PER_PARENT = 5;
 export async function onRequest(context) {
@@ -535,6 +535,9 @@ async function handlePut(request, env, context) {
         if (content.length > 500) {
             return new Response(JSON.stringify({ error: '内容过长（最多500字符）' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
+        if (!isAdmin(user) && !checkRateLimit(getUserRateLimitKey(user, 'gb-edit'), 20)) {
+            return new Response(JSON.stringify({ error: '编辑过于频繁，请稍后再试' }), { status: 429, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
         const guestbookEntry = await env.DB.prepare('SELECT g.*, u.nickname FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?').bind(id).first();
         if (!guestbookEntry) {
             return new Response(JSON.stringify({ error: '留言不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -602,6 +605,9 @@ async function handlePut(request, env, context) {
         return new Response(JSON.stringify({ success: true }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     if (action === 'like') {
+        if (!checkRateLimit(getUserRateLimitKey(user, 'gb-like'), 120)) {
+            return new Response(JSON.stringify({ error: '操作过于频繁，请稍后再试' }), { status: 429, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
         const existingLike = await env.DB.prepare('SELECT * FROM guestbook_likes WHERE user_id = ? AND guestbook_id = ?').bind(user.id, id).first();
         if (existingLike) {
             return new Response(JSON.stringify({ success: true, message: '已经点赞' }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -611,6 +617,9 @@ async function handlePut(request, env, context) {
             env.DB.prepare('UPDATE guestbook SET likes = likes + 1 WHERE id = ?').bind(id)
         ]);
     } else if (action === 'unlike') {
+        if (!checkRateLimit(getUserRateLimitKey(user, 'gb-like'), 120)) {
+            return new Response(JSON.stringify({ error: '操作过于频繁，请稍后再试' }), { status: 429, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
         const existingLike = await env.DB.prepare('SELECT * FROM guestbook_likes WHERE user_id = ? AND guestbook_id = ?').bind(user.id, id).first();
         if (!existingLike) {
             return new Response(JSON.stringify({ success: true, message: '尚未点赞' }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });

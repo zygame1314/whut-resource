@@ -213,6 +213,13 @@ export async function onRequestPost({ request, env, waitUntil }) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
+    const MAX_UPLOAD_FILES = 20;
+    if (files.length > MAX_UPLOAD_FILES) {
+      return new Response(JSON.stringify({ success: false, error: `单次最多上传 ${MAX_UPLOAD_FILES} 个文件。` }), {
+        status: 400,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
+    }
     const uploadResults = await Promise.all(files.map(async (file) => {
       try {
         if (!(file instanceof File)) {

@@ -1,4 +1,4 @@
-import { getUserFromRequest } from '../utils.js';
+import { getUserFromRequest, checkRateLimit, getUserRateLimitKey } from '../utils.js';
 const addCorsHeaders = (headers = {}) => {
   return {
     ...headers,
@@ -67,6 +67,19 @@ export async function onRequest(context) {
       });
     }
     if (previewType === 'text') {
+      const MAX_TEXT_PREVIEW_SIZE = 2 * 1024 * 1024;
+      if (object.size > MAX_TEXT_PREVIEW_SIZE) {
+        return new Response(JSON.stringify({ success: false, error: '文件过大，不支持文本预览（上限 2MB）。' }), {
+          status: 413,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
+      if (!checkRateLimit(getUserRateLimitKey(user, 'preview-text'), 30)) {
+        return new Response(JSON.stringify({ success: false, error: '预览请求过于频繁，请稍后再试' }), {
+          status: 429,
+          headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+      }
       const userInfo = await env.DB.prepare('SELECT id, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(user.id).first();
       if (!userInfo) {
         return new Response(JSON.stringify({ success: false, error: '用户未找到。' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });

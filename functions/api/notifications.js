@@ -1,8 +1,9 @@
-import { verifyToken, addCorsHeaders } from '../utils.js';
+import { verifyToken, addCorsHeaders, checkRateLimit, getUserRateLimitKey } from '../utils.js';
 
 const RETENTION_DAYS = 60;
 const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const CLEANUP_CACHE_ID = 200;
+const MAX_MARK_READ_IDS = 200;
 
 export async function onRequest(context) {
     const { request, env } = context;
@@ -125,7 +126,7 @@ async function handlePost(request, env) {
     const body = await request.json().catch(() => ({}));
 
     if (action === 'mark_read') {
-        const ids = Array.isArray(body.ids) ? body.ids.filter(Number.isInteger) : [];
+        const ids = Array.isArray(body.ids) ? body.ids.filter(Number.isInteger).slice(0, MAX_MARK_READ_IDS) : [];
         const all = body.all === true;
         if (all) {
             await env.DB.prepare(

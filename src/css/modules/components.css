@@ -9970,15 +9970,28 @@ input#prompt-input {
 .oauth-client-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
     flex-wrap: wrap;
+    min-width: 0;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--border-color);
+}
+
+.oauth-client-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    min-width: 0;
 }
 
 .oauth-client-name {
     font-size: 1.05rem;
     color: var(--text-primary);
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    min-width: 0;
 }
 
 .oauth-status-badge {
@@ -10409,9 +10422,15 @@ input#prompt-input {
         flex-direction: column;
     }
 
+    .oauth-client-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .oauth-client-actions {
         flex-direction: row;
         justify-content: flex-end;
+        width: 100%;
     }
 
     .oauth-detail-box {

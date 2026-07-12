@@ -1215,8 +1215,17 @@ async function showOauthClientsModal() {
             <div class="oauth-client-card">
                 <div class="oauth-client-main">
                     <div class="oauth-client-header">
-                        <strong class="oauth-client-name">${escapeHtml(c.client_name)}</strong>
-                        <span class="oauth-status-badge ${c.is_active ? 'oauth-status-active' : 'oauth-status-inactive'}">${c.is_active ? '● 启用' : '● 禁用'}</span>
+                        <div class="oauth-client-title">
+                            <strong class="oauth-client-name">${escapeHtml(c.client_name)}</strong>
+                            <span class="oauth-status-badge ${c.is_active ? 'oauth-status-active' : 'oauth-status-inactive'}">${c.is_active ? '● 启用' : '● 禁用'}</span>
+                        </div>
+                        <div class="oauth-client-actions">
+                            <button class="icon-btn oauth-action-btn" data-action="detail" data-id="${escapeHtml(c.client_id)}" data-name="${escapeHtml(c.client_name)}" title="查看详情"><i class="fas fa-info-circle"></i></button>
+                            <button class="icon-btn oauth-action-btn" data-action="toggle" data-id="${escapeHtml(c.client_id)}" title="${c.is_active ? '禁用' : '启用'}"><i class="fas fa-${c.is_active ? 'pause' : 'play'}"></i></button>
+                            <button class="icon-btn oauth-action-btn" data-action="secret" data-id="${escapeHtml(c.client_id)}" title="重置密钥"><i class="fas fa-key"></i></button>
+                            <button class="icon-btn oauth-action-btn" data-action="revoke" data-id="${escapeHtml(c.client_id)}" title="撤销令牌"><i class="fas fa-ban"></i></button>
+                            <button class="icon-btn danger oauth-action-btn" data-action="delete" data-id="${escapeHtml(c.client_id)}" title="删除"><i class="fas fa-trash"></i></button>
+                        </div>
                     </div>
                     <div class="oauth-client-meta">
                         <div class="oauth-meta-row"><i class="fas fa-fingerprint"></i><code class="oauth-code">${escapeHtml(c.client_id)}</code></div>
@@ -1224,13 +1233,6 @@ async function showOauthClientsModal() {
                         ${c.description ? `<div class="oauth-meta-row"><i class="fas fa-align-left"></i><span>${escapeHtml(c.description)}</span></div>` : ''}
                         <div class="oauth-meta-row"><i class="fas fa-user-shield"></i><span>${escapeHtml(c.created_by_name || '未知')} · ${new Date(c.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>
                     </div>
-                </div>
-                <div class="oauth-client-actions">
-                    <button class="icon-btn oauth-action-btn" data-action="detail" data-id="${escapeHtml(c.client_id)}" data-name="${escapeHtml(c.client_name)}" title="查看详情"><i class="fas fa-info-circle"></i></button>
-                    <button class="icon-btn oauth-action-btn" data-action="toggle" data-id="${escapeHtml(c.client_id)}" title="${c.is_active ? '禁用' : '启用'}"><i class="fas fa-${c.is_active ? 'pause' : 'play'}"></i></button>
-                    <button class="icon-btn oauth-action-btn" data-action="secret" data-id="${escapeHtml(c.client_id)}" title="重置密钥"><i class="fas fa-key"></i></button>
-                    <button class="icon-btn oauth-action-btn" data-action="revoke" data-id="${escapeHtml(c.client_id)}" title="撤销令牌"><i class="fas fa-ban"></i></button>
-                    <button class="icon-btn danger oauth-action-btn" data-action="delete" data-id="${escapeHtml(c.client_id)}" title="删除"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
         `).join('');

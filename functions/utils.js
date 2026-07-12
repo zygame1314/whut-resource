@@ -3,6 +3,40 @@ export function folderKeyUpperBound(folderKey) {
   const last = folderKey.charCodeAt(folderKey.length - 1);
   return folderKey.slice(0, -1) + String.fromCharCode(last + 1);
 }
+const _rlCache = new Map();
+const RL_WINDOW_MS = 60 * 1000;
+const RL_CLEANUP_THRESHOLD = 5000;
+function _cleanupRlCache(now) {
+  if (_rlCache.size < RL_CLEANUP_THRESHOLD) return;
+  for (const [k, v] of _rlCache) {
+    if (now - v.ts > RL_WINDOW_MS * 2) _rlCache.delete(k);
+  }
+}
+export function checkRateLimit(key, maxCount, windowMs = RL_WINDOW_MS) {
+  const now = Date.now();
+  _cleanupRlCache(now);
+  const k = `${key}|${Math.floor(now / windowMs)}`;
+  const entry = _rlCache.get(k);
+  if (entry) {
+    entry.c++;
+    if (entry.c > maxCount) return false;
+  } else {
+    _rlCache.set(k, { c: 1, ts: now });
+  }
+  return true;
+}
+export function getRequestRateLimitKey(request, suffix) {
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  return `${ip}:${suffix}`;
+}
+export function getUserRateLimitKey(user, suffix) {
+  return `u:${user?.id || 'anon'}:${suffix}`;
+}
+export function checkContentLength(request, maxBytes) {
+  const cl = request.headers.get('Content-Length');
+  if (cl && parseInt(cl, 10) > maxBytes) return false;
+  return true;
+}
 export async function hashPassword(password, salt) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + (salt || "default-salt"));

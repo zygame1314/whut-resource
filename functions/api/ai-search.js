@@ -1,4 +1,4 @@
-import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest } from '../utils.js';
+import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey } from '../utils.js';
 const SEARCH_PROMPT = `你是一个大学课程资源搜索助手。将用户的【搜索词】转化为【搜索关键词】。
     规则：
     1. 缩写对应示例：
@@ -54,6 +54,12 @@ export async function onRequestGet({ request, env }) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), {
             status: 401,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    const rlKey = getUserRateLimitKey(user, 'ai-search');
+    if (!checkRateLimit(rlKey, 20)) {
+        return new Response(JSON.stringify({ success: false, error: '搜索请求过于频繁，请稍后再试' }), {
+            status: 429, headers: { ...addCorsHeaders({ 'Content-Type': 'application/json' }), 'Retry-After': '60' }
         });
     }
     const url = new URL(request.url);

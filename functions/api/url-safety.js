@@ -1,3 +1,4 @@
+import { verifyToken, checkRateLimit, getRequestRateLimitKey, checkContentLength } from '../utils.js';
 const addCorsHeaders = (headers = {}) => {
     return {
         ...headers,
@@ -6,6 +7,9 @@ const addCorsHeaders = (headers = {}) => {
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
 };
+const RL_MAX = 20;
+const MAX_URL_LENGTH = 2000;
+const MAX_BODY_BYTES = 2048;
 const SafetyStatus = {
     SAFE: 'safe',
     DANGEROUS: 'dangerous',
@@ -165,6 +169,46 @@ export async function onRequest(context) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
+    const ipKey = getRequestRateLimitKey(request, 'url-safety');
+    if (!checkRateLimit(ipKey, RL_MAX)) {
+        return new Response(JSON.stringify({
+            success: false,
+            error: '请求过于频繁，请稍后再试'
+        }), {
+            status: 429,
+            headers: { ...addCorsHeaders({ 'Content-Type': 'application/json' }), 'Retry-After': '60' },
+        });
+    }
+    if (!checkContentLength(request, MAX_BODY_BYTES)) {
+        return new Response(JSON.stringify({
+            success: false,
+            error: '请求体过大'
+        }), {
+            status: 413,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({
+            success: false,
+            error: '未授权'
+        }), {
+            status: 401,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    const token = authHeader.substring(7);
+    const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+    if (!payload) {
+        return new Response(JSON.stringify({
+            success: false,
+            error: '令牌无效'
+        }), {
+            status: 401,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
     let body;
     try {
         body = await request.json();
@@ -187,14 +231,48 @@ export async function onRequest(context) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
+    if (url.length > MAX_URL_LENGTH) {
+        return new Response(JSON.stringify({
+            success: false,
+            error: 'URL 过长'
+        }), {
+            status: 400,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    let parsedUrl;
     try {
-        new URL(url);
+        parsedUrl = new URL(url);
     } catch (e) {
         return new Response(JSON.stringify({
             success: false,
             error: '无效的 URL 格式'
         }), {
             status: 400,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return new Response(JSON.stringify({
+            success: false,
+            error: '仅支持 http/https 协议'
+        }), {
+            status: 400,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    const hostname = parsedUrl.hostname.toLowerCase();
+    if (hostname === 'localhost' || hostname === '0.0.0.0' || hostname.endsWith('.local') ||
+        /^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(hostname) ||
+        /^\[?(::1|fe80:|fc00:|fd00:)/i.test(hostname)) {
+        return new Response(JSON.stringify({
+            success: true,
+            status: 'dangerous',
+            message: '检测到内网或本地地址，已拒绝抓取',
+            threats: [{ type: 'SSRF', label: '内网地址' }],
+            pageInfo: null,
+        }), {
+            status: 200,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }

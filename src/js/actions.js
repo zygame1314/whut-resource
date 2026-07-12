@@ -231,10 +231,12 @@ async function openLink(fileKey, linkUrl, openBtn) {
                 cancelText: '取消',
                 onShow: async () => {
                     try {
+                        const token = localStorage.getItem('authToken');
                         const response = await fetch(API_ENDPOINTS.urlSafety, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                             },
                             body: JSON.stringify({ url: linkUrl }),
                         });

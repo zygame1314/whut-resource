@@ -1,4 +1,4 @@
-import { getUserFromRequest } from '../utils.js';
+import { getUserFromRequest, checkRateLimit, getUserRateLimitKey, checkContentLength } from '../utils.js';
 const addCorsHeaders = (headers = {}) => {
   const allowedOrigin = '*';
   return {
@@ -8,6 +8,8 @@ const addCorsHeaders = (headers = {}) => {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 };
+const MAX_KEYS = 100;
+const MAX_BODY_BYTES = 65536;
 async function generateToken(key, secret, userId, expiration = 86400) {
   const expires = Date.now() + expiration * 1000;
   const tokenPayload = `${key}:${expires}:${userId}`;
@@ -35,6 +37,18 @@ export async function onRequestPost({ request, env }) {
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
+  if (!checkContentLength(request, MAX_BODY_BYTES)) {
+    return new Response(JSON.stringify({ success: false, error: '请求体过大' }), {
+      status: 413,
+      headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
+  }
+  if (!checkRateLimit(getUserRateLimitKey(user, 'batch-dl'), 30)) {
+    return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请稍后再试' }), {
+      status: 429,
+      headers: { ...addCorsHeaders({ 'Content-Type': 'application/json' }), 'Retry-After': '60' },
+    });
+  }
   const R2_BUCKET = env.R2_bucket;
   if (!R2_BUCKET) {
     return new Response(JSON.stringify({ success: false, error: '服务器配置错误（R2绑定）。' }), {
@@ -54,6 +68,12 @@ export async function onRequestPost({ request, env }) {
   const { keys } = payload;
   if (!keys || !Array.isArray(keys) || keys.length === 0) {
     return new Response(JSON.stringify({ success: false, error: '缺少或无效的keys数组。' }), {
+      status: 400,
+      headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
+  }
+  if (keys.length > MAX_KEYS) {
+    return new Response(JSON.stringify({ success: false, error: `单次最多选择 ${MAX_KEYS} 个文件。` }), {
       status: 400,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });

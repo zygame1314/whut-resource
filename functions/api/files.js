@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable } from '../utils.js';
+import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey } from '../utils.js';
 function sanitizeSegment(name) {
     if (!name || typeof name !== 'string') return null;
     const decoded = name.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
@@ -851,6 +851,12 @@ export async function onRequestPost({ request, env }) {
             if (!key) {
                 return new Response(JSON.stringify({ success: false, error: '无效的参数' }), {
                     status: 400,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            if (!checkRateLimit(getUserRateLimitKey(user, 'reaction'), 120)) {
+                return new Response(JSON.stringify({ success: false, error: '操作过于频繁，请稍后再试' }), {
+                    status: 429,
                     headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
                 });
             }

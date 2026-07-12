@@ -1,4 +1,4 @@
-import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest } from '../utils.js';
+import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
 import { verifyPowSolution } from './pow.js';
 const NICKNAME_MODERATION_PROMPT = `你是严格的昵称审核助手。逐条检查以下规则，命中任意一条即 REJECT。
@@ -293,6 +293,9 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const currentUser = await getUserFromRequest(request, env);
       if (!currentUser) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
+      }
+      if (!checkRateLimit(getUserRateLimitKey(currentUser, 'change-nickname'), 5)) {
+        return new Response(JSON.stringify({ success: false, error: '修改昵称过于频繁，请稍后再试' }), { status: 429, headers: { ...addCorsHeaders(), 'Retry-After': '60' } });
       }
       if (!newNickname || newNickname.trim().length === 0) {
         return new Response(JSON.stringify({ success: false, error: '昵称不能为空。' }), { status: 400, headers: addCorsHeaders() });
