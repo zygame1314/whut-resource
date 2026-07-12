@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /.well-known/oauth-authorization-server
+Disallow: /.well-known/openid-configuration
+Disallow: /authorize.html
+Disallow: /jwt_private_key.pem
+
+Sitemap: https://resource.haoli.site/sitemap.xml
