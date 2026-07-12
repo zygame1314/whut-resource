@@ -52,7 +52,6 @@
 - **Passkey / WebAuthn** 无密码登录
 - **工作量证明 (PoW)** 注册/重置防刷
 - JWT 认证 + 角色权限（user / admin / super_admin）
-- hCaptcha 人机验证
 
 ### 🔑 OAuth2 提供方
 - 本平台同时作为 **OAuth2 / OIDC 提供方** 对外输出统一认证
@@ -98,7 +97,6 @@
 | pdf-lib | PDF 水印注入 |
 | PDF.js | PDF 预览 |
 | Shepherd.js | 新手引导 |
-| hCaptcha | 人机验证 |
 
 ### 后端（Cloudflare 全家桶）
 | 技术 | 用途 |
