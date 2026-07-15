@@ -270,7 +270,7 @@ async function openLink(fileKey, linkUrl, openBtn) {
                                 const img = document.createElement('img');
                                 img.src = info.favicon;
                                 img.alt = 'favicon';
-                                img.referrerPolicy = 'no-referrer-when-downgrade';
+                                img.referrerPolicy = 'no-referrer';
                                 img.onerror = () => {
                                 };
                                 img.onload = () => {

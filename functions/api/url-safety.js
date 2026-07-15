@@ -39,16 +39,51 @@ const SPA_PRESETS = [
     { pattern: /alipan\.com/, title: '阿里云盘', description: '阿里云盘是一款速度快、不打扰、够安全、易于分享的网盘。', domain: 'alipan.com' },
     { pattern: /xiaohongshu\.com/, title: '小红书', description: '小红书 - 你的生活兴趣社区。', domain: 'xiaohongshu.com' }
 ];
+async function fetchFaviconAsDataUrl(faviconUrl, externalSignal = null) {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        if (externalSignal) {
+            externalSignal.addEventListener('abort', () => controller.abort());
+        }
+        const response = await fetch(faviconUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+            signal: controller.signal,
+            redirect: 'follow',
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) return null;
+        const contentType = (response.headers.get('content-type') || 'image/x-icon').split(';')[0];
+        if (!contentType.startsWith('image/')) return null;
+        const buf = await response.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        return `data:${contentType};base64,${btoa(binary)}`;
+    } catch (e) {
+        console.warn('抓取 favicon 失败:', e.message);
+        return null;
+    }
+}
 async function fetchPageInfo(url, externalSignal = null) {
     try {
         try {
             const urlObj = new URL(url);
             const preset = SPA_PRESETS.find(p => p.pattern.test(urlObj.hostname));
             if (preset) {
+                const faviconUrl = preset.favicon || FAVICON_SERVICE + `https://${preset.domain}/`;
+                if (preset.favicon) {
+                    return {
+                        title: preset.title,
+                        description: preset.description,
+                        favicon: faviconUrl
+                    };
+                }
+                const dataUrl = await fetchFaviconAsDataUrl(faviconUrl, externalSignal);
                 return {
                     title: preset.title,
                     description: preset.description,
-                    favicon: preset.favicon || FAVICON_SERVICE + encodeURIComponent(`https://${preset.domain}/`)
+                    favicon: dataUrl || faviconUrl
                 };
             }
         } catch (e) {
@@ -139,14 +174,15 @@ async function fetchPageInfo(url, externalSignal = null) {
             description = description.trim();
             if (description.length > 200) description = description.substring(0, 200) + '...';
         }
-        let favicon = FAVICON_SERVICE + encodeURIComponent(urlObj.origin + '/');
+        let favicon = FAVICON_SERVICE + urlObj.origin + '/';
         if (info.iconHref) {
             try {
                 favicon = new URL(info.iconHref, urlObj.href).href;
             } catch (e) {
             }
         }
-        return { title, description, favicon };
+        const dataUrl = await fetchFaviconAsDataUrl(favicon, externalSignal);
+        return { title, description, favicon: dataUrl || favicon };
     } catch (e) {
         console.warn('抓取页面信息失败:', e.message);
         return null;
