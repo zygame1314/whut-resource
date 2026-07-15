@@ -270,7 +270,7 @@ async function openLink(fileKey, linkUrl, openBtn) {
                                 const img = document.createElement('img');
                                 img.src = info.favicon;
                                 img.alt = 'favicon';
-                                img.referrerPolicy = 'no-referrer';
+                                img.referrerPolicy = 'no-referrer-when-downgrade';
                                 img.onerror = () => {
                                 };
                                 img.onload = () => {
@@ -648,7 +648,7 @@ function showDirectoryPicker(itemsToMove = []) {
                     listClassName: 'path-tree-list',
                     selectionMode: true,
                     useTransformToggle: true,
-                    onSelect: function(nodeContent, path, e) {
+                    onSelect: function (nodeContent, path, e) {
                         const isInvalidMove = itemsToMove.some(itemKey => path.startsWith(itemKey + '/'));
                         if (isInvalidMove) {
                             showNotification('不能将文件夹移动到其自身或其子文件夹中。', 'error');
