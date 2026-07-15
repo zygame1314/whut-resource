@@ -22,8 +22,12 @@ const ThreatTypeLabels = {
     'POTENTIALLY_HARMFUL_APPLICATION': '潜在有害应用',
     'THREAT_TYPE_UNSPECIFIED': '未知威胁',
 };
-const FAVICON_SERVICE = 'https://favicon.cccyun.cc/';
-
+const FAVICON_SERVICES = [
+    { url: (origin) => `https://favicon.cccyun.cc/${origin}/`, referer: 'https://www.baidu.com/' },
+    { url: (origin) => `https://www.google.com/s2/favicons?sz=64&domain=${origin.replace(/^https?:\/\//, '')}`, referer: null },
+    { url: (origin) => `https://favicon.im/${origin}`, referer: null },
+    { url: (origin) => `https://api.iowen.cn/favicon/${origin.replace(/^https?:\/\//, '').replace(/\/$/, '')}.png`, referer: 'https://www.baidu.com/' },
+];
 const SPA_PRESETS = [
     { pattern: /bilibili\.com/, title: '哔哩哔哩', description: '哔哩哔哩是国内知名的视频弹幕网站，这里有及时的动漫新番，活跃的ACG氛围，有创意的Up主。', domain: 'bilibili.com' },
     { pattern: /123pan\.com/, title: '123云盘', description: '123云盘为您提供高速、安全、稳定的网盘存储服务。', domain: '123pan.com' },
@@ -46,11 +50,12 @@ async function fetchFaviconAsDataUrl(faviconUrl, externalSignal = null) {
         if (externalSignal) {
             externalSignal.addEventListener('abort', () => controller.abort());
         }
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.baidu.com/'
+        };
         const response = await fetch(faviconUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': 'https://www.baidu.com/'
-            },
+            headers,
             signal: controller.signal,
             redirect: 'follow',
         });
@@ -68,25 +73,63 @@ async function fetchFaviconAsDataUrl(faviconUrl, externalSignal = null) {
         return null;
     }
 }
+async function fetchFaviconFromServices(origin, externalSignal = null) {
+    const promises = FAVICON_SERVICES.map(async (svc) => {
+        const target = svc.url(origin);
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        };
+        if (svc.referer) headers['Referer'] = svc.referer;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        if (externalSignal) {
+            externalSignal.addEventListener('abort', () => controller.abort());
+        }
+        try {
+            const response = await fetch(target, {
+                headers,
+                signal: controller.signal,
+                redirect: 'follow',
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`status ${response.status}`);
+            const contentType = (response.headers.get('content-type') || '').split(';')[0];
+            if (!contentType.startsWith('image/')) throw new Error(`bad content-type ${contentType}`);
+            const buf = await response.arrayBuffer();
+            if (buf.byteLength === 0) throw new Error('empty body');
+            const bytes = new Uint8Array(buf);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            return `data:${contentType};base64,${btoa(binary)}`;
+        } catch (e) {
+            clearTimeout(timeoutId);
+            throw e;
+        }
+    });
+    try {
+        return await Promise.any(promises);
+    } catch (e) {
+        return null;
+    }
+}
 async function fetchPageInfo(url, externalSignal = null) {
     try {
         try {
             const urlObj = new URL(url);
             const preset = SPA_PRESETS.find(p => p.pattern.test(urlObj.hostname));
             if (preset) {
-                const faviconUrl = preset.favicon || FAVICON_SERVICE + `https://${preset.domain}/`;
                 if (preset.favicon) {
                     return {
                         title: preset.title,
                         description: preset.description,
-                        favicon: faviconUrl
+                        favicon: preset.favicon
                     };
                 }
-                const dataUrl = await fetchFaviconAsDataUrl(faviconUrl, externalSignal);
+                const dataUrl = await fetchFaviconFromServices(`https://${preset.domain}/`, externalSignal);
                 return {
                     title: preset.title,
                     description: preset.description,
-                    favicon: dataUrl || faviconUrl
+                    favicon: dataUrl
                 };
             }
         } catch (e) {
@@ -177,15 +220,18 @@ async function fetchPageInfo(url, externalSignal = null) {
             description = description.trim();
             if (description.length > 200) description = description.substring(0, 200) + '...';
         }
-        let favicon = FAVICON_SERVICE + urlObj.origin + '/';
+        let favicon = null;
         if (info.iconHref) {
             try {
-                favicon = new URL(info.iconHref, urlObj.href).href;
+                const iconUrl = new URL(info.iconHref, urlObj.href).href;
+                favicon = await fetchFaviconAsDataUrl(iconUrl, externalSignal);
             } catch (e) {
             }
         }
-        const dataUrl = await fetchFaviconAsDataUrl(favicon, externalSignal);
-        return { title, description, favicon: dataUrl || favicon };
+        if (!favicon) {
+            favicon = await fetchFaviconFromServices(urlObj.origin, externalSignal);
+        }
+        return { title, description, favicon };
     } catch (e) {
         console.warn('抓取页面信息失败:', e.message);
         return null;
