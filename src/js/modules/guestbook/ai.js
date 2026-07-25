@@ -121,13 +121,14 @@ async function showAiResultModal(guestbookId, result) {
                     actionDescription = `<div class="ai-result-reply">${escapeHtml(result.reply)}</div>`;
                 }
                 if (result.resource_paths && result.resource_paths.length > 0) {
-                    const pathsHtml = result.resource_paths.map(p => escapeHtml(p)).join('<span class="resolve-note-sep">、</span>');
-                    actionDescription += `<div class="ai-result-path"><i class="fas fa-folder-open"></i> 资源目录：<strong>${pathsHtml}</strong></div>`;
+                    const items = result.resource_paths.map(p => `<div class="ai-result-path-item">${escapeHtml(p)}</div>`).join('');
+                    actionDescription += `<div class="ai-result-path"><div class="ai-result-path-header"><i class="fas fa-folder-open"></i><span>资源目录</span></div><div class="ai-result-path-list">${items}</div></div>`;
                 } else if (result.resource_path) {
-                    actionDescription += `<div class="ai-result-path"><i class="fas fa-folder-open"></i> 资源目录：<strong>${escapeHtml(result.resource_path)}</strong></div>`;
+                    actionDescription += `<div class="ai-result-path"><div class="ai-result-path-header"><i class="fas fa-folder-open"></i><span>资源目录</span></div><div class="ai-result-path-list"><div class="ai-result-path-item">${escapeHtml(result.resource_path)}</div></div></div>`;
                 }
                 if (result.pending_categories && result.pending_categories.length > 0) {
-                    actionDescription += `<div class="ai-result-note" style="margin-top:6px;color:var(--warning);"><i class="fas fa-clock"></i> 部分课程未命中，已建待办：<strong>${escapeHtml(result.pending_categories.join('、'))}</strong></div>`;
+                    const cats = result.pending_categories.map(c => `<span class="ai-pending-tag">${escapeHtml(c)}</span>`).join('');
+                    actionDescription += `<div class="ai-result-pending"><div class="ai-result-pending-title"><i class="fas fa-circle-half-stroke"></i> 部分课程未命中，建议建待办</div><div class="ai-result-pending-tags">${cats}</div><div class="ai-result-pending-hint">命中的资源会立即给用户，未命中的课程将进入管理员待办池等待补充。</div></div>`;
                 }
                 if (result.note) {
                     actionDescription += `<div class="ai-result-note" style="margin-top:8px; color:var(--text-secondary);"><strong>备注：</strong>${escapeHtml(result.note)}</div>`;

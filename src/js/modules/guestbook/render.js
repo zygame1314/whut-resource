@@ -244,7 +244,7 @@ function renderGuestbookItem(msg) {
                 const rn = renderResolveNote(msg.resolve_note);
                 resolveNoteHtml = rn.html;
                 if (rn.partial) {
-                    statusBadge = '<span class="status-badge partial"><i class="fas fa-check-half"></i> 部分解决</span>';
+                    statusBadge = '<span class="status-badge partial"><i class="fas fa-circle-half-stroke"></i> 部分解决</span>';
                 } else {
                     statusBadge = '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>';
                 }
@@ -254,7 +254,7 @@ function renderGuestbookItem(msg) {
         } else if (msg.status === 'rejected') {
             statusBadge = '<span class="status-badge rejected"><i class="fas fa-times"></i> 已驳回</span>';
             if (msg.reject_reason) {
-                rejectReasonHtml = `<div class="reject-reason"><i class="fas fa-comment-slash"></i> 驳回原因：${escapeHtml(msg.reject_reason)}</div>`;
+                rejectReasonHtml = `<div class="reject-reason"><div class="reject-reason-header"><i class="fas fa-comment-slash"></i><span>驳回原因</span></div><div class="reject-reason-text">${escapeHtml(msg.reject_reason)}</div></div>`;
             }
         } else {
             statusBadge = '<span class="status-badge unresolved">未解决</span>';
@@ -347,16 +347,15 @@ function renderResolveNote(note) {
     if (parsedOk) {
         let html = '';
         if (paths.length > 0) {
-            const items = paths.map((p, i) => {
+            const items = paths.map((p) => {
                 const escapedPath = p.replace(/'/g, "\\'").replace(/"/g, '\\"');
                 const safePath = escapeHtml(p);
-                const sep = i === 0 ? '<i class="fas fa-folder-open"></i> 资源位置：' : '';
-                return `${sep}<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safePath}</a>`;
-            }).join('<span class="resolve-note-sep">、</span>');
-            html += `<div class="resolve-note">${items}</div>`;
+                return `<a href="javascript:void(0)" class="resolve-note-link resolve-note-path-item" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safePath}</a>`;
+            }).join('');
+            html += `<div class="resolve-note resolve-note-paths"><div class="resolve-note-paths-header"><i class="fas fa-folder-open"></i><span>资源位置</span></div><div class="resolve-note-paths-list">${items}</div></div>`;
         }
         if (remark) {
-            html += `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 管理员备注：${escapeHtml(remark)}</div>`;
+            html += `<div class="resolve-note resolve-note-text"><div class="resolve-note-text-header"><i class="fas fa-info-circle"></i><span>管理员备注</span></div><div class="resolve-note-text-body">${escapeHtml(remark)}</div></div>`;
         }
         return { html, partial };
     }

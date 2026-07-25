@@ -2760,7 +2760,24 @@
     color: #dc3545;
     font-size: 0.83rem;
     line-height: 1.5;
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.reject-reason-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.reject-reason-header i {
+    flex-shrink: 0;
+}
+
+.reject-reason-text {
+    word-break: break-all;
 }
 
 .reject-reason i {
@@ -2785,10 +2802,55 @@
     flex-shrink: 0;
 }
 
+.resolve-note-paths {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+}
+
+.resolve-note-paths-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.resolve-note-paths-list {
+    margin-top: 0.4rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.resolve-note-path-item {
+    width: fit-content;
+    word-break: break-all;
+    line-height: 1.5;
+}
+
+.resolve-note-sep {
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
 .resolve-note-text {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
     background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.06) 0%, rgba(var(--primary-rgb), 0.1) 100%);
     border-left-color: var(--primary-color);
     color: var(--primary-color);
+}
+
+.resolve-note-text-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.resolve-note-text-body {
+    word-break: break-all;
 }
 
 .resolve-note-link {
@@ -2832,17 +2894,85 @@
     border-radius: 0 8px 8px 0;
     color: #28a745;
     font-size: 0.9rem;
+}
+
+.ai-result-path-header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    font-weight: 600;
 }
 
-.ai-result-path i {
+.ai-result-path-header i {
     flex-shrink: 0;
+}
+
+.ai-result-path-list {
+    margin-top: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ai-result-path-item {
+    padding: 0.25rem 0.6rem;
+    background: rgba(40, 167, 69, 0.08);
+    border-radius: 4px;
+    font-weight: 500;
+    word-break: break-all;
+    line-height: 1.5;
 }
 
 .ai-result-path strong {
     font-weight: 600;
+}
+
+.ai-result-pending {
+    margin-top: 0.75rem;
+    padding: 0.8rem 1rem;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.14) 100%);
+    border-left: 3px solid #f59e0b;
+    border-radius: 0 8px 8px 0;
+}
+
+.ai-result-pending-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #d97706;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.ai-result-pending-title i {
+    flex-shrink: 0;
+}
+
+.ai-result-pending-tags {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.ai-pending-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    background: #fff;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 12px;
+    color: #b45309;
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.ai-result-pending-hint {
+    margin-top: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.5;
 }
 
 .resolve-modal {
@@ -5675,26 +5805,35 @@ textarea.form-input {
 .ai-search-result-name {
     font-weight: 600;
     color: var(--text-primary);
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: color 0.2s ease;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    transition: color 0.2s ease, -webkit-line-clamp 0.2s ease, max-height 0.25s ease;
+    max-height: 1.5em;
 }
 
 .ai-search-result-path {
     font-size: 0.75rem;
     color: var(--text-secondary);
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: color 0.2s ease;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    transition: color 0.2s ease, -webkit-line-clamp 0.2s ease, max-height 0.25s ease;
+    max-height: 1.5em;
 }
 
 .ai-search-result-item:hover .ai-search-result-name,
 .ai-search-result-item:hover .ai-search-result-path {
-    white-space: normal;
-    word-break: break-all;
-    overflow: visible;
+    -webkit-line-clamp: 99;
+    line-clamp: 99;
+    max-height: 5em;
+    color: var(--primary-color);
 }
 
 .ai-search-result-score {
