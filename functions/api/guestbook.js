@@ -1,5 +1,5 @@
 import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, checkRateLimit, getUserRateLimitKey } from '../utils.js';
-import { processWithAIAgent, processReplyWithAI } from './guestbook-ai.js';
+import { processWithAIAgent, processReplyWithAI, createOrMergeTodo } from './guestbook-ai.js';
 const REPLIES_PER_PARENT = 5;
 export async function onRequest(context) {
     const { request, env } = context;
@@ -703,21 +703,32 @@ async function handlePut(request, env, context) {
                 logDetails.resolve_note = resolveNote;
             }
         }
+        let pendingCategories = [];
+        if (action === 'resolve' && Array.isArray(body.pending_categories)) {
+            pendingCategories = [...new Set(body.pending_categories.map(c => String(c).trim()).filter(c => c).map(c => c.substring(0, 100)))];
+        }
         if (isHidden !== null) {
             await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ?, is_hidden = ? WHERE id = ?').bind(status, resolveNote, isHidden, id).run();
         } else {
             await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?').bind(status, resolveNote, id).run();
         }
+        if (action === 'resolve' && pendingCategories.length > 0) {
+            for (const cat of pendingCategories) {
+                await createOrMergeTodo(gbEntryResolve, cat, notifyNote || '部分课程未找到资源，待人工补充', env);
+            }
+            logDetails.created_todos = pendingCategories;
+        }
         await logAdminAction(env, user.id, action, 'guestbook', id, action === 'resolve' ? '标记留言为已解决' : '标记留言为未解决', JSON.stringify(logDetails));
         if (action === 'resolve' && gbEntryResolve.user_id) {
             const pathsText = notifyPaths.length > 0 ? notifyPaths.map(p => `资源路径：${p}`).join('；') : '';
+            const todoHintText = pendingCategories.length > 0 ? `（${pendingCategories.join('、')} 暂未找到，已记录待补充）` : '';
             notify({
                 userId: gbEntryResolve.user_id,
                 type: 'guestbook_reply',
                 title: '你的留言已被解决',
                 body: notifyNote || pathsText || '已处理',
                 link: `#gb-${id}`,
-                payload: { guestbookId: parseInt(id), resourcePaths: notifyPaths, note: notifyNote }
+                payload: { guestbookId: parseInt(id), resourcePaths: notifyPaths, note: notifyNote, pendingCategories }
             });
         }
         bcast(parseInt(id), action, { status: action === 'resolve' ? 'resolved' : 'unresolved', is_hidden: action === 'resolve' ? 0 : undefined, resolve_note: action === 'resolve' ? (resolveNote || null) : null });

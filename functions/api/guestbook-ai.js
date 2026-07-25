@@ -314,7 +314,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         message: 'AI 多次未调用工具，需人工处理'
     };
 }
-async function createOrMergeTodo(guestbookEntry, category, note, env) {
+export async function createOrMergeTodo(guestbookEntry, category, note, env) {
     if (!category || !env || !env.DB) return;
     try {
         const trimmedCategory = category.trim().substring(0, 100);
@@ -716,12 +716,11 @@ ${hitSummary}
                 ? functionArgs.pending_categories.map(c => String(c).trim()).filter(c => c).map(c => c.substring(0, 100))
                 : [];
             const dedupPending = [...new Set(pendingCategories)];
-            let createdTodos = [];
+            const createdTodos = dedupPending;
             if (autoMode && dedupPending.length > 0) {
                 for (const cat of dedupPending) {
                     await createOrMergeTodo(guestbookEntry, cat, functionArgs.note || '部分课程未找到资源，待人工补充', env);
                 }
-                createdTodos = dedupPending;
             }
             const result = await handleResolve(
                 guestbookEntry,

@@ -219,10 +219,13 @@ async function showAiResultModal(guestbookId, result) {
                         let resolveValue = null;
                         const paths = Array.isArray(result.resource_paths) ? result.resource_paths : (result.resource_path ? [result.resource_path] : []);
                         const cleanPaths = [...new Set(paths.filter(p => p && String(p).trim()).map(p => String(p).trim()))];
+                        const pendingCats = Array.isArray(result.pending_categories) ? result.pending_categories.filter(c => c) : [];
                         if (cleanPaths.length > 0 || result.note) {
-                            resolveValue = JSON.stringify({ paths: cleanPaths, note: result.note || null });
+                            const noteObj = { paths: cleanPaths, note: result.note || null };
+                            if (pendingCats.length > 0) noteObj.partial = true;
+                            resolveValue = JSON.stringify(noteObj);
                         }
-                        await applyAiAction(guestbookId, 'resolve', null, resolveValue);
+                        await applyAiAction(guestbookId, 'resolve', null, resolveValue, pendingCats);
                         closeModal();
                         updateGuestbookCache(guestbookId, { status: 'resolved', reject_reason: null, resolve_note: resolveValue, is_hidden: 0 });
                     }
@@ -318,7 +321,7 @@ function renderAiSearchResults(results) {
         </div>
     `;
 }
-async function applyAiAction(guestbookId, action, reason, resolveNote) {
+async function applyAiAction(guestbookId, action, reason, resolveNote, pendingCategories = null) {
     try {
         const token = localStorage.getItem('authToken');
         const body = { id: guestbookId, action: action };
@@ -327,6 +330,9 @@ async function applyAiAction(guestbookId, action, reason, resolveNote) {
         }
         if (action === 'resolve' && resolveNote) {
             body.resolve_note = resolveNote;
+        }
+        if (action === 'resolve' && Array.isArray(pendingCategories) && pendingCategories.length > 0) {
+            body.pending_categories = pendingCategories;
         }
         const response = await fetch(API_ENDPOINTS.guestbook, {
             method: 'PUT',
