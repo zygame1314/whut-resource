@@ -263,13 +263,22 @@ function filterTreeByKeyword(container, keyword, options = {}) {
         if (rootList) rootList.style.display = 'block';
         return;
     }
+    const matchesTerm = (name) => {
+        if (!name) return false;
+        if (name.includes(term)) return true;
+        let i = 0;
+        for (let j = 0; j < name.length && i < term.length; j++) {
+            if (name[j] === term[i]) i++;
+        }
+        return i === term.length;
+    };
     allNodes.forEach(node => {
         node.style.display = 'none';
     });
     allNodes.forEach(node => {
         const nameEl = node.querySelector(nameSelector);
         const name = nameEl ? nameEl.textContent.toLowerCase() : '';
-        if (name.includes(term)) {
+        if (matchesTerm(name)) {
             node.style.display = 'block';
             let parent = node.parentElement;
             while (parent && parent !== container) {

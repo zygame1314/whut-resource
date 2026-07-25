@@ -593,6 +593,29 @@ function showDirectoryPicker(itemsToMove = []) {
         }
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'confirmation-modal-overlay';
+        const pathSelectorHtml = `
+            <div class="picker-path-selector">
+                <label class="resolve-label"><i class="fas fa-folder-open"></i> 目标目录</label>
+                <div class="path-dropdown-wrapper">
+                    <button type="button" id="picker-path-btn" class="path-dropdown-btn">
+                        <span class="selected-path">点击选择目录</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div id="picker-path-dropdown" class="path-dropdown-menu">
+                        <div class="path-dropdown-header">
+                            <span>选择目标目录</span>
+                            <button type="button" id="picker-clear-path-btn" class="clear-path-btn" title="清除选择"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="path-search-wrapper">
+                            <input type="text" id="picker-path-search" class="path-search-input" placeholder="搜索目录...">
+                        </div>
+                        <div id="picker-path-tree-container" class="path-tree-container">
+                            <div class="path-tree-loading">加载中...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
         modalOverlay.innerHTML = `
             <div class="confirmation-modal directory-picker-modal">
                 <div class="modal-header">
@@ -600,12 +623,7 @@ function showDirectoryPicker(itemsToMove = []) {
                     <button class="close-btn">&times;</button>
                 </div>
                 <p class="modal-subtitle">将 ${itemsToMove.length} 个项目移动到:</p>
-                <div class="directory-picker-search-wrapper">
-                    <input type="text" class="directory-picker-search-input" placeholder="搜索目录...">
-                </div>
-                <div id="directory-picker-tree" class="directory-picker-tree">
-                    <div class="loading-spinner"></div>
-                </div>
+                ${pathSelectorHtml}
                 <div class="confirmation-buttons">
                     <button class="confirm-btn-cancel">取消</button>
                     <button class="confirm-btn" disabled>移动到这里</button>
@@ -613,8 +631,17 @@ function showDirectoryPicker(itemsToMove = []) {
             </div>
         `;
         document.body.appendChild(modalOverlay);
-        const treeContainer = modalOverlay.querySelector('#directory-picker-tree');
+        const treeContainer = modalOverlay.querySelector('#picker-path-tree-container');
         const confirmBtn = modalOverlay.querySelector('.confirm-btn');
+        const pathBtn = modalOverlay.querySelector('#picker-path-btn');
+        const pathDropdown = modalOverlay.querySelector('#picker-path-dropdown');
+        const clearPathBtn = modalOverlay.querySelector('#picker-clear-path-btn');
+        const searchInput = modalOverlay.querySelector('#picker-path-search');
+        const updatePathBtnLabel = () => {
+            const btn = pathBtn.querySelector('.selected-path');
+            if (!btn) return;
+            btn.textContent = selectedPath ? selectedPath : '点击选择目录';
+        };
         let selectedPath = null;
         let pickerTree = null;
         const closeModal = (value) => {
@@ -630,6 +657,53 @@ function showDirectoryPicker(itemsToMove = []) {
         modalOverlay.querySelector('.close-btn').addEventListener('click', () => closeModal(null));
         modalOverlay.addEventListener('mousedown', (e) => {
             if (e.target === modalOverlay) closeModal(null);
+        });
+        if (pathBtn && pathDropdown) {
+            pathBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                pathDropdown.classList.toggle('open');
+                pathBtn.classList.toggle('open');
+                if (pathDropdown.classList.contains('open') && searchInput) {
+                    setTimeout(() => searchInput.focus(), 100);
+                }
+            });
+        }
+        if (searchInput) {
+            searchInput.addEventListener('click', (e) => e.stopPropagation());
+            searchInput.addEventListener('input', (e) => {
+                try {
+                    if (pickerTree) pickerTree.ensureAllRendered();
+                    filterTreeByKeyword(treeContainer, e.target.value, {
+                        nodeSelector: '.path-tree-node',
+                        itemSelector: '.path-tree-item',
+                        nameSelector: '.path-folder-name',
+                        listSelector: '.path-tree-list',
+                        toggleSelector: '.path-toggle-icon',
+                        useTransform: true
+                    });
+                } catch (ex) { }
+            });
+        }
+        if (clearPathBtn) {
+            clearPathBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectedPath = null;
+                updatePathBtnLabel();
+                treeContainer?.querySelectorAll('.path-tree-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                pathDropdown.classList.remove('open');
+                pathBtn.classList.remove('open');
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = '移动到这里';
+            });
+        }
+        modalOverlay.addEventListener('click', (e) => {
+            if (pathDropdown && !pathDropdown.contains(e.target) && !pathBtn?.contains(e.target)) {
+                pathDropdown.classList.remove('open');
+                pathBtn?.classList.remove('open');
+            }
         });
         try {
             const result = await fetchCached(`${FILES_API_URL}?action=listAllDirs`, 'listAllDirs', 3600000, {
@@ -662,31 +736,15 @@ function showDirectoryPicker(itemsToMove = []) {
                         selectedPath = path;
                         confirmBtn.disabled = false;
                         confirmBtn.textContent = `移动到 "${nodeContent.querySelector('.path-folder-name').textContent}"`;
+                        updatePathBtnLabel();
                     }
                 });
                 pickerTree.render(result.directories);
-                const searchInput = modalOverlay.querySelector('.directory-picker-search-input');
-                if (searchInput) {
-                    searchInput.addEventListener('click', (e) => e.stopPropagation());
-                    searchInput.addEventListener('input', (e) => {
-                        try {
-                            if (pickerTree) pickerTree.ensureAllRendered();
-                            filterTreeByKeyword(treeContainer, e.target.value, {
-                                nodeSelector: '.path-tree-node',
-                                itemSelector: '.path-tree-item',
-                                nameSelector: '.path-folder-name',
-                                listSelector: '.path-tree-list',
-                                toggleSelector: '.path-toggle-icon',
-                                useTransform: true
-                            });
-                        } catch (ex) { }
-                    });
-                }
             } else {
                 throw new Error(result.error || '无法加载文件夹列表');
             }
         } catch (error) {
-            treeContainer.innerHTML = `<p class="u-text-secondary-small">${error.message}</p>`;
+            if (treeContainer) treeContainer.innerHTML = `<p class="u-text-secondary-small">${error.message}</p>`;
         }
     });
 }
