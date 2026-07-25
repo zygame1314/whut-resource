@@ -240,9 +240,16 @@ function renderGuestbookItem(msg) {
         let rejectReasonHtml = '';
         let resolveNoteHtml = '';
         if (msg.status === 'resolved') {
-            statusBadge = '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>';
             if (msg.resolve_note) {
-                resolveNoteHtml = renderResolveNote(msg.resolve_note);
+                const rn = renderResolveNote(msg.resolve_note);
+                resolveNoteHtml = rn.html;
+                if (rn.partial) {
+                    statusBadge = '<span class="status-badge partial"><i class="fas fa-check-half"></i> 部分解决</span>';
+                } else {
+                    statusBadge = '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>';
+                }
+            } else {
+                statusBadge = '<span class="status-badge resolved"><i class="fas fa-check"></i> 已解决</span>';
             }
         } else if (msg.status === 'rejected') {
             statusBadge = '<span class="status-badge rejected"><i class="fas fa-times"></i> 已驳回</span>';
@@ -319,38 +326,47 @@ function renderGuestbookItem(msg) {
         `;
 }
 function renderResolveNote(note) {
-    if (!note) return '';
-    let path = null;
+    if (!note) return { html: '', partial: false };
+    let paths = [];
     let remark = null;
+    let partial = false;
+    let parsedOk = false;
     try {
         if (note.trim().startsWith('{')) {
             const obj = JSON.parse(note);
             if (typeof obj === 'object' && obj !== null) {
-                path = obj.path;
+                const rawPaths = Array.isArray(obj.paths) ? obj.paths : (obj.path ? [obj.path] : []);
+                paths = rawPaths.map(p => String(p).trim()).filter(p => p);
                 remark = obj.note;
+                partial = obj.partial === true;
+                parsedOk = true;
             }
         }
     } catch (e) {
     }
-    if (path || remark) {
+    if (parsedOk) {
         let html = '';
-        if (path) {
-            const escapedPath = path.trim().replace(/'/g, "\\'").replace(/"/g, '\\"');
-            const safePath = escapeHtml(path);
-            html += `<div class="resolve-note"><i class="fas fa-folder-open"></i> 资源位置：<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safePath}</a></div>`;
+        if (paths.length > 0) {
+            const items = paths.map((p, i) => {
+                const escapedPath = p.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                const safePath = escapeHtml(p);
+                const sep = i === 0 ? '<i class="fas fa-folder-open"></i> 资源位置：' : '';
+                return `${sep}<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safePath}</a>`;
+            }).join('<span class="resolve-note-sep">、</span>');
+            html += `<div class="resolve-note">${items}</div>`;
         }
         if (remark) {
             html += `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 管理员备注：${escapeHtml(remark)}</div>`;
         }
-        return html;
+        return { html, partial };
     }
     const safeNote = escapeHtml(note);
     const isLikelyPath = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\.()（）\s]+(?:\/[\u4e00-\u9fa5a-zA-Z0-9_\-\.()（）\s]+)*\/?$/.test(note.trim());
     if (isLikelyPath) {
         const escapedPath = note.trim().replace(/'/g, "\\'").replace(/"/g, '\\"');
-        return `<div class="resolve-note"><i class="fas fa-folder-open"></i> 资源位置：<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safeNote}</a></div>`;
+        return { html: `<div class="resolve-note"><i class="fas fa-folder-open"></i> 资源位置：<a href="javascript:void(0)" class="resolve-note-link" onclick="navigateToPath('${escapedPath}')" title="点击跳转到该目录">${safeNote}</a></div>`, partial: false };
     } else {
-        return `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 管理员备注：${safeNote}</div>`;
+        return { html: `<div class="resolve-note resolve-note-text"><i class="fas fa-info-circle"></i> 管理员备注：${safeNote}</div>`, partial: false };
     }
 }
 function renderGuestbookPagination(hasMore, hasPrev) {

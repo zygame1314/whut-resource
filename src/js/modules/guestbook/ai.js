@@ -120,8 +120,14 @@ async function showAiResultModal(guestbookId, result) {
                 } else {
                     actionDescription = `<div class="ai-result-reply">${escapeHtml(result.reply)}</div>`;
                 }
-                if (result.resource_path) {
+                if (result.resource_paths && result.resource_paths.length > 0) {
+                    const pathsHtml = result.resource_paths.map(p => escapeHtml(p)).join('<span class="resolve-note-sep">、</span>');
+                    actionDescription += `<div class="ai-result-path"><i class="fas fa-folder-open"></i> 资源目录：<strong>${pathsHtml}</strong></div>`;
+                } else if (result.resource_path) {
                     actionDescription += `<div class="ai-result-path"><i class="fas fa-folder-open"></i> 资源目录：<strong>${escapeHtml(result.resource_path)}</strong></div>`;
+                }
+                if (result.pending_categories && result.pending_categories.length > 0) {
+                    actionDescription += `<div class="ai-result-note" style="margin-top:6px;color:var(--warning);"><i class="fas fa-clock"></i> 部分课程未命中，已建待办：<strong>${escapeHtml(result.pending_categories.join('、'))}</strong></div>`;
                 }
                 if (result.note) {
                     actionDescription += `<div class="ai-result-note" style="margin-top:8px; color:var(--text-secondary);"><strong>备注：</strong>${escapeHtml(result.note)}</div>`;
@@ -211,8 +217,10 @@ async function showAiResultModal(guestbookId, result) {
                         updateGuestbookCache(guestbookId, { status: 'rejected', reject_reason: result.reason, is_hidden: 1 });
                     } else if (result.action === 'resolve') {
                         let resolveValue = null;
-                        if (result.resource_path || result.note) {
-                            resolveValue = JSON.stringify({ path: result.resource_path || null, note: result.note || null });
+                        const paths = Array.isArray(result.resource_paths) ? result.resource_paths : (result.resource_path ? [result.resource_path] : []);
+                        const cleanPaths = [...new Set(paths.filter(p => p && String(p).trim()).map(p => String(p).trim()))];
+                        if (cleanPaths.length > 0 || result.note) {
+                            resolveValue = JSON.stringify({ paths: cleanPaths, note: result.note || null });
                         }
                         await applyAiAction(guestbookId, 'resolve', null, resolveValue);
                         closeModal();

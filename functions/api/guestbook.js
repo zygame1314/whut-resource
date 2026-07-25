@@ -688,11 +688,17 @@ async function handlePut(request, env, context) {
         const resolveNote = action === 'resolve' ? (body.resolve_note || null) : null;
         const isHidden = action === 'resolve' ? 0 : null;
         const logDetails = { snapshot_content: gbEntryResolve.content, nickname: gbEntryResolve.nickname, user_id: gbEntryResolve.user_id };
+        let notifyPaths = [];
+        let notifyNote = null;
         if (resolveNote) {
             try {
                 const parsed = JSON.parse(resolveNote);
-                if (parsed.path) logDetails.resource_path = parsed.path;
+                const pathsArr = Array.isArray(parsed.paths) ? parsed.paths : (parsed.path ? [parsed.path] : []);
+                const cleanPaths = [...new Set(pathsArr.filter(p => p && String(p).trim()).map(p => String(p).trim()))];
+                if (cleanPaths.length > 0) logDetails.resource_paths = cleanPaths;
                 if (parsed.note) logDetails.note = parsed.note;
+                notifyPaths = cleanPaths;
+                notifyNote = parsed.note || null;
             } catch {
                 logDetails.resolve_note = resolveNote;
             }
@@ -704,17 +710,14 @@ async function handlePut(request, env, context) {
         }
         await logAdminAction(env, user.id, action, 'guestbook', id, action === 'resolve' ? '标记留言为已解决' : '标记留言为未解决', JSON.stringify(logDetails));
         if (action === 'resolve' && gbEntryResolve.user_id) {
-            let noteText = null, resourcePath = null;
-            if (resolveNote) {
-                try { const p = JSON.parse(resolveNote); noteText = p.note; resourcePath = p.path; } catch (e) { noteText = resolveNote; }
-            }
+            const pathsText = notifyPaths.length > 0 ? notifyPaths.map(p => `资源路径：${p}`).join('；') : '';
             notify({
                 userId: gbEntryResolve.user_id,
                 type: 'guestbook_reply',
                 title: '你的留言已被解决',
-                body: noteText || (resourcePath ? `资源路径：${resourcePath}` : '已处理'),
+                body: notifyNote || pathsText || '已处理',
                 link: `#gb-${id}`,
-                payload: { guestbookId: parseInt(id), resourcePath, note: noteText }
+                payload: { guestbookId: parseInt(id), resourcePaths: notifyPaths, note: notifyNote }
             });
         }
         bcast(parseInt(id), action, { status: action === 'resolve' ? 'resolved' : 'unresolved', is_hidden: action === 'resolve' ? 0 : undefined, resolve_note: action === 'resolve' ? (resolveNote || null) : null });

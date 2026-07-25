@@ -79,10 +79,30 @@ async function showResolvePrompt() {
     return new Promise((resolve, reject) => {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'confirmation-modal-overlay';
-        let selectedPath = '';
+        let selectedPaths = [];
+        const updatePathBtnLabel = () => {
+            const btn = modalOverlay.querySelector('#resolve-path-btn .selected-path');
+            if (!btn) return;
+            if (selectedPaths.length === 0) {
+                btn.textContent = '点击选择目录';
+            } else if (selectedPaths.length === 1) {
+                btn.textContent = selectedPaths[0];
+            } else {
+                btn.textContent = `已选 ${selectedPaths.length} 个目录`;
+            }
+        };
+        const togglePath = (path) => {
+            const idx = selectedPaths.indexOf(path);
+            if (idx >= 0) {
+                selectedPaths.splice(idx, 1);
+            } else {
+                selectedPaths.push(path);
+            }
+            updatePathBtnLabel();
+        };
         const pathSelectorHtml = `
             <div class="resolve-path-selector">
-                <label class="resolve-label"><i class="fas fa-folder-open"></i> 资源目录（可选）</label>
+                <label class="resolve-label"><i class="fas fa-folder-open"></i> 资源目录（可多选）</label>
                 <div class="path-dropdown-wrapper">
                     <button type="button" id="resolve-path-btn" class="path-dropdown-btn">
                         <span class="selected-path">点击选择目录</span>
@@ -90,7 +110,7 @@ async function showResolvePrompt() {
                     </button>
                     <div id="resolve-path-dropdown" class="path-dropdown-menu">
                         <div class="path-dropdown-header">
-                            <span>选择资源目录</span>
+                            <span>选择资源目录（可多选）</span>
                             <button type="button" id="clear-path-btn" class="clear-path-btn" title="清除选择"><i class="fas fa-times"></i></button>
                         </div>
                         <div class="path-search-wrapper">
@@ -148,14 +168,12 @@ async function showResolvePrompt() {
                              useTransformToggle: true,
                              selectionMode: true,
                              onSelect: function(nodeContent, path, e) {
-                                 pathTreeContainer.querySelectorAll('.path-tree-item').forEach(function(item) {
-                                     item.classList.remove('selected');
-                                 });
-                                 nodeContent.classList.add('selected');
-                                 selectedPath = path;
-                                 pathBtn.querySelector('.selected-path').textContent = selectedPath || '根目录';
-                                 pathDropdown.classList.remove('open');
-                                 pathBtn.classList.remove('open');
+                                 togglePath(path);
+                                 if (selectedPaths.includes(path)) {
+                                     nodeContent.classList.add('selected');
+                                 } else {
+                                     nodeContent.classList.remove('selected');
+                                 }
                              }
                          });
                          resolveTree.render(directories);
@@ -187,8 +205,8 @@ async function showResolvePrompt() {
         if (clearPathBtn) {
             clearPathBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                selectedPath = '';
-                pathBtn.querySelector('.selected-path').textContent = '点击选择目录';
+                selectedPaths = [];
+                updatePathBtnLabel();
                 pathTreeContainer?.querySelectorAll('.path-tree-item').forEach(item => {
                     item.classList.remove('selected');
                 });
@@ -222,10 +240,11 @@ async function showResolvePrompt() {
             }, { once: true });
         };
         modalOverlay.querySelector('.confirm-btn').addEventListener('click', () => {
-            const path = selectedPath.trim();
+            const paths = selectedPaths.map(p => p.trim()).filter(p => p);
+            const dedupPaths = [...new Set(paths)];
             const note = noteInput.value.trim();
-            if (path || note) {
-                closeModal(JSON.stringify({ path: path || null, note: note || null }));
+            if (dedupPaths.length > 0 || note) {
+                closeModal(JSON.stringify({ paths: dedupPaths, note: note || null }));
             } else {
                 closeModal('');
             }

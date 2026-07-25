@@ -306,8 +306,13 @@ async function showAdminLogsModal() {
                     const truncated = originalContent.length > 200 ? originalContent.substring(0, 200) + '...' : originalContent;
                     detailsHtml += `<div class="admin-log-details"><strong>原始内容:</strong> ${escapeHtml(truncated)}</div>`;
                 }
-                if (details.resource_path) {
+                if (details.resource_paths && details.resource_paths.length > 0) {
+                    detailsHtml += `<div class="admin-log-resource-path">资源路径: ${escapeHtml(details.resource_paths.join('、'))}</div>`;
+                } else if (details.resource_path) {
                     detailsHtml += `<div class="admin-log-resource-path">资源路径: ${escapeHtml(details.resource_path)}</div>`;
+                }
+                if (details.created_todos && details.created_todos.length > 0) {
+                    detailsHtml += `<div class="admin-log-user-info">已建待办: ${escapeHtml(details.created_todos.join('、'))}</div>`;
                 }
                 if (details.nickname) {
                     detailsHtml += `<div class="admin-log-user-info">目标用户: ${escapeHtml(details.nickname)} (ID: ${details.user_id || 'N/A'})</div>`;
@@ -342,7 +347,7 @@ async function showAdminLogsModal() {
                 if (details.url && !details.new_url) {
                     detailsHtml += `<div class="admin-log-user-info">链接地址: ${escapeHtml(details.url)}</div>`;
                 }
-                if (details.parent_path && !details.resource_path) {
+                if (details.parent_path && !details.resource_path && !(details.resource_paths && details.resource_paths.length > 0)) {
                     detailsHtml += `<div class="admin-log-user-info">所属目录: ${escapeHtml(details.parent_path)}</div>`;
                 }
                 if (details.target_email) {

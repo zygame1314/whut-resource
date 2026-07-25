@@ -57,16 +57,17 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'search_resources',
-            description: '搜索资源库。当用户在留言中请求查找特定资源、课程资料、文件时使用此工具。',
+            description: '搜索资源库。当用户在留言中请求查找特定资源、课程资料、文件时使用此工具。支持同时搜索多个关键词（如一条留言请求多门课程，可一次性传入多个核心课程名）。每条留言只需调用一次此工具，把所有需要的课程名都放进 queries 数组。',
             parameters: {
                 type: 'object',
                 properties: {
-                    query: {
-                        type: 'string',
-                        description: '搜索关键词。核心规则：必须仅提取核心课程名或关键名词（如"遗传学"）。'
+                    queries: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: '搜索关键词数组，每个元素是一个核心课程名或关键名词（如"遗传学"）。用户请求多门课程时，每门课程名作为一个数组元素。核心规则：必须仅提取核心课程名或关键名词。'
                     }
                 },
-                required: ['query']
+                required: ['queries']
             }
         }
     },
@@ -131,7 +132,7 @@ ban_user: 极其严重违规（反动/暴恐/违法/昵称违规），封禁用�
 delete_message: 严重违规（辱骂/色情/恶意诱导攻击如藏头诗等）
 reject_message: 内容无效或不合规范，驳回并告知原因。适用于：无关内容、泄露联系方式、表述过于简陋无法处理、一条留言请求多门课程资源（需拆分提交）、仅发课程名/文件名而无任何请求语句（如只写"金融学"等）等
 ban_user/delete_message 候补：有偿求资源、倒卖资源、付费交易等行为严重违反本站免费分享原则，视情节轻重选择 delete_message 或 ban_user
-search_resources: 资源请求类留言，提取核心课程名搜索。常见缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留课程后缀(A/B/C、一/二)
+search_resources: 资源请求类留言，提取核心课程名搜索。常见缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留课程后缀(A/B/C、一/二)。用户在一条留言中请求多门课程资源时，把每门课程名作为一个元素放进 queries 数组一次性搜索，每条留言只调用一次 search_resources
 mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景。必须填写reply（管理员审计备注）和note（用户可见备注），reply需说明处理依据
 keep_pending: 合理请求但暂时无法自动处理，等待人工介入。category以课程名为单位，优先精确匹配已有待办分类名；无匹配时使用最通用的标准课程名（如"高等数学"而非"高数"，"大学物理"而非"大物"，"线性代数"而非"线代"），不加"求""资料"等冗余词
 
@@ -287,12 +288,14 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
                 autoMode
             );
             if (functionName === 'search_resources' && toolResult.searchResults) {
+                const queryStr = Array.isArray(functionArgs.queries) ? functionArgs.queries.join('、') : (functionArgs.queries || functionArgs.query || '');
                 return await handleSearchResults(
                     guestbookEntry,
                     toolResult.searchResults,
                     env,
                     autoMode,
-                    functionArgs.query || ''
+                    queryStr,
+                    { queryList: toolResult.queryList, perQueryHits: toolResult.perQueryHits }
                 );
             }
             if (functionName === 'keep_pending' && autoMode && functionArgs.category) {
@@ -353,7 +356,7 @@ async function executeToolCall(functionName, args, guestbookEntry, env, autoMode
         case 'ban_user':
             return await handleBanUser(guestbookEntry, args.reason, env, autoMode);
         case 'search_resources':
-            return await handleSearch(args.query, env);
+            return await handleSearch(args.queries, env);
         case 'mark_resolved':
             return await handleResolve(guestbookEntry, args.reply, null, null, env, autoMode, args.note);
         case 'keep_pending':
@@ -470,7 +473,7 @@ async function handleDelete(entry, reason, env, autoMode) {
         auto_applied: false
     };
 }
-async function handleSearch(query, env) {
+async function handleSearch(queries, env) {
     const VECTORIZE = env.VECTORIZE;
     const DB = env.DB;
     if (!VECTORIZE || !DB || !env.SILICONFLOW_API_KEY) {
@@ -481,16 +484,51 @@ async function handleSearch(query, env) {
             searchResults: null
         };
     }
+    const queryList = Array.isArray(queries) ? queries.filter(q => q && String(q).trim()).map(q => String(q).trim()) : (queries ? [String(queries).trim()] : []);
+    if (queryList.length === 0) {
+        return {
+            success: true,
+            action: 'search',
+            message: '未提供搜索关键词',
+            searchResults: [],
+            query: ''
+        };
+    }
     try {
-        const searchResult = await hybridSearch(DB, VECTORIZE, env, query, { topK: 15, vectorTopK: 20, ftsLimit: 20 });
-        const filesWithScores = searchResult.results;
-        if (!filesWithScores || filesWithScores.length === 0) {
+        const seenIds = new Map();
+        const perQueryTopK = queryList.length > 1 ? 10 : 15;
+        const perQueryHits = {};
+        for (const q of queryList) {
+            const searchResult = await hybridSearch(DB, VECTORIZE, env, q, { topK: perQueryTopK, vectorTopK: 20, ftsLimit: 20 });
+            const filesWithScores = searchResult.results || [];
+            perQueryHits[q] = filesWithScores.length;
+            for (const f of filesWithScores) {
+                if (f.id != null) {
+                    const existing = seenIds.get(f.id);
+                    if (existing) {
+                        if (!existing.matched_queries.includes(q)) existing.matched_queries.push(q);
+                        continue;
+                    }
+                    seenIds.set(f.id, { ...f, matched_queries: [q] });
+                } else {
+                    if (!f.matched_queries) f.matched_queries = [];
+                    if (!f.matched_queries.includes(q)) f.matched_queries.push(q);
+                    seenIds.set(`__noid_${q}_${f.name}_${Math.random()}`, { ...f, matched_queries: [q] });
+                }
+            }
+        }
+        const merged = [...seenIds.values()];
+        merged.sort((a, b) => (b.similarity_score || 0) - (a.similarity_score || 0));
+        const filesWithScores = merged.slice(0, 20);
+        if (filesWithScores.length === 0) {
             return {
                 success: true,
                 action: 'search',
                 message: '未找到相关资源',
                 searchResults: [],
-                query: query
+                query: queryList.join('、'),
+                queryList,
+                perQueryHits
             };
         }
         return {
@@ -498,7 +536,9 @@ async function handleSearch(query, env) {
             action: 'search',
             message: `找到 ${filesWithScores.length} 个相关资源`,
             searchResults: filesWithScores,
-            query: query
+            query: queryList.join('、'),
+            queryList,
+            perQueryHits
         };
     } catch (error) {
         console.error('搜索错误:', error);
@@ -510,11 +550,19 @@ async function handleSearch(query, env) {
         };
     }
 }
-async function handleSearchResults(guestbookEntry, searchResults, env, autoMode, query = '') {
+async function handleSearchResults(guestbookEntry, searchResults, env, autoMode, query = '', searchMeta = {}) {
+    const { queryList = [], perQueryHits = {} } = searchMeta;
     if (!searchResults || searchResults.length === 0) {
         if (autoMode && env && env.DB) {
-            const category = query.trim().substring(0, 100) || (guestbookEntry.content ? guestbookEntry.content.trim().substring(0, 50) : '未分类');
-            await createOrMergeTodo(guestbookEntry, category, '未找到相关资源', env);
+            if (queryList.length > 0) {
+                for (const q of queryList) {
+                    const category = q.trim().substring(0, 100) || '未分类';
+                    await createOrMergeTodo(guestbookEntry, category, '未找到相关资源', env);
+                }
+            } else {
+                const category = query.trim().substring(0, 100) || (guestbookEntry.content ? guestbookEntry.content.trim().substring(0, 50) : '未分类');
+                await createOrMergeTodo(guestbookEntry, category, '未找到相关资源', env);
+            }
         }
         return {
             success: true,
@@ -528,7 +576,8 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode,
         const parentPath = normalizePath(f.parent_path);
         const path = parentPath ? `${parentPath}/${f.name}` : f.name;
         const typeTag = (f.is_directory === 1 || f.is_directory === true) ? '📁目录' : '📄文件';
-        return `${i + 1}. [${typeTag}] ${f.name} (路径: ${path}, 相似度: ${(f.similarity_score * 100).toFixed(1)}%)`;
+        const mq = Array.isArray(f.matched_queries) && f.matched_queries.length > 0 ? ` [命中课程: ${f.matched_queries.join('、')}]` : '';
+        return `${i + 1}. [${typeTag}] ${f.name} (路径: ${path}, 相似度: ${(f.similarity_score * 100).toFixed(1)}%)${mq}`;
     }).join('\n');
     let todoCategoriesStr = '';
     try {
@@ -541,40 +590,54 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode,
     } catch (e) { console.error('查询已有待办分类失败:', e); }
 
     const todoHint = todoCategoriesStr
-        ? `\n\n【已有待办分类】${todoCategoriesStr}\n使用 keep_pending 时，category 必须优先精确匹配已有分类名（字符完全一致）。若确实无匹配，则使用最通用的标准课程名（如"高等数学"而非"高数"，"大学物理"而非"大物"，"线性代数"而非"线代"），避免同一课程因缩写不同而创建多个待办。`
+        ? `\n\n【已有待办分类】${todoCategoriesStr}\n使用 pending_categories / keep_pending 的 category 时，必须优先精确匹配已有分类名（字符完全一致）。若确实无匹配，则使用最通用的标准课程名（如"高等数学"而非"高数"，"大学物理"而非"大物"，"线性代数"而非"线代"），避免同一课程因缩写不同而创建多个待办。`
+        : '';
+    const hitSummary = queryList.length > 0
+        ? `\n【用户请求的课程】${queryList.join('、')}\n【各课程命中情况】${queryList.map(q => `${q}: ${perQueryHits[q] > 0 ? '✓找到' : '✗未找到'}(${perQueryHits[q] || 0}个结果)`).join('；')}`
         : '';
     const secondPrompt = `搜索结果：
 ${resourceList}
 
 用户留言：${guestbookEntry.content}
+${hitSummary}
 
 【语气人设】你不是客服，正常交流即可，不用拘谨，对没礼貌的留言可以怼回去。
 
-判断搜索结果中是否有满足用户需求的资源，如果没有就保持未解决，不要硬凑。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。匹配成功请用 mark_resolved，不匹配则用 keep_pending（必须填写category，优先精确匹配已有待办分类）。${todoHint}`;
+判断搜索结果中是否有满足用户需求的资源，如果没有就保持未解决，不要硬凑。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。用户请求多门课程时：
+- 把每门命中课程对应的匹配资源序号都填进 matched_file_indices 数组
+- 对于【未命中的课程】，填进 pending_categories 数组（会自动建待办给管理员处理）
+- 全部未命中时改用 keep_pending
+匹配成功请用 mark_resolved，完全不匹配则用 keep_pending。${todoHint}`;
 
     const searchTools = [
         {
             type: 'function',
             function: {
                 name: 'mark_resolved',
-                description: '标记留言为已解决。当从搜索结果中找到匹配资源时使用。',
+                description: '标记留言为已解决。当从搜索结果中找到至少一个匹配资源时使用。支持一次匹配多个资源（用户请求多门课程时，把每门命中的资源序号都填进 matched_file_indices）。未命中的课程填进 pending_categories（会自动建待办给管理员后续处理），这样命中的资源可立即给用户、未命中的进入待办，不必整条挂起。',
                 parameters: {
                     type: 'object',
                     properties: {
                         note: {
                             type: 'string',
-                            description: '给用户的备注（用户可见）。'
+                            description: '给用户的备注（用户可见）。若存在未命中课程，可简要提示用户部分资源已找到、其余正在补充。'
                         },
-                        matched_file_index: {
-                            type: 'integer',
-                            description: '匹配的资源序号（填写搜索结果列表中的数字编号，如 1）'
+                        matched_file_indices: {
+                            type: 'array',
+                            items: { type: 'integer' },
+                            description: '匹配的资源序号数组（填写搜索结果列表中的数字编号，如 [1] 或 [1,3]）。把每门命中课程对应的资源序号都放进来。至少填一个。'
+                        },
+                        pending_categories: {
+                            type: 'array',
+                            items: { type: 'string' },
+                            description: '未命中的课程名数组（用于建待办给管理员补充资源）。仅当用户请求多门课程且部分未命中时填写。每项为标准课程名，优先精确匹配已有待办分类。全部命中则留空数组或不填。'
                         },
                         reply: {
                             type: 'string',
-                            description: '管理员审计备注（用户不可见）。必须填写，供管理员参考的补充说明，如匹配依据、版本差异、选择理由等。'
+                            description: '管理员审计备注（用户不可见）。必须填写，说明匹配依据、未命中课程的待办安排等。'
                         }
                     },
-                    required: ['note', 'matched_file_index', 'reply']
+                    required: ['note', 'matched_file_indices', 'reply']
                 }
             }
         },
@@ -582,7 +645,7 @@ ${resourceList}
             type: 'function',
             function: {
                 name: 'keep_pending',
-                description: '保持留言待处理状态。当搜索结果都不匹配时使用。会自动创建或合并到同分类的待办事项。',
+                description: '保持留言待处理状态。当搜索结果全部都不匹配时使用。会自动创建或合并到同分类的待办事项。',
                 parameters: {
                     type: 'object',
                     properties: {
@@ -602,7 +665,7 @@ ${resourceList}
     ];
     const aiResponse = await fetchAIChatCompletion(
         [
-            { role: 'system', content: '你是资源匹配助手。你的任务是根据搜索结果判断是否满足用户的资源请求。' },
+            { role: 'system', content: '你是资源匹配助手。你的任务是根据搜索结果判断是否满足用户的资源请求。用户请求多门课程时，可对命中部分给资源、未命中部分建待办。' },
             { role: 'user', content: secondPrompt }
         ],
         searchTools,
@@ -627,27 +690,53 @@ ${resourceList}
             };
         }
         if (functionName === 'mark_resolved') {
-            const idx = functionArgs.matched_file_index;
-            let resourcePath = null;
-            if (idx && typeof idx === 'number' && idx > 0 && idx <= searchResults.length) {
-                const file = searchResults[idx - 1];
-                const normalizePath = (p) => p ? p.replace(/\/+/g, '/').replace(/^\/|\/$/, '') : '';
-                if (file.is_directory) {
-                    const parentPath = normalizePath(file.parent_path);
-                    resourcePath = parentPath ? `${parentPath}/${file.name}` : file.name;
-                } else {
-                    resourcePath = normalizePath(file.parent_path);
+            const indices = Array.isArray(functionArgs.matched_file_indices)
+                ? functionArgs.matched_file_indices
+                : (functionArgs.matched_file_index != null ? [functionArgs.matched_file_index] : []);
+            const normalizePath = (p) => p ? p.replace(/\/+/g, '/').replace(/^\/|\/$/, '') : '';
+            const resourcePaths = [];
+            const validIndices = new Set();
+            for (const rawIdx of indices) {
+                const idx = Number(rawIdx);
+                if (Number.isInteger(idx) && idx > 0 && idx <= searchResults.length) {
+                    validIndices.add(idx);
                 }
             }
-            return await handleResolve(
+            for (const idx of validIndices) {
+                const file = searchResults[idx - 1];
+                if (file.is_directory) {
+                    const parentPath = normalizePath(file.parent_path);
+                    resourcePaths.push(parentPath ? `${parentPath}/${file.name}` : file.name);
+                } else {
+                    resourcePaths.push(normalizePath(file.parent_path));
+                }
+            }
+            const dedupPaths = [...new Set(resourcePaths.filter(p => p))];
+            const pendingCategories = Array.isArray(functionArgs.pending_categories)
+                ? functionArgs.pending_categories.map(c => String(c).trim()).filter(c => c).map(c => c.substring(0, 100))
+                : [];
+            const dedupPending = [...new Set(pendingCategories)];
+            let createdTodos = [];
+            if (autoMode && dedupPending.length > 0) {
+                for (const cat of dedupPending) {
+                    await createOrMergeTodo(guestbookEntry, cat, functionArgs.note || '部分课程未找到资源，待人工补充', env);
+                }
+                createdTodos = dedupPending;
+            }
+            const result = await handleResolve(
                 guestbookEntry,
                 functionArgs.reply,
                 searchResults,
-                resourcePath,
+                dedupPaths,
                 env,
                 autoMode,
-                functionArgs.note
+                functionArgs.note,
+                createdTodos
             );
+            if (createdTodos.length > 0) {
+                result.pending_categories = createdTodos;
+            }
+            return result;
         }
         if (functionName === 'keep_pending') {
             if (autoMode && functionArgs.category) {
@@ -672,54 +761,67 @@ ${resourceList}
         auto_applied: false
     };
 }
-async function handleResolve(entry, reply, searchResults = null, resourcePath = null, env = null, autoMode = false, note = null) {
+async function handleResolve(entry, reply, searchResults = null, resourcePaths = null, env = null, autoMode = false, note = null, createdTodos = null) {
+    const pathsArr = Array.isArray(resourcePaths) ? resourcePaths : (resourcePaths ? [resourcePaths] : []);
+    const cleanPaths = [...new Set(pathsArr.filter(p => p && String(p).trim()).map(p => String(p).trim()))];
+    const todosArr = Array.isArray(createdTodos) ? createdTodos : [];
     if (autoMode && env && entry) {
         let resolveValue = null;
-        if (resourcePath || note) {
-            resolveValue = JSON.stringify({ path: resourcePath, note: note });
+        if (cleanPaths.length > 0 || note) {
+            const noteObj = { paths: cleanPaths, note: note };
+            if (todosArr.length > 0) noteObj.partial = true;
+            resolveValue = JSON.stringify(noteObj);
         }
         await env.DB.prepare(
             'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?'
         ).bind('resolved', resolveValue, entry.id).run();
         const auditReason = reply || `AI自动解决: ${note || '无备注'}`;
-        await logAdminAction(env, null, 'ai_resolve', 'guestbook', entry.id, auditReason, JSON.stringify({
+        const logDetails = {
             snapshot_content: entry.content,
             nickname: entry.nickname,
             user_id: entry.user_id,
-            resource_path: resourcePath
-        }));
+            resource_paths: cleanPaths
+        };
+        if (todosArr.length > 0) logDetails.created_todos = todosArr;
+        await logAdminAction(env, null, 'ai_resolve', 'guestbook', entry.id, auditReason, JSON.stringify(logDetails));
         if (entry.user_id) {
+            const pathsText = cleanPaths.length > 0 ? cleanPaths.map(p => `资源路径：${p}`).join('；') : '';
+            const todoHintText = todosArr.length > 0 ? `（${todosArr.join('、')} 暂未找到，已记录待补充）` : '';
             createNotification(env, {
                 userId: entry.user_id,
                 type: 'guestbook_reply',
                 title: '你的留言已被解决',
-                body: note || (resourcePath ? `资源路径：${resourcePath}` : '已处理'),
+                body: note || pathsText || '已处理',
                 link: `#gb-${entry.id}`,
-                payload: { guestbookId: entry.id, resourcePath: resourcePath, note: note }
+                payload: { guestbookId: entry.id, resourcePaths: cleanPaths, note: note, pendingCategories: todosArr }
             }).catch(() => {});
         }
-        broadcastGuestbookUpdate(env, entry.id, 'resolve', { status: 'resolved', is_hidden: 0 });
-        return {
+        broadcastGuestbookUpdate(env, entry.id, 'resolve', { status: 'resolved', is_hidden: 0, resolve_note: resolveValue || null });
+        const result = {
             success: true,
             action: 'resolve',
             message: `留言已标记为已解决: ${reply}`,
             reply: reply,
             searchResults: searchResults,
-            resource_path: resourcePath,
+            resource_paths: cleanPaths,
             note: note,
             auto_applied: true
         };
+        if (todosArr.length > 0) result.created_todos = todosArr;
+        return result;
     }
-    return {
+    const suggestResult = {
         success: true,
         action: 'resolve',
         message: '建议标记为已解决',
         reply: reply,
         searchResults: searchResults,
-        resource_path: resourcePath,
+        resource_paths: cleanPaths,
         note: note,
         auto_applied: false
     };
+    if (todosArr.length > 0) suggestResult.pending_categories = todosArr;
+    return suggestResult;
 }
 export async function onRequestGet(context) {
     const { request, env } = context;
@@ -810,7 +912,12 @@ export async function processReplyWithAI(replyEntry, env) {
     if (parentEntry && parentEntry.resolve_note) {
         try {
             const parsed = JSON.parse(parentEntry.resolve_note);
-            resolveContext = parsed.note || '';
+            const pathsArr = Array.isArray(parsed.paths) ? parsed.paths : (parsed.path ? [parsed.path] : []);
+            const noteStr = parsed.note || '';
+            const parts = [];
+            if (pathsArr.length > 0) parts.push(`资源：${pathsArr.join('、')}`);
+            if (noteStr) parts.push(`备注：${noteStr}`);
+            resolveContext = parts.join('；');
         } catch {
             resolveContext = parentEntry.resolve_note;
         }
