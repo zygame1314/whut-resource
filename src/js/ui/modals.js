@@ -4,13 +4,14 @@ function showConfirmation({
     confirmText = '确认',
     cancelText = '取消',
     confirmClass = '',
+    modalClass = '',
     onShow = null
 }) {
     return new Promise((resolve) => {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'confirmation-modal-overlay';
         modalOverlay.innerHTML = `
-            <div class="confirmation-modal">
+            <div class="confirmation-modal ${modalClass}">
                 <h3>${title}</h3>
                 <div class="modal-message" style="margin: 1rem 0; line-height: 1.6; color: var(--text-secondary);">${message}</div>
                 <div class="confirmation-buttons">

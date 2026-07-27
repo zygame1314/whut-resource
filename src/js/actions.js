@@ -199,6 +199,7 @@ async function openLink(fileKey, linkUrl, openBtn) {
             const visualId = 'link-visual-' + Date.now();
             const confirmed = await showConfirmation({
                 title: '外链安全提醒',
+                modalClass: 'link-confirm-modal',
                 message: `
                     <div class="link-confirm-modern">
                         <div id="${visualId}" class="link-confirm-visual">

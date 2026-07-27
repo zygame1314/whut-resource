@@ -380,11 +380,6 @@
 
 @media (hover: none) and (pointer: coarse) {
 
-    .file-list li:hover .file-actions {
-        opacity: 0;
-        pointer-events: none;
-    }
-
     .file-list li.actions-visible .file-actions {
         opacity: 1;
         transform: translateY(-50%) translateX(0);

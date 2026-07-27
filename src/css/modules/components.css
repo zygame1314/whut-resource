@@ -10913,6 +10913,24 @@ input#prompt-input {
 }
 
 
+.link-confirm-modal {
+    max-width: 460px;
+    overflow: hidden;
+}
+
+.link-confirm-modal .modal-message {
+    margin: 0 !important;
+    max-height: calc(85vh - 140px);
+    overflow-y: auto;
+    word-break: break-word;
+    -webkit-overflow-scrolling: touch;
+}
+
+.link-confirm-modal .confirmation-buttons {
+    flex-shrink: 0;
+    margin-top: 1rem;
+}
+
 .link-confirm-modern {
     text-align: center;
     padding: 10px 0;
