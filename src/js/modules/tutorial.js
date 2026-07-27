@@ -328,15 +328,6 @@ async function startTutorial() {
             }
         });
         steps.push({
-            id: 'view-options',
-            title: '切换视图',
-            text: '习惯网格视图还是列表视图？<br>点击这里按照你的喜好切换文件显示方式。',
-            attachTo: {
-                element: '.view-options',
-                on: 'bottom'
-            }
-        });
-        steps.push({
             id: 'recent-uploads',
             title: '最新动态',
             text: '这里展示了最近更新的资源，<br>方便你快速获取最新资料。',

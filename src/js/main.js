@@ -166,19 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', handleSelectAll);
     }
-    viewButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            viewButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentView = btn.dataset.view;
-            if (fileListContainer) {
-                fileListContainer.classList.toggle('grid-view', currentView === 'grid');
-                document.querySelectorAll('.boost-panel').forEach(p => p.remove());
-                document.querySelectorAll('.boost-modal-overlay').forEach(o => o.remove());
-                document.querySelectorAll('.boost-btn.active').forEach(b => b.classList.remove('active'));
-            }
-        });
-    });
     const breadcrumbHome = document.querySelector('.breadcrumb-home');
     if (breadcrumbHome) {
         breadcrumbHome.style.cursor = 'pointer';
@@ -322,6 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             previewModal.classList.remove('visible');
             document.body.style.overflow = '';
             previewIframe.src = '';
+            if (previewDownloadBtn) previewDownloadBtn.hidden = true;
             const existingImageWrapper = previewModal.querySelector('.preview-image-wrapper');
             if (existingImageWrapper) {
                 existingImageWrapper.remove();

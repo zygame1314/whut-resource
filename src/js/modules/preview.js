@@ -12,6 +12,14 @@ function setupMobilePreviewVisibilityListener() {
 }
 setupMobilePreviewVisibilityListener();
 
+if (previewDownloadBtn) {
+    previewDownloadBtn.addEventListener('click', () => {
+        if (currentPreviewKey && typeof downloadFile === 'function') {
+            downloadFile(currentPreviewKey, previewDownloadBtn);
+        }
+    });
+}
+
 function getFileTypeLabel(extension) {
     const map = {
         'pdf': 'PDF 文档', 'doc': 'Word 文档', 'docx': 'Word 文档',
@@ -42,8 +50,8 @@ async function showMobilePreviewConfirm(fileName, extension, fileSize) {
             <div class="link-confirm-visual preview-confirm-visual">
                 <i class="${iconClass}"></i>
             </div>
-            <h3 class="link-confirm-headline">即将在新页面预览文件</h3>
-            <p class="link-confirm-description">${isOffice ? '移动端不支持内嵌预览 Office 文档，将使用在线查看器打开。' : '移动端不支持内嵌预览此文件，将跳转至新页面查看。'}</p>
+            <h3 class="link-confirm-headline">${isOffice ? '移动端不支持在线预览 Office 文档' : '即将在新页面预览文件'}</h3>
+            <p class="link-confirm-description">${isOffice ? '微软在线查看器的移动端节点不稳定，将直接下载该文件，可用 WPS、Office 等 App 查看。' : '移动端不支持内嵌预览此文件，将跳转至新页面查看。'}</p>
             <div class="link-confirm-card">
                 <div class="link-favicon preview-filetype-icon">
                     <i class="${iconClass}"></i>
@@ -57,9 +65,9 @@ async function showMobilePreviewConfirm(fileName, extension, fileSize) {
     `;
 
     return await showConfirmation({
-        title: '移动端文件预览',
+        title: isOffice ? '移动端文件下载' : '移动端文件预览',
         message: message,
-        confirmText: '打开预览',
+        confirmText: isOffice ? '下载文件' : '打开预览',
         confirmClass: 'confirm-btn-primary',
         cancelText: '取消'
     });
@@ -112,6 +120,8 @@ async function previewFile(fileKey, fileName, fileSize) {
     const needsMobileRedirect = isMobile && (isOfficePreview || isPdfPreview);
     const previewLoader = previewModal.querySelector('.preview-loader');
     previewTitle.textContent = `预览: ${fileName}`;
+    currentPreviewKey = fileKey;
+    if (previewDownloadBtn) previewDownloadBtn.hidden = true;
     if (needsMobileRedirect) {
         const confirmed = await showMobilePreviewConfirm(fileName, extension, fileSize);
         if (!confirmed) return;
@@ -171,14 +181,16 @@ async function previewFile(fileKey, fileName, fileSize) {
                 updateQuotaDisplay(data.quota_used, undefined);
             }
             if (needsMobileRedirect) {
+                if (isOfficePreview) {
+                    if (typeof downloadFile === 'function') {
+                        downloadFile(fileKey, null);
+                    }
+                    if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
+                    return;
+                }
                 const previewUrl = data.url;
                 _mobilePreviewRefreshed = true;
-                if (isOfficePreview) {
-                    const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(previewUrl)}`;
-                    window.open(officeViewerUrl, '_blank');
-                } else {
-                    window.open(previewUrl, '_blank');
-                }
+                window.open(previewUrl, '_blank');
                 if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
                 return;
             }

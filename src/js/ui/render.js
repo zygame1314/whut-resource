@@ -346,39 +346,41 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
         `;
     }
     fileActionsDiv.innerHTML = `
-        ${isDirectory ? `
-            <button class="enter-folder-button" title="进入文件夹">
-                <i class="fas fa-folder-open"></i>
+        ${!isDirectory ? reactionButtonsHTML : ''}
+        <div class="file-action-buttons">
+            ${isDirectory ? `
+                <button class="enter-folder-button" title="进入文件夹">
+                    <i class="fas fa-folder-open"></i>
+                </button>
+            ` : `
+                ${previewButtonHTML}
+                ${downloadButtonHTML}
+            `}
+            ${shareButtonHTML}
+            ${favoriteButtonHTML}
+            ${subscribeButtonHTML}
+            ${isAdmin ? `
+            ${isLink ? `
+            <button class="edit-link-button" title="编辑链接地址">
+              <i class="fas fa-link"></i>
             </button>
-        ` : `
-            ${reactionButtonsHTML}
-            ${previewButtonHTML}
-            ${downloadButtonHTML}
-        `}
-        ${shareButtonHTML}
-        ${favoriteButtonHTML}
-        ${subscribeButtonHTML}
-        ${isAdmin ? `
-        ${isLink ? `
-        <button class="edit-link-button" title="编辑链接地址">
-          <i class="fas fa-link"></i>
-        </button>
-        ` : ''}
-        ${isDirectory ? `
-        <button class="edit-desc-button" title="编辑描述">
-          <i class="fas fa-quote-left"></i>
-        </button>
-        ` : ''}
-        <button class="rename-button" title="重命名">
-          <i class="fas fa-pencil-alt"></i>
-        </button>
-        <button class="move-button" title="移动到...">
-           <i class="fas fa-folder-tree"></i>
-        </button>
-        <button class="delete-button" title="删除">
-            <i class="fas fa-trash"></i>
-        </button>
-        ` : ''}
+            ` : ''}
+            ${isDirectory ? `
+            <button class="edit-desc-button" title="编辑描述">
+              <i class="fas fa-quote-left"></i>
+            </button>
+            ` : ''}
+            <button class="rename-button" title="重命名">
+              <i class="fas fa-pencil-alt"></i>
+            </button>
+            <button class="move-button" title="移动到...">
+               <i class="fas fa-folder-tree"></i>
+            </button>
+            <button class="delete-button" title="删除">
+                <i class="fas fa-trash"></i>
+            </button>
+            ` : ''}
+        </div>
     `;
     li.appendChild(checkbox);
     li.appendChild(fileItemDiv);
@@ -886,7 +888,6 @@ function renderPaginationControls(paginationData) {
     controlsContainer.appendChild(nextButton);
 }
 function toggleBoostPanel(li, item, boostBtn) {
-    const isGridView = li.closest('.file-list-container')?.classList.contains('grid-view');
     const closeExisting = () => {
         document.querySelectorAll('.boost-panel').forEach(p => {
             if (p.classList.contains('closing')) return;
@@ -898,25 +899,16 @@ function toggleBoostPanel(li, item, boostBtn) {
             }
             setTimeout(() => p.remove(), 250);
         });
-        document.querySelectorAll('.boost-modal-overlay').forEach(o => {
-            if (o.classList.contains('active') && !o.classList.contains('closing')) {
-                const closeBtn = o.querySelector('.boost-modal-close');
-                if (closeBtn) closeBtn.click();
-                else o.remove();
-            }
-        });
     };
-    if (!isGridView) {
-        const existingPanel = li.querySelector('.boost-panel');
-        if (existingPanel && !existingPanel.classList.contains('closing')) {
-            existingPanel.classList.add('closing');
-            boostBtn.classList.remove('active');
-            setTimeout(() => existingPanel.remove(), 250);
-            return;
-        }
+    const existingPanel = li.querySelector('.boost-panel');
+    if (existingPanel && !existingPanel.classList.contains('closing')) {
+        existingPanel.classList.add('closing');
+        boostBtn.classList.remove('active');
+        setTimeout(() => existingPanel.remove(), 250);
+        return;
     }
     closeExisting();
-    if (!isGridView && li.classList.contains('actions-visible')) {
+    if (li.classList.contains('actions-visible')) {
         li.classList.remove('actions-visible');
     }
     boostBtn.classList.add('active');
@@ -936,40 +928,8 @@ function toggleBoostPanel(li, item, boostBtn) {
         </div>
     `;
     panel._boostBtn = boostBtn;
-    if (isGridView) {
-        const overlay = document.createElement('div');
-        overlay.className = 'boost-modal-overlay';
-        const modal = document.createElement('div');
-        modal.className = 'boost-modal';
-        const modalHeader = document.createElement('div');
-        modalHeader.className = 'boost-modal-header';
-        const fileName = item.name || item.key?.split('/').pop() || '文件';
-        modalHeader.innerHTML = `
-            <span class="boost-modal-filename" title="${escapeHtml(fileName)}"><i class="fas fa-file"></i> ${escapeHtml(fileName)}</span>
-            <button class="boost-modal-close" title="关闭"><i class="fas fa-times"></i></button>
-        `;
-        modal.appendChild(modalHeader);
-        modal.appendChild(panel);
-        overlay.appendChild(modal);
-        document.body.appendChild(overlay);
-        requestAnimationFrame(() => overlay.classList.add('active'));
-        const closeModal = () => {
-            overlay.classList.remove('active');
-            overlay.classList.add('closing');
-            const onEnd = () => {
-                overlay.remove();
-                boostBtn.classList.remove('active');
-            };
-            overlay.addEventListener('transitionend', onEnd, { once: true });
-            setTimeout(onEnd, 350);
-        };
-        modalHeader.querySelector('.boost-modal-close').onclick = closeModal;
-        overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
-        panel.onclick = (e) => e.stopPropagation();
-    } else {
-        li.appendChild(panel);
-        panel.onclick = (e) => e.stopPropagation();
-    }
+    li.appendChild(panel);
+    panel.onclick = (e) => e.stopPropagation();
     const boostLoadMore = panel.querySelector('.boost-load-more');
     const boostList = panel.querySelector('.boost-list');
     const boostInput = panel.querySelector('.boost-input');
