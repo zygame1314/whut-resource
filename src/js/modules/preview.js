@@ -1,25 +1,3 @@
-let _mobilePreviewRefreshed = false;
-
-function setupMobilePreviewVisibilityListener() {
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && _mobilePreviewRefreshed) {
-            _mobilePreviewRefreshed = false;
-            if (typeof refreshQuotaFromServer === 'function') {
-                refreshQuotaFromServer();
-            }
-        }
-    });
-}
-setupMobilePreviewVisibilityListener();
-
-if (previewDownloadBtn) {
-    previewDownloadBtn.addEventListener('click', () => {
-        if (currentPreviewKey && typeof downloadFile === 'function') {
-            downloadFile(currentPreviewKey, previewDownloadBtn);
-        }
-    });
-}
-
 function getFileTypeLabel(extension) {
     const map = {
         'pdf': 'PDF 文档', 'doc': 'Word 文档', 'docx': 'Word 文档',
@@ -38,40 +16,6 @@ function getFileTypeIcon(extension) {
     return map[extension] || 'fas fa-file';
 }
 
-async function showMobilePreviewConfirm(fileName, extension, fileSize) {
-    const sizeStr = typeof formatFileSize === 'function' ? formatFileSize(fileSize) : '';
-    const typeLabel = getFileTypeLabel(extension);
-    const iconClass = getFileTypeIcon(extension);
-    const isOffice = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(extension);
-    const safeFileName = typeof escapeHtml === 'function' ? escapeHtml(fileName) : fileName;
-
-    const message = `
-        <div class="link-confirm-modern">
-            <div class="link-confirm-visual preview-confirm-visual">
-                <i class="${iconClass}"></i>
-            </div>
-            <h3 class="link-confirm-headline">${isOffice ? '移动端不支持在线预览 Office 文档' : '即将在新页面预览文件'}</h3>
-            <p class="link-confirm-description">${isOffice ? '微软在线查看器的移动端节点不稳定，将直接下载该文件，可用 WPS、Office 等 App 查看。' : '移动端不支持内嵌预览此文件，将跳转至新页面查看。'}</p>
-            <div class="link-confirm-card">
-                <div class="link-favicon preview-filetype-icon">
-                    <i class="${iconClass}"></i>
-                </div>
-                <div class="link-info">
-                    <div class="link-title has-title">${safeFileName}</div>
-                    ${sizeStr ? `<div class="link-description">${typeLabel} · ${sizeStr}</div>` : `<div class="link-description">${typeLabel}</div>`}
-                </div>
-            </div>
-        </div>
-    `;
-
-    return await showConfirmation({
-        title: isOffice ? '移动端文件下载' : '移动端文件预览',
-        message: message,
-        confirmText: isOffice ? '下载文件' : '打开预览',
-        confirmClass: 'confirm-btn-primary',
-        cancelText: '取消'
-    });
-}
 
 async function previewFile(fileKey, fileName, fileSize) {
     const extension = fileName.split('.').pop().toLowerCase();
@@ -117,18 +61,10 @@ async function previewFile(fileKey, fileName, fileSize) {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isOfficePreview = officeExtensions.includes(extension);
     const isPdfPreview = pdfExtensions.includes(extension);
-    const needsMobileRedirect = isMobile && (isOfficePreview || isPdfPreview);
     const previewLoader = previewModal.querySelector('.preview-loader');
     previewTitle.textContent = `预览: ${fileName}`;
-    currentPreviewKey = fileKey;
-    if (previewDownloadBtn) previewDownloadBtn.hidden = true;
-    if (needsMobileRedirect) {
-        const confirmed = await showMobilePreviewConfirm(fileName, extension, fileSize);
-        if (!confirmed) return;
-    } else {
-        previewModal.classList.add('visible');
-        previewLoader.style.display = 'flex';
-    }
+    previewModal.classList.add('visible');
+    previewLoader.style.display = 'flex';
     previewIframe.style.display = 'none';
     const existingImageWrapper = previewModal.querySelector('.preview-image-wrapper');
     if (existingImageWrapper) existingImageWrapper.remove();
@@ -180,25 +116,91 @@ async function previewFile(fileKey, fileName, fileSize) {
             if (data.quota_deducted && typeof updateQuotaDisplay === 'function') {
                 updateQuotaDisplay(data.quota_used, undefined);
             }
-            if (needsMobileRedirect) {
-                if (isOfficePreview) {
-                    if (typeof downloadFile === 'function') {
-                        downloadFile(fileKey, null);
-                    }
-                    if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
-                    return;
-                }
-                const previewUrl = data.url;
-                _mobilePreviewRefreshed = true;
-                window.open(previewUrl, '_blank');
-                if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
-                return;
-            }
+            const previewUrl = data.url;
             const hideLoader = () => {
                 previewLoader.style.display = 'none';
                 previewLoader.style.pointerEvents = 'none';
             };
-            if (isTxtPreview) {
+            if (isPdfPreview) {
+                const pdfWrapper = document.createElement('div');
+                pdfWrapper.className = 'preview-pdf-wrapper';
+                pdfWrapper.style.opacity = '0';
+                pdfWrapper.style.transition = 'opacity 0.3s ease';
+                let pdfDocRef = null;
+                let renderCancelled = false;
+                try {
+                    const pdfjsLib = await window.LazyLoader.loadPDFJS();
+                    const pdfResp = await fetch(previewUrl);
+                    if (!pdfResp.ok) throw new Error('无法加载 PDF 文件');
+                    const pdfData = await pdfResp.arrayBuffer();
+                    if (renderCancelled) return;
+                    const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+                    const pdfDoc = await loadingTask.promise;
+                    if (renderCancelled) { pdfDoc.destroy(); return; }
+                    pdfDocRef = pdfDoc;
+                    const container = document.createElement('div');
+                    container.className = 'preview-pdf-container';
+                    pdfWrapper.appendChild(container);
+                    previewIframe.parentElement.appendChild(pdfWrapper);
+                    const containerWidth = pdfWrapper.clientWidth - 32;
+                    const total = pdfDoc.numPages;
+                    let firstRendered = false;
+                    const renderPage = async (pageNum) => {
+                        if (renderCancelled) return;
+                        const page = await pdfDoc.getPage(pageNum);
+                        if (renderCancelled) return;
+                        const baseViewport = page.getViewport({ scale: 1 });
+                        const renderScale = Math.max(0.5, containerWidth / baseViewport.width);
+                        const viewport = page.getViewport({ scale: renderScale });
+                        const canvas = document.createElement('canvas');
+                        canvas.className = 'preview-pdf-page';
+                        const ctx = canvas.getContext('2d');
+                        const outputScale = window.devicePixelRatio || 1;
+                        canvas.width = Math.floor(viewport.width * outputScale);
+                        canvas.height = Math.floor(viewport.height * outputScale);
+                        canvas.style.width = Math.floor(viewport.width) + 'px';
+                        canvas.style.height = Math.floor(viewport.height) + 'px';
+                        const renderTask = page.render({
+                            canvasContext: ctx,
+                            viewport,
+                            transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null,
+                        });
+                        await renderTask.promise;
+                        container.appendChild(canvas);
+                        page.cleanup();
+                        if (!firstRendered) {
+                            firstRendered = true;
+                            hideLoader();
+                            pdfWrapper.style.opacity = '1';
+                            if (typeof refreshQuotaFromServer === 'function') refreshQuotaFromServer();
+                        }
+                    };
+                    for (let i = 1; i <= total; i++) {
+                        if (renderCancelled) break;
+                        try {
+                            await renderPage(i);
+                        } catch (e) {
+                            console.warn('PDF 页渲染失败:', i, e);
+                            if (!firstRendered) {
+                                hideLoader();
+                                pdfWrapper.style.opacity = '1';
+                            }
+                        }
+                    }
+                    pdfWrapper._cleanup = () => {
+                        renderCancelled = true;
+                        if (pdfDocRef) { pdfDocRef.destroy(); pdfDocRef = null; }
+                    };
+                } catch (e) {
+                    console.error('pdf.js 渲染失败:', e);
+                    hideLoader();
+                    showNotification('PDF 渲染失败，尝试直接打开', 'info');
+                    previewIframe.removeAttribute('sandbox');
+                    previewIframe.src = previewUrl;
+                    previewIframe.style.display = 'block';
+                    previewIframe.style.opacity = '1';
+                }
+            } else if (isTxtPreview) {
                 const textPreviewWrapper = document.createElement('div');
                 textPreviewWrapper.className = 'preview-text-wrapper';
                 if (extension === 'md') {
@@ -281,7 +283,6 @@ async function previewFile(fileKey, fileName, fileSize) {
                     htmlPreviewWrapper.style.opacity = '1';
                 }, 3000);
             } else if (isArchivePreview) {
-                const previewUrl = data.url;
                 const archiveType = getArchiveType(fileName);
                 let archiveData;
                 if (archiveType === 'zip') {
@@ -328,7 +329,6 @@ async function previewFile(fileKey, fileName, fileSize) {
                 });
             }
             else {
-                const previewUrl = data.url;
                 if (isImagePreview) {
                     const previewContent = previewIframe.parentElement;
                     const imageWrapper = document.createElement('div');
@@ -448,15 +448,11 @@ async function previewFile(fileKey, fileName, fileSize) {
                         showNotification('预览加载失败', 'error');
                     };
                     if (isOfficePreview) {
-                        const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(previewUrl)}`;
+                        const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewUrl)}`;
                         previewIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
                         previewIframe.src = officeViewerUrl;
                     } else {
-                        if (isPdfPreview) {
-                            previewIframe.removeAttribute('sandbox');
-                        } else {
-                            previewIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-                        }
+                        previewIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
                         previewIframe.src = previewUrl;
                     }
                     previewIframe.style.display = 'block';

@@ -60,6 +60,11 @@ const deps = [
         name: 'pdf-lib',
         src: 'node_modules/pdf-lib/dist',
         files: ['pdf-lib.min.js']
+    },
+    {
+        name: 'pdfjs',
+        src: 'node_modules/pdfjs-dist/build',
+        files: ['pdf.min.js', 'pdf.worker.min.js']
     }
 ];
 function downloadFile(url, dest) {

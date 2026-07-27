@@ -26,6 +26,7 @@
         "marked-highlight": "^2.1.0",
         "marked-katex-extension": "^5.1.7",
         "pdf-lib": "^1.17.1",
+        "pdfjs-dist": "^3.11.174",
         "shepherd.js": "^10.0.1"
     }
 }

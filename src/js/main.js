@@ -309,7 +309,6 @@ document.addEventListener('DOMContentLoaded', () => {
             previewModal.classList.remove('visible');
             document.body.style.overflow = '';
             previewIframe.src = '';
-            if (previewDownloadBtn) previewDownloadBtn.hidden = true;
             const existingImageWrapper = previewModal.querySelector('.preview-image-wrapper');
             if (existingImageWrapper) {
                 existingImageWrapper.remove();
@@ -335,6 +334,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const existingZipWrapper = previewModal.querySelector('.preview-zip-wrapper');
             if (existingZipWrapper) {
                 existingZipWrapper.remove();
+            }
+            const existingPdfWrapper = previewModal.querySelector('.preview-pdf-wrapper');
+            if (existingPdfWrapper) {
+                if (typeof existingPdfWrapper._cleanup === 'function') existingPdfWrapper._cleanup();
+                existingPdfWrapper.remove();
             }
         };
         closePreviewBtn.addEventListener('click', closeAndCleanup);
