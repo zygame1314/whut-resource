@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
+const { minify: minifyJs } = require('terser');
 const rootDir = path.resolve(__dirname, '../');
 const libDir = path.join(rootDir, 'lib');
 const deps = [
@@ -67,23 +67,35 @@ const deps = [
         files: ['pdf.min.js', 'pdf.worker.min.js']
     }
 ];
-function downloadFile(url, dest) {
-    return new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(dest);
-        https.get(url, (response) => {
-            if (response.statusCode === 302 || response.statusCode === 301) {
-                downloadFile(response.headers.location, dest).then(resolve).catch(reject);
-                return;
-            }
-            response.pipe(file);
-            file.on('finish', () => {
-                file.close();
-                resolve();
-            });
-        }).on('error', (err) => {
-            fs.unlink(dest, () => { });
-            reject(err);
-        });
+function buildHighlightBundle() {
+    const hljsDir = path.join(rootDir, 'node_modules', 'highlight.js', 'lib');
+    const commonPath = path.join(hljsDir, 'common.js');
+    const destPath = path.join(libDir, 'highlight.js', 'highlight.min.js');
+    if (!fs.existsSync(commonPath)) {
+        console.warn('[SKIP] 未找到 highlight.js/common.js，跳过打包');
+        return Promise.resolve();
+    }
+    console.log('[BUILD] 正在从 node_modules 打包 highlight.min.js ...');
+    const langDir = path.join(hljsDir, 'languages');
+    let common = fs.readFileSync(commonPath, 'utf8');
+    const core = fs.readFileSync(path.join(hljsDir, 'core.js'), 'utf8');
+    const coreInlined = core.replace(/module\.exports = highlight;/, 'var hljs = highlight;').replace(/highlight\.HighlightJS = highlight;/, 'hljs.HighlightJS = hljs;');
+    common = common.replace(/var hljs = require\('\.\/core'\);/, () => coreInlined);
+    common = common.replace(/require\('\.\/languages\/([^']+)'\)/g, (match, langName) => {
+        const langPath = path.join(langDir, `${langName}.js`);
+        if (!fs.existsSync(langPath)) return match;
+        const code = fs.readFileSync(langPath, 'utf8');
+        return `(function(){var module={exports:{}};${code}\nreturn module.exports;})()`;
+    });
+    let bundle = '(function(){' + common.replace(/hljs\.HighlightJS = hljs;/, '').replace(/hljs\.default = hljs;/, '').replace(/module\.exports = hljs;/, '') + 'window.hljs=hljs;})();';
+    if (!fs.existsSync(path.dirname(destPath))) fs.mkdirSync(path.dirname(destPath), { recursive: true });
+    return minifyJs(bundle, { compress: true, mangle: true }).then(result => {
+        fs.writeFileSync(destPath, result.code || bundle);
+        const kb = Math.round((result.code || bundle).length / 1024 * 10) / 10;
+        console.log(`[OK] highlight.min.js 已打包并压缩 (${kb} KB, 37 种常用语言)`);
+    }).catch(e => {
+        fs.writeFileSync(destPath, bundle);
+        console.warn('[WARN] 压缩失败，使用未压缩版本:', e.message);
     });
 }
 function copyRecursiveSync(src, dest) {
@@ -130,16 +142,7 @@ async function sync() {
             }
         }
     }
-    const hljsDest = path.join(libDir, 'highlight.js', 'highlight.min.js');
-    if (!fs.existsSync(hljsDest)) {
-        console.log('[DOWNLOADING] highlight.min.js (v11.9.0)...');
-        try {
-            await downloadFile('https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js', hljsDest);
-            console.log('[OK] highlight.min.js 已下载');
-        } catch (e) {
-            console.error('[ERROR] 下载 highlight.min.js 失败:', e.message);
-        }
-    }
+    await buildHighlightBundle();
     console.log('--- 依赖同步完成！ ---');
 }
 sync();
