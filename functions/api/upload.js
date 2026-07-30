@@ -2,6 +2,7 @@ import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVe
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
+  let createdAny = false;
   for (let i = 0; i < pathSegments.length - 1; i++) {
     const segment = pathSegments[i];
     const parentPathForCurrentDir = currentPath;
@@ -24,6 +25,7 @@ async function ensureDirectoryExists(db, fullPath, env) {
           0
         ).run();
         console.log(`在D1中创建目录条目: ${currentPath}`);
+        createdAny = true;
         if (env.VECTORIZE && env.SILICONFLOW_API_KEY && insertResult.meta?.last_row_id) {
           try {
             const embeddings = await generateEmbeddings(env, [buildRichEmbeddingText({ name: segment, parent_path: parentPathForCurrentDir })]);
@@ -48,6 +50,13 @@ async function ensureDirectoryExists(db, fullPath, env) {
       }
     } catch (error) {
       console.error(`确保目录 ${currentPath} 在D1中存在时出错:`, error);
+    }
+  }
+  if (createdAny) {
+    try {
+      await db.prepare('DELETE FROM system_cache WHERE id = 2').run();
+    } catch (e) {
+      console.error('清除目录缓存失败:', e);
     }
   }
 }

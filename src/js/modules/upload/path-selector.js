@@ -144,6 +144,141 @@ async function handleAIPathRecommend(e) {
         aiBtn.innerHTML = originalText;
     }
 }
+const VIRTUAL_DIRS_KEY = 'uploadVirtualDirs';
+function getVirtualDirs() {
+    try {
+        const raw = sessionStorage.getItem(VIRTUAL_DIRS_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        return [];
+    }
+}
+function saveVirtualDirs(dirs) {
+    try {
+        sessionStorage.setItem(VIRTUAL_DIRS_KEY, JSON.stringify(dirs));
+    } catch (e) { }
+}
+function buildVirtualDirKey(parentPath, folderName) {
+    const normalizedParent = (parentPath || '').replace(/^\/+|\/+$/g, '');
+    const trimmedName = (folderName || '').trim().replace(/[\/\\<>:"|?*]/g, '').trim();
+    if (!trimmedName) return null;
+    return normalizedParent ? `${normalizedParent}/${trimmedName}/` : `${trimmedName}/`;
+}
+function addVirtualDir(parentPath, folderName) {
+    const newKey = buildVirtualDirKey(parentPath, folderName);
+    if (!newKey) return null;
+    const dirs = getVirtualDirs();
+    if (dirs.indexOf(newKey) !== -1) return { error: 'exists' };
+    dirs.push(newKey);
+    saveVirtualDirs(dirs);
+    return { key: newKey };
+}
+function removeVirtualDir(dirKey) {
+    const dirs = getVirtualDirs();
+    const filtered = dirs.filter(function(d) { return d !== dirKey && !d.startsWith(dirKey); });
+    saveVirtualDirs(filtered);
+}
+function mergeVirtualDirs(realDirs) {
+    const virtual = getVirtualDirs();
+    if (!virtual.length) return realDirs;
+    const set = new Set(realDirs);
+    virtual.forEach(function(d) { set.add(d); });
+    return Array.from(set);
+}
+function refreshUploadTree(newDirKey) {
+    if (!uploadTree || !pathTreeContainer) return;
+    fetchDirectories().then((realDirs) => {
+        const allDirs = mergeVirtualDirs(realDirs);
+        uploadTree.render(allDirs);
+        if (newDirKey) {
+            if (uploadTree.expandToPath) uploadTree.expandToPath(newDirKey);
+            const treeItem = pathTreeContainer.querySelector('.path-tree-item[data-path="' + CSS.escape(newDirKey) + '"]');
+            if (treeItem) {
+                pathTreeContainer.querySelectorAll('.path-tree-item').forEach(function(item) {
+                    item.classList.remove('selected');
+                });
+                treeItem.classList.add('selected');
+                currentUploadPath = newDirKey;
+                updateSelectedPathDisplay();
+                updateUrlPath();
+                setTimeout(function() {
+                    treeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 200);
+            }
+        }
+    });
+}
+function showCreateFolderForm(parentPath) {
+    const dropdown = uploadPathDropdown;
+    if (!dropdown) return;
+    let form = dropdown.querySelector('.create-folder-form');
+    if (form) {
+        form.remove();
+        return;
+    }
+    form = document.createElement('div');
+    form.className = 'create-folder-form';
+    const parentLabel = parentPath ? parentPath.replace(/\/$/, '') : '根目录';
+    form.innerHTML =
+        '<div class="create-folder-header">' +
+            '<div class="create-folder-label"><i class="fas fa-folder-plus"></i><span>在「' + (parentLabel || '根目录') + '」下新建</span></div>' +
+        '</div>' +
+        '<div class="create-folder-input-row">' +
+            '<input type="text" class="create-folder-input" placeholder="文件夹名称（如：高等数学）" maxlength="255" autocomplete="off">' +
+            '<button type="button" class="create-folder-confirm" title="确认"><i class="fas fa-check"></i></button>' +
+            '<button type="button" class="create-folder-cancel" title="取消"><i class="fas fa-times"></i></button>' +
+        '</div>' +
+        '<div class="create-folder-hint"><i class="fas fa-info-circle"></i><span>仅在当前页面保留，上传文件后生效</span></div>';
+    form.dataset.parentPath = parentPath || '';
+    const header = dropdown.querySelector('.path-dropdown-header');
+    if (header) {
+        header.insertAdjacentElement('afterend', form);
+    } else {
+        dropdown.insertBefore(form, dropdown.firstChild);
+    }
+    const input = form.querySelector('.create-folder-input');
+    const confirmBtn = form.querySelector('.create-folder-confirm');
+    const cancelBtn = form.querySelector('.create-folder-cancel');
+    setTimeout(function() { input.focus(); }, 50);
+    const submit = () => {
+        const name = input.value;
+        const trimmedName = (name || '').trim();
+        if (!trimmedName) {
+            showNotification('请输入文件夹名称', 'error');
+            return;
+        }
+        if (/[\/\\<>:"|?*]/.test(trimmedName)) {
+            showNotification('文件夹名称包含非法字符', 'error');
+            return;
+        }
+        const effectiveParent = form.dataset.parentPath || parentPath || '';
+        const result = addVirtualDir(effectiveParent, trimmedName);
+        if (!result) {
+            showNotification('文件夹名称无效', 'error');
+            return;
+        }
+        if (result.error === 'exists') {
+            showNotification('该文件夹已存在', 'error');
+            return;
+        }
+        form.remove();
+        showNotification(`文件夹「${trimmedName}」已添加，上传后将正式创建`, 'success', 4000);
+        refreshUploadTree(result.key);
+    };
+    const stopPropagation = (e) => e.stopPropagation();
+    confirmBtn.addEventListener('click', function(e) { e.stopPropagation(); submit(); });
+    cancelBtn.addEventListener('click', function(e) { e.stopPropagation(); form.remove(); });
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submit();
+        } else if (e.key === 'Escape') {
+            e.stopPropagation();
+            form.remove();
+        }
+    });
+    input.addEventListener('click', stopPropagation);
+}
 async function initUploadPathSelector() {
     const selector = document.getElementById('upload-path-selector');
     if (!selector) return;
@@ -196,13 +331,18 @@ async function initUploadPathSelector() {
                 currentUploadPath = path;
                 updateSelectedPathDisplay();
                 updateUrlPath();
-                if (uploadPathDropdown) {
-                    uploadPathDropdown.classList.remove('open');
-                    uploadPathBtn.classList.remove('open');
+                const form = uploadPathDropdown && uploadPathDropdown.querySelector('.create-folder-form');
+                if (form) {
+                    const labelSpan = form.querySelector('.create-folder-label span');
+                    if (labelSpan) {
+                        const parentLabel = path ? path.replace(/\/$/, '') : '根目录';
+                        labelSpan.textContent = '在「' + (parentLabel || '根目录') + '」下新建';
+                    }
+                    form.dataset.parentPath = path || '';
                 }
             }
         });
-        uploadTree.render(directories);
+        uploadTree.render(mergeVirtualDirs(directories));
     }
     if (uploadPathBtn && uploadPathDropdown) {
         const btnContainer = uploadPathBtn.parentNode;
@@ -218,6 +358,17 @@ async function initUploadPathSelector() {
         if (!searchInput) {
             const dropdownHeader = uploadPathDropdown.querySelector('.path-dropdown-header');
             if (dropdownHeader) {
+                const newFolderBtn = document.createElement('button');
+                newFolderBtn.type = 'button';
+                newFolderBtn.className = 'path-new-folder-btn';
+                newFolderBtn.title = '在当前选中目录下新建文件夹';
+                newFolderBtn.innerHTML = '<i class="fas fa-folder-plus"></i><span>新建文件夹</span>';
+                dropdownHeader.appendChild(newFolderBtn);
+                newFolderBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showCreateFolderForm(currentUploadPath || '');
+                });
                 const searchContainer = document.createElement('div');
                 searchContainer.className = 'path-search-wrapper';
                 searchContainer.innerHTML = '<input type="text" class="path-search-input" placeholder="搜索目录...">';

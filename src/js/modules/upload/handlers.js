@@ -664,6 +664,12 @@ async function handleUpload(event) {
         const statusType = successRate === 100 ? 'success' : (successRate > 0 ? 'warning' : 'error');
         showUploadStatus(`${filesUploaded} / ${totalFiles} 个文件上传成功！`, statusType);
         showUploadResultsPanel(allUploadResults.success, allUploadResults.failed);
+        if (filesUploaded > 0) {
+            try {
+                sessionStorage.removeItem('uploadVirtualDirs');
+                window.filesApiCache.invalidate('listAllDirs');
+            } catch (e) { }
+        }
         setTimeout(() => {
             clearSelectedFile();
             resetProgress();

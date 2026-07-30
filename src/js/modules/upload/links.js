@@ -85,6 +85,10 @@ async function uploadLink() {
             if (linkNameInput) linkNameInput.value = '';
             if (linkUrlInput) linkUrlInput.value = '';
             if (linkPreview) linkPreview.style.display = 'none';
+            try {
+                sessionStorage.removeItem('uploadVirtualDirs');
+                window.filesApiCache.invalidate('listAllDirs');
+            } catch (e) { }
         } else {
             showNotification(result.error || '链接添加失败', 'error');
         }
