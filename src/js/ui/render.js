@@ -267,6 +267,10 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
     checkbox.className = 'file-checkbox';
     checkbox.dataset.key = item.key;
     checkbox.onchange = (e) => handleItemSelection(e.target, item);
+    if (typeof selectedItems !== 'undefined' && selectedItems.has(item.key)) {
+        checkbox.checked = true;
+        li.classList.add('selected');
+    }
     const fileItemDiv = document.createElement('div');
     fileItemDiv.className = 'file-item';
     let metaContent = '';
