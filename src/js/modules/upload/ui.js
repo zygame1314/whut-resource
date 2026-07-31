@@ -44,13 +44,17 @@ function animateShow(el, displayValue) {
     el.addEventListener('animationend', onEnd, { once: true });
 }
 
-function animateHide(el) {
-    if (!el) return;
+function animateHide(el, callback) {
+    if (!el) {
+        if (callback) callback();
+        return;
+    }
     el.classList.remove('entering');
     el.classList.add('leaving');
     const onEnd = () => {
         el.style.display = 'none';
         el.classList.remove('leaving');
+        if (callback) callback();
     };
     el.removeEventListener('animationend', onEnd);
     el.addEventListener('animationend', onEnd, { once: true });
@@ -138,7 +142,12 @@ function showSelectedFile(files, append) {
                 const hint = document.createElement('span');
                 hint.className = 'drop-zone-append-hint';
                 hint.textContent = '（继续添加可追加文件）';
-                hintText.querySelector('h3') || hintText.insertBefore(hint, hintText.firstChild.nextSibling);
+                const h3 = hintText.querySelector('h3');
+                if (h3) {
+                    h3.parentNode.insertBefore(hint, h3.nextSibling);
+                } else {
+                    hintText.insertBefore(hint, hintText.firstChild);
+                }
             }
             const h3 = hintText.querySelector('h3');
             if (h3) h3.textContent = '继续添加文件或文件夹';
@@ -212,22 +221,27 @@ function showUploadStatus(message, type = 'info') {
 }
 
 function switchUploadType(type) {
+    if (type === currentUploadType) return;
     currentUploadType = type;
     if (type === 'file') {
         if (uploadTypeFileBtn) uploadTypeFileBtn.classList.add('active');
         if (uploadTypeLinkBtn) uploadTypeLinkBtn.classList.remove('active');
-        animateHide(linkUploadZone);
-        animateShow(fileDropZone, 'flex');
+        if (watermarkOption) watermarkOption.classList.remove('hidden');
+        animateHide(linkUploadZone, () => {
+            animateShow(fileDropZone, 'flex');
+        });
         if (uploadSubmitBtn) uploadSubmitBtn.innerHTML = '<i class="fas fa-upload"></i><span>开始上传</span>';
     } else {
         if (uploadTypeFileBtn) uploadTypeFileBtn.classList.remove('active');
         if (uploadTypeLinkBtn) uploadTypeLinkBtn.classList.add('active');
-        animateHide(fileDropZone);
-        if (selectedFileInfo) {
-            selectedFileInfo.style.display = 'none';
-            selectedFileInfo.classList.remove('entering', 'leaving');
-        }
-        animateShow(linkUploadZone, 'block');
+        if (watermarkOption) watermarkOption.classList.add('hidden');
+        animateHide(fileDropZone, () => {
+            if (selectedFileInfo) {
+                selectedFileInfo.style.display = 'none';
+                selectedFileInfo.classList.remove('entering', 'leaving');
+            }
+            animateShow(linkUploadZone, 'block');
+        });
         if (uploadSubmitBtn) uploadSubmitBtn.innerHTML = '<i class="fas fa-plus"></i><span>添加链接</span>';
         clearSelectedFile();
     }

@@ -869,6 +869,15 @@
     }
 }
 
+.upload-form > .file-drop-zone,
+.upload-form > .link-upload-zone,
+.upload-form > .selected-file-info,
+.upload-form > .upload-progress,
+#selected-file-info,
+#upload-progress {
+    transform-origin: center top;
+}
+
 @keyframes uploadProgressIn {
     from {
         opacity: 0;

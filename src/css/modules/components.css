@@ -3058,6 +3058,18 @@
 
 .upload-option-group {
     margin-bottom: 1rem;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, margin 0.35s ease, padding 0.35s ease;
+    max-height: 300px;
+    opacity: 1;
+}
+
+.upload-option-group.hidden {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
 }
 
 .upload-option-group .upload-option-row {
@@ -3126,6 +3138,41 @@
     color: var(--text-secondary);
     line-height: 1.4;
     word-break: break-word;
+}
+
+.upload-option-row .option-hint[data-mobile] {
+    display: none;
+}
+
+@media (max-width: 480px) {
+    .upload-option-row {
+        padding: 0.6rem 0.8rem;
+        gap: 0.7rem;
+    }
+
+    .upload-option-row .option-info label {
+        font-size: 0.9rem;
+    }
+
+    .upload-option-row .option-hint[data-desktop] {
+        display: none;
+    }
+
+    .upload-option-row .option-hint[data-mobile] {
+        display: inline;
+        font-size: 0.75rem;
+        color: var(--text-light);
+    }
+
+    .upload-option-sub {
+        margin-left: 0.8rem;
+        padding-left: 0.8rem;
+    }
+
+    .upload-option-sub::before {
+        left: -0.8rem;
+        width: 0.6rem;
+    }
 }
 
 .toggle-switch {
@@ -8280,13 +8327,15 @@ input#prompt-input {
     padding: 3rem 2rem;
     text-align: center;
     cursor: pointer;
-    transition: border-color 0.3s ease, background 0.3s ease;
+    transition: border-color 0.3s ease, background-color 0.3s ease, padding 0.35s cubic-bezier(0.22, 1, 0.36, 1), min-height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     background: var(--background-alt);
     margin-bottom: 2rem;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 200px;
+    box-sizing: border-box;
+    will-change: padding, min-height, background-color;
 }
 
 .file-drop-zone:hover {
@@ -9566,25 +9615,37 @@ input#prompt-input {
     background-color: rgba(46, 139, 87, 0.1);
 }
 
+.file-drop-zone.compact.drag-over,
+.file-drop-zone.compact:hover {
+    background-color: rgba(46, 139, 87, 0.08);
+}
+
 .file-drop-zone.compact {
     padding: 1rem 2rem;
     min-height: 80px;
     margin-bottom: 1rem;
 }
 
+.file-drop-zone.compact .drop-zone-content {
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+}
+
 .file-drop-zone.compact .drop-zone-icon {
     font-size: 1.5rem;
     margin-bottom: 0.3rem;
+    transition: font-size 0.35s cubic-bezier(0.22, 1, 0.36, 1), margin 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .file-drop-zone.compact .drop-zone-text h3 {
     font-size: 0.95rem;
     margin-bottom: 0.2rem;
+    transition: font-size 0.35s cubic-bezier(0.22, 1, 0.36, 1), margin 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .file-drop-zone.compact .drop-zone-text p {
     margin-bottom: 0;
     font-size: 0.85rem;
+    transition: font-size 0.35s cubic-bezier(0.22, 1, 0.36, 1), margin 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .file-drop-zone.compact .file-types {
