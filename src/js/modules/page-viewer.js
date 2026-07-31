@@ -14,6 +14,7 @@
     const CACHE = {};
     let isViewerOpen = false;
     let currentHref = null;
+    let hostHref = null;
 
     function getPageConfig(href) {
         return PAGE_LIST.find(p => p.href === href) || null;
@@ -109,6 +110,10 @@
         if (!config) {
             window.location.href = href;
             return;
+        }
+
+        if (hostHref === null) {
+            hostHref = window.location.pathname.split('/').pop() || 'index.html';
         }
 
         createViewerDOM();
@@ -246,6 +251,10 @@
 
     function closeViewerAndGoHome() {
         if (currentHref) {
+            if (hostHref !== 'index.html') {
+                window.location.href = 'index.html';
+                return;
+            }
             var homeUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'index.html';
             var currentUrl = window.location.href;
             if (currentUrl !== homeUrl) {
