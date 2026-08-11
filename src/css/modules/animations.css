@@ -199,6 +199,26 @@
     }
 }
 
+@keyframes previewSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes previewPulse {
+    0%, 100% { transform: scale(1); opacity: 0.95; }
+    50% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes previewCoreBreathe {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 4px 20px rgba(var(--primary-rgb), 0.25), inset 0 0 0 1px rgba(var(--primary-rgb), 0.15); }
+    50% { transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 6px 28px rgba(var(--primary-rgb), 0.4), inset 0 0 0 1px rgba(var(--primary-rgb), 0.25); }
+}
+
+@keyframes previewOrbit {
+    0% { transform: rotate(0deg) translateX(var(--orbit-radius, 40px)) rotate(0deg); }
+    100% { transform: rotate(360deg) translateX(var(--orbit-radius, 40px)) rotate(-360deg); }
+}
+
 
 @keyframes createFolderSlideIn {
     from {

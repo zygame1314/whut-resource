@@ -137,7 +137,7 @@
         if (state.isLoading || !state.hasMore) return;
         const isFirstPage = !state.nextCursor;
         state.isLoading = true;
-        updateLoadMore();
+        updateLoadMore(isFirstPage);
         try {
             let url = `${API_ENDPOINTS.notifications}?limit=${PAGE_SIZE}`;
             if (state.nextCursor) url += `&cursor=${encodeURIComponent(state.nextCursor)}`;
@@ -156,10 +156,11 @@
         }
     }
 
-    function updateLoadMore() {
+    function updateLoadMore(isFirstLoading) {
         const footer = document.querySelector('.notification-panel-footer');
         if (!footer) return;
-        footer.classList.toggle('u-hidden', !state.hasMore);
+        const showFooter = state.hasMore && !isFirstLoading && state.items.length > 0;
+        footer.classList.toggle('u-hidden', !showFooter);
         const btn = footer.querySelector('.notif-load-more');
         if (btn) btn.textContent = state.isLoading ? '加载中...' : '加载更多';
         btn.disabled = state.isLoading;

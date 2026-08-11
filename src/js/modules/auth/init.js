@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     var THEMES = [
         { id: 'light', name: '浅色', icon: 'fas fa-sun', elements: ['fa-microchip', 'fa-flask', 'fa-cogs', 'fa-code'] },
         { id: 'dark', name: '深色', icon: 'fas fa-moon', elements: ['fa-moon', 'fa-star', 'fa-bolt', 'fa-shield-alt'] },
-        { id: 'sepia', name: '护眼', icon: 'fas fa-leaf', elements: ['fa-book', 'fa-feather', 'fa-pen', 'fa-scroll'] },
+        { id: 'sepia', name: '古典', icon: 'fas fa-leaf', elements: ['fa-book', 'fa-feather', 'fa-pen', 'fa-scroll'] },
         { id: 'ocean', name: '海洋', icon: 'fas fa-water', elements: ['fa-fish', 'fa-ship', 'fa-anchor', 'fa-water'] },
         { id: 'forest', name: '森林', icon: 'fas fa-tree', elements: ['fa-tree', 'fa-leaf', 'fa-paw', 'fa-bug'] },
         { id: 'nord', name: '极地', icon: 'fas fa-snowflake', elements: ['fa-snowflake', 'fa-mountain', 'fa-cloud', 'fa-wind'] },

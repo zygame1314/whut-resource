@@ -132,7 +132,6 @@ async function deleteFile(key, isDirectory) {
                 confirmClass: 'confirm-btn-danger'
             });
             if (!firstConfirm) {
-                showNotification('删除操作已取消', 'info');
                 return;
             }
             let inputName;
@@ -145,7 +144,6 @@ async function deleteFile(key, isDirectory) {
                     cancelText: '取消'
                 });
             } catch (e) {
-                showNotification('删除操作已取消', 'info');
                 return;
             }
             if (inputName !== displayName) {
@@ -161,7 +159,6 @@ async function deleteFile(key, isDirectory) {
                 confirmClass: 'confirm-btn-danger'
             });
             if (!confirmed) {
-                showNotification('删除操作已取消', 'info');
                 return;
             }
             await performDelete();
@@ -169,8 +166,6 @@ async function deleteFile(key, isDirectory) {
     } catch (error) {
         if (error.message !== '用户取消验证' && error.message !== 'User cancelled') {
             showNotification(`删除操作失败: ${error.message}`, 'error');
-        } else {
-            showNotification('删除操作已取消', 'info');
         }
         console.log('删除操作处理完毕:', error.message);
     }
@@ -303,7 +298,6 @@ async function openLink(fileKey, linkUrl, openBtn) {
                 }
             });
             if (!confirmed) {
-                showNotification('跳转已取消', 'info');
                 return;
             }
             if (fileKey) {
@@ -429,7 +423,6 @@ async function moveItem(key, currentName, isDirectory) {
     try {
         destinationPath = await showDirectoryPicker([key]);
     } catch (error) {
-        showNotification('移动操作已取消', 'info');
         return;
     }
     const performMove = async () => {
@@ -466,7 +459,6 @@ async function moveItem(key, currentName, isDirectory) {
         if (error.message !== '用户取消验证') {
             showNotification(`移动操作失败: ${error.message}`, 'error');
         } else {
-            showNotification('移动操作已取消', 'info');
         }
     }
 }
@@ -480,7 +472,6 @@ async function renameFile(key, currentName, isDirectory) {
             confirmText: '重命名'
         });
     } catch (error) {
-        showNotification('重命名操作已取消', 'info');
         return;
     }
     if (!newName || newName.trim() === "" || newName === currentName) {
@@ -525,8 +516,6 @@ async function renameFile(key, currentName, isDirectory) {
     } catch (error) {
         if (error.message !== '用户取消验证') {
             showNotification(`重命名操作失败: ${error.message}`, 'error');
-        } else {
-            showNotification('重命名操作已取消', 'info');
         }
     }
 }
@@ -544,7 +533,6 @@ async function editDescription(key, currentName, currentDescription) {
             showPreview: true
         });
     } catch (error) {
-        showNotification('操作已取消', 'info');
         return;
     }
     if (newDescription === (currentDescription || '')) {
@@ -581,8 +569,6 @@ async function editDescription(key, currentName, currentDescription) {
     } catch (error) {
         if (error.message !== '用户取消验证') {
             showNotification(`操作失败: ${error.message}`, 'error');
-        } else {
-            showNotification('操作已取消', 'info');
         }
     }
 }

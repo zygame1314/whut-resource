@@ -156,7 +156,7 @@ function renderFolderTree(tree, container) {
         container: container,
         scrollWrapper: true,
         showGoToBtn: true,
-        onGoTo: function(path, item) {
+        onGoTo: function (path, item) {
             fetchAndDisplayFiles(path);
             document.querySelectorAll('.folder-tree-item.active').forEach(item => item.classList.remove('active'));
             item.classList.add('active');
@@ -557,7 +557,6 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
             if (result && result.success !== false) {
                 setSubUI(!!result.isSubscribed);
                 if (result.isSubscribed) showNotification('已订阅，该文件夹有新文件时会通知你', 'success', 2000);
-                else showNotification('已取消订阅', 'info', 1500);
                 if (typeof directoryCache !== 'undefined') {
                     const subState = result.isSubscribed ? 1 : 0;
                     for (const p in directoryCache) {

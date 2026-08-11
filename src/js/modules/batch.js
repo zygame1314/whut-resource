@@ -169,15 +169,12 @@ async function handleBatchDelete() {
             confirmClass: 'confirm-btn-danger'
         });
         if (!confirmed) {
-            showNotification('批量删除操作已取消', 'info');
             return;
         }
         await performBatchDelete();
     } catch (error) {
         if (error.message !== '用户取消验证' && error.message !== 'User cancelled') {
             showNotification(`批量删除操作失败: ${error.message}`, 'error');
-        } else {
-            showNotification('批量删除操作已取消', 'info');
         }
         console.log('批量删除操作处理完毕:', error.message);
     }
@@ -372,7 +369,6 @@ async function handleBatchMove() {
     try {
         destinationPath = await showDirectoryPicker(keysToMove);
     } catch (error) {
-        showNotification('移动操作已取消', 'info');
         return;
     }
     const performBatchMove = async () => {
@@ -441,8 +437,6 @@ async function handleBatchMove() {
     } catch (error) {
         if (error.message !== '用户取消验证' && error.message !== 'User cancelled') {
             showNotification(`批量移动操作失败: ${error.message}`, 'error');
-        } else {
-            showNotification('批量移动操作已取消', 'info');
         }
     }
 }

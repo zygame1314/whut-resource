@@ -77,20 +77,22 @@
 .shepherd-custom-theme .shepherd-cancel-icon {
     color: var(--text-secondary);
     font-size: 1.5em;
-    padding: 2px 4px;
-    border-radius: var(--border-radius-small);
-    transition: background var(--transition-fast), color var(--transition-fast);
+    padding: 0;
+    border-radius: 50%;
+    transition: color var(--transition-fast), transform var(--transition-fast);
     line-height: 1;
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
+    background: transparent;
+    border: none;
 }
 
 .shepherd-custom-theme .shepherd-cancel-icon:hover {
     color: var(--accent-color);
-    background: rgba(255, 107, 107, 0.1);
 }
 
 .shepherd-custom-theme.shepherd-has-title .shepherd-content .shepherd-cancel-icon {
@@ -99,7 +101,6 @@
 
 .shepherd-custom-theme.shepherd-has-title .shepherd-content .shepherd-cancel-icon:hover {
     color: var(--accent-color);
-    background: rgba(255, 107, 107, 0.1);
 }
 
 .shepherd-custom-theme .shepherd-text {
@@ -148,42 +149,12 @@
     font-weight: 600;
     font-size: 0.88rem;
     padding: 0.55rem 1.2rem;
-    transition: box-shadow 0.3s ease;
+    transition: box-shadow 0.3s ease, filter 0.3s ease, transform 0.3s ease;
     margin-right: 0;
     position: relative;
     overflow: hidden;
     font-family: var(--font-family);
     box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.15);
-}
-
-.shepherd-custom-theme .shepherd-button:not(:disabled):hover {
-    box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.4);
-    background: var(--primary-gradient);
-}
-
-.shepherd-custom-theme .shepherd-button:not(:disabled):active {
-    box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.15);
-    background: var(--primary-gradient);
-}
-
-.shepherd-custom-theme .shepherd-button.shepherd-button-secondary {
-    background: var(--background);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-    font-weight: 600;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    transition: box-shadow 0.3s ease, border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
-}
-
-.shepherd-custom-theme .shepherd-button.shepherd-button-secondary:not(:disabled):hover {
-    background: var(--background-alt);
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-    box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.15);
-}
-
-.shepherd-custom-theme .shepherd-button.shepherd-button-secondary:not(:disabled):active {
-    box-shadow: 0 1px 4px rgba(var(--primary-rgb), 0.08);
 }
 
 .shepherd-custom-theme .shepherd-button:not(:disabled):hover {
@@ -193,8 +164,9 @@
 }
 
 .shepherd-custom-theme .shepherd-button:not(:disabled):active {
-    box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.2);
+    box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.15);
     filter: brightness(0.95);
+    transform: translateY(0);
     background: var(--primary-gradient);
 }
 
@@ -205,7 +177,7 @@
     font-weight: 600;
     filter: brightness(1);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    transition: box-shadow 0.25s ease, filter 0.25s ease, border-color 0.25s ease, color 0.25s ease, background 0.25s ease;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease, color 0.3s ease, background 0.3s ease, transform 0.3s ease;
 }
 
 .shepherd-custom-theme .shepherd-button.shepherd-button-secondary:not(:disabled):hover {
@@ -213,12 +185,11 @@
     color: var(--primary-color);
     border-color: var(--primary-color);
     box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.15);
-    filter: brightness(1);
 }
 
 .shepherd-custom-theme .shepherd-button.shepherd-button-secondary:not(:disabled):active {
     box-shadow: 0 1px 4px rgba(var(--primary-rgb), 0.08);
-    filter: brightness(0.97);
+    transform: translateY(0);
 }
 
 .shepherd-custom-theme .shepherd-button:disabled {

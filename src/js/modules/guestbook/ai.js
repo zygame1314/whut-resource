@@ -128,7 +128,7 @@ async function showAiResultModal(guestbookId, result) {
                 }
                 if (result.pending_categories && result.pending_categories.length > 0) {
                     const cats = result.pending_categories.map(c => `<span class="ai-pending-tag">${escapeHtml(c)}</span>`).join('');
-                    actionDescription += `<div class="ai-result-pending"><div class="ai-result-pending-title"><i class="fas fa-circle-half-stroke"></i> 部分课程未命中，建议建待办</div><div class="ai-result-pending-tags">${cats}</div><div class="ai-result-pending-hint">命中的资源会立即给用户，未命中的课程将进入管理员待办池等待补充。</div></div>`;
+                    actionDescription += `<div class="ai-result-pending"><div class="ai-result-pending-title"><i class="fas fa-circle-half-stroke"></i> 部分课程未命中</div><div class="ai-result-pending-tags">${cats}</div><div class="ai-result-pending-hint">命中的资源会立即给用户，未命中的课程将进入管理员待办池等待补充。</div></div>`;
                 }
                 if (result.note) {
                     actionDescription += `<div class="ai-result-note" style="margin-top:8px; color:var(--text-secondary);"><strong>备注：</strong>${escapeHtml(result.note)}</div>`;

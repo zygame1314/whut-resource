@@ -382,6 +382,12 @@ function getAnnouncementSignature(announcement) {
 function openAnnouncementViewModal(announcement, options = {}) {
     const { fromEntry = false, preserveHideChoice = false } = options;
     if (!announcementViewModal || !announcementViewContent || !announcementViewTitle) return;
+
+    const modalContent = announcementViewModal.querySelector('.announcement-view-modal-content');
+    const isSwitching = announcementViewModal.classList.contains('visible') && currentViewedAnnouncement
+        && currentViewedAnnouncement.id !== announcement.id;
+    const startHeight = isSwitching && modalContent ? modalContent.scrollHeight : 0;
+
     currentViewedAnnouncement = announcement;
     const titleText = fromEntry ? '网站公告' : '公告详情';
     announcementViewTitle.textContent = titleText;
@@ -411,8 +417,28 @@ function openAnnouncementViewModal(announcement, options = {}) {
         renderMarkdown(announcement.content || '').then(html => {
             const bodyEl = document.getElementById('announcement-view-body');
             if (bodyEl) bodyEl.innerHTML = html;
+            if (isSwitching && modalContent) animateAnnouncementHeight(modalContent, startHeight);
         });
+    } else if (isSwitching && modalContent) {
+        animateAnnouncementHeight(modalContent, startHeight);
     }
+}
+
+function animateAnnouncementHeight(modalContent, startHeight) {
+    if (!modalContent || !startHeight) return;
+    const maxH = modalContent.clientHeight;
+    modalContent.style.height = startHeight + 'px';
+    modalContent.classList.add('height-animating');
+    void modalContent.offsetHeight;
+    const targetHeight = Math.min(modalContent.scrollHeight, maxH);
+    modalContent.style.height = targetHeight + 'px';
+    const onEnd = () => {
+        modalContent.style.height = '';
+        modalContent.classList.remove('height-animating');
+        modalContent.removeEventListener('transitionend', onEnd);
+    };
+    modalContent.addEventListener('transitionend', onEnd, { once: true });
+    setTimeout(onEnd, 400);
 }
 function switchAnnouncementInView(direction) {
     if (!currentViewedAnnouncement || !Array.isArray(allAnnouncementsCache) || allAnnouncementsCache.length <= 1) return;
@@ -491,6 +517,11 @@ function handleAnnouncementViewConfirm() {
 }
 function closeAnnouncementViewModal() {
     if (!announcementViewModal) return;
+    const modalContent = announcementViewModal.querySelector('.announcement-view-modal-content');
+    if (modalContent) {
+        modalContent.style.height = '';
+        modalContent.classList.remove('height-animating');
+    }
     announcementViewModal.classList.remove('visible');
 }
 function bindAnnouncementInteractionEvents() {

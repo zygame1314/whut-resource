@@ -1181,6 +1181,8 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
     const aiSearchToggle = document.getElementById('ai-search-toggle');
     const useAISearch = aiSearchToggle && aiSearchToggle.checked && isGlobal;
     const loadingMessage = useAISearch ? 'AI 正在分析语义' : '正在加载文件列表';
+    const existingLoadMore = document.getElementById('load-more-container');
+    if (existingLoadMore) existingLoadMore.remove();
     fileListElement.innerHTML = `
         <li class="loading-item">
             <div class="creative-loader">
