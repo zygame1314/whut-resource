@@ -8,17 +8,7 @@
     <link rel="icon" href="favicon.png" type="image/png">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="lib/fontawesome/css/all.min.css">
-    <script>
-        (function () {
-            var t = localStorage.getItem('theme');
-            var auto = localStorage.getItem('autoTheme');
-            if (!t || auto === 'true') {
-                var h = new Date().getHours();
-                t = (h >= 18 || h < 6) ? 'dark' : 'light';
-            }
-            document.documentElement.setAttribute('data-theme', t);
-        })();
-    </script>
+    <script src="theme-init.js"></script>
 </head>
 
 <body class="oauth-page-body">
