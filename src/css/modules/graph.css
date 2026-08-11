@@ -21,7 +21,7 @@
 .graph-container {
     width: 95vw;
     height: 90vh;
-    background: var(--card-background);
+    background: var(--card-bg);
     border-radius: 20px;
     box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5),
         0 0 0 1px rgba(255, 255, 255, 0.1);
@@ -41,8 +41,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem 1.5rem;
-    border-bottom: 1px solid #e2e8f0;
-    background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 100%);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-alt);
 }
 
 .graph-header-left {
@@ -146,9 +146,9 @@
     flex: 1;
     position: relative;
     overflow: hidden;
-    background: #f8fafc;
+    background: var(--background-alt);
     background-image:
-        radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+        radial-gradient(circle, var(--border-color) 1px, transparent 1px);
     background-size: 20px 20px;
 }
 
@@ -192,20 +192,20 @@
 }
 
 .graph-node text {
-    fill: #1e293b;
+    fill: var(--text-primary);
     font-size: 11px;
     font-weight: 600;
     pointer-events: none;
     text-shadow:
-        -1px -1px 0 #fff,
-        1px -1px 0 #fff,
-        -1px 1px 0 #fff,
-        1px 1px 0 #fff,
-        0 0 6px #fff;
+        -1px -1px 0 var(--card-bg),
+        1px -1px 0 var(--card-bg),
+        -1px 1px 0 var(--card-bg),
+        1px 1px 0 var(--card-bg),
+        0 0 6px var(--card-bg);
 }
 
 .graph-link {
-    stroke: #64748b;
+    stroke: var(--text-secondary);
     stroke-opacity: 1;
     stroke-width: 1.5px;
     fill: none;
@@ -213,21 +213,21 @@
 }
 
 .graph-link.highlighted {
-    stroke: #2E8B57;
+    stroke: var(--primary-color);
     stroke-opacity: 1;
     stroke-width: 2.5px;
 }
 
 .graph-link.dimmed {
-    stroke: #94a3b8;
+    stroke: var(--text-light);
     stroke-opacity: 0.35;
 }
 
 .graph-tooltip {
     position: absolute;
     padding: 0.75rem 1rem;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 10px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     pointer-events: none;
@@ -283,7 +283,7 @@
     bottom: 1rem;
     left: 1rem;
     padding: 0.75rem 1rem;
-    background: var(--card-background);
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     font-size: 0.8rem;
@@ -308,7 +308,7 @@
     top: 1rem;
     right: 1rem;
     padding: 1rem;
-    background: var(--card-background);
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     font-size: 0.8rem;
@@ -348,7 +348,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    background: var(--card-background);
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 0.5rem;
@@ -371,7 +371,7 @@
     justify-content: center;
     align-items: center;
     gap: 1rem;
-    background: var(--background-primary);
+    background: var(--background-alt);
 }
 
 .graph-loading .loading-spinner {
@@ -391,7 +391,7 @@
     right: 1rem;
     width: 150px;
     height: 100px;
-    background: var(--card-background);
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
@@ -410,7 +410,7 @@
 }
 
 .graph-minimap-viewport {
-    fill: rgba(46, 139, 87, 0.2);
+    fill: rgba(var(--primary-rgb), 0.2);
     stroke: var(--primary-color);
     stroke-width: 1px;
 }
@@ -430,9 +430,9 @@
     padding: 0.75rem 1rem;
     margin-top: 1rem;
     background: linear-gradient(135deg,
-            rgba(46, 139, 87, 0.15) 0%,
-            rgba(64, 224, 208, 0.1) 100%);
-    border: 1px solid rgba(46, 139, 87, 0.3);
+            rgba(var(--primary-rgb), 0.15) 0%,
+            rgba(var(--primary-rgb), 0.1) 100%);
+    border: 1px solid rgba(var(--primary-rgb), 0.3);
     border-radius: 10px;
     color: var(--primary-color);
     font-size: 0.9rem;
@@ -443,89 +443,13 @@
 
 .graph-view-btn:hover {
     background: linear-gradient(135deg,
-            rgba(46, 139, 87, 0.25) 0%,
-            rgba(64, 224, 208, 0.15) 100%);
+            rgba(var(--primary-rgb), 0.25) 0%,
+            rgba(var(--primary-rgb), 0.15) 100%);
     border-color: var(--primary-color);
     transform: scale(1.05);
-    box-shadow: 0 4px 15px rgba(46, 139, 87, 0.2);
+    box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.2);
 }
 
 .graph-view-btn i {
     font-size: 1.1rem;
-}
-
-[data-theme="dark"] .graph-canvas-area {
-    background: #0d1117;
-    background-image:
-        radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-    background-size: 20px 20px;
-}
-
-[data-theme="dark"] .graph-node text {
-    text-shadow:
-        -2px -2px 0 #0d1117,
-        2px -2px 0 #0d1117,
-        -2px 2px 0 #0d1117,
-        2px 2px 0 #0d1117;
-}
-
-[data-theme="dark"] .graph-link {
-    stroke: rgba(148, 163, 184, 0.5);
-}
-
-[data-theme="dark"] .graph-link.dimmed {
-    stroke-opacity: 0.15;
-}
-
-[data-theme="dark"] .graph-link {
-    stroke: rgba(148, 163, 184, 0.5);
-    stroke-opacity: 0.6;
-}
-
-[data-theme="dark"] .graph-link.highlighted {
-    stroke: #40E0D0;
-    stroke-opacity: 1;
-}
-
-[data-theme="dark"] .graph-link.dimmed {
-    stroke-opacity: 0.15;
-}
-
-[data-theme="dark"] .graph-node text {
-    fill: #e2e8f0;
-    text-shadow:
-        -2px -2px 0 #0d1117,
-        2px -2px 0 #0d1117,
-        -2px 2px 0 #0d1117,
-        2px 2px 0 #0d1117;
-}
-
-[data-theme="dark"] .graph-node.dimmed {
-    opacity: 0.15;
-}
-
-[data-theme="dark"] .graph-header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    background: linear-gradient(135deg,
-            rgba(46, 139, 87, 0.15) 0%,
-            rgba(64, 224, 208, 0.08) 100%);
-}
-
-[data-theme="dark"] .graph-container {
-    background: #161b22;
-}
-
-[data-theme="dark"] .graph-tooltip {
-    background: #1e293b;
-    border-color: #334155;
-    color: #e2e8f0;
-}
-
-[data-theme="dark"] .graph-tooltip-title {
-    color: #f1f5f9;
-}
-
-[data-theme="dark"] .graph-tooltip-path,
-[data-theme="dark"] .graph-tooltip-meta {
-    color: #94a3b8;
 }

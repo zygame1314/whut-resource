@@ -158,10 +158,12 @@
 
 .shepherd-custom-theme .shepherd-button:not(:disabled):hover {
     box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.4);
+    background: var(--primary-gradient);
 }
 
 .shepherd-custom-theme .shepherd-button:not(:disabled):active {
     box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.15);
+    background: var(--primary-gradient);
 }
 
 .shepherd-custom-theme .shepherd-button.shepherd-button-secondary {
@@ -187,11 +189,13 @@
 .shepherd-custom-theme .shepherd-button:not(:disabled):hover {
     box-shadow: 0 6px 18px rgba(var(--primary-rgb), 0.35);
     filter: brightness(1.1);
+    background: var(--primary-gradient);
 }
 
 .shepherd-custom-theme .shepherd-button:not(:disabled):active {
     box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.2);
     filter: brightness(0.95);
+    background: var(--primary-gradient);
 }
 
 .shepherd-custom-theme .shepherd-button.shepherd-button-secondary {
