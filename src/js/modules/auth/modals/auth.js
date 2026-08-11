@@ -789,11 +789,13 @@ function showAuthModal(mode = 'login') {
                     };
                 } else {
                     showNotification(data.error, 'error');
+                    if (registerPowCtrl) registerPowCtrl.reset();
                     getCodeBtn.disabled = false;
                     getCodeBtn.innerHTML = '获取验证码';
                 }
             } catch (err) {
                 showNotification('请求失败: ' + err.message, 'error');
+                if (registerPowCtrl) registerPowCtrl.reset();
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
             }

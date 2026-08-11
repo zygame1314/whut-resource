@@ -69,10 +69,10 @@
     --element-3-bg: linear-gradient(135deg, #45B7D1, #73C6DB);
     --element-4-bg: linear-gradient(135deg, #96CEB4, #B8E6C1);
 
-    --badge-online-rgb: 16, 185, 129;
-    --badge-registered-rgb: 99, 102, 241;
-    --badge-uptime-rgb: 245, 158, 11;
-    --badge-update-rgb: 6, 182, 212;
+    --badge-online-rgb: var(--primary-rgb);
+    --badge-registered-rgb: var(--primary-rgb);
+    --badge-uptime-rgb: var(--primary-rgb);
+    --badge-update-rgb: var(--primary-rgb);
 
     --footer-bg: #2C3E50;
     --footer-text: #FFFFFF;
@@ -106,10 +106,10 @@
     --element-3-bg: linear-gradient(135deg, #45B7D1, #73C6DB);
     --element-4-bg: linear-gradient(135deg, #96CEB4, #B8E6C1);
 
-    --badge-online-rgb: 16, 185, 129;
-    --badge-registered-rgb: 99, 102, 241;
-    --badge-uptime-rgb: 245, 158, 11;
-    --badge-update-rgb: 6, 182, 212;
+    --badge-online-rgb: var(--primary-rgb);
+    --badge-registered-rgb: var(--primary-rgb);
+    --badge-uptime-rgb: var(--primary-rgb);
+    --badge-update-rgb: var(--primary-rgb);
 
     --footer-bg: #1A1A2E;
     --footer-text: #EAEAEA;
@@ -326,25 +326,25 @@
 }
 
 [data-theme="rose"] {
-    --primary-color: #EC4899;
-    --primary-light: #F9A8D4;
-    --primary-dark: #DB2777;
-    --primary-gradient: linear-gradient(135deg, #EC4899 0%, #F9A8D4 100%);
-    --primary-rgb: 236, 72, 153;
-    --accent-color: #A78BFA;
-    --accent-rgb: 167, 139, 250;
-    --accent-gradient: linear-gradient(135deg, #A78BFA 0%, #C4B5FD 100%);
+    --primary-color: #FF7B9D;
+    --primary-light: #FFB3C6;
+    --primary-dark: #E85A7C;
+    --primary-gradient: linear-gradient(135deg, #FF7B9D 0%, #FFB3C6 100%);
+    --primary-rgb: 255, 123, 157;
+    --accent-color: #FFB347;
+    --accent-rgb: 255, 179, 71;
+    --accent-gradient: linear-gradient(135deg, #FFB347 0%, #FFD6A5 100%);
 
-    --background: #FDF2F8;
-    --background-alt: #FCE7F3;
-    --background-dark: #FBCFE8;
-    --text-primary: #831843;
-    --text-secondary: #9D174D;
-    --text-light: #BE185D;
-    --border-color: #f6c5e0;
+    --background: #FFF5F7;
+    --background-alt: #FFEBF0;
+    --background-dark: #FFD6E0;
+    --text-primary: #7B3B52;
+    --text-secondary: #A96B82;
+    --text-light: #D18AA2;
+    --border-color: #FDDDE5;
 
     --background-secondary: var(--background-alt);
-    --background-hover: rgba(236, 72, 153, 0.06);
+    --background-hover: rgba(255, 123, 157, 0.06);
 
     --button-bg: var(--background);
     --button-text: var(--text-primary);
@@ -352,29 +352,29 @@
     --button-hover-bg: var(--background-alt);
 
     --card-bg: #FFFFFF;
-    --card-shadow: 0 4px 6px rgba(236, 72, 153, 0.12);
-    --text-muted: #9CA3AF;
-    --text-tertiary: #B0B0B0;
+    --card-shadow: 0 4px 6px rgba(255, 123, 157, 0.12);
+    --text-muted: #C49AA8;
+    --text-tertiary: #D8B4C0;
 
-    --dark-bg: #831843;
-    --dark-bg-alt: #9D174D;
-    --dark-border: #BE185D;
-    --nav-bg: rgba(252, 231, 243, 0.95);
+    --dark-bg: #5E2F40;
+    --dark-bg-alt: #723B4F;
+    --dark-border: #8E4E64;
+    --nav-bg: rgba(255, 235, 240, 0.95);
 
-    --element-1-bg: linear-gradient(135deg, #F9A8D4, #FBCFE8);
-    --element-2-bg: linear-gradient(135deg, #F472B6, #F9A8D4);
-    --element-3-bg: linear-gradient(135deg, #C4B5FD, #DDD6FE);
-    --element-4-bg: linear-gradient(135deg, #FBCFE8, #FCE7F3);
+    --element-1-bg: linear-gradient(135deg, #FF7B9D, #FFB3C6);
+    --element-2-bg: linear-gradient(135deg, #FFB347, #FFD6A5);
+    --element-3-bg: linear-gradient(135deg, #C9A0DC, #E2C4F0);
+    --element-4-bg: linear-gradient(135deg, #FF9AA2, #FFC3C8);
 
-    --badge-online-rgb: 236, 72, 153;
-    --badge-registered-rgb: 167, 139, 250;
-    --badge-uptime-rgb: 244, 114, 182;
-    --badge-update-rgb: 192, 132, 252;
+    --badge-online-rgb: 255, 123, 157;
+    --badge-registered-rgb: 201, 160, 220;
+    --badge-uptime-rgb: 255, 179, 71;
+    --badge-update-rgb: 255, 154, 162;
 
-    --footer-bg: #9D174D;
-    --footer-text: #FCE7F3;
-    --footer-muted: #F9A8D4;
-    --footer-border: #BE185D;
+    --footer-bg: #723B4F;
+    --footer-text: #FFEBF0;
+    --footer-muted: #F4C2D4;
+    --footer-border: #8E4E64;
 }
 
 * {

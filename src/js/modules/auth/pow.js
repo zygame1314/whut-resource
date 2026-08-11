@@ -184,7 +184,7 @@ function updatePowUI(powEl, progress) {
     const nonce = progress.nonce || 0;
     const hash = progress.hash || '';
 
-    powEl.classList.remove('pow-idle');
+    powEl.classList.toggle('pow-idle', phase === 'idle');
     powEl.classList.toggle('pow-done', phase === 'done');
     powEl.classList.toggle('pow-working', phase === 'benchmark' || phase === 'benchmark_done' || phase === 'fetching' || phase === 'solving' || phase === 'computing');
 
@@ -202,8 +202,17 @@ function updatePowUI(powEl, progress) {
         else if (phase === 'solving') pct = 25;
         else if (phase === 'computing') pct = 25 + Math.min(nonce / 150000, 1) * 75;
         else if (phase === 'done') pct = 100;
-        ring.style.strokeDashoffset = circumference * (1 - pct / 100);
-        ring.classList.toggle('pow-ring-done', phase === 'done');
+        if (phase === 'idle') {
+            ring.style.transition = 'none';
+            ring.style.strokeDasharray = String(circumference);
+            ring.style.strokeDashoffset = String(circumference);
+            void ring.offsetWidth;
+            ring.style.transition = '';
+            ring.classList.remove('pow-ring-done');
+        } else {
+            ring.style.strokeDashoffset = String(circumference * (1 - pct / 100));
+            ring.classList.toggle('pow-ring-done', phase === 'done');
+        }
     }
     if (nonceEl) nonceEl.textContent = nonce.toLocaleString();
     if (hashEl) hashEl.textContent = hash || '--------';

@@ -275,48 +275,31 @@
     transition: background 0.3s ease, border-color 0.3s ease;
 }
 
+.stat-badge {
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(var(--primary-rgb), 0.2);
+}
+
+.stat-badge:hover {
+    background: rgba(var(--primary-rgb), 0.16);
+    border-color: rgba(var(--primary-rgb), 0.3);
+}
+
 .stat-badge-online {
-    background: rgba(var(--badge-online-rgb), 0.1);
-    color: rgb(var(--badge-online-rgb));
-    border: 1px solid rgba(var(--badge-online-rgb), 0.25);
     animation-delay: 0.6s;
 }
 
-.stat-badge-online:hover {
-    background: rgba(var(--badge-online-rgb), 0.18);
-}
-
 .stat-badge-registered {
-    background: rgba(var(--badge-registered-rgb), 0.1);
-    color: rgb(var(--badge-registered-rgb));
-    border: 1px solid rgba(var(--badge-registered-rgb), 0.25);
     animation-delay: 0.8s;
 }
 
-.stat-badge-registered:hover {
-    background: rgba(var(--badge-registered-rgb), 0.18);
-}
-
 .stat-badge-uptime {
-    background: rgba(var(--badge-uptime-rgb), 0.1);
-    color: rgb(var(--badge-uptime-rgb));
-    border: 1px solid rgba(var(--badge-uptime-rgb), 0.25);
     animation-delay: 1s;
 }
 
-.stat-badge-uptime:hover {
-    background: rgba(var(--badge-uptime-rgb), 0.18);
-}
-
 .stat-badge-update {
-    background: rgba(var(--badge-update-rgb), 0.1);
-    color: rgb(var(--badge-update-rgb));
-    border: 1px solid rgba(var(--badge-update-rgb), 0.25);
     animation-delay: 1.2s;
-}
-
-.stat-badge-update:hover {
-    background: rgba(var(--badge-update-rgb), 0.18);
 }
 
 .stat-pulse {
@@ -324,9 +307,12 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: rgb(var(--badge-online-rgb));
+    background: var(--primary-color);
+    box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0.4);
     animation: stat-pulse-anim 2s ease-in-out infinite;
 }
+
+
 
 @media (max-width: 768px) {
     .hero-badges {
@@ -346,34 +332,6 @@
         padding: 0.35rem 0.7rem;
         font-size: 0.72rem;
     }
-}
-
-[data-theme="dark"] .stat-badge-online {
-    background: rgba(16, 185, 129, 0.12);
-    color: #34d399;
-    border-color: rgba(16, 185, 129, 0.3);
-}
-
-[data-theme="dark"] .stat-badge-registered {
-    background: rgba(129, 140, 248, 0.12);
-    color: #a5b4fc;
-    border-color: rgba(129, 140, 248, 0.3);
-}
-
-[data-theme="dark"] .stat-badge-uptime {
-    background: rgba(251, 191, 36, 0.12);
-    color: #fbbf24;
-    border-color: rgba(251, 191, 36, 0.3);
-}
-
-[data-theme="dark"] .stat-badge-update {
-    background: rgba(34, 211, 238, 0.12);
-    color: #22d3ee;
-    border-color: rgba(34, 211, 238, 0.3);
-}
-
-[data-theme="dark"] .stat-pulse {
-    background: #34d399;
 }
 
 .filter-type-dropdown .custom-select-trigger {
@@ -3458,17 +3416,6 @@
     opacity: 0.6;
 }
 
-@keyframes createFolderSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-6px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 .create-folder-header {
     display: flex;
     align-items: center;
@@ -4671,26 +4618,26 @@
     right: 1.2rem;
     width: 32px;
     height: 32px;
-    background: rgba(255, 107, 107, 0.1);
+    background: transparent;
     border-radius: 50%;
-    border: 2px solid transparent;
+    border: 2px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1rem;
-    color: var(--accent-color);
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     z-index: 10;
     padding: 0;
-    overflow: hidden;
 }
 
 .close-modal-btn:hover {
-    background: var(--accent-gradient);
-    color: white;
+    background: rgba(var(--primary-rgb), 0.08);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
     transform: rotate(90deg) scale(1.1);
-    box-shadow: 0 4px 16px rgba(255, 107, 107, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.25);
 }
 
 .close-modal-btn:active {

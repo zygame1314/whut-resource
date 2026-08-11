@@ -353,11 +353,13 @@ function showForgotPasswordModal(prefillEmail = '') {
                 };
             } else {
                 showNotification(data.error, 'error');
+                if (resetPowCtrl) resetPowCtrl.reset();
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
             }
         } catch (err) {
             showNotification('请求失败: ' + err.message, 'error');
+            if (resetPowCtrl) resetPowCtrl.reset();
             getCodeBtn.disabled = false;
             getCodeBtn.innerHTML = '获取验证码';
         }
@@ -693,11 +695,13 @@ function showChangeEmailModal() {
                 };
             } else {
                 showNotification(data.error, 'error');
+                if (changeEmailPowCtrl) changeEmailPowCtrl.reset();
                 getCodeBtn.disabled = false;
                 getCodeBtn.innerHTML = '获取验证码';
             }
         } catch (err) {
             showNotification('请求失败: ' + err.message, 'error');
+            if (changeEmailPowCtrl) changeEmailPowCtrl.reset();
             getCodeBtn.disabled = false;
         }
     };

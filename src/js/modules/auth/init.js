@@ -1,13 +1,22 @@
 document.addEventListener('DOMContentLoaded', () => {
     var THEMES = [
-        { id: 'light', name: '浅色', icon: 'fas fa-sun', preview: ['#FFFFFF', '#007BFF', '#2C3E50'], elements: ['fa-microchip', 'fa-flask', 'fa-cogs', 'fa-code'] },
-        { id: 'dark', name: '深色', icon: 'fas fa-moon', preview: ['#1A1A2E', '#007BFF', '#EAEAEA'], elements: ['fa-moon', 'fa-star', 'fa-bolt', 'fa-shield-alt'] },
-        { id: 'sepia', name: '护眼', icon: 'fas fa-leaf', preview: ['#F5E6C8', '#8B5A2B', '#4A3728'], elements: ['fa-book', 'fa-feather', 'fa-pen', 'fa-scroll'] },
-        { id: 'ocean', name: '海洋', icon: 'fas fa-water', preview: ['#F0F9FF', '#0EA5E9', '#0C4A6E'], elements: ['fa-fish', 'fa-ship', 'fa-anchor', 'fa-water'] },
-        { id: 'forest', name: '森林', icon: 'fas fa-tree', preview: ['#F0FDF4', '#16A34A', '#14532D'], elements: ['fa-tree', 'fa-leaf', 'fa-paw', 'fa-bug'] },
-        { id: 'nord', name: '极地', icon: 'fas fa-snowflake', preview: ['#ECEFF4', '#5E81AC', '#2E3440'], elements: ['fa-snowflake', 'fa-mountain', 'fa-cloud', 'fa-wind'] },
-        { id: 'rose', name: '玫瑰', icon: 'fas fa-heart', preview: ['#FDF2F8', '#EC4899', '#831843'], elements: ['fa-heart', 'fa-spa', 'fa-gift', 'fa-music'] }
+        { id: 'light', name: '浅色', icon: 'fas fa-sun', elements: ['fa-microchip', 'fa-flask', 'fa-cogs', 'fa-code'] },
+        { id: 'dark', name: '深色', icon: 'fas fa-moon', elements: ['fa-moon', 'fa-star', 'fa-bolt', 'fa-shield-alt'] },
+        { id: 'sepia', name: '护眼', icon: 'fas fa-leaf', elements: ['fa-book', 'fa-feather', 'fa-pen', 'fa-scroll'] },
+        { id: 'ocean', name: '海洋', icon: 'fas fa-water', elements: ['fa-fish', 'fa-ship', 'fa-anchor', 'fa-water'] },
+        { id: 'forest', name: '森林', icon: 'fas fa-tree', elements: ['fa-tree', 'fa-leaf', 'fa-paw', 'fa-bug'] },
+        { id: 'nord', name: '极地', icon: 'fas fa-snowflake', elements: ['fa-snowflake', 'fa-mountain', 'fa-cloud', 'fa-wind'] },
+        { id: 'rose', name: '玫瑰', icon: 'fas fa-heart', elements: ['fa-heart', 'fa-spa', 'fa-gift', 'fa-music'] }
     ];
+    function getThemePreview(id) {
+        const root = document.documentElement;
+        const prev = root.getAttribute('data-theme');
+        root.setAttribute('data-theme', id);
+        const cs = getComputedStyle(root);
+        const colors = [cs.getPropertyValue('--background').trim(), cs.getPropertyValue('--primary-color').trim(), cs.getPropertyValue('--text-primary').trim()];
+        root.setAttribute('data-theme', prev);
+        return colors;
+    }
     function getAutoTheme() {
         const hour = new Date().getHours();
         return (hour >= 18 || hour < 6) ? 'dark' : 'light';
@@ -53,9 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const item = document.createElement('button');
                 item.className = 'theme-menu-item' + (th.id === currentTheme ? ' active' : '');
                 item.setAttribute('data-theme-id', th.id);
-                const preview = th.preview ? ('<span class="theme-preview">' +
-                    th.preview.map(function (c) { return '<span style="background:' + c + '"></span>'; }).join('') +
-                    '</span>') : '';
+                const preview = '<span class="theme-preview">' +
+                    getThemePreview(th.id).map(function (c) { return '<span style="background:' + c + '"></span>'; }).join('') +
+                    '</span>';
                 item.innerHTML = '<i class="' + th.icon + '"></i><span>' + th.name + '</span>' + preview;
                 item.addEventListener('click', function (e) {
                     e.stopPropagation();
