@@ -9367,7 +9367,6 @@ input#prompt-input {
 
 .particle-base {
     position: absolute;
-    border-radius: var(--particle-shape, 50%);
     pointer-events: none;
     will-change: transform, opacity;
 }

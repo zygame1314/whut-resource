@@ -73,7 +73,6 @@
     --particle-color-2: var(--primary-light);
     --particle-color-3: var(--accent-color);
     --particle-glow: var(--primary-color);
-    --particle-shape: 50%;
     --particle-count: 28;
     --particle-line-color: rgba(var(--primary-rgb), 0.08);
 
@@ -118,7 +117,6 @@
     --particle-color-2: #88C0D0;
     --particle-color-3: #5E81AC;
     --particle-glow: #88C0D0;
-    --particle-shape: 50%;
     --particle-count: 24;
     --particle-line-color: rgba(136, 192, 208, 0.12);
 
@@ -178,7 +176,6 @@
     --particle-color-2: #B5895A;
     --particle-color-3: #C0392B;
     --particle-glow: #B5895A;
-    --particle-shape: 0%;
     --particle-count: 24;
     --particle-line-color: rgba(139, 90, 43, 0.1);
 
@@ -238,7 +235,6 @@
     --particle-color-2: #38BDF8;
     --particle-color-3: #F97316;
     --particle-glow: #38BDF8;
-    --particle-shape: 50% 50% 0% 50%;
     --particle-count: 32;
     --particle-line-color: rgba(14, 165, 233, 0.12);
 
@@ -298,7 +294,6 @@
     --particle-color-2: #4ADE80;
     --particle-color-3: #EAB308;
     --particle-glow: #4ADE80;
-    --particle-shape: 50%;
     --particle-count: 28;
     --particle-line-color: rgba(22, 163, 74, 0.12);
 
@@ -358,7 +353,6 @@
     --particle-color-2: #88C0D0;
     --particle-color-3: #D08770;
     --particle-glow: #88C0D0;
-    --particle-shape: 20%;
     --particle-count: 26;
     --particle-line-color: rgba(94, 129, 172, 0.1);
 
@@ -418,7 +412,6 @@
     --particle-color-2: #FFB3C6;
     --particle-color-3: #FFB347;
     --particle-glow: #FFB3C6;
-    --particle-shape: 50%;
     --particle-count: 30;
     --particle-line-color: rgba(255, 123, 157, 0.12);
 
@@ -478,7 +471,6 @@
     --particle-color-2: #00F0FF;
     --particle-color-3: #9D00FF;
     --particle-glow: #00F0FF;
-    --particle-shape: 50%;
     --particle-count: 36;
     --particle-line-color: rgba(0, 240, 255, 0.15);
 
@@ -538,7 +530,6 @@
     --particle-color-2: #00E5FF;
     --particle-color-3: #FF5722;
     --particle-glow: #FFAE00;
-    --particle-shape: 0%;
     --particle-count: 24;
     --particle-line-color: rgba(255, 174, 0, 0.12);
 
@@ -598,7 +589,6 @@
     --particle-color-2: #FFD700;
     --particle-color-3: #DC143C;
     --particle-glow: #FF4500;
-    --particle-shape: 0%;
     --particle-count: 26;
     --particle-line-color: rgba(255, 69, 0, 0.12);
 
