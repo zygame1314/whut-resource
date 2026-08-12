@@ -1,5 +1,10 @@
 (function () {
-    if (window.__particleBackgroundInitialized) return;
+    if (window.__particleBackgroundInitialized) {
+        if (typeof window.__particleBackgroundImpl === 'function') {
+            window.createParticleBackground = window.__particleBackgroundImpl;
+        }
+        return;
+    }
     window.__particleBackgroundInitialized = true;
 
     const THEME_CONFIG = {
@@ -122,7 +127,7 @@
         container.innerHTML = '';
     }
 
-    window.createParticleBackground = function createParticleBackground() {
+    window.__particleBackgroundImpl = function createParticleBackground() {
         const container = document.getElementById('particles-background');
         if (!container) return;
         removeAll(container);
@@ -139,6 +144,7 @@
             container.appendChild(p.el);
         }
     };
+    window.createParticleBackground = window.__particleBackgroundImpl;
 
     function onResize() {
         if (resizeTimer) clearTimeout(resizeTimer);
