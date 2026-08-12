@@ -59,7 +59,6 @@
     };
 
     let particleElements = [];
-    let resizeTimer = null;
 
     function getThemeName() {
         return document.documentElement.getAttribute('data-theme') || 'light';
@@ -145,27 +144,6 @@
         }
     };
     window.createParticleBackground = window.__particleBackgroundImpl;
-
-    let lastViewportSize = null;
-
-    function onResize() {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        if (lastViewportSize &&
-            Math.abs(width - lastViewportSize.w) < 100 &&
-            Math.abs(height - lastViewportSize.h) < 100) {
-            return;
-        }
-        lastViewportSize = { w: width, h: height };
-        if (resizeTimer) clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-            if (typeof window.createParticleBackground === 'function') {
-                window.createParticleBackground();
-            }
-        }, 400);
-    }
-
-    window.addEventListener('resize', onResize, { passive: true });
 })();
 
 function createParticleBackground() {
