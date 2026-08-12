@@ -90,7 +90,7 @@
         const color = pick(themeCfg.colors);
         const size = Math.round(randomRange(10, 22));
         const left = Math.random() * 100;
-        const top = Math.random() * 100 - 10;
+        const top = Math.random() * 100;
         const isRiseFast = themeCfg.motion === 'riseFast';
         const isOrbit = themeCfg.motion === 'orbit';
         const duration = isOrbit ? randomRange(18, 34) : (isRiseFast ? randomRange(7, 14) : randomRange(14, 28));
