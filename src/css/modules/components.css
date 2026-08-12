@@ -412,7 +412,7 @@
     border: 1px solid var(--border-color);
     border-radius: 20px;
     padding: 0.45rem 1rem;
-    transition: border-color 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), background 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: border-color 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), background 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .folder-search-wrapper:hover {
@@ -424,7 +424,6 @@
     border-color: var(--primary-color);
     background: var(--background);
     box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15), 0 4px 12px rgba(var(--primary-rgb), 0.08);
-    transform: translateY(-1px);
 }
 
 .folder-search-wrapper i {
@@ -478,6 +477,9 @@
     transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
     opacity: 0.6;
     margin-right: -4px;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .clear-folder-search-btn:hover {
@@ -871,7 +873,10 @@
     background: var(--background-alt, #f0f0f0);
     color: var(--text-secondary);
     border: 1px solid var(--border-color, #e0e0e0);
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .favorite-toggle-btn:hover,
@@ -922,9 +927,8 @@
 
 .favorites-unfav-btn {
     position: absolute;
-    top: 50%;
+    top: calc(50% - 13px);
     right: 8px;
-    transform: translateY(-50%);
     width: 26px;
     height: 26px;
     padding: 0;
@@ -939,16 +943,19 @@
     justify-content: center;
     opacity: 0.65;
     transition: opacity 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .favorites-unfav-btn:hover {
     opacity: 1;
     background: rgba(243, 156, 18, 0.15);
-    transform: translateY(-50%) scale(1.08);
+    transform: scale(1.08);
 }
 
 .favorites-unfav-btn:active {
-    transform: translateY(-50%) scale(0.9);
+    transform: scale(0.9);
 }
 
 .favorites-item {
@@ -2162,7 +2169,6 @@
 
 .guestbook-pinned-nav:hover {
     background: var(--primary);
-    color: #fff;
     border-color: var(--primary);
     box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.4);
 }
@@ -4856,6 +4862,9 @@
     border: 1px solid rgba(var(--primary-rgb), 0.2);
     transition: background 0.3s ease, transform 0.3s ease;
     cursor: pointer;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .user-info .quota:hover {
@@ -7483,6 +7492,9 @@ textarea.form-input {
     background: rgba(46, 139, 87, 0.1);
     border: 1px solid rgba(46, 139, 87, 0.2);
     transition: background 0.2s ease, transform 0.2s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .folder-desc-badge.clickable-badge:hover {
@@ -7499,7 +7511,7 @@ textarea.form-input {
     padding: 1rem 1.25rem;
     margin-bottom: 1rem;
     cursor: default;
-    transition: background 0.3s ease, border-color 0.3s ease;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow var(--transition-fast);
     animation: fadeIn 0.4s ease forwards;
     transform: none !important;
 }

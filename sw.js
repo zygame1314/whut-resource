@@ -57,7 +57,9 @@ self.addEventListener('fetch', (event) => {
                 if (response && response.status === 200 && response.type === 'basic') {
                     const responseToCache = response.clone();
                     caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseToCache);
+                        cache.put(event.request, responseToCache).catch((err) => {
+                            console.warn('Cache.put 失败:', event.request.url, err);
+                        });
                     });
                 }
                 return response;

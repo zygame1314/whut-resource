@@ -452,7 +452,7 @@
             rgba(var(--primary-rgb), 0.25) 0%,
             rgba(var(--primary-rgb), 0.15) 100%);
     border-color: var(--primary-color);
-    transform: scale(1.05);
+    transform: scale(1.02);
 }
 
 .graph-view-btn i {
