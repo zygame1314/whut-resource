@@ -882,11 +882,10 @@
     background: var(--background-alt);
     border-radius: 12px;
     border-left: 5px solid var(--primary-color);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    transition: box-shadow var(--transition-fast);
 }
 
 .rule-item:hover {
-    transform: scale(1.005);
     box-shadow: var(--shadow-medium);
 }
 
