@@ -323,6 +323,14 @@
         align-items: center;
     }
 
+    .nav-actions.active .nav-icon-buttons {
+        width: 100%;
+    }
+
+    .nav-actions.active .nav-icon-buttons #theme-toggle {
+        flex: 1 1 auto;
+    }
+
     .nav-actions #auth-section {
         display: flex;
         flex-direction: column;

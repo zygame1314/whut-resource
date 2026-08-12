@@ -8,7 +8,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
     color: var(--text-secondary);
 }
 
@@ -55,8 +55,17 @@
 .icon-btn:hover {
     background: var(--primary-light);
     color: white;
-    transform: scale(1.06);
-    will-change: transform;
+    box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.25);
+}
+
+.icon-btn:hover i {
+    transform: scale(1.12);
+}
+
+.icon-btn i {
+    transition: transform var(--transition-fast);
+    transform-box: fill-box;
+    transform-origin: center;
 }
 
 .icon-btn.active {
@@ -93,7 +102,7 @@
     border-radius: 14px;
     cursor: pointer;
     font-weight: 600;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     text-decoration: none;
     position: relative;
     overflow: hidden;
@@ -127,7 +136,7 @@
     align-items: center;
     gap: 0.5rem;
     font-weight: 600;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     text-decoration: none;
     position: relative;
     overflow: hidden;
@@ -9311,7 +9320,9 @@ input#prompt-input {
 
 .particle-base {
     position: absolute;
-    border-radius: 50%;
+    border-radius: var(--particle-shape, 50%);
+    pointer-events: none;
+    will-change: transform, opacity;
 }
 
 .captcha-widget,

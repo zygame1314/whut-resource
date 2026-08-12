@@ -71,8 +71,18 @@
     overflow: hidden !important;
 }
 
-.particle {
+.particle,
+.particle-base {
     position: absolute;
-    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     pointer-events: none;
+    will-change: transform, opacity;
 }
+
+.particle-base i {
+    line-height: 1;
+    transform: translateZ(0);
+}
+

@@ -1,7 +1,7 @@
-/** DEV MODE - Generated at 00:00:07 */
+/** DEV MODE - Generated at 15:43:17 */
 // --- Module: theme-init.js ---
 (function () {
-    var VALID = ['light', 'dark', 'sepia', 'ocean', 'forest', 'nord', 'rose'];
+    var VALID = ['light', 'dark', 'sepia', 'ocean', 'forest', 'nord', 'rose', 'cyberpunk'];
     var t = localStorage.getItem('theme');
     var auto = localStorage.getItem('autoTheme');
     if (!t || VALID.indexOf(t) === -1 || auto === 'true') {

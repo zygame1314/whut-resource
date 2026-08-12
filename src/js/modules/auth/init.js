@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'ocean', name: '海洋', icon: 'fas fa-water', elements: ['fa-fish', 'fa-ship', 'fa-anchor', 'fa-water'] },
         { id: 'forest', name: '森林', icon: 'fas fa-tree', elements: ['fa-tree', 'fa-leaf', 'fa-paw', 'fa-bug'] },
         { id: 'nord', name: '极地', icon: 'fas fa-snowflake', elements: ['fa-snowflake', 'fa-mountain', 'fa-cloud', 'fa-wind'] },
-        { id: 'rose', name: '玫瑰', icon: 'fas fa-heart', elements: ['fa-heart', 'fa-spa', 'fa-gift', 'fa-music'] }
+        { id: 'rose', name: '玫瑰', icon: 'fas fa-heart', elements: ['fa-heart', 'fa-spa', 'fa-gift', 'fa-music'] },
+        { id: 'cyberpunk', name: '赛博', icon: 'fas fa-bolt', elements: ['fa-bolt', 'fa-microchip', 'fa-terminal', 'fa-robot'] }
     ];
     function getThemePreview(id) {
         const root = document.documentElement;
@@ -89,7 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         themeToggle.addEventListener('click', function (e) {
             e.stopPropagation();
+            const willShow = !themeMenu.classList.contains('show');
             themeMenu.classList.toggle('show');
+            if (willShow && !themeToggle.dataset.triedOnce) {
+                themeToggle.dataset.triedOnce = 'true';
+            }
         });
         document.addEventListener('click', function (e) {
             if (themeMenu.classList.contains('show') &&
@@ -98,6 +103,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 themeMenu.classList.remove('show');
             }
         });
+
+        if (!themeToggle.dataset.triedOnce &&
+            !localStorage.getItem('themeTriedOnce')) {
+            const hint = document.createElement('span');
+            hint.className = 'theme-toggle-hint';
+            hint.textContent = '点我换肤';
+            themeToggle.style.position = 'relative';
+            themeToggle.appendChild(hint);
+            const removeHint = function () {
+                if (hint.parentNode) hint.remove();
+                try { localStorage.setItem('themeTriedOnce', 'true'); } catch (e) {}
+                themeToggle.dataset.triedOnce = 'true';
+            };
+            hint.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                themeMenu.classList.toggle('show');
+                removeHint();
+            });
+            themeToggle.addEventListener('click', removeHint, { once: true });
+            setTimeout(removeHint, 12000);
+        }
     }
     checkAuth();
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');

@@ -69,6 +69,14 @@
     --element-3-bg: linear-gradient(135deg, #45B7D1, #73C6DB);
     --element-4-bg: linear-gradient(135deg, #96CEB4, #B8E6C1);
 
+    --particle-color-1: var(--primary-color);
+    --particle-color-2: var(--primary-light);
+    --particle-color-3: var(--accent-color);
+    --particle-glow: var(--primary-color);
+    --particle-shape: 50%;
+    --particle-count: 28;
+    --particle-line-color: rgba(var(--primary-rgb), 0.08);
+
     --badge-online-rgb: var(--primary-rgb);
     --badge-registered-rgb: var(--primary-rgb);
     --badge-uptime-rgb: var(--primary-rgb);
@@ -105,6 +113,14 @@
     --element-2-bg: linear-gradient(135deg, #4ECDC4, #7FDBDA);
     --element-3-bg: linear-gradient(135deg, #45B7D1, #73C6DB);
     --element-4-bg: linear-gradient(135deg, #96CEB4, #B8E6C1);
+
+    --particle-color-1: #81A1C1;
+    --particle-color-2: #88C0D0;
+    --particle-color-3: #5E81AC;
+    --particle-glow: #88C0D0;
+    --particle-shape: 50%;
+    --particle-count: 24;
+    --particle-line-color: rgba(136, 192, 208, 0.12);
 
     --badge-online-rgb: var(--primary-rgb);
     --badge-registered-rgb: var(--primary-rgb);
@@ -158,6 +174,14 @@
     --element-3-bg: linear-gradient(135deg, #A0522D, #CD853F);
     --element-4-bg: linear-gradient(135deg, #6B8E23, #9ACD32);
 
+    --particle-color-1: #8B5A2B;
+    --particle-color-2: #B5895A;
+    --particle-color-3: #C0392B;
+    --particle-glow: #B5895A;
+    --particle-shape: 0%;
+    --particle-count: 24;
+    --particle-line-color: rgba(139, 90, 43, 0.1);
+
     --badge-online-rgb: 22, 163, 74;
     --badge-registered-rgb: 139, 90, 43;
     --badge-uptime-rgb: 192, 57, 43;
@@ -209,6 +233,14 @@
     --element-2-bg: linear-gradient(135deg, #0284C7, #0EA5E9);
     --element-3-bg: linear-gradient(135deg, #06B6D4, #22D3EE);
     --element-4-bg: linear-gradient(135deg, #3B82F6, #60A5FA);
+
+    --particle-color-1: #0EA5E9;
+    --particle-color-2: #38BDF8;
+    --particle-color-3: #F97316;
+    --particle-glow: #38BDF8;
+    --particle-shape: 50% 50% 0% 50%;
+    --particle-count: 32;
+    --particle-line-color: rgba(14, 165, 233, 0.12);
 
     --badge-online-rgb: 14, 165, 233;
     --badge-registered-rgb: 2, 132, 199;
@@ -262,6 +294,14 @@
     --element-3-bg: linear-gradient(135deg, #65A30D, #84CC16);
     --element-4-bg: linear-gradient(135deg, #0D9488, #2DD4BF);
 
+    --particle-color-1: #16A34A;
+    --particle-color-2: #4ADE80;
+    --particle-color-3: #EAB308;
+    --particle-glow: #4ADE80;
+    --particle-shape: 50%;
+    --particle-count: 28;
+    --particle-line-color: rgba(22, 163, 74, 0.12);
+
     --badge-online-rgb: 22, 163, 74;
     --badge-registered-rgb: 101, 163, 13;
     --badge-uptime-rgb: 234, 179, 8;
@@ -313,6 +353,14 @@
     --element-2-bg: linear-gradient(135deg, #88C0D0, #8FBCBB);
     --element-3-bg: linear-gradient(135deg, #5E81AC, #81A1C1);
     --element-4-bg: linear-gradient(135deg, #A3BE8C, #B8D4A0);
+
+    --particle-color-1: #5E81AC;
+    --particle-color-2: #88C0D0;
+    --particle-color-3: #D08770;
+    --particle-glow: #88C0D0;
+    --particle-shape: 20%;
+    --particle-count: 26;
+    --particle-line-color: rgba(94, 129, 172, 0.1);
 
     --badge-online-rgb: 163, 190, 140;
     --badge-registered-rgb: 94, 129, 172;
@@ -366,6 +414,14 @@
     --element-3-bg: linear-gradient(135deg, #C9A0DC, #E2C4F0);
     --element-4-bg: linear-gradient(135deg, #FF9AA2, #FFC3C8);
 
+    --particle-color-1: #FF7B9D;
+    --particle-color-2: #FFB3C6;
+    --particle-color-3: #FFB347;
+    --particle-glow: #FFB3C6;
+    --particle-shape: 50%;
+    --particle-count: 30;
+    --particle-line-color: rgba(255, 123, 157, 0.12);
+
     --badge-online-rgb: 255, 123, 157;
     --badge-registered-rgb: 201, 160, 220;
     --badge-uptime-rgb: 255, 179, 71;
@@ -375,6 +431,66 @@
     --footer-text: #FFEBF0;
     --footer-muted: #F4C2D4;
     --footer-border: #8E4E64;
+}
+
+[data-theme="cyberpunk"] {
+    --primary-color: #F0F;
+    --primary-light: #FF4DFF;
+    --primary-dark: #C700C7;
+    --primary-gradient: linear-gradient(135deg, #F0F 0%, #00F0FF 100%);
+    --primary-rgb: 255, 0, 255;
+    --accent-color: #00F0FF;
+    --accent-rgb: 0, 240, 255;
+    --accent-gradient: linear-gradient(135deg, #00F0FF 0%, #F0F 100%);
+
+    --background: #0D0D14;
+    --background-alt: #151520;
+    --background-dark: #1A1A2E;
+    --text-primary: #EAEAEA;
+    --text-secondary: #A0A0C0;
+    --text-light: #6B6B9B;
+    --border-color: #2A2A4A;
+
+    --background-secondary: var(--background-alt);
+    --background-hover: rgba(255, 0, 255, 0.08);
+
+    --button-bg: var(--background-alt);
+    --button-text: var(--text-primary);
+    --button-border: var(--border-color);
+    --button-hover-bg: rgba(255, 0, 255, 0.12);
+
+    --card-bg: #151520;
+    --card-shadow: 0 4px 20px rgba(255, 0, 255, 0.15);
+    --text-muted: #7A7A9C;
+    --text-tertiary: #5A5A7A;
+
+    --dark-bg: #0A0A12;
+    --dark-bg-alt: #12121C;
+    --dark-border: #2A2A4A;
+    --nav-bg: rgba(13, 13, 20, 0.95);
+
+    --element-1-bg: linear-gradient(135deg, #F0F, #FF4DFF);
+    --element-2-bg: linear-gradient(135deg, #00F0FF, #33F3FF);
+    --element-3-bg: linear-gradient(135deg, #9D00FF, #B84DFF);
+    --element-4-bg: linear-gradient(135deg, #00FF9D, #4DFFB8);
+
+    --particle-color-1: #F0F;
+    --particle-color-2: #00F0FF;
+    --particle-color-3: #9D00FF;
+    --particle-glow: #00F0FF;
+    --particle-shape: 50%;
+    --particle-count: 36;
+    --particle-line-color: rgba(0, 240, 255, 0.15);
+
+    --badge-online-rgb: 0, 240, 255;
+    --badge-registered-rgb: 255, 0, 255;
+    --badge-uptime-rgb: 157, 0, 255;
+    --badge-update-rgb: 0, 255, 157;
+
+    --footer-bg: #0A0A12;
+    --footer-text: #EAEAEA;
+    --footer-muted: #7A7A9C;
+    --footer-border: #2A2A4A;
 }
 
 * {
@@ -409,95 +525,131 @@ button,
     width: 100%;
     height: 100%;
     z-index: -1;
-    background: linear-gradient(45deg, #f0f9ff 0%, #e0f2fe 50%, #f0f9ff 100%);
-    background-size: 400% 400%;
-    animation: gradientShift 8s ease infinite;
+    background:
+        radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--particle-color-1) 10%, transparent) 0%, transparent 45%),
+        radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--particle-color-2) 10%, transparent) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 6%, transparent) 0%, transparent 55%),
+        var(--background);
+    animation: gradientShift 12s ease infinite;
 }
 
-#particles-background::before {
+#particles-background::before,
+#particles-background::after {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
+    pointer-events: none;
+}
+
+#particles-background::before {
     background-image:
-        radial-gradient(circle at 20% 20%, rgba(0, 123, 255, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(77, 163, 255, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(0, 86, 179, 0.05) 0%, transparent 50%);
-    animation: float 6s ease-in-out infinite;
+        radial-gradient(circle at 15% 25%, color-mix(in srgb, var(--particle-color-1) 12%, transparent) 0%, transparent 40%),
+        radial-gradient(circle at 85% 75%, color-mix(in srgb, var(--particle-color-2) 12%, transparent) 0%, transparent 40%),
+        radial-gradient(circle at 45% 65%, color-mix(in srgb, var(--particle-color-3) 8%, transparent) 0%, transparent 40%);
+    animation: float 8s ease-in-out infinite;
+}
+
+#particles-background::after {
+    background:
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-glow) 4%, transparent) 0%, transparent 60%);
+    opacity: 0.6;
+    animation: pulse 10s ease-in-out infinite;
 }
 
 [data-theme="dark"] #particles-background {
-    background: var(--dark-bg);
+    background:
+        radial-gradient(circle at 25% 25%, color-mix(in srgb, var(--particle-color-1) 14%, transparent) 0%, transparent 40%),
+        radial-gradient(circle at 75% 75%, color-mix(in srgb, var(--particle-color-2) 12%, transparent) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 8%, transparent) 0%, transparent 50%),
+        var(--background);
     animation: none;
 }
 
 [data-theme="dark"] #particles-background::before {
     background-image:
-        radial-gradient(circle at 20% 20%, rgba(15, 52, 96, 0.2) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(22, 33, 62, 0.2) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(26, 26, 46, 0.1) 0%, transparent 50%);
+        radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--particle-color-1) 18%, transparent) 0%, transparent 35%),
+        radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--particle-color-2) 14%, transparent) 0%, transparent 35%),
+        radial-gradient(circle at 40% 60%, color-mix(in srgb, var(--particle-color-3) 10%, transparent) 0%, transparent 35%);
+    animation: float 10s ease-in-out infinite;
+}
+
+[data-theme="dark"] #particles-background::after {
+    opacity: 0.4;
+    animation: pulse 12s ease-in-out infinite;
 }
 
 [data-theme="sepia"] #particles-background {
-    background: linear-gradient(45deg, #F5E6C8 0%, #EDE0C0 50%, #F5E6C8 100%);
-    background-size: 400% 400%;
-}
-
-[data-theme="sepia"] #particles-background::before {
-    background-image:
-        radial-gradient(circle at 20% 20%, rgba(139, 90, 43, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(181, 137, 90, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(92, 58, 26, 0.06) 0%, transparent 50%);
+    background:
+        radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--particle-color-1) 12%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--particle-color-2) 10%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 6%, transparent) 0%, transparent 55%),
+        var(--background);
 }
 
 [data-theme="ocean"] #particles-background {
-    background: linear-gradient(45deg, #F0F9FF 0%, #E0F2FE 50%, #F0F9FF 100%);
-    background-size: 400% 400%;
-}
-
-[data-theme="ocean"] #particles-background::before {
-    background-image:
-        radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.12) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.12) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(2, 132, 199, 0.06) 0%, transparent 50%);
+    background:
+        radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--particle-color-1) 12%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--particle-color-2) 12%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 8%, transparent) 0%, transparent 55%),
+        var(--background);
 }
 
 [data-theme="forest"] #particles-background {
-    background: linear-gradient(45deg, #F0FDF4 0%, #DCFCE7 50%, #F0FDF4 100%);
-    background-size: 400% 400%;
-}
-
-[data-theme="forest"] #particles-background::before {
-    background-image:
-        radial-gradient(circle at 20% 20%, rgba(22, 163, 74, 0.12) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(74, 222, 128, 0.12) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(21, 128, 61, 0.06) 0%, transparent 50%);
+    background:
+        radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--particle-color-1) 12%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--particle-color-2) 12%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 8%, transparent) 0%, transparent 55%),
+        var(--background);
 }
 
 [data-theme="nord"] #particles-background {
-    background: linear-gradient(45deg, #ECEFF4 0%, #E5E9F0 50%, #ECEFF4 100%);
-    background-size: 400% 400%;
-}
-
-[data-theme="nord"] #particles-background::before {
-    background-image:
-        radial-gradient(circle at 20% 20%, rgba(94, 129, 172, 0.12) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(129, 161, 193, 0.12) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(76, 110, 148, 0.06) 0%, transparent 50%);
+    background:
+        radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--particle-color-1) 12%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--particle-color-2) 12%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 8%, transparent) 0%, transparent 55%),
+        var(--background);
 }
 
 [data-theme="rose"] #particles-background {
-    background: linear-gradient(45deg, #FFF1F2 0%, #FFE4E6 50%, #FFF1F2 100%);
-    background-size: 400% 400%;
+    background:
+        radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--particle-color-1) 12%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--particle-color-2) 12%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 8%, transparent) 0%, transparent 55%),
+        var(--background);
 }
 
-[data-theme="rose"] #particles-background::before {
+[data-theme="cyberpunk"] #particles-background {
+    background:
+        radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--particle-color-1) 18%, transparent) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--particle-color-2) 16%, transparent) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 10%, transparent) 0%, transparent 50%),
+        linear-gradient(180deg, rgba(255, 0, 255, 0.04) 0%, transparent 50%, rgba(0, 240, 255, 0.04) 100%),
+        var(--background);
+}
+
+[data-theme="cyberpunk"] #particles-background::before {
     background-image:
-        radial-gradient(circle at 20% 20%, rgba(225, 29, 72, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(244, 63, 94, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(190, 18, 60, 0.06) 0%, transparent 50%);
+        radial-gradient(circle at 25% 25%, color-mix(in srgb, var(--particle-color-1) 22%, transparent) 0%, transparent 35%),
+        radial-gradient(circle at 75% 75%, color-mix(in srgb, var(--particle-color-2) 18%, transparent) 0%, transparent 35%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 12%, transparent) 0%, transparent 35%);
+    animation: float 10s ease-in-out infinite;
+}
+
+[data-theme="cyberpunk"] #particles-background::after {
+    background:
+        repeating-linear-gradient(
+            0deg,
+            transparent 0px,
+            transparent 2px,
+            rgba(0, 240, 255, 0.03) 2px,
+            rgba(0, 240, 255, 0.03) 4px
+        ),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-glow) 6%, transparent) 0%, transparent 60%);
+    opacity: 0.5;
+    animation: pulse 6s ease-in-out infinite;
 }
 
 ::-webkit-scrollbar {

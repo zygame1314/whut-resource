@@ -200,23 +200,51 @@
 }
 
 @keyframes previewSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes previewPulse {
-    0%, 100% { transform: scale(1); opacity: 0.95; }
-    50% { transform: scale(1.05); opacity: 1; }
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.95;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
 }
 
 @keyframes previewCoreBreathe {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 4px 20px rgba(var(--primary-rgb), 0.25), inset 0 0 0 1px rgba(var(--primary-rgb), 0.15); }
-    50% { transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 6px 28px rgba(var(--primary-rgb), 0.4), inset 0 0 0 1px rgba(var(--primary-rgb), 0.25); }
+
+    0%,
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        box-shadow: 0 4px 20px rgba(var(--primary-rgb), 0.25), inset 0 0 0 1px rgba(var(--primary-rgb), 0.15);
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(1.08);
+        box-shadow: 0 6px 28px rgba(var(--primary-rgb), 0.4), inset 0 0 0 1px rgba(var(--primary-rgb), 0.25);
+    }
 }
 
 @keyframes previewOrbit {
-    0% { transform: rotate(0deg) translateX(var(--orbit-radius, 40px)) rotate(0deg); }
-    100% { transform: rotate(360deg) translateX(var(--orbit-radius, 40px)) rotate(-360deg); }
+    0% {
+        transform: rotate(0deg) translateX(var(--orbit-radius, 40px)) rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg) translateX(var(--orbit-radius, 40px)) rotate(-360deg);
+    }
 }
 
 
@@ -254,12 +282,110 @@
 
 @keyframes particleFloat {
     0% {
-        transform: translateY(0px) rotate(0deg);
-        opacity: 1;
+        transform: translateY(0px) translateX(0px) rotate(0deg);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: var(--particle-peak-opacity, 0.6);
+    }
+
+    90% {
+        opacity: var(--particle-peak-opacity, 0.6);
     }
 
     100% {
-        transform: translateY(-100vh) rotate(360deg);
+        transform: translateY(-120vh) translateX(var(--particle-drift, 30px)) rotate(var(--particle-rotate, 360deg));
+        opacity: 0;
+    }
+}
+
+@keyframes particleDrift {
+    0%,
+    100% {
+        transform: translateX(0) translateY(0);
+    }
+
+    25% {
+        transform: translateX(15px) translateY(-8px);
+    }
+
+    50% {
+        transform: translateX(-10px) translateY(-18px);
+    }
+
+    75% {
+        transform: translateX(12px) translateY(-6px);
+    }
+}
+
+@keyframes particleGlow {
+    0%,
+    100% {
+        filter: drop-shadow(0 0 1px currentColor);
+    }
+
+    50% {
+        filter: drop-shadow(0 0 4px currentColor);
+    }
+}
+
+@keyframes particleFall {
+    0% {
+        transform: translateY(0px) translateX(0px) rotate(0deg);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: var(--particle-peak-opacity, 0.6);
+    }
+
+    90% {
+        opacity: var(--particle-peak-opacity, 0.6);
+    }
+
+    100% {
+        transform: translateY(120vh) translateX(var(--particle-drift, 30px)) rotate(var(--particle-rotate, 360deg));
+        opacity: 0;
+    }
+}
+
+@keyframes particleRiseFast {
+    0% {
+        transform: translateY(0px) scale(0.85);
+        opacity: 0;
+    }
+
+    15% {
+        opacity: var(--particle-peak-opacity, 0.6);
+    }
+
+    85% {
+        opacity: var(--particle-peak-opacity, 0.6);
+    }
+
+    100% {
+        transform: translateY(-140vh) scale(1.15);
+        opacity: 0;
+    }
+}
+
+@keyframes particleOrbit {
+    0% {
+        transform: translateX(0) translateY(0) rotate(0deg);
+        opacity: 0;
+    }
+
+    15% {
+        opacity: var(--particle-peak-opacity, 0.6);
+    }
+
+    85% {
+        opacity: var(--particle-peak-opacity, 0.6);
+    }
+
+    100% {
+        transform: translateX(calc(var(--particle-drift, 60px) * 2)) translateY(-100vh) rotate(var(--particle-rotate, 360deg));
         opacity: 0;
     }
 }
@@ -1208,5 +1334,17 @@
 
     50% {
         box-shadow: 0 0 0 8px rgba(var(--primary-rgb, 46, 139, 87), 0);
+    }
+}
+
+@keyframes themeHintBounce {
+
+    0%,
+    100% {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    50% {
+        transform: translateX(-50%) translateY(-4px);
     }
 }

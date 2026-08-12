@@ -61,21 +61,8 @@ function animateHide(el, callback) {
 }
 
 function createParticleBackground() {
-    const particlesContainer = document.getElementById('particles-background');
-    if (!particlesContainer) return;
-    particlesContainer.innerHTML = '';
-    for (let i = 0; i < 15; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        particle.style.cssText = `
-            width: ${Math.random() * 4 + 2}px;
-            height: ${Math.random() * 4 + 2}px;
-            background: rgba(46, 139, 87, ${Math.random() * 0.3 + 0.1});
-            left: ${Math.random() * 100}%;
-            top: ${Math.random() * 100}%;
-            animation: particleFloat ${Math.random() * 15 + 15}s linear infinite;
-        `;
-        particlesContainer.appendChild(particle);
+    if (typeof window.createParticleBackground === 'function') {
+        window.createParticleBackground();
     }
 }
 
