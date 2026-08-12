@@ -17,6 +17,7 @@ const excludeDirs = [
 ];
 const scriptModules = [
     'modules/lazy-loader.js',
+    'modules/particles.js',
     'globals.js',
     'utils.js',
     'ui/modals.js',
@@ -32,6 +33,7 @@ const scriptModules = [
 ];
 const uploadModules = [
     'modules/lazy-loader.js',
+    'modules/particles.js',
     'utils.js',
     'ui/folder-tree-lazy.js',
     'modules/upload/ui.js',
@@ -41,6 +43,7 @@ const uploadModules = [
     'upload_main.js'
 ];
 const authModules = [
+    'modules/particles.js',
     'modules/auth/pow.js',
     'modules/auth/state.js',
     'modules/auth/utils.js',
@@ -54,6 +57,7 @@ const authModules = [
 ];
 const guestbookModules = [
     'modules/lazy-loader.js',
+    'modules/particles.js',
     'modules/guestbook/state.js',
     'modules/guestbook/utils.js',
     'ui/folder-tree-lazy.js',

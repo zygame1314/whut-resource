@@ -278,8 +278,7 @@
 .search-btn {
     position: absolute;
     right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
+    top: calc(50% - 20px);
     width: 40px;
     height: 40px;
     border: none;
@@ -291,10 +290,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .search-btn:hover {
-    transform: translateY(-50%) scale(1.05);
+    transform: scale(1.08);
 }
 
 .search-history-dropdown {
@@ -1257,12 +1259,14 @@
     font-weight: 600;
     border: 1px solid rgba(var(--primary-rgb), 0.2);
     cursor: default;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .ai-badge:hover {
     transform: scale(1.03);
-    box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.15);
 }
 
 .guestbook-intro {

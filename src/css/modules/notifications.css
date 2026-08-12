@@ -36,13 +36,10 @@
     font-size: 0.85rem;
     font-weight: 500;
     color: var(--text-secondary);
-    transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-#theme-toggle:hover {
-    background: var(--primary-light);
-    color: white;
-    box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.25);
+    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 #theme-toggle .theme-toggle-label {

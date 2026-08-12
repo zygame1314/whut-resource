@@ -60,12 +60,6 @@ function animateHide(el, callback) {
     el.addEventListener('animationend', onEnd, { once: true });
 }
 
-function createParticleBackground() {
-    if (typeof window.createParticleBackground === 'function') {
-        window.createParticleBackground();
-    }
-}
-
 function appendSelectedFiles(files) {
     const newFiles = Array.from(files);
     const existingKeys = new Set(

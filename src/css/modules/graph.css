@@ -127,12 +127,15 @@
     color: var(--text-secondary);
     cursor: pointer;
     transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .graph-btn:hover {
     background: var(--primary-color);
     color: white;
-    transform: scale(1.05);
+    transform: scale(1.08);
 }
 
 .graph-close-btn {
@@ -438,7 +441,10 @@
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+    transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .graph-view-btn:hover {
@@ -447,7 +453,6 @@
             rgba(var(--primary-rgb), 0.15) 100%);
     border-color: var(--primary-color);
     transform: scale(1.05);
-    box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.2);
 }
 
 .graph-view-btn i {

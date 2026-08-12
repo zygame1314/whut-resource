@@ -231,6 +231,9 @@
     justify-content: center;
     text-decoration: none;
     transition: background var(--transition-fast), transform var(--transition-fast);
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .social-link:hover {

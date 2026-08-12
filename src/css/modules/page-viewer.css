@@ -315,6 +315,9 @@
     border: 1px solid var(--border-color);
     cursor: pointer;
     transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .page-viewer-footer-link:hover {
