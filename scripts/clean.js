@@ -20,6 +20,7 @@ const pathsToRemove = [
     'download-manager-ui.js',
     'oauth.js',
     'page-viewer.js',
+    'theme-init.js',
     'npm-debug.log',
     'yarn-debug.log',
     'yarn-error.log',

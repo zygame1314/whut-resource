@@ -26,6 +26,7 @@ lib/
 /donation-popup.js
 /oauth.js
 /share-popup.js
+/theme-init.js
 
 # ==========================================
 # 开发模式生成的 CSS 合并文件
