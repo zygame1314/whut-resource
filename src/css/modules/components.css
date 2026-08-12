@@ -760,6 +760,23 @@
     animation: dots 1.5s steps(4, end) infinite;
 }
 
+.file-action-buttons button,
+.file-action-buttons .share-button,
+.file-action-buttons .favorite-toggle-btn,
+.file-action-buttons .subscribe-toggle-btn,
+.file-action-buttons .enter-folder-button,
+.file-action-buttons .preview-button,
+.file-action-buttons .download-button,
+.file-action-buttons .edit-link-button,
+.file-action-buttons .edit-desc-button,
+.file-action-buttons .rename-button,
+.file-action-buttons .move-button,
+.file-action-buttons .delete-button {
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
 .download-button {
     width: 32px;
     height: 32px;
@@ -771,7 +788,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: background var(--transition-fast), transform var(--transition-fast);
+    transition: background 0.2s ease, transform 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -779,7 +796,7 @@
 
 .download-button:hover {
     background: #229954;
-    transform: scale(1.06);
+    transform: scale(1.08);
 }
 
 .preview-button {
@@ -793,7 +810,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: background var(--transition-fast), transform var(--transition-fast);
+    transition: background 0.2s ease, transform 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -801,7 +818,7 @@
 
 .preview-button:hover {
     background: #2E86C1;
-    transform: scale(1.06);
+    transform: scale(1.08);
 }
 
 .enter-folder-button {
@@ -815,7 +832,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: background var(--transition-fast), transform var(--transition-fast);
+    transition: background 0.2s ease, transform 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -823,7 +840,7 @@
 
 .enter-folder-button:hover {
     background: var(--primary-dark);
-    transform: scale(1.06);
+    transform: scale(1.08);
 }
 
 .share-button {
@@ -837,7 +854,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: background var(--transition-fast), transform var(--transition-fast);
+    transition: background 0.2s ease, transform 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -845,7 +862,7 @@
 
 .share-button:hover {
     background: #8E44AD;
-    transform: scale(1.06);
+    transform: scale(1.08);
 }
 
 .favorite-toggle-btn,
@@ -861,7 +878,7 @@
     background: rgba(var(--primary-rgb), 0.12);
     color: var(--primary-color);
     border-color: rgba(var(--primary-rgb), 0.2);
-    transform: scale(1.06);
+    transform: scale(1.08);
 }
 
 .favorite-toggle-btn.active,
@@ -879,18 +896,13 @@
 
 .favorite-toggle-btn i,
 .subscribe-toggle-btn i {
-    transition: transform 0.2s ease, color 0.2s ease;
-}
-
-.favorite-toggle-btn:hover i,
-.subscribe-toggle-btn:hover i {
-    transform: scale(1.15);
+    transition: color 0.2s ease;
 }
 
 .favorite-toggle-btn.active:hover,
 .subscribe-toggle-btn.active:hover {
     filter: brightness(1.08);
-    transform: scale(1.06);
+    transform: scale(1.08);
 }
 
 [data-theme="dark"] .favorite-toggle-btn,
@@ -7403,17 +7415,16 @@ textarea.form-input {
     color: white;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease;
     font-size: 0.9rem;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .delete-button:hover {
     background: #c0392b;
-    transform: scale(1.06);
-    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+    transform: scale(1.08);
 }
 
 .edit-desc-button {
@@ -7425,17 +7436,16 @@ textarea.form-input {
     color: white;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease;
     font-size: 0.9rem;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .edit-desc-button:hover {
     background: #2980b9;
-    transform: scale(1.06);
-    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+    transform: scale(1.08);
 }
 
 .folder-desc-badge {
@@ -7529,17 +7539,16 @@ textarea.form-input {
     color: white;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease;
     font-size: 0.9rem;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .rename-button:hover {
     background: var(--primary-dark);
-    transform: scale(1.06);
-    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+    transform: scale(1.08);
 }
 
 .move-button {
@@ -7551,17 +7560,16 @@ textarea.form-input {
     color: white;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease;
     font-size: 0.9rem;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .move-button:hover {
     background: #357ABD;
-    transform: scale(1.06);
-    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+    transform: scale(1.08);
 }
 
 .edit-link-button {
@@ -7573,17 +7581,16 @@ textarea.form-input {
     color: white;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease;
     font-size: 0.9rem;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .edit-link-button:hover {
     background: #2980b9;
-    transform: scale(1.06);
-    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+    transform: scale(1.08);
 }
 
 
