@@ -89,7 +89,7 @@
 | 技术 | 用途 |
 |---|---|
 | Vanilla JavaScript (ES6+) | 全部前端逻辑，模块化构建打包 |
-| 自定义 CSS（11 模块架构） | 主题（亮/暗色）、动画、响应式 |
+| 自定义 CSS（11 模块架构） | 主题、动画、响应式 |
 | Marked.js + KaTeX + Highlight.js | Markdown 渲染、数学公式、代码高亮 |
 | marked-footnote / marked-highlight / marked-katex-extension | Marked 插件（脚注、高亮、公式） |
 | DOMPurify | XSS 过滤 |
@@ -143,7 +143,8 @@
 ├── search_tips.html            # 帮助页：搜索技巧
 ├── sharing_rules.html          # 帮助页：分享规范
 ├── *.js / css/                  # 构建产物（见 src/ 源文件）
-├── sw.js                        # Service Worker（构建时注入版本号）
+├── sw.js                        # Service Worker
+├── theme-init.js                # 主题初始化
 ├── manifest.json                # PWA 清单
 ├── src/
 │   ├── js/

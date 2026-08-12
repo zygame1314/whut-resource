@@ -259,7 +259,7 @@ async function startTutorial() {
         const themeStep = {
             id: 'theme-toggle',
             title: '个性化主题',
-            text: '点击这里可以在明亮和暗黑模式之间自由切换，<br>选择你最喜欢的阅读体验！',
+            text: '点击这里可以在多种主题之间自由切换，<br>选择你最喜欢的阅读体验！',
             attachTo: {
                 element: '#theme-toggle',
                 on: 'bottom'
