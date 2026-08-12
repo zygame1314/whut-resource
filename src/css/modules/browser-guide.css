@@ -126,12 +126,11 @@
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease;
 }
 
 .browser-guide-copy-btn:hover {
     transform: scale(1.04);
-    box-shadow: 0 4px 14px rgba(0, 123, 255, 0.4);
 }
 
 .browser-guide-copy-btn:active {

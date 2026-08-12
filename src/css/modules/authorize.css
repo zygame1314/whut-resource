@@ -157,12 +157,14 @@
     border: 1px solid var(--border-color);
     background: var(--background-alt);
     display: block;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.3s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .oauth-client-logo:hover {
     transform: scale(1.08);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .oauth-user-info {

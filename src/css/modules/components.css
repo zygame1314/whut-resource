@@ -219,7 +219,7 @@
     border-radius: 12px;
     cursor: pointer;
     font-weight: 600;
-    transition: transform var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+    transition: transform var(--transition-fast), background var(--transition-fast);
     text-decoration: none;
 }
 
@@ -1341,7 +1341,7 @@
     font-weight: 600;
     padding: 2px 6px;
     border-radius: 4px;
-    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
     background: rgba(52, 152, 219, 0.1);
 }
 
@@ -1349,7 +1349,6 @@
     background: var(--primary-color);
     color: white;
     transform: scale(1.05);
-    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
 }
 
 [data-theme="dark"] .support-us-section {
@@ -2545,12 +2544,10 @@
     border-radius: 12px;
     border: 1px solid rgba(var(--primary-rgb), 0.06);
     border-left: 3px solid rgba(102, 126, 234, 0.3);
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease, border-left-color 0.2s ease;
+    transition: border-color 0.2s ease, border-left-color 0.2s ease;
 }
 
 .guestbook-reply-item:hover {
-    transform: scale(1.005);
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.08);
     border-color: rgba(102, 126, 234, 0.15);
     border-left-color: rgba(102, 126, 234, 0.6);
 }
@@ -3554,7 +3551,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    transition: transform 0.2s ease, filter 0.2s ease;
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
@@ -3568,13 +3565,11 @@
 
 .create-folder-confirm:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.35);
     filter: brightness(1.05);
 }
 
 .create-folder-confirm:active {
     transform: translateY(0);
-    box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.2);
 }
 
 .create-folder-cancel {
@@ -4037,12 +4032,14 @@
     font-weight: 600;
     box-shadow: 0 2px 6px rgba(118, 75, 162, 0.3);
     vertical-align: middle;
-    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+    transition: transform 0.3s ease, background 0.3s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .admin-badge:hover {
     transform: scale(1.03);
-    box-shadow: 0 4px 8px rgba(118, 75, 162, 0.4);
 }
 
 .admin-badge.super {
@@ -4520,7 +4517,6 @@
     border-color: var(--primary-color);
     outline: none;
     box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.12), 0 4px 16px rgba(0, 123, 255, 0.15);
-    transform: translateY(-1px);
 }
 
 .input-group {
@@ -4539,14 +4535,13 @@
     border: 2px solid var(--border-color);
     border-radius: 14px;
     overflow: hidden;
-    transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background: var(--background);
 }
 
 .email-input-group:focus-within {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.12), 0 4px 16px rgba(0, 123, 255, 0.15);
-    transform: translateY(-1px);
 }
 
 .email-input-group .form-control {
@@ -4639,11 +4634,14 @@
     border-radius: 14px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 600;
     font-size: 0.9rem;
     position: relative;
     overflow: hidden;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .send-code-btn::before {
@@ -4654,18 +4652,18 @@
     width: 40%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-    transition: left 0.6s;
+    transition: none;
 }
 
 .send-code-btn:hover:not(:disabled)::before {
     left: 100%;
+    transition: left 0.6s;
 }
 
 .send-code-btn:hover:not(:disabled) {
     background: var(--primary-gradient);
     color: white;
     transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
     border-color: var(--primary-color);
 }
 
@@ -4695,9 +4693,12 @@
     font-size: 1rem;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: background 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), border-color 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     z-index: 10;
     padding: 0;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .close-modal-btn:hover {
@@ -4705,7 +4706,6 @@
     color: var(--primary-color);
     border-color: var(--primary-color);
     transform: rotate(90deg) scale(1.1);
-    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.25);
 }
 
 .close-modal-btn:active {
@@ -5121,7 +5121,10 @@
     cursor: pointer;
     background: var(--border-color);
     opacity: 0.75;
-    transition: opacity 0.2s ease, transform 0.2s ease, width 0.2s ease, height 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease, width 0.2s ease, height 0.2s ease, background 0.2s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .announcement-dot:hover {
@@ -6246,7 +6249,6 @@ textarea.form-input {
 
 .sidebar-float-entry:hover {
     transform: translateY(-50%) translateX(-4px);
-    box-shadow: -4px 0 20px rgba(var(--primary-rgb), 0.5);
 }
 
 .sidebar-float-entry:active {
@@ -6260,7 +6262,7 @@ textarea.form-input {
 }
 
 [data-theme="dark"] .sidebar-float-entry:hover {
-    box-shadow: -4px 0 20px rgba(0, 123, 255, 0.3);
+    transform: translateY(-50%) translateX(-4px);
 }
 
 [data-theme="dark"] .sidebar-float-entry:active {
@@ -8872,12 +8874,14 @@ input#prompt-input {
     background-origin: border-box;
     background-clip: padding-box, border-box;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.3s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .upload-path-info:hover {
     transform: scale(1.03);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 .upload-path-info i {
@@ -10407,7 +10411,7 @@ input#prompt-input {
     padding: 1.2rem;
     margin-bottom: 0.8rem;
     background: var(--background-alt);
-    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
     position: relative;
     border-left: 3px solid rgba(var(--primary-rgb), 0.25);
 }
@@ -10415,7 +10419,6 @@ input#prompt-input {
 .oauth-client-card:hover {
     border-color: var(--primary-light);
     border-left-color: var(--primary-color);
-    box-shadow: 0 4px 16px rgba(var(--primary-rgb), 0.08);
 }
 
 .oauth-client-main {
@@ -12775,13 +12778,15 @@ input#prompt-input {
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease;
     white-space: nowrap;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .donation-thanks-btn:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
 }
 
 @media (max-width: 480px) {

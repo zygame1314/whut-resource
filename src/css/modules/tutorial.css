@@ -418,13 +418,12 @@
     cursor: pointer;
     font-weight: 600;
     font-size: 0.9rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease;
     font-family: var(--font-family);
 }
 
 .tutorial-celebration-btn:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 16px rgba(var(--primary-rgb), 0.35);
 }
 
 .tutorial-celebration-btn:active {
