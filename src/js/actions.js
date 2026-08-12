@@ -119,6 +119,7 @@ async function deleteFile(key, isDirectory) {
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
+        if (isDirectory && typeof window.filesApiCache !== 'undefined') window.filesApiCache.invalidate('listAllDirs');
         if (typeof searchCache !== 'undefined') searchCache.clear();
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
     };
@@ -450,6 +451,7 @@ async function moveItem(key, currentName, isDirectory) {
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
         if (directoryCache[destinationPath]) delete directoryCache[destinationPath];
+        if (isDirectory && typeof window.filesApiCache !== 'undefined') window.filesApiCache.invalidate('listAllDirs');
         if (typeof searchCache !== 'undefined') searchCache.clear();
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
     };
@@ -508,6 +510,7 @@ async function renameFile(key, currentName, isDirectory) {
         if (directoryCache[currentPrefix]) delete directoryCache[currentPrefix];
         const parentPrefix = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
         if (directoryCache[parentPrefix]) delete directoryCache[parentPrefix];
+        if (isDirectory && typeof window.filesApiCache !== 'undefined') window.filesApiCache.invalidate('listAllDirs');
         if (typeof searchCache !== 'undefined') searchCache.clear();
         fetchAndDisplayFiles(currentPrefix, '', currentPage);
     };
@@ -770,6 +773,8 @@ window.executeBatchDelete = async (keys) => {
         const batchResults = await Promise.all(batch.map(deleteOneItem));
         results.push(...batchResults);
     }
+    const deletedAnyDir = results.some(r => r.status === 'success' && typeof r.key === 'string' && r.key.endsWith('/'));
+    if (deletedAnyDir && typeof window.filesApiCache !== 'undefined') window.filesApiCache.invalidate('listAllDirs');
     return results;
 };
 async function toggleReaction(fileKey, btnElement) {

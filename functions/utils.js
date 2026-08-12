@@ -3,6 +3,15 @@ export function folderKeyUpperBound(folderKey) {
   const last = folderKey.charCodeAt(folderKey.length - 1);
   return folderKey.slice(0, -1) + String.fromCharCode(last + 1);
 }
+export const DIR_LIST_CACHE_ID = 2;
+export async function invalidateDirListCache(DB) {
+  if (!DB) return;
+  try {
+    await DB.prepare('DELETE FROM system_cache WHERE id = ?').bind(DIR_LIST_CACHE_ID).run();
+  } catch (e) {
+    console.error('清除目录列表缓存失败:', e?.message || e);
+  }
+}
 const _rlCache = new Map();
 const RL_WINDOW_MS = 60 * 1000;
 const RL_CLEANUP_THRESHOLD = 5000;

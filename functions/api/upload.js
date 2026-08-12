@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, notifyFolderUpdates } from '../utils.js';
+import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, notifyFolderUpdates, invalidateDirListCache } from '../utils.js';
 async function ensureDirectoryExists(db, fullPath, env) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
@@ -53,11 +53,7 @@ async function ensureDirectoryExists(db, fullPath, env) {
     }
   }
   if (createdAny) {
-    try {
-      await db.prepare('DELETE FROM system_cache WHERE id = 2').run();
-    } catch (e) {
-      console.error('清除目录缓存失败:', e);
-    }
+    await invalidateDirListCache(db);
   }
 }
 function isValidUrl(string) {

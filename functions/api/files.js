@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey } from '../utils.js';
+import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache } from '../utils.js';
 function sanitizeSegment(name) {
     if (!name || typeof name !== 'string') return null;
     const decoded = name.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
@@ -196,12 +196,11 @@ export async function onRequestGet({ request, env, waitUntil }) {
             });
         }
         if (action === 'listAllDirs') {
-            const CACHE_ID = 2;
             const CACHE_TTL_MS = 60 * 60 * 1000;
             let directories = [];
             let cacheHit = false;
             try {
-                const cacheRecord = await DB.prepare('SELECT data, updated_at FROM system_cache WHERE id = ?').bind(CACHE_ID).first();
+                const cacheRecord = await DB.prepare('SELECT data, updated_at FROM system_cache WHERE id = ?').bind(DIR_LIST_CACHE_ID).first();
                 if (cacheRecord && cacheRecord.data) {
                     const updatedAt = new Date(cacheRecord.updated_at + 'Z').getTime();
                     const now = Date.now();
@@ -221,7 +220,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                     await DB.prepare(`
                         INSERT OR REPLACE INTO system_cache (id, data, updated_at) 
                         VALUES (?, ?, CURRENT_TIMESTAMP)
-                    `).bind(CACHE_ID, JSON.stringify(directories)).run();
+                    `).bind(DIR_LIST_CACHE_ID, JSON.stringify(directories)).run();
                 } catch (e) {
                     console.error('更新目录缓存失败:', e);
                 }
@@ -230,7 +229,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 status: 200,
                 headers: addCorsHeaders({
                     'Content-Type': 'application/json',
-                    'Cache-Control': 'public, max-age=3600'
+                    'Cache-Control': 'no-store'
                 })
             });
         }
@@ -337,7 +336,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 status: 200,
                 headers: addCorsHeaders({
                     'Content-Type': 'application/json',
-                    'Cache-Control': 'public, max-age=3600'
+                    'Cache-Control': 'no-store'
                 })
             });
         }
@@ -764,6 +763,7 @@ export async function onRequestPut({ request, env }) {
                 "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
             ).bind(newFolderKey, newFolderKey, newEndKey).all();
             await createVectorIndexes(env, newFiles || []);
+            await invalidateDirListCache(DB);
             await logAdminAction(env, user.id, 'rename_folder', 'file', fileRecord.id, '重命名文件夹', JSON.stringify({ old_key: key, new_key: newFolderKey, child_count: (childItems || []).length }));
             return new Response(JSON.stringify({ success: true, message: '文件夹重命名成功' }), {
                 status: 200,
@@ -1095,6 +1095,7 @@ export async function onRequestPost({ request, env }) {
                 "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
             ).bind(newFolderKey, newFolderKey, newEndKey).all();
             await createVectorIndexes(env, newFiles || []);
+            await invalidateDirListCache(DB);
             await logAdminAction(env, user.id, 'move_folder', 'file', fileRecord.id, '移动文件夹', JSON.stringify({ old_key: sourceKey, new_key: newFolderKey, child_count: (childItems || []).length }));
             return new Response(JSON.stringify({ success: true, message: '文件夹移动成功' }), {
                 status: 200,
@@ -1292,6 +1293,7 @@ export async function onRequestDelete({ request, env }) {
                 await DB.prepare('DELETE FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(key, upper).run();
             }
             await deleteVectorIndexes(env, fileIdsToDeleteVector);
+            await invalidateDirListCache(DB);
             const deletedCount = (childItems?.length || 0) + 1;
             await logAdminAction(env, user.id, 'delete_folder', 'file', fileRecord.id, '删除文件夹', JSON.stringify({ key, deleted_count: deletedCount }));
             return new Response(JSON.stringify({

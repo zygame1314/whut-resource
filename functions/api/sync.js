@@ -1,4 +1,4 @@
-import { addCorsHeaders, isSuperAdmin, logAdminAction, getUserFromRequest } from '../utils.js';
+import { addCorsHeaders, isSuperAdmin, logAdminAction, getUserFromRequest, invalidateDirListCache } from '../utils.js';
 export async function onRequestPost({ request, env }) {
     const user = await getUserFromRequest(request, env);
     if (!user || !isSuperAdmin(user)) {
@@ -211,6 +211,7 @@ async function handleCleanup(DB, body, VECTORIZE, env, user) {
     for (const dir of dirsToDelete) {
         deleteStatements.push(DB.prepare('DELETE FROM files WHERE id = ?').bind(dir.id));
     }
+    const hadDirDeletions = dirsToDelete.length > 0;
     const BATCH_SIZE = 50;
     for (let i = 0; i < deleteStatements.length; i += BATCH_SIZE) {
         const chunk = deleteStatements.slice(i, i + BATCH_SIZE);
@@ -219,6 +220,9 @@ async function handleCleanup(DB, body, VECTORIZE, env, user) {
         }
     }
     let deletedVectorsCount = 0;
+    if (hadDirDeletions) {
+        await invalidateDirListCache(DB);
+    }
     if (VECTORIZE && vectorIdsToDelete.length > 0) {
         try {
             for (let i = 0; i < vectorIdsToDelete.length; i += 100) {
