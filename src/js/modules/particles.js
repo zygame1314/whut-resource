@@ -92,9 +92,12 @@
         const left = Math.random() * 100;
         const top = Math.random() * 100 - 10;
         const isRiseFast = themeCfg.motion === 'riseFast';
-        const duration = isRiseFast ? randomRange(7, 14) : randomRange(14, 28);
+        const isOrbit = themeCfg.motion === 'orbit';
+        const duration = isOrbit ? randomRange(18, 34) : (isRiseFast ? randomRange(7, 14) : randomRange(14, 28));
         const delay = randomRange(0, duration * -1);
         const drift = isRiseFast ? 0 : randomRange(-70, 70);
+        const orbitRadiusX = isOrbit ? randomRange(120, 360) : drift;
+        const orbitRadiusY = isOrbit ? randomRange(80, 220) : 0;
         const rotate = randomRange(180, 720) * (Math.random() > 0.5 ? 1 : -1);
         const opacity = randomRange(0.45, 0.9);
 
@@ -103,6 +106,13 @@
         wrapper.style.setProperty('--particle-drift', `${drift}px`);
         wrapper.style.setProperty('--particle-rotate', `${rotate}deg`);
         wrapper.style.setProperty('--particle-peak-opacity', opacity.toFixed(2));
+
+        if (isOrbit) {
+            wrapper.style.setProperty('--orbit-radius-x', `${orbitRadiusX}px`);
+            wrapper.style.setProperty('--orbit-radius-y', `${orbitRadiusY}px`);
+            wrapper.style.setProperty('--orbit-x-start', `${randomRange(-60, 60)}px`);
+            wrapper.style.setProperty('--orbit-y-start', `${randomRange(-50, 50)}px`);
+        }
 
         iconEl.style.color = hexToRgba(color, opacity);
         iconEl.style.fontSize = `${size}px`;

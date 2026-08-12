@@ -81,6 +81,10 @@
     will-change: transform, opacity;
 }
 
+.particle-base {
+    transform-origin: center center;
+}
+
 .particle-base i {
     line-height: 1;
     transform: translateZ(0);

@@ -384,20 +384,32 @@
 
 @keyframes particleOrbit {
     0% {
-        transform: translateX(0) translateY(0) rotate(0deg);
+        transform: translateX(var(--orbit-x-start, 0)) translateY(var(--orbit-y-start, 0)) rotate(0deg) scale(0.8);
         opacity: 0;
     }
 
-    15% {
-        opacity: var(--particle-peak-opacity, 0.6);
+    8% {
+        opacity: var(--particle-peak-opacity, 0.75);
     }
 
-    85% {
-        opacity: var(--particle-peak-opacity, 0.6);
+    25% {
+        transform: translateX(var(--orbit-radius-x, 180px)) translateY(0) rotate(180deg) scale(1.08);
+    }
+
+    50% {
+        transform: translateX(0) translateY(calc(var(--orbit-radius-y, 120px) * -1)) rotate(360deg) scale(1.15);
+    }
+
+    75% {
+        transform: translateX(calc(var(--orbit-radius-x, 180px) * -1)) translateY(0) rotate(540deg) scale(1.08);
+    }
+
+    92% {
+        opacity: var(--particle-peak-opacity, 0.75);
     }
 
     100% {
-        transform: translateX(calc(var(--particle-drift, 60px) * 2)) translateY(-100lvh) rotate(var(--particle-rotate, 360deg));
+        transform: translateX(0) translateY(calc(var(--orbit-radius-y, 120px) * -2.5)) rotate(720deg) scale(0.85);
         opacity: 0;
     }
 }
