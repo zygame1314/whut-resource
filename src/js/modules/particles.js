@@ -103,7 +103,6 @@
         wrapper.style.setProperty('--particle-drift', `${drift}px`);
         wrapper.style.setProperty('--particle-rotate', `${rotate}deg`);
         wrapper.style.setProperty('--particle-peak-opacity', opacity.toFixed(2));
-        wrapper.style.setProperty('--particle-travel', `${Math.round(window.innerHeight * 1.2)}px`);
 
         iconEl.style.color = hexToRgba(color, opacity);
         iconEl.style.fontSize = `${size}px`;
