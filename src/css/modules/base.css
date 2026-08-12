@@ -493,6 +493,126 @@
     --footer-border: #2A2A4A;
 }
 
+[data-theme="terminal"] {
+    --primary-color: #FFAE00;
+    --primary-light: #FFC940;
+    --primary-dark: #CC8B00;
+    --primary-gradient: linear-gradient(135deg, #FFAE00 0%, #FF8C00 100%);
+    --primary-rgb: 255, 174, 0;
+    --accent-color: #00E5FF;
+    --accent-rgb: 0, 229, 255;
+    --accent-gradient: linear-gradient(135deg, #00E5FF 0%, #00B8D4 100%);
+
+    --background: #14100A;
+    --background-alt: #1A150E;
+    --background-dark: #221B12;
+    --text-primary: #F5E6C8;
+    --text-secondary: #C4A96E;
+    --text-light: #8C7349;
+    --border-color: #3D2E1A;
+
+    --background-secondary: var(--background-alt);
+    --background-hover: rgba(255, 174, 0, 0.08);
+
+    --button-bg: var(--background-alt);
+    --button-text: var(--text-primary);
+    --button-border: var(--border-color);
+    --button-hover-bg: rgba(255, 174, 0, 0.12);
+
+    --card-bg: #1A150E;
+    --card-shadow: 0 4px 20px rgba(255, 174, 0, 0.12);
+    --text-muted: #8C7349;
+    --text-tertiary: #5C4A32;
+
+    --dark-bg: #0E0A05;
+    --dark-bg-alt: #15100A;
+    --dark-border: #3D2E1A;
+    --nav-bg: rgba(20, 16, 10, 0.95);
+
+    --element-1-bg: linear-gradient(135deg, #FFAE00, #FF8C00);
+    --element-2-bg: linear-gradient(135deg, #00E5FF, #00B8D4);
+    --element-3-bg: linear-gradient(135deg, #FF5722, #FF8A65);
+    --element-4-bg: linear-gradient(135deg, #9C27B0, #CE93D8);
+
+    --particle-color-1: #FFAE00;
+    --particle-color-2: #00E5FF;
+    --particle-color-3: #FF5722;
+    --particle-glow: #FFAE00;
+    --particle-shape: 0%;
+    --particle-count: 24;
+    --particle-line-color: rgba(255, 174, 0, 0.12);
+
+    --badge-online-rgb: 255, 174, 0;
+    --badge-registered-rgb: 0, 184, 212;
+    --badge-uptime-rgb: 255, 87, 34;
+    --badge-update-rgb: 156, 39, 176;
+
+    --footer-bg: #0E0A05;
+    --footer-text: #F5E6C8;
+    --footer-muted: #8C7349;
+    --footer-border: #3D2E1A;
+}
+
+[data-theme="volcano"] {
+    --primary-color: #FF4500;
+    --primary-light: #FF6A36;
+    --primary-dark: #CC3700;
+    --primary-gradient: linear-gradient(135deg, #FF4500 0%, #FF8C00 100%);
+    --primary-rgb: 255, 69, 0;
+    --accent-color: #FFD700;
+    --accent-rgb: 255, 215, 0;
+    --accent-gradient: linear-gradient(135deg, #FFD700 0%, #FFAA00 100%);
+
+    --background: #1A0A0A;
+    --background-alt: #240E0E;
+    --background-dark: #331414;
+    --text-primary: #FFE4E1;
+    --text-secondary: #D68A8A;
+    --text-light: #9E5A5A;
+    --border-color: #4A1A1A;
+
+    --background-secondary: var(--background-alt);
+    --background-hover: rgba(255, 69, 0, 0.08);
+
+    --button-bg: var(--background-alt);
+    --button-text: var(--text-primary);
+    --button-border: var(--border-color);
+    --button-hover-bg: rgba(255, 69, 0, 0.12);
+
+    --card-bg: #240E0E;
+    --card-shadow: 0 4px 20px rgba(255, 69, 0, 0.14);
+    --text-muted: #9E5A5A;
+    --text-tertiary: #6B3838;
+
+    --dark-bg: #120505;
+    --dark-bg-alt: #1C0A0A;
+    --dark-border: #4A1A1A;
+    --nav-bg: rgba(26, 10, 10, 0.95);
+
+    --element-1-bg: linear-gradient(135deg, #FF4500, #FF8C00);
+    --element-2-bg: linear-gradient(135deg, #FFD700, #FFAA00);
+    --element-3-bg: linear-gradient(135deg, #DC143C, #FF6B6B);
+    --element-4-bg: linear-gradient(135deg, #8B0000, #B22222);
+
+    --particle-color-1: #FF4500;
+    --particle-color-2: #FFD700;
+    --particle-color-3: #DC143C;
+    --particle-glow: #FF4500;
+    --particle-shape: 0%;
+    --particle-count: 26;
+    --particle-line-color: rgba(255, 69, 0, 0.12);
+
+    --badge-online-rgb: 255, 69, 0;
+    --badge-registered-rgb: 255, 215, 0;
+    --badge-uptime-rgb: 220, 20, 60;
+    --badge-update-rgb: 139, 0, 0;
+
+    --footer-bg: #120505;
+    --footer-text: #FFE4E1;
+    --footer-muted: #9E5A5A;
+    --footer-border: #4A1A1A;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -643,16 +763,67 @@ button,
 
 [data-theme="cyberpunk"] #particles-background::after {
     background:
-        repeating-linear-gradient(
-            0deg,
+        repeating-linear-gradient(0deg,
             transparent 0px,
             transparent 2px,
             rgba(0, 240, 255, 0.03) 2px,
-            rgba(0, 240, 255, 0.03) 4px
-        ),
+            rgba(0, 240, 255, 0.03) 4px),
         radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-glow) 6%, transparent) 0%, transparent 60%);
     opacity: 0.5;
     animation: pulse 6s ease-in-out infinite;
+}
+
+[data-theme="terminal"] #particles-background {
+    background:
+        radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--particle-color-1) 14%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--particle-color-2) 12%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 8%, transparent) 0%, transparent 55%),
+        repeating-linear-gradient(0deg,
+            transparent 0px,
+            transparent 3px,
+            rgba(255, 174, 0, 0.04) 3px,
+            rgba(255, 174, 0, 0.04) 6px),
+        var(--background);
+}
+
+[data-theme="terminal"] #particles-background::before {
+    background-image:
+        radial-gradient(circle at 25% 25%, color-mix(in srgb, var(--particle-color-1) 18%, transparent) 0%, transparent 35%),
+        radial-gradient(circle at 75% 75%, color-mix(in srgb, var(--particle-color-2) 14%, transparent) 0%, transparent 35%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-3) 10%, transparent) 0%, transparent 35%);
+    animation: float 10s ease-in-out infinite;
+}
+
+[data-theme="terminal"] #particles-background::after {
+    background:
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-glow) 6%, transparent) 0%, transparent 60%);
+    opacity: 0.4;
+    animation: pulse 8s ease-in-out infinite;
+}
+
+[data-theme="volcano"] #particles-background {
+    background:
+        radial-gradient(ellipse at 50% 100%, color-mix(in srgb, #FF4500 18%, transparent) 0%, transparent 55%),
+        radial-gradient(circle at 20% 30%, color-mix(in srgb, var(--particle-color-1) 14%, transparent) 0%, transparent 45%),
+        radial-gradient(circle at 80% 70%, color-mix(in srgb, var(--particle-color-3) 12%, transparent) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-color-2) 8%, transparent) 0%, transparent 55%),
+        var(--background);
+}
+
+[data-theme="volcano"] #particles-background::before {
+    background-image:
+        radial-gradient(circle at 30% 80%, color-mix(in srgb, var(--particle-color-1) 22%, transparent) 0%, transparent 30%),
+        radial-gradient(circle at 70% 60%, color-mix(in srgb, var(--particle-color-2) 16%, transparent) 0%, transparent 35%),
+        radial-gradient(circle at 45% 30%, color-mix(in srgb, var(--particle-color-3) 12%, transparent) 0%, transparent 40%);
+    animation: float 12s ease-in-out infinite;
+}
+
+[data-theme="volcano"] #particles-background::after {
+    background:
+        radial-gradient(ellipse at 50% 100%, color-mix(in srgb, #DC143C 10%, transparent) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--particle-glow) 5%, transparent) 0%, transparent 60%);
+    opacity: 0.45;
+    animation: pulse 10s ease-in-out infinite;
 }
 
 ::-webkit-scrollbar {

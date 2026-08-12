@@ -7,7 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'forest', name: '森林', icon: 'fas fa-tree', elements: ['fa-tree', 'fa-leaf', 'fa-paw', 'fa-bug'] },
         { id: 'nord', name: '极地', icon: 'fas fa-snowflake', elements: ['fa-snowflake', 'fa-mountain', 'fa-cloud', 'fa-wind'] },
         { id: 'rose', name: '玫瑰', icon: 'fas fa-heart', elements: ['fa-heart', 'fa-spa', 'fa-gift', 'fa-music'] },
-        { id: 'cyberpunk', name: '赛博', icon: 'fas fa-bolt', elements: ['fa-bolt', 'fa-microchip', 'fa-terminal', 'fa-robot'] }
+        { id: 'cyberpunk', name: '赛博', icon: 'fas fa-bolt', elements: ['fa-bolt', 'fa-microchip', 'fa-terminal', 'fa-robot'] },
+        { id: 'terminal', name: '终端', icon: 'fas fa-terminal', elements: ['fa-terminal', 'fa-code', 'fa-bug', 'fa-server'] },
+        { id: 'volcano', name: '火山', icon: 'fas fa-volcano', elements: ['fa-fire', 'fa-mountain', 'fa-burn', 'fa-meteor'] }
     ];
     function getThemePreview(id) {
         const root = document.documentElement;

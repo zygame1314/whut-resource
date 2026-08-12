@@ -302,9 +302,8 @@
         overflow-y: auto;
         opacity: 0;
         visibility: hidden;
-        transform: translateY(-10px) scale(0.95);
         transform-origin: top right;
-        transition: opacity var(--transition-normal), transform var(--transition-normal), visibility var(--transition-normal);
+        transition: opacity var(--transition-normal), visibility var(--transition-normal);
         pointer-events: none;
         display: flex;
     }
@@ -316,7 +315,6 @@
     .nav-actions.active {
         opacity: 1;
         visibility: visible;
-        transform: translateY(0) scale(1);
         pointer-events: auto;
     }
 
@@ -332,6 +330,22 @@
 
     .nav-actions.active .nav-icon-buttons #theme-toggle {
         flex: 1 1 auto;
+    }
+
+    .nav-actions.active .theme-switcher {
+        position: static;
+    }
+
+    .nav-actions.active .theme-menu {
+        position: fixed;
+        top: 5rem;
+        right: 1rem;
+        left: 1rem;
+        margin: 0 auto;
+        max-width: 280px;
+        max-height: calc(100vh - 6rem);
+        overflow-y: auto;
+        z-index: 1001;
     }
 
     .nav-actions #auth-section {

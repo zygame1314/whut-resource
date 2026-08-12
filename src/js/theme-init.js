@@ -1,5 +1,5 @@
 (function () {
-    var VALID = ['light', 'dark', 'sepia', 'ocean', 'forest', 'nord', 'rose', 'cyberpunk'];
+    var VALID = ['light', 'dark', 'sepia', 'ocean', 'forest', 'nord', 'rose', 'cyberpunk', 'terminal', 'volcano'];
     var t = localStorage.getItem('theme');
     var auto = localStorage.getItem('autoTheme');
     if (!t || VALID.indexOf(t) === -1 || auto === 'true') {

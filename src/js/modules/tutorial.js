@@ -281,10 +281,7 @@ async function startTutorial() {
         steps.push(themeStep);
         const quotaEl = document.querySelector('.user-info .quota');
         if (quotaEl) {
-            const hasHover = window.matchMedia('(hover: hover)').matches;
-            const quotaTriggerText = !hasHover
-                ? '点击这里的配额文字，<br>即可弹出配额详情弹窗。'
-                : '鼠标悬浮在配额文字上，<br>即可查看配额详情弹窗；也可以点击触发。';
+            const quotaTriggerText = '点击这里的配额文字，即可弹出配额详情弹窗。';
             const quotaStep = {
                 id: 'quota-popup',
                 title: '下载配额',

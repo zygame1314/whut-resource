@@ -55,6 +55,18 @@
             icons: ['fa-bolt', 'fa-microchip', 'fa-terminal', 'fa-robot'],
             motion: 'riseFast',
             density: 20
+        },
+        terminal: {
+            colors: ['#FFAE00', '#00E5FF', '#FF5722', '#9C27B0'],
+            icons: ['fa-terminal', 'fa-code', 'fa-bug', 'fa-server'],
+            motion: 'drift',
+            density: 16
+        },
+        volcano: {
+            colors: ['#FF4500', '#FF8C00', '#FFD700', '#DC143C'],
+            icons: ['fa-volcano', 'fa-fire', 'fa-mountain', 'fa-burn'],
+            motion: 'riseFast',
+            density: 22
         }
     };
 
