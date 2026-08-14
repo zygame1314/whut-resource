@@ -501,7 +501,8 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 if (['AND', 'OR', 'NOT'].includes(upperTerm)) {
                     return upperTerm;
                 }
-                return Array.from(term).join(' ');
+                const stripped = term.replace(/[-*():^"']/g, '');
+                return Array.from(stripped).join(' ');
             });
             const ftsTokenizedQuery = processedTerms.join(' ');
             const SEARCH_MAX_LIMIT = 50;

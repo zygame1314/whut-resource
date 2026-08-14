@@ -248,7 +248,8 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     const processedTerms = terms.map(term => {
       const upperTerm = term.toUpperCase();
       if (['AND', 'OR', 'NOT'].includes(upperTerm)) return upperTerm;
-      return Array.from(term).join(' ');
+      const stripped = term.replace(/[-*():^"']/g, '');
+      return Array.from(stripped).join(' ');
     });
     const ftsTokenizedQuery = processedTerms.join(' ');
     const ftsResult = await DB.prepare(
