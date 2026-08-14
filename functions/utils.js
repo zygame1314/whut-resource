@@ -252,7 +252,7 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     });
     const ftsTokenizedQuery = processedTerms.join(' ');
     const ftsResult = await DB.prepare(
-      `SELECT f.id, f.name, f.key, f.parent_path, f.is_directory, f.description, f.contentType, f.size, f.downloads
+      `SELECT f.id, f.name, f.key, f.parent_path, f.is_directory, f.description, f.contentType, f.size, f.downloads, f.likes
        FROM files f
        JOIN files_fts ON f.id = files_fts.rowid
        WHERE files_fts MATCH ?
@@ -276,7 +276,7 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
   const idArray = [...candidateIds];
   const placeholders = idArray.map(() => '?').join(',');
   const dbResults = await DB.prepare(
-    `SELECT id, name, key, parent_path, is_directory, is_link, link_url, description, contentType, size, downloads, uploaded FROM files WHERE id IN (${placeholders})`
+    `SELECT id, name, key, parent_path, is_directory, is_link, link_url, description, contentType, size, downloads, likes, uploaded FROM files WHERE id IN (${placeholders})`
   ).bind(...idArray).all();
   let results = (dbResults.results || []).map(file => ({
     ...file,
