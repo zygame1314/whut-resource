@@ -2647,6 +2647,9 @@
     font-size: 0.85rem;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .like-btn:hover {
