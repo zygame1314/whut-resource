@@ -837,7 +837,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
             }
         };
 
-        searchBtn.addEventListener('click', doSearch);
+        searchBtn.addEventListener('click', () => doSearch());
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') doSearch();
         });

@@ -356,14 +356,23 @@ export async function getUserFromRequest(request, env) {
   const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
   return user;
 }
-export async function logAdminAction(env, operatorId, action, targetType, targetId, reason, details) {
+export async function logAdminAction(env, operatorId, action, targetType, targetId, reason, details, skipCleanup = false) {
   try {
     await env.DB.prepare(
       'INSERT INTO admin_logs (action, target_type, target_id, reason, details, operator_id) VALUES (?, ?, ?, ?, ?, ?)'
     ).bind(action, targetType, targetId || null, reason || null, details || null, operatorId || null).run();
-    await env.DB.prepare("DELETE FROM admin_logs WHERE created_at < date('now', '-3 days')").run();
+    if (!skipCleanup) {
+      await env.DB.prepare("DELETE FROM admin_logs WHERE created_at < date('now', '-3 days')").run();
+    }
   } catch (e) {
     console.error('记录管理员操作失败:', e);
+  }
+}
+export async function cleanupAdminLogs(env) {
+  try {
+    await env.DB.prepare("DELETE FROM admin_logs WHERE created_at < date('now', '-3 days')").run();
+  } catch (e) {
+    console.error('清理管理员日志失败:', e);
   }
 }
 const EMBEDDING_MODEL = 'Qwen/Qwen3-Embedding-0.6B';
