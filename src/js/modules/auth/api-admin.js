@@ -136,11 +136,7 @@ async function fetchPendingRequestsCount() {
             });
             const mobileBadge = document.getElementById('mobile-menu-badge');
             if (mobileBadge) {
-                if (hasPending) {
-                    mobileBadge.classList.remove('u-hidden');
-                } else {
-                    mobileBadge.classList.add('u-hidden');
-                }
+                mobileBadge.setAttribute('data-admin-pending', hasPending ? 'true' : 'false');
             }
         }
     } catch (e) {

@@ -57,7 +57,6 @@
         const mobileBadge = document.getElementById('mobile-menu-badge');
         if (mobileBadge) {
             mobileBadge.setAttribute('data-notif-unread', state.unread ? 'true' : 'false');
-            mobileBadge.classList.toggle('u-hidden', !state.unread);
         }
     }
 
