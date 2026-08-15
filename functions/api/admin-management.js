@@ -373,6 +373,45 @@ async function handlePut(request, env, user) {
                 `SELECT * FROM admin_requests WHERE id IN (${placeholders}) AND status = ?`
             ).bind(...idsToProcess, 'pending').all();
             const adminRequests = (fetched.results || []);
+            const banUnbanRequests = action === 'approve'
+                ? adminRequests.filter(r => r.request_type === 'ban_user' || r.request_type === 'unban_user')
+                : [];
+            const guestbookIdsNeedingLookup = [];
+            const allTargetUserIds = new Set();
+            const guestbookIdToRequestId = new Map();
+            for (const req of banUnbanRequests) {
+                let data;
+                try { data = JSON.parse(req.request_data); } catch { continue; }
+                if (data.user_id) {
+                    allTargetUserIds.add(data.user_id);
+                } else if (data.guestbook_id) {
+                    guestbookIdsNeedingLookup.push(data.guestbook_id);
+                    guestbookIdToRequestId.set(data.guestbook_id, req.id);
+                }
+            }
+            const guestbookUserIdMap = new Map();
+            if (guestbookIdsNeedingLookup.length > 0) {
+                const gbPh = guestbookIdsNeedingLookup.map(() => '?').join(',');
+                const gbRes = await env.DB.prepare(
+                    `SELECT id, user_id FROM guestbook WHERE id IN (${gbPh})`
+                ).bind(...guestbookIdsNeedingLookup).all();
+                for (const g of (gbRes.results || [])) {
+                    guestbookUserIdMap.set(g.id, g.user_id);
+                    if (g.user_id) allTargetUserIds.add(g.user_id);
+                }
+            }
+            const userRoleMap = new Map();
+            const targetUserIdsArr = [...allTargetUserIds];
+            if (targetUserIdsArr.length > 0) {
+                const uPh = targetUserIdsArr.map(() => '?').join(',');
+                const uRes = await env.DB.prepare(
+                    `SELECT id, role FROM users WHERE id IN (${uPh})`
+                ).bind(...targetUserIdsArr).all();
+                for (const u of (uRes.results || [])) {
+                    userRoleMap.set(u.id, u.role);
+                }
+            }
+            const banUnbanContext = { guestbookUserIdMap, userRoleMap, guestbookIdToRequestId };
             let successCount = 0;
             let failCount = 0;
             let accumulatedKeys = [];
@@ -411,7 +450,7 @@ async function handlePut(request, env, user) {
                     ]);
                     if (action === 'approve') {
                         try {
-                            const execResult = await executeApprovedRequest(adminRequest, env);
+                            const execResult = await executeApprovedRequest(adminRequest, env, banUnbanContext);
                             if (execResult && execResult.action_required === 'delete_files_frontend') {
                                 accumulatedKeys.push(...execResult.keys);
                             }
@@ -459,7 +498,7 @@ async function handlePut(request, env, user) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' })
     });
 }
-async function executeApprovedRequest(adminRequest, env) {
+async function executeApprovedRequest(adminRequest, env, banUnbanContext = null) {
     const requestData = JSON.parse(adminRequest.request_data);
     switch (adminRequest.request_type) {
         case 'delete_file':
@@ -470,39 +509,50 @@ async function executeApprovedRequest(adminRequest, env) {
                 is_folder: adminRequest.request_type === 'delete_folder'
             };
         case 'ban_user':
-            return await executeBanUser(requestData, env);
+            return await executeBanUser(requestData, env, banUnbanContext);
         case 'unban_user':
-            return await executeUnbanUser(requestData, env);
+            return await executeUnbanUser(requestData, env, banUnbanContext);
         default:
             throw new Error(`未知的请求类型: ${adminRequest.request_type}`);
     }
 }
-async function executeBanUser(data, env) {
+async function executeBanUser(data, env, ctx = null) {
     const { user_id, guestbook_id } = data;
     let targetUserId = user_id;
     if (guestbook_id && !targetUserId) {
-        const guestbook = await env.DB.prepare(
-            'SELECT user_id FROM guestbook WHERE id = ?'
-        ).bind(guestbook_id).first();
-        if (guestbook) {
-            targetUserId = guestbook.user_id;
+        if (ctx && ctx.guestbookUserIdMap) {
+            targetUserId = ctx.guestbookUserIdMap.get(guestbook_id);
+        } else {
+            const guestbook = await env.DB.prepare(
+                'SELECT user_id FROM guestbook WHERE id = ?'
+            ).bind(guestbook_id).first();
+            if (guestbook) {
+                targetUserId = guestbook.user_id;
+            }
         }
     }
     if (!targetUserId) {
         throw new Error('未找到目标用户');
     }
-    const targetUser = await env.DB.prepare(
-        'SELECT role FROM users WHERE id = ?'
-    ).bind(targetUserId).first();
-    if (targetUser && (targetUser.role === 'admin' || targetUser.role === 'super_admin')) {
-        throw new Error('无法封禁管理员');
+    if (ctx && ctx.userRoleMap) {
+        const role = ctx.userRoleMap.get(targetUserId);
+        if (role && (role === 'admin' || role === 'super_admin')) {
+            throw new Error('无法封禁管理员');
+        }
+    } else {
+        const targetUser = await env.DB.prepare(
+            'SELECT role FROM users WHERE id = ?'
+        ).bind(targetUserId).first();
+        if (targetUser && (targetUser.role === 'admin' || targetUser.role === 'super_admin')) {
+            throw new Error('无法封禁管理员');
+        }
     }
     await env.DB.prepare(
         'UPDATE users SET is_banned = TRUE WHERE id = ?'
     ).bind(targetUserId).run();
     return { banned_user_id: targetUserId };
 }
-async function executeUnbanUser(data, env) {
+async function executeUnbanUser(data, env, ctx = null) {
     const { user_id } = data;
     if (!user_id) {
         throw new Error('未指定用户ID');
