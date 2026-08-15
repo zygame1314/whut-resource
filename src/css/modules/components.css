@@ -5282,11 +5282,13 @@
     max-height: 90vh;
     position: relative;
     overflow-y: auto;
-    transition: transform 0.3s ease, height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: none;
+    transition: none;
 }
 
 .announcement-view-modal-content.height-animating {
     overflow-y: hidden;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .announcement-view-modal-content::before {
