@@ -47,15 +47,40 @@ async function handleGet(request, env, user) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
         }
-        const bannedUsers = await env.DB.prepare(`
-            SELECT id, email, nickname, created_at 
-            FROM users 
-            WHERE is_banned = 1 
-            ORDER BY created_at DESC
-        `).all();
+        const limit = Math.min(parseInt(url.searchParams.get('limit')) || 20, 100);
+        const cursor = url.searchParams.get('cursor');
+        let query = `
+            SELECT id, email, nickname, created_at
+            FROM users
+            WHERE is_banned = 1
+        `;
+        const params = [];
+        if (cursor) {
+            const sepIdx = cursor.lastIndexOf('|');
+            if (sepIdx > 0) {
+                const cursorCreatedAt = cursor.slice(0, sepIdx);
+                const cursorId = parseInt(cursor.slice(sepIdx + 1));
+                if (cursorCreatedAt && cursorId) {
+                    query += ` AND (created_at < ? OR (created_at = ? AND id < ?))`;
+                    params.push(cursorCreatedAt, cursorCreatedAt, cursorId);
+                }
+            }
+        }
+        query += ` ORDER BY created_at DESC, id DESC LIMIT ?`;
+        params.push(limit + 1);
+        const { results } = await env.DB.prepare(query).bind(...params).all();
+        const hasMore = results.length > limit;
+        const users = hasMore ? results.slice(0, limit) : results;
+        let nextCursor = null;
+        if (hasMore && users.length > 0) {
+            const last = users[users.length - 1];
+            nextCursor = `${last.created_at}|${last.id}`;
+        }
         return new Response(JSON.stringify({
             success: true,
-            users: bannedUsers.results
+            users,
+            nextCursor,
+            hasMore
         }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
     if (action === 'search') {
@@ -73,10 +98,21 @@ async function handleGet(request, env, user) {
             });
         }
         const kw = keyword.trim().toLowerCase();
-        const { results } = await env.DB.prepare(
-            "SELECT id, email, nickname, role, is_banned, created_at FROM users WHERE email >= ? AND email < ? AND role != 'super_admin' LIMIT 20"
-        ).bind(kw, kw + '\uffff').all();
-        return new Response(JSON.stringify({ success: true, users: results }), {
+        const limit = Math.min(parseInt(url.searchParams.get('limit')) || 20, 100);
+        const cursor = url.searchParams.get('cursor');
+        let query = "SELECT id, email, nickname, role, is_banned, created_at FROM users WHERE email >= ? AND email < ? AND role != 'super_admin'";
+        const params = [kw, kw + '\uffff'];
+        if (cursor) {
+            query += " AND email > ?";
+            params.push(cursor);
+        }
+        query += " ORDER BY email ASC LIMIT ?";
+        params.push(limit + 1);
+        const { results } = await env.DB.prepare(query).bind(...params).all();
+        const hasMore = results.length > limit;
+        const users = hasMore ? results.slice(0, limit) : results;
+        const nextCursor = hasMore && users.length > 0 ? users[users.length - 1].email : null;
+        return new Response(JSON.stringify({ success: true, users, nextCursor, hasMore }), {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
         });
     }

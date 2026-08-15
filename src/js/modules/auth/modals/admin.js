@@ -562,8 +562,8 @@ async function showAdminManagementModal(initialTab = 'roles') {
             if (existingMore) existingMore.remove();
             if (hasMoreAdmins) {
                 const moreBtn = document.createElement('div');
-                moreBtn.className = 'load-more-admins';
-                moreBtn.innerHTML = '<button class="secondary-btn small" style="width:100%;margin-top:8px;"><i class="fas fa-chevron-down"></i> 加载更多</button>';
+                moreBtn.className = 'load-more-admins load-more-container';
+                moreBtn.innerHTML = '<button class="load-more-button"><i class="fas fa-chevron-down"></i> 加载更多</button>';
                 moreBtn.querySelector('button').onclick = () => loadAdmins(false);
                 adminListContainer.appendChild(moreBtn);
             }
@@ -778,23 +778,62 @@ async function showAdminManagementModal(initialTab = 'roles') {
             });
         }
 
-        const doSearch = async () => {
+        let searchCache = [];
+        let searchCursor = null;
+        let searchHasMore = false;
+        let searchKeyword = '';
+        const renderSearchResults = () => {
+            renderUserList(searchResults, searchCache, true);
+            if (searchHasMore) {
+                searchResults.insertAdjacentHTML('beforeend', `
+                    <div id="load-more-search" class="load-more-container">
+                        <button class="load-more-button"><i class="fas fa-chevron-down"></i> 加载更多</button>
+                    </div>
+                `);
+                const loadMoreBtn = searchResults.querySelector('#load-more-search .load-more-button');
+                loadMoreBtn.addEventListener('click', async () => {
+                    loadMoreBtn.classList.add('loading');
+                    loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+                    await doSearch(true);
+                });
+            }
+        };
+        const doSearch = async (append = false) => {
             const keyword = searchInput.value.trim();
             if (keyword.length < 4) {
                 showNotification('请输入至少4个字符的邮箱前缀', 'warning');
                 return;
             }
-            searchResults.style.display = 'block';
-            searchResults.innerHTML = '<div class="loading-spinner"></div>';
+            if (!append) {
+                searchKeyword = keyword;
+                searchCache = [];
+                searchCursor = null;
+                searchHasMore = false;
+                searchResults.style.display = 'block';
+                searchResults.innerHTML = '<div class="loading-spinner"></div>';
+            }
             try {
-                const res = await fetch(`${API_ENDPOINTS.userRole}?action=search&keyword=${encodeURIComponent(keyword)}`, {
+                let url = `${API_ENDPOINTS.userRole}?action=search&keyword=${encodeURIComponent(searchKeyword)}&limit=20`;
+                if (append && searchCursor) url += `&cursor=${encodeURIComponent(searchCursor)}`;
+                const res = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error);
-                renderUserList(searchResults, data.users || [], true);
+                searchCache = searchCache.concat(data.users || []);
+                searchCursor = data.nextCursor || null;
+                searchHasMore = !!data.hasMore && !!searchCursor;
+                renderSearchResults();
             } catch (e) {
-                searchResults.innerHTML = `<div class="admin-error-state">搜索失败: ${e.message}</div>`;
+                if (!append) {
+                    searchResults.innerHTML = `<div class="admin-error-state">搜索失败: ${e.message}</div>`;
+                } else {
+                    const loadMoreBtn = searchResults.querySelector('#load-more-search .load-more-button');
+                    if (loadMoreBtn) {
+                        loadMoreBtn.classList.remove('loading');
+                        loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多';
+                    }
+                }
             }
         };
 
@@ -807,75 +846,123 @@ async function showAdminManagementModal(initialTab = 'roles') {
     function loadBannedTab() {
         tabContent.innerHTML = '<div class="admin-section"><div id="banned-users-container" class="admin-scrollable-container"><div class="loading-spinner"></div></div></div>';
         const container = tabContent.querySelector('#banned-users-container');
-        const loadBannedUsers = async () => {
-            container.innerHTML = '<div class="loading-spinner"></div>';
+        let bannedCursor = null;
+        let bannedHasMore = false;
+        let isLoadingBanned = false;
+        const renderBannedItems = (users, append) => {
+            const itemsHtml = users.map(user => {
+                const nickname = user.nickname || '未设置昵称';
+                const email = escapeHtml(user.email);
+                const utcDate = user.created_at && (user.created_at.endsWith('Z') ? user.created_at : user.created_at + 'Z');
+                const createdAt = utcDate ? new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '未知';
+                return `
+                    <div class="banned-user-item">
+                        <div class="banned-user-info">
+                            <div class="banned-user-nickname">${escapeHtml(nickname)}</div>
+                            <div class="banned-user-email">${email}</div>
+                            <div class="banned-user-date">注册于: ${createdAt}</div>
+                        </div>
+                        <div class="banned-user-action">
+                            <button class="primary-btn small unban-btn" data-user-id="${user.id}">
+                                <i class="fas fa-user-check"></i> 解封
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            if (append) {
+                const loadMoreEl = container.querySelector('#load-more-banned');
+                if (loadMoreEl) loadMoreEl.remove();
+                container.insertAdjacentHTML('beforeend', itemsHtml);
+            } else {
+                container.innerHTML = itemsHtml;
+            }
+            if (bannedHasMore) {
+                container.insertAdjacentHTML('beforeend', `
+                    <div id="load-more-banned" class="load-more-container">
+                        <button class="load-more-button"><i class="fas fa-chevron-down"></i> 加载更多</button>
+                    </div>
+                `);
+                const loadMoreBtn = container.querySelector('#load-more-banned .load-more-button');
+                loadMoreBtn.addEventListener('click', async () => {
+                    loadMoreBtn.classList.add('loading');
+                    loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+                    await loadBannedUsers(true);
+                });
+            }
+            container.querySelectorAll('.unban-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const userId = btn.dataset.userId;
+                    const userItem = btn.closest('.banned-user-item');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    try {
+                        const res = await fetch(API_ENDPOINTS.adminManagement, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify({ action: 'unban', user_id: parseInt(userId) })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            userItem.style.transition = 'opacity 0.3s, transform 0.3s';
+                            userItem.style.opacity = '0';
+                            userItem.style.transform = 'translateX(20px)';
+                            setTimeout(() => {
+                                userItem.remove();
+                                if (container.querySelectorAll('.banned-user-item').length === 0) {
+                                    container.innerHTML = '<div class="admin-empty-state-padded"><div class="admin-empty-state-icon"><i class="fas fa-check-circle"></i></div>暂无被封禁的用户</div>';
+                                }
+                            }, 300);
+                            showNotification('用户已解封', 'success');
+                        } else {
+                            throw new Error(data.error || '解封失败');
+                        }
+                    } catch (err) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-user-check"></i> 解封';
+                        showNotification('解封失败: ' + err.message, 'error');
+                    }
+                });
+            });
+        };
+        const loadBannedUsers = async (append = false) => {
+            if (isLoadingBanned) return;
+            if (!append) {
+                container.innerHTML = '<div class="loading-spinner"></div>';
+                bannedCursor = null;
+                bannedHasMore = false;
+            }
+            isLoadingBanned = true;
             try {
-                const res = await fetch(`${API_ENDPOINTS.adminManagement}?action=banned_users`, {
+                let url = `${API_ENDPOINTS.adminManagement}?action=banned_users&limit=20`;
+                if (append && bannedCursor) url += `&cursor=${encodeURIComponent(bannedCursor)}`;
+                const res = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error);
                 if (!data.users || data.users.length === 0) {
-                    container.innerHTML = '<div class="admin-empty-state-padded"><div class="admin-empty-state-icon"><i class="fas fa-check-circle"></i></div>暂无被封禁的用户</div>';
-                    return;
+                    if (!append) {
+                        container.innerHTML = '<div class="admin-empty-state-padded"><div class="admin-empty-state-icon"><i class="fas fa-check-circle"></i></div>暂无被封禁的用户</div>';
+                    }
+                    bannedHasMore = false;
+                } else {
+                    bannedCursor = data.nextCursor || null;
+                    bannedHasMore = !!data.hasMore && !!bannedCursor;
+                    renderBannedItems(data.users, append);
                 }
-                container.innerHTML = data.users.map(user => {
-                    const nickname = user.nickname || '未设置昵称';
-                    const email = escapeHtml(user.email);
-                    const utcDate = user.created_at && (user.created_at.endsWith('Z') ? user.created_at : user.created_at + 'Z');
-                    const createdAt = utcDate ? new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '未知';
-                    return `
-                        <div class="banned-user-item">
-                            <div class="banned-user-info">
-                                <div class="banned-user-nickname">${escapeHtml(nickname)}</div>
-                                <div class="banned-user-email">${email}</div>
-                                <div class="banned-user-date">注册于: ${createdAt}</div>
-                            </div>
-                            <div class="banned-user-action">
-                                <button class="primary-btn small unban-btn" data-user-id="${user.id}">
-                                    <i class="fas fa-user-check"></i> 解封
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                container.querySelectorAll('.unban-btn').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const userId = btn.dataset.userId;
-                        const userItem = btn.closest('.banned-user-item');
-                        btn.disabled = true;
-                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        try {
-                            const res = await fetch(API_ENDPOINTS.adminManagement, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                body: JSON.stringify({ action: 'unban', user_id: parseInt(userId) })
-                            });
-                            const data = await res.json();
-                            if (data.success) {
-                                userItem.style.transition = 'opacity 0.3s, transform 0.3s';
-                                userItem.style.opacity = '0';
-                                userItem.style.transform = 'translateX(20px)';
-                                setTimeout(() => {
-                                    userItem.remove();
-                                    if (container.querySelectorAll('.banned-user-item').length === 0) {
-                                        container.innerHTML = '<div class="admin-empty-state-padded"><div class="admin-empty-state-icon"><i class="fas fa-check-circle"></i></div>暂无被封禁的用户</div>';
-                                    }
-                                }, 300);
-                                showNotification('用户已解封', 'success');
-                            } else {
-                                throw new Error(data.error || '解封失败');
-                            }
-                        } catch (err) {
-                            btn.disabled = false;
-                            btn.innerHTML = '<i class="fas fa-user-check"></i> 解封';
-                            showNotification('解封失败: ' + err.message, 'error');
-                        }
-                    });
-                });
             } catch (e) {
-                container.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
+                if (!append) {
+                    container.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
+                } else {
+                    const loadMoreBtn = container.querySelector('#load-more-banned .load-more-button');
+                    if (loadMoreBtn) {
+                        loadMoreBtn.classList.remove('loading');
+                        loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多';
+                    }
+                }
             }
+            isLoadingBanned = false;
         };
         loadBannedUsers();
     }
