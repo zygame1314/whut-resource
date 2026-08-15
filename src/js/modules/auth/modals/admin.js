@@ -1024,132 +1024,167 @@ async function showAdminRequestsModal(mode = 'all') {
         });
         updateBatchToolbar();
     });
-    const loadRequests = async () => {
+    const typeLabels = {
+        'delete_file': '删除文件',
+        'delete_folder': '删除文件夹',
+        'ban_user': '封禁用户',
+        'unban_user': '解封用户'
+    };
+    const statusLabels = {
+        'pending': '<span class="status-badge auditing"><i class="fas fa-clock"></i> 待审批</span>',
+        'approved': '<span class="status-badge resolved"><i class="fas fa-check"></i> 已批准</span>',
+        'rejected': '<span class="status-badge rejected"><i class="fas fa-times"></i> 已拒绝</span>',
+        'cancelled': '<span class="status-badge"><i class="fas fa-ban"></i> 已取消</span>'
+    };
+    const renderRequestItem = (req) => {
+        const requestData = JSON.parse(req.request_data);
+        const fileList = requestData.fileNames
+            ? requestData.fileNames.slice(0, 5).map(n => `<li>${escapeHtml(n)}</li>`).join('')
+            : '';
+        const moreFiles = requestData.count > 5 ? `<li>...还有 ${requestData.count - 5} 个</li>` : '';
+        let detailsHtml = '';
+        if (req.request_type === 'ban_user' || req.request_type === 'unban_user') {
+            detailsHtml = `
+                <div class="ban-user-details">
+                    <div><strong>用户昵称：</strong>${escapeHtml(requestData.nickname || '未知')}</div>
+                    ${requestData.content_preview ? `<div><strong>留言预览：</strong>${escapeHtml(requestData.content_preview)}${requestData.content_preview.length >= 100 ? '...' : ''}</div>` : ''}
+                    ${requestData.source ? `<div><strong>来源：</strong>${requestData.source === 'banned_users_list' ? '封禁用户列表' : '留言板'}</div>` : ''}
+                </div>
+            `;
+        } else {
+            detailsHtml = `<ul class="file-list-preview">${fileList}${moreFiles}</ul>`;
+        }
+        const actionButtons = isSuperAdminUser && req.status === 'pending' ? `
+            <div class="request-actions">
+                <button class="primary-btn approve-btn" data-id="${req.id}">
+                    <i class="fas fa-check"></i> 批准
+                </button>
+                <button class="secondary-btn reject-btn" data-id="${req.id}">
+                    <i class="fas fa-times"></i> 拒绝
+                </button>
+            </div>
+        ` : '';
+        const statusSelect = modal.querySelector('#request-status-filter');
+        const currentFilter = statusSelect ? statusSelect.value : 'all';
+        const showCheckbox = isSuperAdminUser && req.status === 'pending' && currentFilter === 'pending';
+        return `
+            <div class="request-item ${showCheckbox ? 'has-checkbox' : ''}" data-id="${req.id}">
+                <div class="request-content-wrapper">
+                    <div class="request-header">
+                        ${showCheckbox ? `<div class="request-select"><input type="checkbox" class="request-checkbox" value="${req.id}"></div>` : ''}
+                        <span class="request-type">${typeLabels[req.request_type] || req.request_type}</span>
+                        ${statusLabels[req.status] || ''}
+                    </div>
+                    <div class="request-meta">
+                        <span><i class="fas fa-user"></i> ${escapeHtml(req.requester_nickname || req.requester_email)}</span>
+                        <span><i class="fas fa-clock"></i> ${formatDateLocal(req.created_at)}</span>
+                    </div>
+                    <div class="request-details">
+                        ${detailsHtml}
+                    </div>
+                    ${req.review_note ? `<div class="review-note"><i class="fas fa-comment"></i> ${escapeHtml(req.review_note)}</div>` : ''}
+                    ${req.reviewer_nickname ? `<div class="reviewer-info"><i class="fas fa-user-check"></i> 由 ${escapeHtml(req.reviewer_nickname)} 处理</div>` : ''}
+                    ${actionButtons}
+                </div>
+            </div>
+        `;
+    };
+    const bindItemEvents = (scope) => {
+        scope.querySelectorAll('.request-checkbox').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                if (e.target.checked) selectedRequestIds.add(e.target.value);
+                else selectedRequestIds.delete(e.target.value);
+                updateBatchToolbar();
+            });
+        });
+        scope.querySelectorAll('.approve-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const confirmed = await showConfirmation({
+                    title: '确认批准',
+                    message: '确定要批准此请求吗？',
+                    confirmText: '批准',
+                    confirmClass: 'confirm-btn-primary'
+                });
+                if (!confirmed) return;
+                await handleRequestAction(btn.dataset.id, 'approve', () => loadRequests(false));
+            });
+        });
+        scope.querySelectorAll('.reject-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                let note = null;
+                try {
+                    if (typeof window.showRejectPrompt === 'function') {
+                        note = await window.showRejectPrompt({
+                            title: '拒绝请求',
+                            placeholder: '请输入拒绝原因（可选）',
+                            confirmText: '拒绝',
+                            showPresets: false
+                        });
+                    } else {
+                        note = prompt('请输入拒绝原因（可选）:');
+                    }
+                } catch (e) { return; }
+                if (note !== null) {
+                    await handleRequestAction(btn.dataset.id, 'reject', () => loadRequests(false), note);
+                }
+            });
+        });
+    };
+    let currentCursor = null;
+    let currentHasMore = false;
+    const loadRequests = async (append = false) => {
         const listContainer = modal.querySelector('#requests-list');
-        listContainer.innerHTML = '<div class="loading-spinner"></div>';
-        selectedRequestIds.clear();
+        if (!append) {
+            listContainer.innerHTML = '<div class="loading-spinner"></div>';
+            selectedRequestIds.clear();
+            currentCursor = null;
+            currentHasMore = false;
+        }
         updateBatchToolbar();
         const statusSelect = modal.querySelector('#request-status-filter');
         const status = statusSelect ? statusSelect.value : 'all';
         const mineParam = mode === 'mine' ? '&mine=true' : '';
+        const cursorParam = append && currentCursor ? `&cursor=${encodeURIComponent(currentCursor)}` : '';
+        const limitParam = '&limit=20';
         try {
-            const response = await fetch(`${API_ENDPOINTS.adminManagement}?status=${status}${mineParam}`, {
+            const response = await fetch(`${API_ENDPOINTS.adminManagement}?status=${status}${mineParam}${cursorParam}${limitParam}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
             if (!data.success || !data.data || data.data.length === 0) {
-                listContainer.innerHTML = '<p class="empty-state-small">暂无审批请求</p>';
-                batchToolbar.classList.remove('visible');
+                if (!append) {
+                    listContainer.innerHTML = '<p class="empty-state-small">暂无审批请求</p>';
+                    batchToolbar.classList.remove('visible');
+                }
+                currentHasMore = false;
                 return;
             }
-            listContainer.innerHTML = data.data.map(req => {
-                const requestData = JSON.parse(req.request_data);
-                const typeLabels = {
-                    'delete_file': '删除文件',
-                    'delete_folder': '删除文件夹',
-                    'ban_user': '封禁用户',
-                    'unban_user': '解封用户'
-                };
-                const statusLabels = {
-                    'pending': '<span class="status-badge auditing"><i class="fas fa-clock"></i> 待审批</span>',
-                    'approved': '<span class="status-badge resolved"><i class="fas fa-check"></i> 已批准</span>',
-                    'rejected': '<span class="status-badge rejected"><i class="fas fa-times"></i> 已拒绝</span>',
-                    'cancelled': '<span class="status-badge"><i class="fas fa-ban"></i> 已取消</span>'
-                };
-                const fileList = requestData.fileNames
-                    ? requestData.fileNames.slice(0, 5).map(n => `<li>${escapeHtml(n)}</li>`).join('')
-                    : '';
-                const moreFiles = requestData.count > 5 ? `<li>...还有 ${requestData.count - 5} 个</li>` : '';
-                let detailsHtml = '';
-                if (req.request_type === 'ban_user' || req.request_type === 'unban_user') {
-                    detailsHtml = `
-                        <div class="ban-user-details">
-                            <div><strong>用户昵称：</strong>${escapeHtml(requestData.nickname || '未知')}</div>
-                            ${requestData.content_preview ? `<div><strong>留言预览：</strong>${escapeHtml(requestData.content_preview)}${requestData.content_preview.length >= 100 ? '...' : ''}</div>` : ''}
-                            ${requestData.source ? `<div><strong>来源：</strong>${requestData.source === 'banned_users_list' ? '封禁用户列表' : '留言板'}</div>` : ''}
-                        </div>
-                    `;
-                } else {
-                    detailsHtml = `<ul class="file-list-preview">${fileList}${moreFiles}</ul>`;
-                }
-                const actionButtons = isSuperAdminUser && req.status === 'pending' ? `
-                    <div class="request-actions">
-                        <button class="primary-btn approve-btn" data-id="${req.id}">
-                            <i class="fas fa-check"></i> 批准
-                        </button>
-                        <button class="secondary-btn reject-btn" data-id="${req.id}">
-                            <i class="fas fa-times"></i> 拒绝
-                        </button>
+            const html = data.data.map(renderRequestItem).join('');
+            if (append) {
+                const loadMoreBtn = listContainer.querySelector('#load-more-requests');
+                if (loadMoreBtn) loadMoreBtn.remove();
+                listContainer.insertAdjacentHTML('beforeend', html);
+            } else {
+                listContainer.innerHTML = html;
+            }
+            currentCursor = data.nextCursor || null;
+            currentHasMore = !!data.hasMore && !!currentCursor;
+            if (currentHasMore) {
+                listContainer.insertAdjacentHTML('beforeend', `
+                    <div id="load-more-requests" class="load-more-wrapper">
+                        <button class="secondary-btn load-more-btn"><i class="fas fa-arrow-down"></i> 加载更多</button>
                     </div>
-                ` : '';
-                const statusSelect = modal.querySelector('#request-status-filter');
-                const currentFilter = statusSelect ? statusSelect.value : 'all';
-                const showCheckbox = isSuperAdminUser && req.status === 'pending' && currentFilter === 'pending';
-                return `
-                    <div class="request-item ${showCheckbox ? 'has-checkbox' : ''}" data-id="${req.id}">
-                        <div class="request-content-wrapper">
-                            <div class="request-header">
-                                ${showCheckbox ? `<div class="request-select"><input type="checkbox" class="request-checkbox" value="${req.id}"></div>` : ''}
-                                <span class="request-type">${typeLabels[req.request_type] || req.request_type}</span>
-                                ${statusLabels[req.status] || ''}
-                            </div>
-                            <div class="request-meta">
-                                <span><i class="fas fa-user"></i> ${escapeHtml(req.requester_nickname || req.requester_email)}</span>
-                                <span><i class="fas fa-clock"></i> ${formatDateLocal(req.created_at)}</span>
-                            </div>
-                            <div class="request-details">
-                                ${detailsHtml}
-                            </div>
-                            ${req.review_note ? `<div class="review-note"><i class="fas fa-comment"></i> ${escapeHtml(req.review_note)}</div>` : ''}
-                            ${req.reviewer_nickname ? `<div class="reviewer-info"><i class="fas fa-user-check"></i> 由 ${escapeHtml(req.reviewer_nickname)} 处理</div>` : ''}
-                            ${actionButtons}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            listContainer.querySelectorAll('.request-checkbox').forEach(cb => {
-                cb.addEventListener('change', (e) => {
-                    if (e.target.checked) selectedRequestIds.add(e.target.value);
-                    else selectedRequestIds.delete(e.target.value);
-                    updateBatchToolbar();
-                });
-            });
-            listContainer.querySelectorAll('.approve-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const confirmed = await showConfirmation({
-                        title: '确认批准',
-                        message: '确定要批准此请求吗？',
-                        confirmText: '批准',
-                        confirmClass: 'confirm-btn-primary'
-                    });
-                    if (!confirmed) return;
-                    await handleRequestAction(btn.dataset.id, 'approve', loadRequests);
-                });
-            });
-            listContainer.querySelectorAll('.reject-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    let note = null;
-                    try {
-                        if (typeof window.showRejectPrompt === 'function') {
-                            note = await window.showRejectPrompt({
-                                title: '拒绝请求',
-                                placeholder: '请输入拒绝原因（可选）',
-                                confirmText: '拒绝',
-                                showPresets: false
-                            });
-                        } else {
-                            note = prompt('请输入拒绝原因（可选）:');
-                        }
-                    } catch (e) { return; }
-                    if (note !== null) {
-                        await handleRequestAction(btn.dataset.id, 'reject', loadRequests, note);
-                    }
-                });
-            });
+                `);
+                const loadMoreBtn = listContainer.querySelector('#load-more-requests .load-more-btn');
+                loadMoreBtn.addEventListener('click', () => loadRequests(true));
+            }
+            bindItemEvents(listContainer);
             updateBatchToolbar();
         } catch (e) {
             console.error('加载审批请求失败:', e);
-            listContainer.innerHTML = '<p class="error-message">加载失败，请稍后重试</p>';
+            if (!append) {
+                listContainer.innerHTML = '<p class="error-message">加载失败，请稍后重试</p>';
+            }
         }
     };
     batchApproveBtn.addEventListener('click', async () => {
@@ -1181,14 +1216,14 @@ async function showAdminRequestsModal(mode = 'all') {
             note = prompt('请输入拒绝所有选中请求的原因（可选）：');
             if (note === null) return;
         }
-        await handleBatchAction(Array.from(selectedRequestIds), 'reject', loadRequests, note);
+        await handleBatchAction(Array.from(selectedRequestIds), 'reject', () => loadRequests(false), note);
     });
-    modal.querySelector('#refresh-requests-btn').addEventListener('click', loadRequests);
+    modal.querySelector('#refresh-requests-btn').addEventListener('click', () => loadRequests(false));
     const statusSelect = modal.querySelector('#request-status-filter');
     if (statusSelect) {
-        statusSelect.addEventListener('change', loadRequests);
+        statusSelect.addEventListener('change', () => loadRequests(false));
     }
-    await loadRequests();
+    await loadRequests(false);
 }
 
 async function showOauthClientsModal() {

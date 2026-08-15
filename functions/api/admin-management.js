@@ -132,7 +132,8 @@ async function handleGet(request, env, user) {
         });
     }
     const status = url.searchParams.get('status') || 'all';
-    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 50, 200);
+    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 20, 200);
+    const cursor = url.searchParams.get('cursor');
     let query = `
         SELECT r.*, 
                requester.nickname as requester_nickname, 
@@ -153,18 +154,37 @@ async function handleGet(request, env, user) {
         conditions.push('r.requested_by = ?');
         params.push(user.id);
     }
-    if (conditions.length > 0) {
-        query += ' WHERE ' + conditions.join(' AND ');
-        query += " AND r.created_at >= datetime('now', '-7 days')";
-    } else {
-        query += " WHERE r.created_at >= datetime('now', '-7 days')";
+    conditions.push("r.created_at >= datetime('now', '-7 days')");
+    let cursorCreatedAt = null;
+    let cursorId = null;
+    if (cursor) {
+        const sepIdx = cursor.lastIndexOf('|');
+        if (sepIdx > 0) {
+            cursorCreatedAt = cursor.slice(0, sepIdx);
+            cursorId = parseInt(cursor.slice(sepIdx + 1));
+        }
     }
-    query += ' ORDER BY r.created_at DESC LIMIT ?';
-    params.push(limit);
+    if (cursorCreatedAt && cursorId) {
+        conditions.push('(r.created_at < ? OR (r.created_at = ? AND r.id < ?))');
+        params.push(cursorCreatedAt, cursorCreatedAt, cursorId);
+    }
+    query += ' WHERE ' + conditions.join(' AND ');
+    query += ' ORDER BY r.created_at DESC, r.id DESC LIMIT ?';
+    params.push(limit + 1);
     const requests = await env.DB.prepare(query).bind(...params).all();
+    const rows = requests.results || [];
+    const hasMore = rows.length > limit;
+    const data = hasMore ? rows.slice(0, limit) : rows;
+    let nextCursor = null;
+    if (hasMore && data.length > 0) {
+        const last = data[data.length - 1];
+        nextCursor = `${last.created_at}|${last.id}`;
+    }
     return new Response(JSON.stringify({
         success: true,
-        data: requests.results || []
+        data,
+        nextCursor,
+        hasMore
     }), { headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handlePut(request, env, user) {
