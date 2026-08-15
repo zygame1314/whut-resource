@@ -1171,12 +1171,16 @@ async function showAdminRequestsModal(mode = 'all') {
             currentHasMore = !!data.hasMore && !!currentCursor;
             if (currentHasMore) {
                 listContainer.insertAdjacentHTML('beforeend', `
-                    <div id="load-more-requests" class="load-more-wrapper">
-                        <button class="secondary-btn load-more-btn"><i class="fas fa-arrow-down"></i> 加载更多</button>
+                    <div id="load-more-requests" class="load-more-container">
+                        <button class="load-more-button"><i class="fas fa-chevron-down"></i> 加载更多</button>
                     </div>
                 `);
-                const loadMoreBtn = listContainer.querySelector('#load-more-requests .load-more-btn');
-                loadMoreBtn.addEventListener('click', () => loadRequests(true));
+                const loadMoreBtn = listContainer.querySelector('#load-more-requests .load-more-button');
+                loadMoreBtn.addEventListener('click', async () => {
+                    loadMoreBtn.classList.add('loading');
+                    loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+                    await loadRequests(true);
+                });
             }
             bindItemEvents(listContainer);
             updateBatchToolbar();
@@ -1184,6 +1188,12 @@ async function showAdminRequestsModal(mode = 'all') {
             console.error('加载审批请求失败:', e);
             if (!append) {
                 listContainer.innerHTML = '<p class="error-message">加载失败，请稍后重试</p>';
+            } else {
+                const loadMoreBtn = listContainer.querySelector('#load-more-requests .load-more-button');
+                if (loadMoreBtn) {
+                    loadMoreBtn.classList.remove('loading');
+                    loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多';
+                }
             }
         }
     };
