@@ -136,24 +136,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!isMobile()) return true;
                 return !!(navActionsEl && navActionsEl.classList.contains('active'));
             };
+            let hintState = 'hidden';
+            let hideTimer = 0;
             const showHint = function () {
-                if (hint.classList.contains('is-visible')) return;
+                if (hintState === 'visible' || hintState === 'showing') return;
                 if (hint._removing) return;
+                if (hideTimer) { clearTimeout(hideTimer); hideTimer = 0; }
+                hintState = 'showing';
                 hint.classList.remove('is-removing');
                 hint.style.visibility = '';
                 requestAnimationFrame(function () {
                     hint.classList.add('is-visible');
+                    hintState = 'visible';
                 });
             };
             const hideHint = function () {
+                if (hintState === 'hidden' || hintState === 'hiding') return;
+                hintState = 'hiding';
                 hint.classList.remove('is-visible');
                 hint.classList.add('is-removing');
                 const done = function () {
+                    if (hideTimer) { clearTimeout(hideTimer); hideTimer = 0; }
+                    if (hintState !== 'hiding') return;
                     hint.style.visibility = 'hidden';
                     hint.classList.remove('is-removing');
+                    hintState = 'hidden';
                 };
+                hideTimer = setTimeout(done, 260);
                 hint.addEventListener('transitionend', done, { once: true });
-                setTimeout(done, 260);
             };
             const positionHint = function () {
                 if (!isToggleVisible()) {
@@ -200,6 +210,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const removeHint = function () {
                 if (hintRemoved) return;
                 hintRemoved = true;
+                if (hideTimer) { clearTimeout(hideTimer); hideTimer = 0; }
+                hintState = 'removing';
                 hint.classList.remove('is-visible');
                 hint.classList.add('is-removing');
                 const cleanup = function () {
