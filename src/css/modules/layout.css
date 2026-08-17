@@ -301,7 +301,7 @@
         z-index: 100;
         gap: 0.5rem;
         max-height: 80vh;
-        overflow-y: auto;
+        overflow: hidden;
         opacity: 0;
         visibility: hidden;
         transform-origin: top right;
@@ -318,6 +318,7 @@
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
+        overflow-y: auto;
     }
 
     .nav-actions:not(:has(#auth-section)).active {

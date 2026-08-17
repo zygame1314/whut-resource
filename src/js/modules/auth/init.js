@@ -111,10 +111,104 @@ document.addEventListener('DOMContentLoaded', () => {
             const hint = document.createElement('span');
             hint.className = 'theme-toggle-hint';
             hint.textContent = '点我换肤';
-            themeToggle.style.position = 'relative';
-            themeToggle.appendChild(hint);
+            document.body.appendChild(hint);
+            const containingBlock = (function () {
+                let el = themeToggle.parentElement;
+                while (el) {
+                    const cs = getComputedStyle(el);
+                    if (cs.backdropFilter && cs.backdropFilter !== 'none' ||
+                        (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== 'none') ||
+                        (cs.transform && cs.transform !== 'none') ||
+                        (cs.filter && cs.filter !== 'none') ||
+                        (cs.perspective && cs.perspective !== 'none') ||
+                        (cs.willChange && /transform|filter|backdrop-filter/.test(cs.willChange))) {
+                        return el;
+                    }
+                    el = el.parentElement;
+                }
+                return null;
+            })();
+            const navActionsEl = document.querySelector('.nav-actions');
+            const isMobile = function () {
+                return window.matchMedia('(max-width: 1200px)').matches;
+            };
+            const isToggleVisible = function () {
+                if (!isMobile()) return true;
+                return !!(navActionsEl && navActionsEl.classList.contains('active'));
+            };
+            const showHint = function () {
+                if (hint.classList.contains('is-visible')) return;
+                if (hint._removing) return;
+                hint.classList.remove('is-removing');
+                hint.style.visibility = '';
+                requestAnimationFrame(function () {
+                    hint.classList.add('is-visible');
+                });
+            };
+            const hideHint = function () {
+                hint.classList.remove('is-visible');
+                hint.classList.add('is-removing');
+                const done = function () {
+                    hint.style.visibility = 'hidden';
+                    hint.classList.remove('is-removing');
+                };
+                hint.addEventListener('transitionend', done, { once: true });
+                setTimeout(done, 260);
+            };
+            const positionHint = function () {
+                if (!isToggleVisible()) {
+                    hideHint();
+                    return;
+                }
+                const rect = themeToggle.getBoundingClientRect();
+                if (rect.width === 0 && rect.height === 0) {
+                    hideHint();
+                    return;
+                }
+                let left = rect.left + rect.width / 2;
+                let top = rect.bottom + 6;
+                if (containingBlock) {
+                    const cbRect = containingBlock.getBoundingClientRect();
+                    left -= cbRect.left;
+                    top -= cbRect.top;
+                }
+                hint.style.left = left + 'px';
+                hint.style.top = top + 'px';
+                showHint();
+            };
+            const positionHintRaf = function () {
+                if (positionHintRaf._id) cancelAnimationFrame(positionHintRaf._id);
+                positionHintRaf._id = requestAnimationFrame(function () {
+                    positionHintRaf._id = 0;
+                    positionHint();
+                });
+            };
+            hint.style.visibility = 'hidden';
+            positionHintRaf();
+            window.addEventListener('resize', positionHintRaf);
+            window.addEventListener('scroll', positionHintRaf, { passive: true });
+            if (window.ResizeObserver) {
+                const ro = new ResizeObserver(positionHintRaf);
+                ro.observe(themeToggle);
+                if (containingBlock) ro.observe(containingBlock);
+            }
+            if (navActionsEl && window.MutationObserver) {
+                const mo = new MutationObserver(positionHintRaf);
+                mo.observe(navActionsEl, { attributes: true, attributeFilter: ['class'] });
+            }
+            let hintRemoved = false;
             const removeHint = function () {
-                if (hint.parentNode) hint.remove();
+                if (hintRemoved) return;
+                hintRemoved = true;
+                hint.classList.remove('is-visible');
+                hint.classList.add('is-removing');
+                const cleanup = function () {
+                    if (hint.parentNode) hint.remove();
+                    window.removeEventListener('resize', positionHintRaf);
+                    window.removeEventListener('scroll', positionHintRaf);
+                };
+                hint.addEventListener('transitionend', cleanup, { once: true });
+                setTimeout(cleanup, 260);
                 try { localStorage.setItem('themeTriedOnce', 'true'); } catch (e) {}
                 themeToggle.dataset.triedOnce = 'true';
             };
