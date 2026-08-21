@@ -653,6 +653,30 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
     } else {
         isShowingSearchResults = false;
         updateBreadcrumb(prefix);
+        const isAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin');
+        if (currentFolder && isAdmin && prefix !== '') {
+            if (!currentFolder.description) {
+                const addDescLi = document.createElement('li');
+                addDescLi.className = 'folder-description-card folder-add-desc-card';
+                addDescLi.innerHTML = `
+                    <button class="add-desc-button" title="为文件夹添加说明/公告">
+                        <span class="add-desc-icon"><i class="fas fa-plus-circle"></i></span>
+                        <span class="add-desc-text">添加文件夹说明</span>
+                        <span class="add-desc-hint">点击编辑公告，支持 Markdown</span>
+                    </button>
+                `;
+                fileListElement.appendChild(addDescLi);
+                const addDescBtn = addDescLi.querySelector('.add-desc-button');
+                if (addDescBtn) {
+                    addDescBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        editDescription(currentFolder.key, currentFolder.name, currentFolder.description);
+                    };
+                }
+            } else {
+                // Render description card below with edit button in header
+            }
+        }
         if (currentFolder && currentFolder.description) {
             const descLi = document.createElement('li');
             descLi.className = 'folder-description-card';
@@ -666,15 +690,24 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
             } else {
                 parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(currentFolder.description)}</div>`;
             }
+            const editBtn = (isAdmin && prefix !== '') ? `<button class="folder-desc-edit-btn" title="编辑说明"><i class="fas fa-pencil-alt"></i></button>` : '';
             descLi.innerHTML = `
                 <div class="folder-desc-header">
-                    <i class="fas fa-info-circle"></i> 说明
+                    <div class="folder-desc-title"><i class="fas fa-info-circle"></i> 说明</div>
+                    ${editBtn}
                 </div>
                 <div class="markdown-body folder-desc-body">
                     ${parsedContent}
                 </div>
             `;
             fileListElement.appendChild(descLi);
+            const editDescBtn = descLi.querySelector('.folder-desc-edit-btn');
+            if (editDescBtn) {
+                editDescBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    editDescription(currentFolder.key, currentFolder.name, currentFolder.description);
+                };
+            }
         }
         if (prefix !== '') {
             const parentPrefix = getParentPath(prefix);

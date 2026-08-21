@@ -387,6 +387,7 @@ async function renderMarkdown(content) {
             }
         }
         let processed = content.trim()
+            .replace(/\[\[([^\]]+)\]\]\(([^)]+)\)/g, '[$1]($2)')
             .replace(/([^\n])\n(\$\$)/g, '$1\n\n$2')
             .replace(/(\$\$)\n([^\n$])/g, '$1\n\n$2')
             .replace(/([^\n])\n([ \t]*([-*_])[ \t]*\3[ \t]*\3[ \t]*)$/gm, '$1\n\n$2');
