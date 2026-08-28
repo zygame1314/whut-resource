@@ -344,6 +344,10 @@ async function renderMarkdown(content) {
                     imgText = text || '';
                 }
                 const titleAttr = imgTitle ? ` title="${imgTitle}"` : '';
+                const videoExtMatch = (href || '').toLowerCase().split('?')[0].split('#')[0].match(/\.(mp4|webm|mov|m4v|ogv)$/);
+                if (videoExtMatch) {
+                    return `<video src="${href}"${titleAttr} controls preload="metadata" referrerpolicy="no-referrer"></video>`;
+                }
                 return `<img src="${href}" alt="${imgText}"${titleAttr} referrerpolicy="no-referrer">`;
             };
             marked.use({
@@ -399,10 +403,11 @@ async function renderMarkdown(content) {
                     'a', 'li', 'ol', 'span', 'math', 'style', 'svg', 'path', 'g', 'use',
                     'annotation', 'semantics', 'mrow', 'mi', 'mn', 'mo', 'msup', 'msub', 'msubsup',
                     'mfrac', 'msqrt', 'mroot', 'mtd', 'mtr', 'mtable', 'munder', 'mover', 'munderover',
-                    'semantics', 'annotation', 'annotation-xml'
+                    'semantics', 'annotation', 'annotation-xml', 'video', 'source'
                 ],
                 ADD_ATTR: [
                     'target', 'allow', 'allowfullscreen', 'frameborder', 'scrolling', 'class', 'id', 'href',
+                    'autoplay', 'muted', 'loop', 'playsinline', 'controls', 'preload', 'poster', 'src', 'type', 'media',
                     'aria-describedby', 'aria-label', 'role', 'aria-hidden', 'viewBox', 'd', 'fill', 'stroke', 'stroke-width',
                     'encoding', 'definitionURL', 'display', 'style', 'referrerpolicy'
                 ],

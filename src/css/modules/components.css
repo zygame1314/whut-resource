@@ -12686,6 +12686,13 @@ input#prompt-input {
     box-shadow: var(--shadow-small);
 }
 
+.markdown-body video {
+    max-width: 100%;
+    border-radius: 8px;
+    box-shadow: var(--shadow-small);
+    display: block;
+}
+
 .markdown-body hr {
     height: 1px;
     padding: 0;
