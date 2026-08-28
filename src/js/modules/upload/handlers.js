@@ -84,7 +84,7 @@ async function addWatermarkToPDF(file) {
         const pages = pdfDoc.getPages();
         let logoBitmap = null;
         try {
-            const logoRes = await fetch('/favicon.png');
+            const logoRes = await fetch('/favicon.webp');
             if (logoRes.ok) {
                 const blob = await logoRes.blob();
                 logoBitmap = await createImageBitmap(blob);

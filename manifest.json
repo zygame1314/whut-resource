@@ -8,14 +8,14 @@
     "description": "一个无偿分享武理学习资源的小站。人会各奔东西，但知识永恒传承。",
     "icons": [
         {
-            "src": "favicon.png",
-            "sizes": "64x64 32x32 24x24 16x16",
-            "type": "image/png"
+            "src": "favicon.webp",
+            "sizes": "64x64",
+            "type": "image/webp"
         },
         {
-            "src": "icon-512.png",
+            "src": "icon-512.jpg",
             "sizes": "192x192 512x512",
-            "type": "image/png"
+            "type": "image/jpeg"
         }
     ]
 }
