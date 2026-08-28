@@ -4990,15 +4990,6 @@
     border: 1px solid var(--border-color);
     border-radius: 14px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
-    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), border-color 0.3s ease;
-    transform-origin: center center;
-    will-change: transform;
-    backface-visibility: hidden;
-}
-
-.announcement-card:hover {
-    transform: scale(1.01);
-    border-color: rgba(var(--primary-rgb, 46, 139, 87), 0.3);
 }
 
 .announcement-card::before {
@@ -12687,10 +12678,11 @@ input#prompt-input {
 }
 
 .markdown-body video {
-    max-width: 100%;
+    display: block;
+    max-width: 95%;
+    margin: 0 auto;
     border-radius: 8px;
     box-shadow: var(--shadow-small);
-    display: block;
 }
 
 .markdown-body hr {
