@@ -1,5 +1,5 @@
 import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, notifyFolderUpdates, invalidateDirListCache } from '../utils.js';
-async function ensureDirectoryExists(db, fullPath, env) {
+async function ensureDirectoryExists(db, fullPath, env, waitUntil) {
   const pathSegments = fullPath.split('/').filter(segment => segment.length > 0);
   let currentPath = '';
   let createdAny = false;
@@ -27,25 +27,31 @@ async function ensureDirectoryExists(db, fullPath, env) {
         console.log(`在D1中创建目录条目: ${currentPath}`);
         createdAny = true;
         if (env.VECTORIZE && env.SILICONFLOW_API_KEY && insertResult.meta?.last_row_id) {
-          try {
-            const embeddings = await generateEmbeddings(env, [buildRichEmbeddingText({ name: segment, parent_path: parentPathForCurrentDir })]);
-            if (embeddings?.[0]) {
-              await retryWithBackoff(async () => {
-                await env.VECTORIZE.upsert([{
-                  id: insertResult.meta.last_row_id.toString(),
-                  values: embeddings[0],
-                  metadata: {
-                    name: segment,
-                    path: currentPath
-                  }
-                }]);
-              }, 3, 500);
-              console.log(`已为目录创建向量索引: ${currentPath}`);
+          const dirId = insertResult.meta.last_row_id;
+          const dirKey = currentPath;
+          const dirName = segment;
+          const dirParent = parentPathForCurrentDir;
+          waitUntil((async () => {
+            try {
+              const embeddings = await generateEmbeddings(env, [buildRichEmbeddingText({ name: dirName, parent_path: dirParent })]);
+              if (embeddings?.[0]) {
+                await retryWithBackoff(async () => {
+                  await env.VECTORIZE.upsert([{
+                    id: dirId.toString(),
+                    values: embeddings[0],
+                    metadata: {
+                      name: dirName,
+                      path: dirKey
+                    }
+                  }]);
+                }, 3, 500);
+                console.log(`已为目录创建向量索引: ${dirKey}`);
+              }
+            } catch (indexError) {
+              console.error('向量索引写入失败（目录，已重试3次）:', indexError);
+              await recordVectorSyncFailure(env, 'create', dirId, { name: dirName, key: dirKey }, indexError.message);
             }
-          } catch (indexError) {
-            console.error('向量索引写入失败（目录，已重试3次）:', indexError);
-            await recordVectorSyncFailure(env, 'create', insertResult.meta.last_row_id, { name: segment, key: currentPath }, indexError.message);
-          }
+          })());
         }
       }
     } catch (error) {
@@ -158,7 +164,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         return new Response(JSON.stringify({ success: false, error: '该名称的条目已存在。' }), { status: 409, headers: addCorsHeaders() });
       }
       if (sanitizedParentPath) {
-        await ensureDirectoryExists(DB, key, env);
+        await ensureDirectoryExists(DB, key, env, waitUntil);
       }
       const linkInsertResult = await DB.prepare(
         'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
@@ -176,24 +182,27 @@ export async function onRequestPost({ request, env, waitUntil }) {
         user.id
       ).run();
       if (env.VECTORIZE && env.SILICONFLOW_API_KEY && linkInsertResult.meta?.last_row_id) {
-        try {
+        const linkId = linkInsertResult.meta.last_row_id;
+        waitUntil((async () => {
+          try {
             const embeddings = await generateEmbeddings(env, [buildRichEmbeddingText({ name: sanitizedLinkNameNoSlash, parent_path: sanitizedParentPath })]);
-          if (embeddings?.[0]) {
-            await retryWithBackoff(async () => {
-              await env.VECTORIZE.upsert([{
-                id: linkInsertResult.meta.last_row_id.toString(),
-                values: embeddings[0],
-                metadata: {
-                  name: sanitizedLinkNameNoSlash,
-                  path: key
-                }
-              }]);
-            }, 3, 500);
+            if (embeddings?.[0]) {
+              await retryWithBackoff(async () => {
+                await env.VECTORIZE.upsert([{
+                  id: linkId.toString(),
+                  values: embeddings[0],
+                  metadata: {
+                    name: sanitizedLinkNameNoSlash,
+                    path: key
+                  }
+                }]);
+              }, 3, 500);
+            }
+          } catch (indexError) {
+            console.error('向量索引写入失败（链接，已重试3次）:', indexError);
+            await recordVectorSyncFailure(env, 'create', linkId, { name: sanitizedLinkNameNoSlash, key }, indexError.message);
           }
-        } catch (indexError) {
-          console.error('向量索引写入失败（链接，已重试3次）:', indexError);
-          await recordVectorSyncFailure(env, 'create', linkInsertResult.meta.last_row_id, { name: sanitizedLinkNameNoSlash, key }, indexError.message);
-        }
+        })());
       }
       await logAdminAction(env, user.id, 'create_link', 'file', linkInsertResult.meta?.last_row_id, '创建链接', JSON.stringify({ key, url: linkUrl, parent_path: sanitizedParentPath }));
       waitUntil(notifyFolderUpdates(env, [{ parentPath: sanitizedParentPath, fileName: sanitizedLinkNameNoSlash }]));
@@ -248,7 +257,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
           httpMetadata: { contentType: file.type },
         });
         const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
-        await ensureDirectoryExists(DB, key, env);
+        await ensureDirectoryExists(DB, key, env, waitUntil);
         const fileName = sanitizedFilename.split('/').pop();
         const fileInsertResult = await DB.prepare(
           'INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, is_link, link_url, downloads, uploader_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'

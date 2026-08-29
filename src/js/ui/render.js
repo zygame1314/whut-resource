@@ -380,12 +380,6 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
                 let parsedContent = '';
                 if (typeof renderMarkdown === 'function') {
                     parsedContent = await renderMarkdown(item.description);
-                    if (typeof activateLazyVideos === 'function') {
-                        const tmp = document.createElement('div');
-                        tmp.innerHTML = parsedContent;
-                        activateLazyVideos(tmp);
-                        parsedContent = tmp.innerHTML;
-                    }
                 } else {
                     parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(item.description)}</div>`;
                 }
@@ -393,7 +387,11 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
                     title: `<i class="fas fa-info-circle"></i> ${item.name} - 说明`,
                     message: `<div class="markdown-body" style="text-align: left; font-size: 0.95rem; max-height: 50vh; overflow-y: auto; padding: 15px; background: var(--background-alt); border-radius: 8px; border: 1px solid var(--border-color); user-select: text;">${parsedContent}</div>`,
                     confirmText: '关闭',
-                    cancelText: null
+                    cancelText: null,
+                    onShow: () => {
+                        const modalBody = document.querySelector('.confirmation-modal .markdown-body');
+                        if (modalBody && typeof activateLazyVideos === 'function') activateLazyVideos(modalBody);
+                    }
                 });
             } catch (err) {
                 console.error('Markdown rendering error:', err);

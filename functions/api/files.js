@@ -607,7 +607,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
         });
     }
 }
-export async function onRequestPut({ request, env }) {
+export async function onRequestPut({ request, env, waitUntil }) {
     const user = await getUserFromRequest(request, env);
     if (!user || !isAdmin(user)) {
         return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
@@ -638,11 +638,13 @@ export async function onRequestPut({ request, env }) {
             }
             await DB.prepare('UPDATE files SET description = ? WHERE key = ?').bind(description || null, key).run();
             await logAdminAction(env, user.id, 'update_description', 'file', fileRecord.id, '更新文件夹描述', JSON.stringify({ key }));
-            await deleteVectorIndexes(env, [fileRecord.id]);
-            const updatedRecord = await DB.prepare('SELECT id, name, key, parent_path, is_directory, description FROM files WHERE key = ?').bind(key).first();
-            if (updatedRecord) {
-                await createVectorIndexes(env, [updatedRecord]);
-            }
+            waitUntil((async () => {
+                await deleteVectorIndexes(env, [fileRecord.id]);
+                const updatedRecord = await DB.prepare('SELECT id, name, key, parent_path, is_directory, description FROM files WHERE key = ?').bind(key).first();
+                if (updatedRecord) {
+                    await createVectorIndexes(env, [updatedRecord]);
+                }
+            })());
             return new Response(JSON.stringify({ success: true, message: '描述已更新' }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const { key, newName } = body;
@@ -757,13 +759,15 @@ export async function onRequestPut({ request, env }) {
                 const newSubKey = key === sub.folder_key ? newFolderKey : newFolderKey + sub.folder_key.slice(key.length);
                 await DB.prepare('UPDATE folder_subscriptions SET folder_key = ? WHERE user_id = ? AND folder_key = ?').bind(newSubKey, sub.user_id, sub.folder_key).run();
             }
-            await deleteVectorIndexes(env, oldFileIds);
-            const newFolderPathForQuery = newFolderKey;
-            const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
-            const { results: newFiles } = await DB.prepare(
-                "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
-            ).bind(newFolderKey, newFolderKey, newEndKey).all();
-            await createVectorIndexes(env, newFiles || []);
+            waitUntil((async () => {
+                await deleteVectorIndexes(env, oldFileIds);
+                const newFolderPathForQuery = newFolderKey;
+                const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
+                const { results: newFiles } = await DB.prepare(
+                    "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
+                ).bind(newFolderKey, newFolderKey, newEndKey).all();
+                await createVectorIndexes(env, newFiles || []);
+            })());
             await invalidateDirListCache(DB);
             await logAdminAction(env, user.id, 'rename_folder', 'file', fileRecord.id, '重命名文件夹', JSON.stringify({ old_key: key, new_key: newFolderKey, child_count: (childItems || []).length }));
             return new Response(JSON.stringify({ success: true, message: '文件夹重命名成功' }), {
@@ -809,11 +813,13 @@ export async function onRequestPut({ request, env }) {
             DB.prepare('UPDATE favorites SET file_key = ? WHERE file_key = ?').bind(newKey, key),
             DB.prepare('DELETE FROM files WHERE key = ?').bind(key)
         ]);
-        await deleteVectorIndexes(env, [oldFileId]);
-        const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
-        if (newFileRecord) {
-            await createVectorIndexes(env, [newFileRecord]);
-        }
+        waitUntil((async () => {
+            await deleteVectorIndexes(env, [oldFileId]);
+            const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
+            if (newFileRecord) {
+                await createVectorIndexes(env, [newFileRecord]);
+            }
+        })());
         await logAdminAction(env, user.id, 'rename_file', 'file', oldFileId, '重命名文件', JSON.stringify({ old_key: key, new_key: newKey }));
         return new Response(JSON.stringify({ success: true, message: '重命名成功' }), {
             status: 200,
@@ -827,7 +833,7 @@ export async function onRequestPut({ request, env }) {
         });
     }
 }
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
     const user = await getUserFromRequest(request, env);
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
@@ -1089,13 +1095,15 @@ export async function onRequestPost({ request, env }) {
                 const newSubKey = sourceKey === sub.folder_key ? newFolderKey : newFolderKey + sub.folder_key.slice(sourceKey.length);
                 await DB.prepare('UPDATE folder_subscriptions SET folder_key = ? WHERE user_id = ? AND folder_key = ?').bind(newSubKey, sub.user_id, sub.folder_key).run();
             }
-            await deleteVectorIndexes(env, oldFileIds);
-            const newFolderPathForQuery = newFolderKey;
-            const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
-            const { results: newFiles } = await DB.prepare(
-                "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
-            ).bind(newFolderKey, newFolderKey, newEndKey).all();
-            await createVectorIndexes(env, newFiles || []);
+            waitUntil((async () => {
+                await deleteVectorIndexes(env, oldFileIds);
+                const newFolderPathForQuery = newFolderKey;
+                const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
+                const { results: newFiles } = await DB.prepare(
+                    "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
+                ).bind(newFolderKey, newFolderKey, newEndKey).all();
+                await createVectorIndexes(env, newFiles || []);
+            })());
             await invalidateDirListCache(DB);
             await logAdminAction(env, user.id, 'move_folder', 'file', fileRecord.id, '移动文件夹', JSON.stringify({ old_key: sourceKey, new_key: newFolderKey, child_count: (childItems || []).length }));
             return new Response(JSON.stringify({ success: true, message: '文件夹移动成功' }), {
@@ -1147,11 +1155,13 @@ export async function onRequestPost({ request, env }) {
             DB.prepare('UPDATE favorites SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
             DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey)
         ]);
-        await deleteVectorIndexes(env, [oldFileId]);
-        const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
-        if (newFileRecord) {
-            await createVectorIndexes(env, [newFileRecord]);
-        }
+        waitUntil((async () => {
+            await deleteVectorIndexes(env, [oldFileId]);
+            const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
+            if (newFileRecord) {
+                await createVectorIndexes(env, [newFileRecord]);
+            }
+        })());
         await logAdminAction(env, user.id, 'move_file', 'file', oldFileId, '移动文件', JSON.stringify({ old_key: sourceKey, new_key: newKey }));
         return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
             status: 200,
@@ -1165,7 +1175,7 @@ export async function onRequestPost({ request, env }) {
         });
     }
 }
-export async function onRequestDelete({ request, env }) {
+export async function onRequestDelete({ request, env, waitUntil }) {
     const user = await getUserFromRequest(request, env);
     if (!user || !isAdmin(user)) {
         return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
@@ -1293,7 +1303,7 @@ export async function onRequestDelete({ request, env }) {
                 const upper = folderKeyUpperBound(key);
                 await DB.prepare('DELETE FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(key, upper).run();
             }
-            await deleteVectorIndexes(env, fileIdsToDeleteVector);
+            waitUntil(deleteVectorIndexes(env, fileIdsToDeleteVector));
             await invalidateDirListCache(DB);
             const deletedCount = (childItems?.length || 0) + 1;
             await logAdminAction(env, user.id, 'delete_folder', 'file', fileRecord.id, '删除文件夹', JSON.stringify({ key, deleted_count: deletedCount }));
@@ -1317,7 +1327,7 @@ export async function onRequestDelete({ request, env }) {
             DB.prepare('DELETE FROM file_boosts WHERE file_key = ?').bind(key),
             DB.prepare('DELETE FROM favorites WHERE file_key = ?').bind(key)
         ]);
-        await deleteVectorIndexes(env, [fileIdToDelete]);
+        waitUntil(deleteVectorIndexes(env, [fileIdToDelete]));
         await logAdminAction(env, user.id, isLink ? 'delete_link' : 'delete_file', 'file', fileIdToDelete, isLink ? '删除链接' : '删除文件', JSON.stringify({ key, snapshot_content: fileRecord.name }));
         return new Response(JSON.stringify({
             success: true,
