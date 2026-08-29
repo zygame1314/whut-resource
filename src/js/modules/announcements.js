@@ -123,9 +123,39 @@ function polyfillAnnouncementVideos(container) {
             try { video.currentTime = 0; } catch (e) { }
             const playResult = video.play();
             if (playResult && typeof playResult.catch === 'function') {
-                playResult.catch(() => { });
+                playResult.catch(() => {
+                    setTimeout(() => {
+                        if (!video.hasAttribute('loop') || video.paused) return;
+                        try { video.currentTime = 0; } catch (e) { }
+                        video.play().catch(() => { });
+                    }, 50);
+                });
             }
         });
+        video.addEventListener('pause', () => {
+            if (!video.hasAttribute('loop') || !video.getAttribute('src')) return;
+            const duration = video.duration;
+            if (!duration || !isFinite(duration)) return;
+            if (video.currentTime <= 0.1) {
+                video.play().catch(() => {
+                    setTimeout(() => {
+                        if (video.paused && !video.ended) video.play().catch(() => { });
+                    }, 100);
+                });
+            }
+        });
+        video.addEventListener('error', () => {
+            const src = video.getAttribute('src');
+            if (!src || video.dataset.announcementVideoRetried) return;
+            video.dataset.announcementVideoRetried = '1';
+            setTimeout(() => { video.load(); }, 300);
+        });
+        if (video.autoplay && video.paused && video.readyState >= 2) {
+            video.play().catch(() => { });
+        } else if (video.autoplay) {
+            const tryPlay = () => { video.play().catch(() => { }); };
+            video.addEventListener('loadeddata', tryPlay, { once: true });
+        }
     });
 }
 function renderAnnouncements(announcements) {

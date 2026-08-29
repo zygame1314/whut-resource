@@ -109,7 +109,7 @@
     pointer-events: auto;
     box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.35);
     animation: themeHintBounce 1.8s ease-in-out infinite;
-    z-index: 10010;
+    z-index: 9998;
     opacity: 0;
     transition: opacity 0.25s ease;
 }
