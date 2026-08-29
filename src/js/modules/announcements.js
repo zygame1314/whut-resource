@@ -367,7 +367,16 @@ function maybeShowEntryAnnouncementPopup() {
     const shouldShowForNewAnnouncement = signature && signature !== lastSignature;
     const shouldShowByTime = now >= hideUntil;
     if (shouldShowForNewAnnouncement || shouldShowByTime) {
-        openAnnouncementViewModal(latestAnnouncement, { fromEntry: true });
+        const showEntryAnnouncement = () => openAnnouncementViewModal(latestAnnouncement, { fromEntry: true });
+        if (window.PopupQueue && announcementViewModal) {
+            const modalContent = announcementViewModal.querySelector('.announcement-view-modal-content');
+            PopupQueue.enqueue(showEntryAnnouncement, {
+                priority: 5,
+                isFinished: () => PopupQueue.waitForDetach(announcementViewModal)
+            });
+        } else {
+            showEntryAnnouncement();
+        }
     }
 }
 function getLatestAnnouncement() {

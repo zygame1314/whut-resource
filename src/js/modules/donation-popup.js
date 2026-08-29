@@ -98,7 +98,16 @@
     function init() {
         const { firstVisit, count } = trackVisit();
         if (shouldShow(firstVisit, count)) {
-            if (document.readyState === 'complete') {
+            const show = () => {
+                showDonationPopup();
+                const overlay = document.querySelector('.donation-modal-overlay');
+                if (window.PopupQueue && overlay) {
+                    return PopupQueue.waitForDetach(overlay);
+                }
+            };
+            if (window.PopupQueue) {
+                PopupQueue.enqueue(show, { priority: 0, delay: 2000 });
+            } else if (document.readyState === 'complete') {
                 setTimeout(showDonationPopup, 2000);
             } else {
                 window.addEventListener('load', () => setTimeout(showDonationPopup, 2000));

@@ -191,7 +191,15 @@
             const count = recordDownload(fileCount);
             if (shouldShow(count) && pendingCount >= 1) {
                 pendingCount = 0;
-                setTimeout(() => showSharePopup(count), 1500);
+                if (window.PopupQueue) {
+                    PopupQueue.enqueue(() => {
+                        showSharePopup(count);
+                        const overlay = document.querySelector('.share-popup-overlay');
+                        if (overlay) return PopupQueue.waitForDetach(overlay);
+                    }, { priority: 0, delay: 1500 });
+                } else {
+                    setTimeout(() => showSharePopup(count), 1500);
+                }
             }
         });
     }

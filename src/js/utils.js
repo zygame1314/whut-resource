@@ -321,9 +321,9 @@ function activateLazyVideos(container) {
         if (video.getAttribute('preload') === 'none') {
             video.setAttribute('preload', 'metadata');
         }
-    };
-    const bindVideo = (video, activate) => {
-        activate(video);
+        if (video.hasAttribute('muted')) {
+            video.muted = true;
+        }
         if (!video.autoplay) return;
         const tryPlay = () => {
             const playResult = video.play();
@@ -357,6 +357,9 @@ function activateLazyVideos(container) {
             video.dataset.lazyVideoRetried = '1';
             setTimeout(() => { video.load(); }, 300);
         });
+    };
+    const bindVideo = (video, activate) => {
+        activate(video);
     };
 
     if ('IntersectionObserver' in window) {

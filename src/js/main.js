@@ -70,12 +70,15 @@ document.addEventListener('authSuccess', async () => {
     if (!localStorage.getItem('hasSeenTutorial')) {
         setTimeout(async () => {
             if (typeof showConfirmation === 'function') {
-                const shouldStart = await showConfirmation({
+                const showTutorialConfirm = () => showConfirmation({
                     title: '👋 欢迎来到武理资源共享平台',
                     message: '检测到你可能是初次访问，建议你查看新手教程以了解如何全功能使用本站。<br><br>是否立即开启教程？',
                     confirmText: '🚀 开启教程',
                     cancelText: '暂不需要'
                 });
+                const shouldStart = await (window.PopupQueue
+                    ? PopupQueue.enqueue(showTutorialConfirm, { priority: 10, delay: 1500 })
+                    : showTutorialConfirm());
                 localStorage.setItem('hasSeenTutorial', 'true');
                 if (shouldStart && typeof startTutorial === 'function') {
                     startTutorial();

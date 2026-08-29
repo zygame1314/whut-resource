@@ -8,6 +8,7 @@ const pathsToRemove = [
     'auth.js',
     'config.js',
     'announcements.js',
+    'popup-queue.js',
     'guestbook.js',
     'graph.js',
     'tutorial.js',
