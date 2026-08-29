@@ -106,6 +106,28 @@ async function fetchAndDisplayAnnouncements(page = 1) {
         announcementSection.style.display = 'none';
     }
 }
+function polyfillAnnouncementVideos(container) {
+    if (!container) return;
+    container.querySelectorAll('video').forEach(video => {
+        if (video.dataset.announcementVideoPolyfill) return;
+        video.dataset.announcementVideoPolyfill = '1';
+        if (video.hasAttribute('autoplay')) {
+            video.setAttribute('muted', '');
+            video.muted = true;
+        }
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+        video.setAttribute('x5-playsinline', '');
+        video.addEventListener('ended', () => {
+            if (!video.hasAttribute('loop') || !video.getAttribute('src')) return;
+            try { video.currentTime = 0; } catch (e) { }
+            const playResult = video.play();
+            if (playResult && typeof playResult.catch === 'function') {
+                playResult.catch(() => { });
+            }
+        });
+    });
+}
 function renderAnnouncements(announcements) {
     if (!announcements || announcements.length === 0) {
         announcementSection.style.display = 'none';
@@ -164,7 +186,10 @@ function renderAnnouncements(announcements) {
             if (raw && typeof renderMarkdown === 'function') {
                 const originalContent = el.innerHTML;
                 el.innerHTML = '<div class="announcement-content-loader announcement-content-loader-inline"><div class="announcement-loader-icon"><i class="fas fa-scroll"></i></div></div>';
-                renderMarkdown(raw).then(html => { el.innerHTML = html; }).catch(() => { el.innerHTML = originalContent || raw; });
+                renderMarkdown(raw).then(html => {
+                    el.innerHTML = html;
+                    polyfillAnnouncementVideos(el);
+                }).catch(() => { el.innerHTML = originalContent || raw; });
             }
         });
         updateAnnouncementItemView();
@@ -416,7 +441,10 @@ function openAnnouncementViewModal(announcement, options = {}) {
     if (typeof renderMarkdown === 'function') {
         renderMarkdown(announcement.content || '').then(html => {
             const bodyEl = document.getElementById('announcement-view-body');
-            if (bodyEl) bodyEl.innerHTML = html;
+            if (bodyEl) {
+                bodyEl.innerHTML = html;
+                polyfillAnnouncementVideos(bodyEl);
+            }
             if (isSwitching && modalContent) animateAnnouncementHeight(modalContent, startHeight);
         });
     } else if (isSwitching && modalContent) {
