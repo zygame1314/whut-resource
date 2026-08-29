@@ -298,6 +298,102 @@ function filterTreeByKeyword(container, keyword, options = {}) {
         }
     });
 }
+function activateLazyVideos(container) {
+    if (!container) return;
+    const shells = container.querySelectorAll('.md-video-shell[data-video-src]');
+    const videos = container.querySelectorAll('video[data-src]');
+    if (!shells.length && !videos.length) return;
+
+    const buildVideo = (shell) => {
+        const src = shell.getAttribute('data-video-src');
+        const label = shell.getAttribute('title') || '';
+        const video = document.createElement('video');
+        video.setAttribute('data-src', src);
+        video.controls = true;
+        video.setAttribute('preload', 'none');
+        video.setAttribute('referrerpolicy', 'no-referrer');
+        if (label) video.setAttribute('title', label);
+        return video;
+    };
+    const activate = (video) => {
+        video.src = video.getAttribute('data-src');
+        video.removeAttribute('data-src');
+        if (video.getAttribute('preload') === 'none') {
+            video.setAttribute('preload', 'metadata');
+        }
+    };
+    const bindVideo = (video, activate) => {
+        activate(video);
+        if (!video.autoplay) return;
+        const tryPlay = () => {
+            const playResult = video.play();
+            if (playResult && typeof playResult.catch === 'function') {
+                playResult.catch(() => { });
+            }
+        };
+        if (video.readyState >= 2) {
+            tryPlay();
+        } else {
+            video.addEventListener('loadeddata', tryPlay, { once: true });
+        }
+        if (video.hasAttribute('loop')) {
+            video.addEventListener('ended', () => {
+                try { video.currentTime = 0; } catch (e) { }
+                tryPlay();
+            });
+            video.addEventListener('pause', () => {
+                const duration = video.duration;
+                if (!duration || !isFinite(duration)) return;
+                if (video.currentTime <= 0.1) {
+                    tryPlay();
+                    setTimeout(() => {
+                        if (video.paused && !video.ended) tryPlay();
+                    }, 100);
+                }
+            });
+        }
+        video.addEventListener('error', () => {
+            if (!video.getAttribute('src') || video.dataset.lazyVideoRetried) return;
+            video.dataset.lazyVideoRetried = '1';
+            setTimeout(() => { video.load(); }, 300);
+        });
+    };
+
+    if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    observer.unobserve(entry.target);
+                    const target = entry.target;
+                    if (target.classList.contains('md-video-shell')) {
+                        const video = buildVideo(target);
+                        target.replaceWith(video);
+                        bindVideo(video, activate);
+                    } else {
+                        activate(target);
+                    }
+                }
+            });
+        }, { threshold: 0.3 });
+        shells.forEach(shell => {
+            shell.addEventListener('click', () => {
+                if (!shell.isConnected) return;
+                const video = buildVideo(shell);
+                shell.replaceWith(video);
+                bindVideo(video, activate);
+            }, { once: true });
+            observer.observe(shell);
+        });
+        videos.forEach(video => observer.observe(video));
+    } else {
+        shells.forEach(shell => {
+            const video = buildVideo(shell);
+            shell.replaceWith(video);
+            bindVideo(video, activate);
+        });
+        videos.forEach(activate);
+    }
+}
 async function renderMarkdown(content) {
     if (!content) return '';
     try {
@@ -346,7 +442,7 @@ async function renderMarkdown(content) {
                 const titleAttr = imgTitle ? ` title="${imgTitle}"` : '';
                 const videoExtMatch = (href || '').toLowerCase().split('?')[0].split('#')[0].match(/\.(mp4|webm|mov|m4v|ogv)$/);
                 if (videoExtMatch) {
-                    return `<video src="${href}"${titleAttr} controls preload="metadata" referrerpolicy="no-referrer"></video>`;
+                    return `<span class="md-video-shell" data-video-src="${href}"${titleAttr}><span class="md-video-shell-label">视频加载中…</span></span>`;
                 }
                 return `<img src="${href}" alt="${imgText}"${titleAttr} referrerpolicy="no-referrer">`;
             };
@@ -397,6 +493,16 @@ async function renderMarkdown(content) {
             .replace(/([^\n])\n([ \t]*([-*_])[ \t]*\3[ \t]*\3[ \t]*)$/gm, '$1\n\n$2');
         let parsed = marked.parse(processed);
         if (typeof DOMPurify !== 'undefined') {
+            if (!DOMPurify.__videoLazyHooked) {
+                DOMPurify.__videoLazyHooked = true;
+                DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+                    if (node.tagName === 'VIDEO' && node.getAttribute('src')) {
+                        node.setAttribute('data-src', node.getAttribute('src'));
+                        node.removeAttribute('src');
+                        node.setAttribute('preload', 'none');
+                    }
+                });
+            }
             parsed = DOMPurify.sanitize(parsed, {
                 ADD_TAGS: [
                     'details', 'summary', 'iframe', 'hr', 'section', 'sup', 'sub',
@@ -407,7 +513,7 @@ async function renderMarkdown(content) {
                 ],
                 ADD_ATTR: [
                     'target', 'allow', 'allowfullscreen', 'frameborder', 'scrolling', 'class', 'id', 'href',
-                    'autoplay', 'muted', 'loop', 'playsinline', 'controls', 'preload', 'poster', 'src', 'type', 'media',
+                    'autoplay', 'muted', 'loop', 'playsinline', 'controls', 'preload', 'poster', 'src', 'type', 'media', 'data-src',
                     'aria-describedby', 'aria-label', 'role', 'aria-hidden', 'viewBox', 'd', 'fill', 'stroke', 'stroke-width',
                     'encoding', 'definitionURL', 'display', 'style', 'referrerpolicy'
                 ],

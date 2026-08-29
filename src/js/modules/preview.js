@@ -218,6 +218,7 @@ async function previewFile(fileKey, fileName, fileSize) {
                     mdContent.style.lineHeight = '1.6';
                     renderMarkdown(data.content).then(html => {
                         mdContent.innerHTML = html;
+                        if (typeof activateLazyVideos === 'function') activateLazyVideos(mdContent);
                     });
                     textPreviewWrapper.appendChild(mdContent);
                 } else {

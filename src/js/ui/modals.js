@@ -106,6 +106,7 @@ function showPrompt({
                 if (typeof renderMarkdown === 'function') {
                     renderMarkdown(input.value).then(html => {
                         previewEl.innerHTML = html || '<p style="color: var(--text-secondary); font-style: italic;">暂无内容预览...</p>';
+                        if (typeof activateLazyVideos === 'function') activateLazyVideos(previewEl);
                     });
                 } else {
                     previewEl.textContent = input.value;

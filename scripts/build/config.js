@@ -76,7 +76,7 @@ const jsBundles = {
     'guestbook.js': guestbookModules,
     'config.js': ['config.js'],
     'oauth.js': ['modules/oauth.js'],
-    'announcements.js': ['modules/lazy-loader.js', 'modules/announcements.js'],
+    'announcements.js': ['modules/lazy-loader.js', 'modules/announcements.js', 'utils.js'],
     'graph.js': ['modules/graph.js'],
     'tutorial.js': ['modules/lazy-loader.js', 'modules/tutorial.js'],
     'download-manager.js': ['modules/lazy-loader.js', 'modules/download-manager.js'],

@@ -380,6 +380,12 @@ function createFileListItem(item, isDirectory, isGlobalSearch = false) {
                 let parsedContent = '';
                 if (typeof renderMarkdown === 'function') {
                     parsedContent = await renderMarkdown(item.description);
+                    if (typeof activateLazyVideos === 'function') {
+                        const tmp = document.createElement('div');
+                        tmp.innerHTML = parsedContent;
+                        activateLazyVideos(tmp);
+                        parsedContent = tmp.innerHTML;
+                    }
                 } else {
                     parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(item.description)}</div>`;
                 }
@@ -686,6 +692,7 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
                 renderMarkdown(currentFolder.description).then(html => {
                     const body = descLi.querySelector('.folder-desc-body');
                     if (body) body.innerHTML = html;
+                    if (typeof activateLazyVideos === 'function') activateLazyVideos(descLi);
                 });
             } else {
                 parsedContent = `<div style="white-space: pre-wrap;">${escapeHtml(currentFolder.description)}</div>`;

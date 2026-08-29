@@ -106,58 +106,6 @@ async function fetchAndDisplayAnnouncements(page = 1) {
         announcementSection.style.display = 'none';
     }
 }
-function polyfillAnnouncementVideos(container) {
-    if (!container) return;
-    container.querySelectorAll('video').forEach(video => {
-        if (video.dataset.announcementVideoPolyfill) return;
-        video.dataset.announcementVideoPolyfill = '1';
-        if (video.hasAttribute('autoplay')) {
-            video.setAttribute('muted', '');
-            video.muted = true;
-        }
-        video.setAttribute('playsinline', '');
-        video.setAttribute('webkit-playsinline', '');
-        video.setAttribute('x5-playsinline', '');
-        video.addEventListener('ended', () => {
-            if (!video.hasAttribute('loop') || !video.getAttribute('src')) return;
-            try { video.currentTime = 0; } catch (e) { }
-            const playResult = video.play();
-            if (playResult && typeof playResult.catch === 'function') {
-                playResult.catch(() => {
-                    setTimeout(() => {
-                        if (!video.hasAttribute('loop') || video.paused) return;
-                        try { video.currentTime = 0; } catch (e) { }
-                        video.play().catch(() => { });
-                    }, 50);
-                });
-            }
-        });
-        video.addEventListener('pause', () => {
-            if (!video.hasAttribute('loop') || !video.getAttribute('src')) return;
-            const duration = video.duration;
-            if (!duration || !isFinite(duration)) return;
-            if (video.currentTime <= 0.1) {
-                video.play().catch(() => {
-                    setTimeout(() => {
-                        if (video.paused && !video.ended) video.play().catch(() => { });
-                    }, 100);
-                });
-            }
-        });
-        video.addEventListener('error', () => {
-            const src = video.getAttribute('src');
-            if (!src || video.dataset.announcementVideoRetried) return;
-            video.dataset.announcementVideoRetried = '1';
-            setTimeout(() => { video.load(); }, 300);
-        });
-        if (video.autoplay && video.paused && video.readyState >= 2) {
-            video.play().catch(() => { });
-        } else if (video.autoplay) {
-            const tryPlay = () => { video.play().catch(() => { }); };
-            video.addEventListener('loadeddata', tryPlay, { once: true });
-        }
-    });
-}
 function renderAnnouncements(announcements) {
     if (!announcements || announcements.length === 0) {
         announcementSection.style.display = 'none';
@@ -218,7 +166,7 @@ function renderAnnouncements(announcements) {
                 el.innerHTML = '<div class="announcement-content-loader announcement-content-loader-inline"><div class="announcement-loader-icon"><i class="fas fa-scroll"></i></div></div>';
                 renderMarkdown(raw).then(html => {
                     el.innerHTML = html;
-                    polyfillAnnouncementVideos(el);
+                    if (typeof activateLazyVideos === 'function') activateLazyVideos(el);
                 }).catch(() => { el.innerHTML = originalContent || raw; });
             }
         });
@@ -473,7 +421,7 @@ function openAnnouncementViewModal(announcement, options = {}) {
             const bodyEl = document.getElementById('announcement-view-body');
             if (bodyEl) {
                 bodyEl.innerHTML = html;
-                polyfillAnnouncementVideos(bodyEl);
+                if (typeof activateLazyVideos === 'function') activateLazyVideos(bodyEl);
             }
             if (isSwitching && modalContent) animateAnnouncementHeight(modalContent, startHeight);
         });
@@ -721,7 +669,10 @@ function switchTab(mode) {
         } else if (typeof renderMarkdown === 'function') {
             previewArea.innerHTML = '<div class="announcement-content-loader"><div class="announcement-loader-icon"><i class="fas fa-scroll"></i></div><div class="announcement-loader-text">正在渲染预览<span class="creative-loader-dots"></span></div></div>';
             previewArea.classList.add('markdown-body');
-            renderMarkdown(content).then(html => { previewArea.innerHTML = html; });
+            renderMarkdown(content).then(html => {
+                previewArea.innerHTML = html;
+                if (typeof activateLazyVideos === 'function') activateLazyVideos(previewArea);
+            });
         } else {
             previewArea.innerHTML = `<div style="white-space: pre-wrap;">${escapeHtml(content)}</div>`;
             previewArea.classList.add('markdown-body');
