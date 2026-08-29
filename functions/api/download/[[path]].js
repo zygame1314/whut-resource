@@ -273,7 +273,11 @@ export async function onRequest(context) {
       headers.set('Content-Range', `bytes ${start}-${end}/${fileSize}`);
       headers.set('Content-Length', String(end - start + 1));
       headers.set('Accept-Ranges', 'bytes');
-      headers.set('Cache-Control', 'no-store');
+      if (isInline && INLINE_CONTENT_TYPES[key.split('.').pop().toLowerCase()]) {
+        headers.set('Cache-Control', 'private, max-age=86400');
+      } else {
+        headers.set('Cache-Control', 'no-store');
+      }
       if (isInline) {
         headers.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
       } else {

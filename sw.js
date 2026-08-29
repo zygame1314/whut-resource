@@ -1,4 +1,4 @@
-const CACHE_NAME = 'whut-resource-v2';
+const CACHE_NAME = 'whut-resource-shell-v3';
 const ASSETS_TO_CACHE = [
     './',
     'index.html',
@@ -16,6 +16,21 @@ const ASSETS_TO_CACHE = [
     'sharing_rules.html',
     'upload.html'
 ];
+const SHELL_PAGE_EXTENSIONS = /\.(html|htm|webmanifest)$/i;
+const SHELL_STATIC_EXTENSIONS = /\.(css|js|webp|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i;
+
+function isShellRequest(url) {
+    if (url.pathname === '/' || url.pathname.endsWith('/')) {
+        if (!url.pathname.match(/\.[a-z0-9]+$/i)) {
+            return true;
+        }
+    }
+    if (SHELL_PAGE_EXTENSIONS.test(url.pathname) || SHELL_STATIC_EXTENSIONS.test(url.pathname)) {
+        return true;
+    }
+    return false;
+}
+
 self.addEventListener('install', (event) => {
     self.skipWaiting();
     event.waitUntil(
@@ -50,6 +65,9 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     if (url.origin !== self.location.origin) {
+        return;
+    }
+    if (!isShellRequest(url)) {
         return;
     }
     event.respondWith(
