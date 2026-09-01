@@ -4277,17 +4277,24 @@
 }
 
 .sso-btn {
-    background: linear-gradient(135deg, #004f98 0%, #0066cc 100%) !important;
+    background: linear-gradient(135deg, #004f98 0%, #0066cc 50%, #0077ee 100%) !important;
+    background-size: 200% 200% !important;
+    background-position: 0% 0% !important;
     border: none !important;
     box-shadow: 0 4px 14px rgba(0, 79, 152, 0.4);
     height: 50px;
     font-size: 1.1rem;
     margin-top: 0.5rem !important;
+    transition: background-position 0.45s ease, box-shadow 0.45s ease, transform 0.2s ease !important;
 }
 
 .sso-btn:hover {
     box-shadow: 0 6px 20px rgba(0, 79, 152, 0.5);
-    background: linear-gradient(135deg, #005bb0 0%, #0077ee 100%) !important;
+    background-position: 100% 100% !important;
+}
+
+.sso-btn:active {
+    transform: scale(0.98);
 }
 
 .sso-btn i {
