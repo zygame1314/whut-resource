@@ -4287,7 +4287,6 @@
 
 .sso-btn:hover {
     box-shadow: 0 6px 20px rgba(0, 79, 152, 0.5);
-    transform: scale(1.02);
     background: linear-gradient(135deg, #005bb0 0%, #0077ee 100%) !important;
 }
 
