@@ -57,10 +57,12 @@ function validateFile(file) {
     }
     return { valid: true };
 }
-async function addWatermarkToPDF(file) {
+async function addWatermarkToPDF(file, onProgress) {
     if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
         return file;
     }
+    const notify = (msg) => { if (onProgress) { try { onProgress(msg); } catch (e) { } } };
+    notify({ stage: 'watermark', file: file.name, step: 'loading' });
     const match = file.name.match(/【(.+?)】/);
     const bracketText = match ? match[1] : '';
     const subText = bracketText ? (bracketText + "无偿") : "无偿分享";
@@ -162,7 +164,10 @@ async function addWatermarkToPDF(file) {
         let pdfBytes = await pdfDoc.save();
         if (bakeToggle ? bakeToggle.checked : true) {
             try {
-                const bakedBytes = await bakeWatermarkIntoPages(pdfBytes);
+                notify({ stage: 'bake', file: file.name, page: 0, totalPages: null });
+                const bakedBytes = await bakeWatermarkIntoPages(pdfBytes, (page, totalPages) => {
+                    notify({ stage: 'bake', file: file.name, page, totalPages });
+                });
                 if (bakedBytes) pdfBytes = bakedBytes;
             } catch (e) {
                 console.warn('像素烘焙水印跳过（不影响常规水印）:', e);
@@ -183,7 +188,7 @@ async function addWatermarkToPDF(file) {
         return file;
     }
 }
-async function bakeWatermarkIntoPages(pdfBytes) {
+async function bakeWatermarkIntoPages(pdfBytes, onProgress) {
     const pdfjsLib = await window.LazyLoader.loadPDFJS();
     if (!pdfjsLib) return null;
     const srcData = new Uint8Array(pdfBytes);
@@ -192,7 +197,11 @@ async function bakeWatermarkIntoPages(pdfBytes) {
     const { PDFDocument } = PDFLib;
     const outDoc = await PDFDocument.create();
     const toBytes = (canvas, type, q) => new Promise(res => canvas.toBlob(b => b.arrayBuffer().then(res), type, q));
-    for (let i = 1; i <= pdfjsDoc.numPages; i++) {
+    const totalPages = pdfjsDoc.numPages;
+    for (let i = 1; i <= totalPages; i++) {
+        if (onProgress) {
+            try { onProgress(i, totalPages); } catch (e) { }
+        }
         const page = await pdfjsDoc.getPage(i);
         const baseViewport = page.getViewport({ scale: 1 });
         const longSide = Math.max(baseViewport.width, baseViewport.height);
@@ -519,21 +528,71 @@ async function handleUpload(event) {
     const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
     const fileProgress = new Map();
     const allUploadResults = { success: [], failed: [] };
+    let currentStage = 'upload';
+    let processingDetail = '';
+    let processingCount = 0;
+    let lastShownPercentage = 0;
+    let uploadStartTs = 0;
+    let lastSpeedSample = { ts: 0, loaded: 0 };
+    let lastShownSpeed = 0;
     const updateTotalProgress = () => {
         let totalUploadedSize = 0;
         for (const file of selectedFiles) {
             totalUploadedSize += (fileProgress.get(file) || 0) * file.size;
         }
-        const overallPercentage = totalSize > 0 ? Math.round((totalUploadedSize / totalSize) * 100) : 0;
+        const uploadedRatio = totalSize > 0 ? totalUploadedSize / totalSize : 0;
+        let overallPercentage;
         let status;
-        if (filesUploaded === totalFiles) {
-            status = '所有文件上传完成！';
+        if (currentStage === 'upload' || currentStage === 'done') {
+            overallPercentage = uploadedRatio * 100;
+            if (filesUploaded === totalFiles) {
+                status = '所有文件上传完成！';
+            } else {
+                status = `${formatBytes(totalUploadedSize)} / ${formatBytes(totalSize)}`;
+            }
         } else {
-            status = `${formatBytes(totalUploadedSize)} / ${formatBytes(totalSize)}`;
+            const processingRatio = Math.min(0.99, uploadedRatio + 0.02 + Math.min(0.08, processingCount * 0.01));
+            overallPercentage = processingRatio * 100;
+            status = processingDetail || '正在处理文件...';
         }
+        if (overallPercentage < lastShownPercentage) overallPercentage = lastShownPercentage;
+        lastShownPercentage = overallPercentage;
         updateProgress(overallPercentage, status);
     };
-    const uploadBatch = (files) => {
+    const updateUploadSpeed = (totalLoaded) => {
+        const now = performance.now();
+        if (lastSpeedSample.ts && now - lastSpeedSample.ts > 400) {
+            const dLoaded = totalLoaded - lastSpeedSample.loaded;
+            const dTs = (now - lastSpeedSample.ts) / 1000;
+            if (dTs > 0 && dLoaded >= 0) {
+                lastShownSpeed = dLoaded / dTs;
+                const remaining = Math.max(0, totalSize - totalLoaded);
+                let etaText = '';
+                if (lastShownSpeed > 0 && remaining > 0) {
+                    const etaSec = Math.round(remaining / lastShownSpeed);
+                    etaText = etaSec >= 60 ? `${Math.floor(etaSec / 60)}分${etaSec % 60}秒` : `${etaSec}秒`;
+                }
+                setProgressUploadSpeed(lastShownSpeed, etaText);
+            }
+            lastSpeedSample = { ts: now, loaded: totalLoaded };
+        }
+    };
+    const setUploadStage = (stage) => {
+        const changed = currentStage !== stage;
+        currentStage = stage;
+        setProgressStage(stage);
+        if (changed && stage !== 'bake' && stage !== 'watermark' && stage !== 'trace' && stage !== 'compress') setProgressDetail('');
+        if (stage !== 'upload') setProgressUploadSpeed(0);
+        updateTotalProgress();
+    };
+    const setProcessingDetail = (detail, stage) => {
+        processingDetail = detail;
+        if (stage) currentStage = stage;
+        setProgressStage(currentStage, detail);
+        updateTotalProgress();
+    };
+    const isProcessing = () => processingCount > 0;
+    const uploadBatch = (files, originals) => {
         const formData = new FormData();
         const targetPath = currentUploadPath || '';
         files.forEach(file => {
@@ -552,17 +611,25 @@ async function handleUpload(event) {
             xhr.upload.addEventListener('progress', (e) => {
                 if (e.lengthComputable) {
                     const percent = e.loaded / e.total;
-                    files.forEach(f => {
-                        fileProgress.set(f, percent);
+                    files.forEach((f, idx) => {
+                        fileProgress.set((originals && originals[idx]) || f, percent);
                     });
+                    if (currentStage !== 'upload' && !isProcessing()) setUploadStage('upload');
                     updateTotalProgress();
+                    let totalLoaded = 0;
+                    for (const file of selectedFiles) {
+                        totalLoaded += (fileProgress.get(file) || 0) * file.size;
+                    }
+                    updateUploadSpeed(totalLoaded);
                 }
             });
             xhr.addEventListener('load', () => {
                 try {
                     const result = JSON.parse(xhr.responseText);
                     if (xhr.status === 200) {
-                        files.forEach(f => fileProgress.set(f, 1));
+                        files.forEach((f, idx) => {
+                            fileProgress.set((originals && originals[idx]) || f, 1);
+                        });
                         updateTotalProgress();
                         resolve(result);
                     } else {
@@ -595,6 +662,9 @@ async function handleUpload(event) {
         return batches;
     };
     try {
+        uploadStartTs = performance.now();
+        lastSpeedSample = { ts: performance.now(), loaded: 0 };
+        setProgressStage('idle', `共 ${totalFiles} 个文件 · ${formatBytes(totalSize)}`);
         updateProgress(0, `准备上传 ${totalFiles} 个文件...`);
         const rawBatches = createBatches(selectedFiles);
         const queue = [...rawBatches];
@@ -606,15 +676,43 @@ async function handleUpload(event) {
                         const enableWatermark = watermarkToggle ? watermarkToggle.checked : true;
                         const enableTrace = traceToggle ? traceToggle.checked : true;
                         const processedFiles = await Promise.all(batchFiles.map(async (file) => {
+                            let fileDone = false;
                             try {
-                                let f = enableWatermark ? await addWatermarkToPDF(file) : file;
-                                return enableTrace ? await injectTraceCode(f) : f;
+                                processingCount++;
+                                if (enableWatermark && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
+                                    setProcessingDetail(`正在给 "${file.name}" 加水印...`, 'watermark');
+                                }
+                                let f = enableWatermark ? await addWatermarkToPDF(file, (info) => {
+                                    if (fileDone) return;
+                                    if (info.stage === 'bake') {
+                                        if (info.totalPages) {
+                                            setProcessingDetail(`正在烘焙 "${info.file}" 第 ${info.page}/${info.totalPages} 页...`, 'bake');
+                                        } else {
+                                            setProcessingDetail(`正在准备烘焙 "${info.file}"...`, 'bake');
+                                        }
+                                    } else if (info.stage === 'watermark') {
+                                        setProcessingDetail(`正在给 "${info.file}" 加水印...`, 'watermark');
+                                    }
+                                }) : file;
+                                if (enableTrace && f === file) {
+                                    const ext = file.name.split('.').pop().toLowerCase();
+                                    if (ext !== 'pdf' && !['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', '7zip', 'docx', 'xlsx', 'pptx', 'docm', 'xlsm', 'pptm', 'doc', 'xls', 'ppt', 'odt', 'ods', 'odp', 'iso', 'dmg', 'pkg', 'apk', 'ipa', 'exe', 'msi'].includes(ext)) {
+                                        setProcessingDetail(`正在给 "${file.name}" 注入追踪码...`, 'trace');
+                                    }
+                                }
+                                f = enableTrace ? await injectTraceCode(f) : f;
+                                processingCount = Math.max(0, processingCount - 1);
+                                fileDone = true;
+                                return f;
                             } catch (e) {
+                                processingCount = Math.max(0, processingCount - 1);
+                                fileDone = true;
                                 console.error(`预处理失败: ${file.name}`, e);
                                 return file;
                             }
                         }));
-                        const result = await uploadBatch(processedFiles);
+                        if (processingCount <= 0 && currentStage !== 'done') setUploadStage('upload');
+                        const result = await uploadBatch(processedFiles, batchFiles);
                         if (result.results) {
                             result.results.forEach(res => {
                                 if (res.success) {
@@ -659,6 +757,10 @@ async function handleUpload(event) {
             workers.push(worker());
         }
         await Promise.all(workers);
+        currentStage = 'done';
+        setProgressStage('done');
+        setProgressUploadSpeed(0);
+        setProgressDetail('');
         updateProgress(100, '所有文件上传完成！');
         const successRate = totalFiles > 0 ? (filesUploaded / totalFiles) * 100 : 0;
         const statusType = successRate === 100 ? 'success' : (successRate > 0 ? 'warning' : 'error');
@@ -676,6 +778,9 @@ async function handleUpload(event) {
         }, 3000);
     } catch (error) {
         console.error('上传处理出错:', error);
+        setProgressStage('idle');
+        setProgressUploadSpeed(0);
+        setProgressDetail('');
         showUploadStatus(`上传处理出错: ${error.message}`, 'error');
     } finally {
         if (uploadSubmitBtn) {

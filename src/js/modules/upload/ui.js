@@ -165,17 +165,158 @@ function clearSelectedFile() {
 }
 
 function resetProgress() {
-    if (uploadProgress) uploadProgress.style.display = 'none';
+    if (uploadProgress) {
+        uploadProgress.style.display = 'none';
+        uploadProgress.classList.remove('stage-processing', 'stage-baking', 'stage-uploading', 'stage-done');
+        delete uploadProgress.dataset.stage;
+    }
     if (progressFill) progressFill.style.width = '0%';
     if (progressPercentage) progressPercentage.textContent = '0%';
     if (progressStatus) progressStatus.textContent = '准备上传...';
+    const speedEl = document.getElementById('progress-speed');
+    if (speedEl) speedEl.remove();
+    const detailEl = document.getElementById('progress-detail');
+    if (detailEl) detailEl.remove();
+    const stageBox = document.getElementById('progress-stage-box');
+    if (stageBox) stageBox.remove();
+    const group = document.getElementById('progress-text-right');
+    if (group && progressStatus && progressStatus.parentNode !== group) {
+        group.parentNode.insertBefore(progressStatus, group);
+        group.remove();
+    } else if (group && group.childNodes.length === 0) {
+        group.remove();
+    }
 }
 
 function updateProgress(percentage, status) {
     if (uploadProgress) uploadProgress.style.display = 'block';
     if (progressFill) progressFill.style.width = percentage + '%';
     if (progressPercentage) progressPercentage.textContent = Math.round(percentage) + '%';
-    if (progressStatus) progressStatus.textContent = status;
+    setProgressStatusTexts(status, shortenStatusText(status));
+}
+
+function shortenStatusText(text) {
+    if (!text) return '';
+    let t = text
+        .replace(/正在给\s*"([^"]{1,24})[^"]*"\s*加水印/g, '加水印')
+        .replace(/正在烘焙\s*"([^"]{1,24})[^"]*"\s*第\s*(\d+)\/(\d+)\s*页/g, '烘焙 $2/$3')
+        .replace(/正在准备烘焙\s*"([^"]{1,24})[^"]*"/g, '准备烘焙')
+        .replace(/正在给\s*"([^"]{1,24})[^"]*"\s*注入追踪码/g, '注入追踪码')
+        .replace(/准备上传\s*(\d+)\s*个文件/g, '准备上传 $1 个文件');
+    t = t.replace(/"([^"]{1,24})[^"]*"/g, '"$1…"');
+    return t.length > 24 ? t.slice(0, 24) + '…' : t;
+}
+
+function setProgressStatusTexts(full, short) {
+    if (!progressStatus) return;
+    let fullEl = document.getElementById('progress-status-full');
+    let shortEl = document.getElementById('progress-status-short');
+    if (!fullEl || !shortEl || fullEl.parentNode !== progressStatus) {
+        progressStatus.textContent = '';
+        fullEl = document.createElement('span');
+        fullEl.id = 'progress-status-full';
+        fullEl.className = 'status-full';
+        shortEl = document.createElement('span');
+        shortEl.id = 'progress-status-short';
+        shortEl.className = 'status-short';
+        progressStatus.appendChild(fullEl);
+        progressStatus.appendChild(shortEl);
+    }
+    fullEl.textContent = full;
+    shortEl.textContent = short;
+}
+
+const PROGRESS_STAGES = {
+    idle: { icon: 'fas fa-hourglass-half', label: '准备中', cls: '' },
+    compress: { icon: 'fas fa-images', label: '压缩图片', cls: 'stage-processing' },
+    watermark: { icon: 'fas fa-stamp', label: '添加水印', cls: 'stage-processing' },
+    bake: { icon: 'fas fa-fire', label: '烘焙水印', cls: 'stage-baking' },
+    trace: { icon: 'fas fa-fingerprint', label: '注入追踪码', cls: 'stage-processing' },
+    upload: { icon: 'fas fa-cloud-upload-alt', label: '上传中', cls: 'stage-uploading' },
+    done: { icon: 'fas fa-check-circle', label: '完成', cls: 'stage-done' }
+};
+
+function getProgressRightGroup() {
+    if (!progressStatus) return null;
+    let group = document.getElementById('progress-text-right');
+    if (!group || !group.parentNode) {
+        const parent = progressStatus.parentNode;
+        if (!parent) return null;
+        group = document.createElement('span');
+        group.id = 'progress-text-right';
+        group.className = 'progress-text-right';
+        parent.insertBefore(group, progressStatus);
+        group.appendChild(progressStatus);
+    }
+    return group;
+}
+
+function setProgressStage(stage, detail) {
+    const meta = PROGRESS_STAGES[stage] || PROGRESS_STAGES.idle;
+    if (uploadProgress) {
+        uploadProgress.dataset.stage = stage;
+        Object.values(PROGRESS_STAGES).forEach(m => {
+            if (m.cls) uploadProgress.classList.remove(m.cls);
+        });
+        if (meta.cls) uploadProgress.classList.add(meta.cls);
+    }
+    let iconEl = document.getElementById('progress-stage-icon');
+    let labelEl = document.getElementById('progress-stage-label');
+    let stageBox = document.getElementById('progress-stage-box');
+    if (!stageBox) {
+        const group = getProgressRightGroup();
+        if (!group) return;
+        stageBox = document.createElement('span');
+        stageBox.id = 'progress-stage-box';
+        stageBox.className = 'progress-stage';
+        stageBox.innerHTML = `<i class="${meta.icon}" id="progress-stage-icon"></i><span id="progress-stage-label"></span>`;
+        group.insertBefore(stageBox, group.firstChild);
+        iconEl = document.getElementById('progress-stage-icon');
+        labelEl = document.getElementById('progress-stage-label');
+    }
+    if (iconEl) iconEl.className = meta.icon;
+    if (labelEl) labelEl.textContent = meta.label;
+    if (typeof detail === 'string' && detail) {
+        setProgressDetail(detail);
+    } else if (detail === null) {
+        setProgressDetail('');
+    }
+}
+
+function setProgressDetail(text) {
+    let detailEl = document.getElementById('progress-detail');
+    if (!text) {
+        if (detailEl) detailEl.remove();
+        return;
+    }
+    if (!uploadProgress) return;
+    if (!detailEl || !detailEl.parentNode) {
+        const bar = uploadProgress.querySelector('.progress-bar');
+        if (!bar || !bar.parentNode) return;
+        detailEl = document.createElement('div');
+        detailEl.id = 'progress-detail';
+        detailEl.className = 'progress-detail';
+        bar.parentNode.insertBefore(detailEl, bar);
+    }
+    detailEl.textContent = text;
+}
+
+function setProgressUploadSpeed(bytesPerSec, etaText) {
+    const group = getProgressRightGroup();
+    if (!group) return;
+    let speedEl = document.getElementById('progress-speed');
+    if (!bytesPerSec) {
+        if (speedEl) speedEl.remove();
+        return;
+    }
+    if (!speedEl || !speedEl.parentNode) {
+        speedEl = document.createElement('span');
+        speedEl.id = 'progress-speed';
+        speedEl.className = 'progress-speed';
+        group.appendChild(speedEl);
+    }
+    const speedText = `${formatBytes(bytesPerSec)}/s`;
+    speedEl.textContent = etaText ? `${speedText} · 剩余约 ${etaText}` : speedText;
 }
 
 function showUploadStatus(message, type = 'info') {
