@@ -502,8 +502,13 @@ export async function onRequestGet({ request, env, waitUntil }) {
                     return upperTerm;
                 }
                 const stripped = term.replace(/[-*():^"']/g, '');
-                return Array.from(stripped).join(' ');
-            });
+                const chars = Array.from(stripped).filter(c => /\S/.test(c));
+                if (chars.length === 0) return null;
+                if (/[^\x00-\x7F]/.test(stripped)) {
+                    return chars.join(' ');
+                }
+                return `"${chars.join(' ')}"`;
+            }).filter(Boolean);
             const ftsTokenizedQuery = processedTerms.join(' ');
             const SEARCH_MAX_LIMIT = 50;
             try {

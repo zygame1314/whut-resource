@@ -249,8 +249,13 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
       const upperTerm = term.toUpperCase();
       if (['AND', 'OR', 'NOT'].includes(upperTerm)) return upperTerm;
       const stripped = term.replace(/[-*():^"']/g, '');
-      return Array.from(stripped).join(' ');
-    });
+      const chars = Array.from(stripped).filter(c => /\S/.test(c));
+      if (chars.length === 0) return null;
+      if (/[^\x00-\x7F]/.test(stripped)) {
+        return chars.join(' ');
+      }
+      return `"${chars.join(' ')}"`;
+    }).filter(Boolean);
     const ftsTokenizedQuery = processedTerms.join(' ');
     const ftsResult = await DB.prepare(
       `SELECT f.id, f.name, f.key, f.parent_path, f.is_directory, f.description, f.contentType, f.size, f.downloads, f.likes
