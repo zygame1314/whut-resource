@@ -9712,6 +9712,9 @@ input#prompt-input {
     transition: border-color 0.4s, background 0.4s, box-shadow 0.3s;
     cursor: default;
     user-select: none;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
 }
 
 .pow-card.pow-idle {
@@ -9735,6 +9738,59 @@ input#prompt-input {
 
 [data-theme="dark"] .pow-card.pow-done {
     background: rgba(39, 174, 96, 0.12);
+}
+
+.pow-card::before {
+    content: '✦ powered by';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(calc(-50% - 9px)) rotate(-4deg);
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    font-style: italic;
+    letter-spacing: 1px;
+    color: rgba(var(--primary-rgb), 0.5);
+    pointer-events: none;
+    z-index: -1;
+    transition: color 0.4s;
+}
+
+.pow-card::after {
+    content: 'zygame1314';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(calc(-50% + 9px)) rotate(-4deg);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    white-space: nowrap;
+    color: rgba(var(--primary-rgb), 0.55);
+    pointer-events: none;
+    z-index: -1;
+    transition: color 0.4s;
+}
+
+.pow-card.pow-done::before {
+    color: rgba(39, 174, 96, 0.7);
+}
+
+.pow-card.pow-done::after {
+    color: rgba(39, 174, 96, 0.75);
+    animation: powStampIn 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+@keyframes powStampIn {
+    0% {
+        transform: translateY(calc(-50% + 9px)) rotate(-18deg) scale(1.9);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(calc(-50% + 9px)) rotate(-4deg) scale(1);
+        opacity: 1;
+    }
 }
 
 .pow-visual {
