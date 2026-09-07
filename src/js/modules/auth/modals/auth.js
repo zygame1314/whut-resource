@@ -397,8 +397,9 @@ function showAuthModal(mode = 'login') {
             let payload = { password };
             if (powData) {
                 payload.powChallenge = powData.powChallenge;
-                payload.powNonce = powData.powNonce;
+                payload.powCheckpoints = powData.powCheckpoints;
                 payload.powBits = powData.powBits;
+                if (powData.powBind) payload.powBind = powData.powBind;
             }
             if (isSso) {
                 payload.action = 'whut-login';
@@ -645,7 +646,11 @@ function showAuthModal(mode = 'login') {
         }
     } else {
         const registerPowEl = modal.querySelector('#pow-register-status');
-        const registerPowCtrl = registerPowEl ? initPowCard(registerPowEl, undefined, 'prepare-register') : null;
+        const registerPowCtrl = registerPowEl ? initPowCard(registerPowEl, undefined, 'prepare-register', () => {
+            const raw = document.getElementById('auth-email').value.trim();
+            const prefix = raw.toLowerCase().endsWith('@whut.edu.cn') ? raw.slice(0, -12) : raw;
+            return [prefix, document.getElementById('auth-password').value];
+        }) : null;
         const step1Form = modal.querySelector('#register-form-step1');
         const step1Div = modal.querySelector('#register-step-1');
         const step2Div = modal.querySelector('#register-step-2');
@@ -688,6 +693,12 @@ function showAuthModal(mode = 'login') {
                 }
                 powData = registerPowCtrl.getResult();
             }
+            const bindOk = powData && powData.powBind === await powBindHash('prepare-register', [emailPrefix, password]);
+            if (powData && !bindOk) {
+                registerPowCtrl.reset();
+                showNotification('表单内容已变更，请重新完成人机验证', 'error');
+                return;
+            }
             const getCodeBtn = modal.querySelector('#get-code-btn');
             getCodeBtn.disabled = true;
             getCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
@@ -701,8 +712,9 @@ function showAuthModal(mode = 'login') {
                         password,
                         nickname,
                         powChallenge: powData.powChallenge,
-                        powNonce: powData.powNonce,
-                        powBits: powData.powBits
+                        powCheckpoints: powData.powCheckpoints,
+                        powBits: powData.powBits,
+                        powBind: powData.powBind
                     })
                 });
                 const data = await res.json();

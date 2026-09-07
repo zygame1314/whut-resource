@@ -1,13 +1,23 @@
 const CHALLENGE_EXPIRES_MS = 5 * 60 * 1000;
 const MIN_BITS = 16;
-const MAX_BITS = 24;
+const MAX_BITS = 21;
 const TARGET_WORK_SECONDS = 5;
-const ASSUMED_ATTACKER_HPS = 1_000_000;
 const HIGH_RISK_MIN_BITS = 18;
+const ASSUMED_ATTACKER_SERIAL_HPS = 3_000_000;
 const MIN_VERIFY_MS = 1500;
 const IP_RATE_WINDOW_MS = 5 * 60 * 1000;
 const IP_RATE_BASE_COUNT = 3;
 const IP_RATE_BITS_STEP = 1;
+const CHECKPOINT_INTERVAL = 2048;
+const VERIFY_RANDOM_WINDOWS = 2;
+const ASN_PENALTY_BITS = 6;
+const BOT_SCORE_PENALTY_BITS = 4;
+const BOT_SCORE_THRESHOLD = 30;
+
+const DATA_CENTER_ASN = new Set([
+  16509, 14618, 15169, 396982, 8075, 8068, 14061, 63949, 16276, 24940,
+  20473, 31898, 12876, 45102, 132203, 13335, 54113, 199524, 9009
+]);
 
 function bitsFromHashRate(hashRate) {
   if (!hashRate || hashRate <= 0) return MIN_BITS;
@@ -17,10 +27,13 @@ function bitsFromHashRate(hashRate) {
 }
 
 async function sha256Hex(data) {
-  const encoded = new TextEncoder().encode(data);
-  const buf = await crypto.subtle.digest('SHA-256', encoded);
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
+  const u8 = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < u8.length; i++) s += HEX_TABLE[u8[i]];
+  return s;
 }
+const HEX_TABLE = (() => { const t = []; for (let i = 0; i < 256; i++) t.push(i.toString(16).padStart(2, '0')); return t; })();
 
 async function hmacSha256Hex(key, message) {
   const keyData = new TextEncoder().encode(key);
@@ -28,37 +41,52 @@ async function hmacSha256Hex(key, message) {
     'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
   );
   const sig = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(message));
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const u8 = new Uint8Array(sig);
+  let s = '';
+  for (let i = 0; i < u8.length; i++) s += HEX_TABLE[u8[i]];
+  return s;
+}
+
+async function keyedHex(key, message) {
+  if (key) return hmacSha256Hex(key, message);
+  return sha256Hex(message);
 }
 
 async function bpHashHex(bp, env) {
   const stable = JSON.stringify(bp);
-  const key = env && env.POW_HMAC_KEY;
-  if (key) {
-    return (await hmacSha256Hex(key, stable)).slice(0, 16);
-  }
-  return (await sha256Hex(stable)).slice(0, 16);
+  const h = await keyedHex(env && env.POW_HMAC_KEY, stable);
+  return h.slice(0, 16);
+}
+
+async function bindHashHex(action, bindHex, env) {
+  return keyedHex(env && env.POW_HMAC_KEY, `${action || ''}|${bindHex || ''}`);
+}
+
+const BIND_FIELDS = {
+  'prepare-register': b => [b.emailPrefix, b.password],
+  'prepare-reset': b => [b.email, b.newPassword],
+  'prepare-change-email': b => [b.newEmail]
+};
+
+function computePowBind(action, body) {
+  const extract = BIND_FIELDS[action];
+  if (!extract) return '';
+  const fields = extract(body || {});
+  return sha256Hex([action, ...fields.map(f => f == null ? '' : String(f))].join('|'));
 }
 
 let _schemaEnsured = false;
 async function ensurePowSchema(env) {
   if (_schemaEnsured) return;
-  try {
-    await env.DB.prepare('SELECT bp_hash FROM pow_challenges LIMIT 1').run();
-  } catch (e) {
+  for (const col of ['bp_hash', 'colo', 'steps', 'interval', 'bind_hash']) {
     try {
-      await env.DB.prepare('ALTER TABLE pow_challenges ADD COLUMN bp_hash TEXT').run();
-    } catch (alterError) {
-      console.error('pow schema migrate failed:', alterError && alterError.message ? alterError.message : alterError);
-    }
-  }
-  try {
-    await env.DB.prepare('SELECT colo FROM pow_challenges LIMIT 1').run();
-  } catch (e) {
-    try {
-      await env.DB.prepare('ALTER TABLE pow_challenges ADD COLUMN colo TEXT').run();
-    } catch (alterError) {
-      console.error('pow schema migrate (colo) failed:', alterError && alterError.message ? alterError.message : alterError);
+      await env.DB.prepare(`SELECT ${col} FROM pow_challenges LIMIT 1`).run();
+    } catch (e) {
+      try {
+        await env.DB.prepare(`ALTER TABLE pow_challenges ADD COLUMN ${col} ${col === 'steps' || col === 'interval' ? 'INTEGER' : 'TEXT'}`).run();
+      } catch (alterError) {
+        console.error('pow schema migrate failed:', col, alterError && alterError.message ? alterError.message : alterError);
+      }
     }
   }
   try {
@@ -109,17 +137,22 @@ async function coloPenaltyBits(env, colo) {
   }
 }
 
-function checkPowHash(hash, bits) {
-  const fullHexChars = Math.floor(bits / 4);
-  const remainingBits = bits % 4;
-  for (let i = 0; i < fullHexChars; i++) {
-    if (hash[i] !== '0') return false;
+function asnPenaltyBits(cf, action) {
+  const asn = cf && cf.asn;
+  if (!asn) return 0;
+  if (DATA_CENTER_ASN.has(asn)) {
+    if (['prepare-register', 'prepare-reset', 'prepare-change-email'].includes(action)) return Infinity;
+    return ASN_PENALTY_BITS;
   }
-  if (remainingBits > 0) {
-    const val = parseInt(hash[fullHexChars], 16);
-    if (val >> (4 - remainingBits) !== 0) return false;
+  return 0;
+}
+
+function botScorePenaltyBits(cf) {
+  const score = cf && cf.botManagement && cf.botManagement.score;
+  if (typeof score === 'number' && score > 0 && score < BOT_SCORE_THRESHOLD) {
+    return BOT_SCORE_PENALTY_BITS;
   }
-  return true;
+  return 0;
 }
 
 function shouldCleanup() {
@@ -215,20 +248,29 @@ function maybeCleanup(db, ctx) {
   return p;
 }
 
-export async function verifyPowSolution(challenge, nonce, bits, env, ctx) {
-  if (!challenge || nonce === undefined || nonce === null || !bits) {
+function minVerifyMs(steps) {
+  return Math.max((steps / ASSUMED_ATTACKER_SERIAL_HPS) * 1000, MIN_VERIFY_MS);
+}
+
+export async function verifyPowSolution(params, env, ctx) {
+  const { challenge, bits, checkpoints, bind, action } = params || {};
+  if (!challenge || !bits || !checkpoints || typeof checkpoints !== 'string') {
     return { valid: false, error: '缺少 PoW 参数' };
   }
+  const normAction = String(action || '');
   bits = Number(bits);
   if (!Number.isInteger(bits) || bits < 1 || bits > 32) {
     return { valid: false, error: '难度参数无效' };
   }
-  nonce = Number(nonce);
-  if (!Number.isInteger(nonce) || nonce < 0) {
-    return { valid: false, error: 'nonce 参数无效' };
+  if (bind && !/^[0-9a-f]{64}$/.test(String(bind))) {
+    return { valid: false, error: '业务绑定参数无效' };
   }
-  const record = await env.DB.prepare('SELECT bits, issued_at, expires_at, attempts, bp_hash FROM pow_challenges WHERE challenge = ? AND expires_at > ?')
-    .bind(challenge, new Date().toISOString()).first();
+  if (!/^[0-9a-f]+$/.test(checkpoints)) {
+    return { valid: false, error: 'checkpoint 数据无效' };
+  }
+  const record = await env.DB.prepare(
+    'SELECT bits, issued_at, expires_at, attempts, bp_hash, bind_hash, steps, interval FROM pow_challenges WHERE challenge = ? AND expires_at > ?'
+  ).bind(challenge, new Date().toISOString()).first();
   if (!record) {
     maybeCleanup(env.DB, ctx);
     return { valid: false, error: '挑战不存在或已过期' };
@@ -242,22 +284,51 @@ export async function verifyPowSolution(challenge, nonce, bits, env, ctx) {
   if (bits < record.bits) {
     return { valid: false, error: '难度低于服务端要求' };
   }
+  const steps = record.steps;
+  const interval = record.interval;
+  if (!steps || !interval || steps % interval !== 0 || steps !== Math.pow(2, record.bits)) {
+    return { valid: false, error: '挑战数据无效，请重新获取' };
+  }
   const elapsedMs = Date.now() - new Date(record.issued_at).getTime();
-  const formulaMs = (Math.pow(2, record.bits) / ASSUMED_ATTACKER_HPS) * 1000;
-  const minTimeMs = Math.max(formulaMs, MIN_VERIFY_MS);
-  if (elapsedMs < minTimeMs) {
+  if (elapsedMs < minVerifyMs(steps)) {
     await env.DB.prepare('UPDATE pow_challenges SET attempts = COALESCE(attempts, 0) + 1 WHERE challenge = ?').bind(challenge).run();
     maybeCleanup(env.DB, ctx);
     return { valid: false, error: '验证过快，请重试' };
   }
   await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
-  const bpHash = record.bp_hash || '';
-  const hash = await sha256Hex(`${challenge}:${nonce}:${bpHash}`);
-  if (!checkPowHash(hash, bits)) {
-    return { valid: false, error: 'PoW 验证失败' };
+  const clientBind = bind || '';
+  if (record.bind_hash) {
+    const computed = await bindHashHex(normAction, clientBind, env);
+    if (computed !== record.bind_hash) {
+      return { valid: false, error: '表单内容已变更，请重新完成人机验证' };
+    }
+  }
+  const x0 = (await sha256Hex(`${challenge}:${record.bp_hash || ''}:${clientBind}`)).slice(0, 16);
+  const windows = steps / interval;
+  if (checkpoints.length !== windows * 16) {
+    return { valid: false, error: 'checkpoint 数据无效' };
+  }
+  const cps = [];
+  for (let i = 0; i < windows; i++) cps.push(checkpoints.substr(i * 16, 16));
+  const targets = new Set([0]);
+  while (targets.size < Math.min(1 + VERIFY_RANDOM_WINDOWS, windows)) {
+    targets.add(1 + Math.floor(Math.random() * (windows - 1)));
+  }
+  let cur = x0;
+  for (const w of targets) {
+    cur = w === 0 ? x0 : cps[w - 1];
+    const base = w * interval;
+    for (let i = 0; i < interval; i++) {
+      cur = (await sha256Hex(cur + ':' + (base + i + 1))).slice(0, 16);
+    }
+    if (cur !== cps[w]) {
+      return { valid: false, error: 'PoW 验证失败' };
+    }
   }
   return { valid: true };
 }
+
+export { computePowBind };
 
 function addCors() {
   return {
@@ -279,7 +350,15 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const body = await request.json().catch(() => ({}));
     const hashRate = Number(body.hashRate) || 0;
     const minBits = Number(body.minBits) || 0;
-    const action = body.action || '';
+    const action = String(body.action || '');
+    const bind = (typeof body.bind === 'string' && /^[0-9a-f]{64}$/.test(body.bind)) ? body.bind : '';
+
+    const isHighRisk = ['prepare-register', 'prepare-reset', 'prepare-change-email'].includes(action);
+    if (isHighRisk && !bind) {
+      return new Response(JSON.stringify({ success: false, error: '业务绑定参数缺失' }), {
+        status: 400, headers: { 'Content-Type': 'application/json', ...addCors() }
+      });
+    }
 
     const sp = collectServerProof(request);
     const spResult = scoreServerProof(sp);
@@ -290,24 +369,37 @@ export async function onRequestPost({ request, env, waitUntil }) {
     }
     const bpHash = await bpHashHex(sp, env);
 
+    const cf = request.cf || {};
+    const asnPenalty = asnPenaltyBits(cf, action);
+    if (asnPenalty === Infinity) {
+      return new Response(JSON.stringify({ success: false, error: '当前网络环境无法完成验证' }), {
+        status: 403, headers: { 'Content-Type': 'application/json', ...addCors() }
+      });
+    }
+
     await ensurePowSchema(env);
-    const highRisk = ['prepare-register', 'prepare-reset', 'prepare-change-email'].includes(action);
-    const floor = highRisk ? HIGH_RISK_MIN_BITS : MIN_BITS;
+    const floor = isHighRisk ? HIGH_RISK_MIN_BITS : MIN_BITS;
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const penalty = await ipPenaltyBits(env, ip);
     const coloPenalty = await coloPenaltyBits(env, sp.colo);
-    const bits = Math.min(Math.max(bitsFromHashRate(hashRate), minBits, floor, floor + penalty + coloPenalty), MAX_BITS);
+    const botPenalty = botScorePenaltyBits(cf);
+    const bits = Math.min(Math.max(bitsFromHashRate(hashRate), minBits, floor, floor + penalty + coloPenalty + asnPenalty + botPenalty), MAX_BITS);
     const challenge = crypto.randomUUID().replace(/-/g, '');
+    const steps = Math.pow(2, bits);
+    const interval = CHECKPOINT_INTERVAL;
     const nowISO = new Date().toISOString();
     const expiresAt = new Date(Date.now() + CHALLENGE_EXPIRES_MS).toISOString();
+    const bindHash = await bindHashHex(action, bind, env);
     await env.DB.prepare(
-      'INSERT INTO pow_challenges (challenge, bits, ip, bp_hash, colo, issued_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).bind(challenge, bits, ip, bpHash, sp.colo, nowISO, expiresAt).run();
+      'INSERT INTO pow_challenges (challenge, bits, ip, bp_hash, colo, steps, interval, bind_hash, issued_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(challenge, bits, ip, bpHash, sp.colo, steps, interval, bindHash, nowISO, expiresAt).run();
     maybeCleanup(env.DB, ctx);
     return new Response(JSON.stringify({
       success: true,
       challenge,
       bits,
+      steps,
+      interval,
       bpHash,
       expiresIn: CHALLENGE_EXPIRES_MS / 1000
     }), { status: 200, headers: { 'Content-Type': 'application/json', ...addCors() } });

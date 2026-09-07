@@ -1,5 +1,5 @@
 const POW_BENCHMARK_MS = 300;
-const POW_TARGET_TIME_MS = 2000;
+const POW_TARGET_TIME_MS = 4000;
 const POW_MIN_VERIFY_MS = 1500;
 const POW_ASSUMED_ATTACKER_HPS = 1_000_000;
 const POW_VERIFY_MARGIN_MS = 300;
@@ -36,28 +36,40 @@ function bitsFromHashRate(hashRate) {
     if (!hashRate || hashRate <= 0) return 16;
     const targetHashes = (POW_TARGET_TIME_MS / 1000) * hashRate;
     const bits = Math.floor(Math.log2(targetHashes));
-    return Math.max(Math.min(bits, 24), 16);
+    return Math.max(Math.min(bits, 21), 16);
+}
+
+async function powBindHash(action, fields) {
+    const parts = [action || ''];
+    for (const f of fields) parts.push(String(f == null ? '' : f));
+    const msg = parts.join('|');
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+    const arr = Array.from(new Uint8Array(buf));
+    return arr.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 const POW_WORKER_CODE = `
-async function sha256Hex(message) {
-    var msgBuffer = new TextEncoder().encode(message);
-    var hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    var hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+var HEX_TABLE = (function() {
+    var t = [];
+    for (var i = 0; i < 256; i++) t.push(i.toString(16).padStart(2, '0'));
+    return t;
+})();
+
+function sha256Bytes(data) {
+    return crypto.subtle.digest('SHA-256', data);
 }
 
-function checkPowHash(hash, bits) {
-    var fullHexChars = Math.floor(bits / 4);
-    var remainingBits = bits % 4;
-    for (var i = 0; i < fullHexChars; i++) {
-        if (hash[i] !== '0') return false;
-    }
-    if (remainingBits > 0) {
-        var val = parseInt(hash[fullHexChars], 16);
-        if (val >> (4 - remainingBits) !== 0) return false;
-    }
-    return true;
+function bytesToHex(buf) {
+    var u8 = new Uint8Array(buf);
+    var s = '';
+    for (var i = 0; i < u8.length; i++) s += HEX_TABLE[u8[i]];
+    return s;
+}
+
+var enc = new TextEncoder();
+
+function hashHex(str) {
+    return sha256Bytes(enc.encode(str)).then(bytesToHex);
 }
 
 self.onmessage = async function(e) {
@@ -67,7 +79,7 @@ self.onmessage = async function(e) {
         var count = 0;
         var start = performance.now();
         while (performance.now() - start < durationMs) {
-            await sha256Hex(sample + ':' + count);
+            await hashHex(sample + ':' + count);
             count++;
         }
         var elapsed = performance.now() - start;
@@ -78,20 +90,29 @@ self.onmessage = async function(e) {
 
     if (e.data.type === 'solve') {
         var challenge = e.data.challenge;
-        var bits = e.data.bits;
+        var steps = e.data.steps;
+        var interval = e.data.interval;
         var bpHash = e.data.bpHash || '';
-        var nonce = 0;
-        while (true) {
-            var hash = await sha256Hex(challenge + ':' + nonce + ':' + bpHash);
-            if (checkPowHash(hash, bits)) {
-                self.postMessage({ type: 'solve', nonce: nonce, hash: hash.substring(0, 12), phase: 'done' });
-                return;
-            }
-            nonce++;
-            if (nonce % 2000 === 0) {
-                self.postMessage({ type: 'solve', nonce: nonce, hash: hash.substring(0, 12), phase: 'computing' });
+        var bindHash = e.data.bindHash || '';
+        var x0 = await hashHex(challenge + ':' + bpHash + ':' + bindHash);
+        x0 = x0.substring(0, 16);
+        var cur = x0;
+        var checkpoints = [];
+        var solveStart = performance.now();
+        for (var step = 1; step <= steps; step++) {
+            cur = (await hashHex(cur + ':' + step)).substring(0, 16);
+            if (step % interval === 0) {
+                checkpoints.push(cur);
+                self.postMessage({
+                    type: 'progress',
+                    step: step,
+                    hash: cur.substring(0, 12),
+                    elapsed: performance.now() - solveStart
+                });
             }
         }
+        self.postMessage({ type: 'done', checkpoints: checkpoints.join(''), hash: cur.substring(0, 12), elapsed: performance.now() - solveStart });
+        return;
     }
 };
 `;
@@ -116,58 +137,58 @@ function powBenchmarkInWorker(durationMs) {
     });
 }
 
-function solvePowInWorker(challenge, bits, bpHash, onProgress) {
+function solveChainInWorker(challenge, steps, interval, bpHash, bindHash, onProgress) {
     return new Promise((resolve, reject) => {
         let worker;
         try { worker = createPowWorker(); } catch (e) { reject(e); return; }
         worker.onmessage = (e) => {
-            if (e.data.type === 'solve') {
-                if (onProgress) onProgress(e.data);
-                if (e.data.phase === 'done') {
-                    worker.terminate();
-                    resolve(e.data.nonce);
-                }
+            if (e.data.type === 'progress') {
+                if (onProgress) onProgress({ step: e.data.step, hash: e.data.hash, elapsed: e.data.elapsed });
+            } else if (e.data.type === 'done') {
+                worker.terminate();
+                resolve({ checkpoints: e.data.checkpoints, elapsed: e.data.elapsed });
             }
         };
         worker.onerror = (e) => { worker.terminate(); reject(new Error(e.message || 'Worker error')); };
-        worker.postMessage({ type: 'solve', challenge, bits, bpHash });
+        worker.postMessage({ type: 'solve', challenge, steps, interval, bpHash, bindHash });
     });
 }
 
-async function fetchPowChallenge(hashRate, minBits, action) {
+async function fetchPowChallenge(hashRate, minBits, action, bindHash) {
     const powApiUrl = (typeof API_ENDPOINTS !== 'undefined' && API_ENDPOINTS.pow) ? API_ENDPOINTS.pow : '/api/pow';
     const res = await fetch(powApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: action || 'challenge', hashRate, minBits: minBits || 0 })
+        body: JSON.stringify({ action: action || 'challenge', hashRate, minBits: minBits || 0, bind: bindHash || '' })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || '获取 PoW 挑战失败');
     return {
         challenge: data.challenge,
         bits: data.bits,
+        steps: data.steps,
+        interval: data.interval,
         bpHash: data.bpHash || '',
         expiresIn: data.expiresIn
     };
 }
 
-async function solvePowChallenge(onProgress, minBits, action) {
-    if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark', challenge: '' });
+async function solvePowChallenge(onProgress, minBits, action, bindFields) {
+    if (onProgress) onProgress({ step: 0, hash: '', phase: 'benchmark', challenge: '' });
     const hashRate = await powBenchmarkInWorker(POW_BENCHMARK_MS);
-    if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'benchmark_done', challenge: '', hashRate });
-    const clientBits = bitsFromHashRate(hashRate);
-    if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'fetching', challenge: '' });
-    const { challenge, bits, bpHash } = await fetchPowChallenge(hashRate, minBits, action);
-    const finalBits = Math.max(bits, clientBits, minBits || 0);
-    if (onProgress) onProgress({ nonce: 0, hash: '', phase: 'solving', challenge });
-    const solveStart = Date.now();
-    const nonce = await solvePowInWorker(challenge, finalBits, bpHash, onProgress);
-    const elapsed = Date.now() - solveStart;
-    const minWait = powMinVerifyMs(finalBits);
+    if (onProgress) onProgress({ step: 0, hash: '', phase: 'benchmark_done', challenge: '', hashRate });
+    const bindHash = (bindFields && bindFields.length) ? await powBindHash(action, bindFields) : '';
+    if (onProgress) onProgress({ step: 0, hash: '', phase: 'fetching', challenge: '' });
+    const { challenge, bits, steps, interval, bpHash } = await fetchPowChallenge(hashRate, minBits, action, bindHash);
+    if (onProgress) onProgress({ step: 0, hash: '', phase: 'solving', challenge });
+    const { checkpoints, elapsed } = await solveChainInWorker(challenge, steps, interval, bpHash, bindHash, (p) => {
+        if (onProgress) onProgress({ step: p.step, hash: p.hash, phase: 'computing', totalSteps: steps });
+    });
+    const minWait = powMinVerifyMs(bits);
     if (elapsed < minWait) {
         await new Promise(r => setTimeout(r, minWait - elapsed));
     }
-    return { powChallenge: challenge, powNonce: nonce, powBits: finalBits };
+    return { powChallenge: challenge, powCheckpoints: checkpoints, powBits: bits, powBind: bindHash };
 }
 
 function updatePowUI(powEl, progress) {
@@ -181,7 +202,7 @@ function updatePowUI(powEl, progress) {
     const rankEl = powEl.querySelector('.pow-rank');
 
     const phase = progress.phase || 'computing';
-    const nonce = progress.nonce || 0;
+    const step = progress.step || 0;
     const hash = progress.hash || '';
 
     powEl.classList.toggle('pow-idle', phase === 'idle');
@@ -200,7 +221,7 @@ function updatePowUI(powEl, progress) {
         if (phase === 'benchmark' || phase === 'benchmark_done') pct = 5;
         else if (phase === 'fetching') pct = 10;
         else if (phase === 'solving') pct = 25;
-        else if (phase === 'computing') pct = 25 + Math.min(nonce / 150000, 1) * 75;
+        else if (phase === 'computing' && progress.totalSteps) pct = 25 + Math.min(step / progress.totalSteps, 1) * 75;
         else if (phase === 'done') pct = 100;
         if (phase === 'idle') {
             ring.style.transition = 'none';
@@ -214,7 +235,7 @@ function updatePowUI(powEl, progress) {
             ring.classList.toggle('pow-ring-done', phase === 'done');
         }
     }
-    if (nonceEl) nonceEl.textContent = nonce.toLocaleString();
+    if (nonceEl) nonceEl.textContent = step.toLocaleString();
     if (hashEl) hashEl.textContent = hash || '--------';
     if (labelEl) {
         const labels = { idle: '点击完成人机验证', benchmark: '正在评估设备性能...', benchmark_done: '正在评估设备性能...', fetching: '正在获取挑战...', solving: '正在计算人机验证...', computing: '正在计算...', done: '验证完成' };
@@ -224,7 +245,7 @@ function updatePowUI(powEl, progress) {
     if (checkEl) checkEl.style.display = phase === 'done' ? '' : 'none';
 }
 
-function initPowCard(powEl, onSolved, riskAction) {
+function initPowCard(powEl, onSolved, riskAction, getBindFields) {
     if (!powEl) return;
     let solved = false;
     let solving = false;
@@ -239,7 +260,8 @@ function initPowCard(powEl, onSolved, riskAction) {
         solving = true;
         powEl.style.cursor = 'default';
         try {
-            result = await solvePowChallenge((p) => updatePowUI(powEl, p), minBits, action);
+            const bindFields = typeof getBindFields === 'function' ? getBindFields() : [];
+            result = await solvePowChallenge((p) => updatePowUI(powEl, p), minBits, action, bindFields);
             solved = true;
             setTimeout(() => { if (onSolved) onSolved(result); }, 600);
         } catch (e) {
@@ -247,7 +269,7 @@ function initPowCard(powEl, onSolved, riskAction) {
             powEl.style.cursor = 'pointer';
             powEl.classList.remove('pow-working');
             powEl.classList.add('pow-idle');
-            updatePowUI(powEl, { phase: 'idle', nonce: 0, hash: '' });
+            updatePowUI(powEl, { phase: 'idle', step: 0, hash: '' });
             if (onSolved) onSolved(null, e);
         }
     };
@@ -257,7 +279,7 @@ function initPowCard(powEl, onSolved, riskAction) {
         isSolved: () => solved,
         isSolving: () => solving,
         setMinBits: (b) => { minBits = b; },
-        reset: () => { solved = false; solving = false; result = null; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', nonce: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
+        reset: () => { solved = false; solving = false; result = null; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', step: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
         meetsRequired: () => solved && result && result.powBits >= minBits,
         requiredBits: () => minBits,
         el: powEl

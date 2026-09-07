@@ -209,7 +209,10 @@ function showForgotPasswordModal(prefillEmail = '') {
     document.body.appendChild(modal);
     initPasswordToggles(modal);
     const resetPowEl = modal.querySelector('#pow-reset-status');
-    const resetPowCtrl = resetPowEl ? initPowCard(resetPowEl, undefined, 'prepare-reset') : null;
+    const resetPowCtrl = resetPowEl ? initPowCard(resetPowEl, undefined, 'prepare-reset', () => [
+        document.getElementById('reset-email').value.trim(),
+        document.getElementById('reset-new-password').value
+    ]) : null;
     const closeBtn = modal.querySelector('#close-modal');
     const backToLoginLink = modal.querySelector('#back-to-login');
     closeBtn.onclick = () => {
@@ -261,6 +264,15 @@ function showForgotPasswordModal(prefillEmail = '') {
                 return;
             }
             powPayload = resetPowCtrl.getResult();
+            const bindOk = powPayload && powPayload.powBind === await powBindHash('prepare-reset', [
+                document.getElementById('reset-email').value.trim(),
+                document.getElementById('reset-new-password').value
+            ]);
+            if (powPayload && !bindOk) {
+                resetPowCtrl.reset();
+                showNotification('表单内容已变更，请重新完成人机验证', 'error');
+                return;
+            }
         }
         const getCodeBtn = modal.querySelector('#get-reset-code-btn');
         getCodeBtn.disabled = true;
@@ -274,8 +286,9 @@ function showForgotPasswordModal(prefillEmail = '') {
                     email,
                     newPassword,
                     powChallenge: powPayload.powChallenge,
-                    powNonce: powPayload.powNonce,
-                    powBits: powPayload.powBits
+                    powCheckpoints: powPayload.powCheckpoints,
+                    powBits: powPayload.powBits,
+                    powBind: powPayload.powBind
                 })
             });
             const data = await res.json();
@@ -580,7 +593,9 @@ function showChangeEmailModal() {
     `;
     document.body.appendChild(modal);
     const changeEmailPowEl = modal.querySelector('#pow-change-email-status');
-    const changeEmailPowCtrl = changeEmailPowEl ? initPowCard(changeEmailPowEl, undefined, 'prepare-change-email') : null;
+    const changeEmailPowCtrl = changeEmailPowEl ? initPowCard(changeEmailPowEl, undefined, 'prepare-change-email', () => [
+        document.getElementById('new-email-input').value.trim()
+    ]) : null;
     const closeBtn = modal.querySelector('#close-modal');
     closeBtn.onclick = () => {
         if (window.changePollingTimer) clearInterval(window.changePollingTimer);
@@ -615,6 +630,14 @@ function showChangeEmailModal() {
                 return;
             }
             powPayload = changeEmailPowCtrl.getResult();
+            const bindOk = powPayload && powPayload.powBind === await powBindHash('prepare-change-email', [
+                document.getElementById('new-email-input').value.trim()
+            ]);
+            if (powPayload && !bindOk) {
+                changeEmailPowCtrl.reset();
+                showNotification('表单内容已变更，请重新完成人机验证', 'error');
+                return;
+            }
         }
         const getCodeBtn = modal.querySelector('#get-change-code-btn');
         getCodeBtn.disabled = true;
@@ -630,8 +653,9 @@ function showChangeEmailModal() {
                     action: 'prepare-change-email',
                     newEmail,
                     powChallenge: powPayload.powChallenge,
-                    powNonce: powPayload.powNonce,
-                    powBits: powPayload.powBits
+                    powCheckpoints: powPayload.powCheckpoints,
+                    powBits: powPayload.powBits,
+                    powBind: powPayload.powBind
                 })
             });
             const data = await res.json();

@@ -452,6 +452,9 @@ CREATE TABLE IF NOT EXISTS pow_challenges (
     attempts INTEGER DEFAULT 0,
     bp_hash TEXT,
     colo TEXT,
+    steps INTEGER,
+    interval INTEGER,
+    bind_hash TEXT,
     issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     expires_at DATETIME NOT NULL
 );
