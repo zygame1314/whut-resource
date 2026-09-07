@@ -719,7 +719,7 @@ async function handlePut(request, env, context) {
             logDetails.created_todos = pendingCategories;
         }
         await logAdminAction(env, user.id, action, 'guestbook', id, action === 'resolve' ? '标记留言为已解决' : '标记留言为未解决', JSON.stringify(logDetails));
-        if (action === 'resolve' && gbEntryResolve.user_id) {
+        if (action === 'resolve' && gbEntryResolve.user_id && gbEntryResolve.user_id !== user.id) {
             const pathsText = notifyPaths.length > 0 ? notifyPaths.map(p => `资源路径：${p}`).join('；') : '';
             const todoHintText = pendingCategories.length > 0 ? `（${pendingCategories.join('、')} 暂未找到，已记录待补充）` : '';
             notify({
@@ -755,7 +755,7 @@ async function handlePut(request, env, context) {
         }
         await env.DB.prepare('UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?').bind('rejected', rejectReason.trim(), id).run();
         await logAdminAction(env, user.id, 'reject', 'guestbook', id, `驳回留言: ${rejectReason.trim()}`, JSON.stringify({ snapshot_content: gbEntryReject.content, nickname: gbEntryReject.nickname, user_id: gbEntryReject.user_id }));
-        if (gbEntryReject.user_id) {
+        if (gbEntryReject.user_id && gbEntryReject.user_id !== user.id) {
             notify({
                 userId: gbEntryReject.user_id,
                 type: 'guestbook_reply',
