@@ -111,7 +111,7 @@ self.onmessage = async function(e) {
                 });
             }
         }
-        self.postMessage({ type: 'done', checkpoints: checkpoints.join(''), hash: cur.substring(0, 12), elapsed: performance.now() - solveStart });
+        self.postMessage({ type: 'done', step: steps, checkpoints: checkpoints.join(''), hash: cur.substring(0, 12), elapsed: performance.now() - solveStart });
         return;
     }
 };
@@ -146,6 +146,7 @@ function solveChainInWorker(challenge, steps, interval, bpHash, bindHash, onProg
                 if (onProgress) onProgress({ step: e.data.step, hash: e.data.hash, elapsed: e.data.elapsed });
             } else if (e.data.type === 'done') {
                 worker.terminate();
+                if (onProgress) onProgress({ step: e.data.step, hash: e.data.hash, phase: 'done' });
                 resolve({ checkpoints: e.data.checkpoints, elapsed: e.data.elapsed });
             }
         };
@@ -182,7 +183,7 @@ async function solvePowChallenge(onProgress, minBits, action, bindFields) {
     const { challenge, bits, steps, interval, bpHash } = await fetchPowChallenge(hashRate, minBits, action, bindHash);
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'solving', challenge });
     const { checkpoints, elapsed } = await solveChainInWorker(challenge, steps, interval, bpHash, bindHash, (p) => {
-        if (onProgress) onProgress({ step: p.step, hash: p.hash, phase: 'computing', totalSteps: steps });
+        if (onProgress) onProgress({ step: p.step, hash: p.hash, phase: p.phase || 'computing', totalSteps: steps });
     });
     const minWait = powMinVerifyMs(bits);
     if (elapsed < minWait) {
@@ -270,6 +271,9 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
             powEl.classList.remove('pow-working');
             powEl.classList.add('pow-idle');
             updatePowUI(powEl, { phase: 'idle', step: 0, hash: '' });
+            if (typeof showNotification === 'function') {
+                showNotification(e && e.message ? e.message : '人机验证失败，请重试', 'error');
+            }
             if (onSolved) onSolved(null, e);
         }
     };
