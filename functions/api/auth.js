@@ -74,7 +74,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       return new Response(JSON.stringify({ success: false, error: '数据库未配置' }), { status: 500, headers: addCorsHeaders() });
     }
     if (action === 'prepare-register') {
-      const { powChallenge, powCheckpoints, powBits } = body;
+      const { powChallenge, powCheckpoints, powBits, nickname } = body;
       if (powChallenge && powCheckpoints && powBits) {
         const powResult = await verifyPowSolution({ challenge: powChallenge, bits: powBits, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action }, env, ctx);
         if (!powResult.valid) {
