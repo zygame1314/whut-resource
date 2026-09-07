@@ -259,8 +259,8 @@ export async function verifyPowSolution(params, env, ctx) {
     return { valid: false, error: '缺少 PoW 参数' };
   }
   const normAction = String(action || '');
-  bits = Number(bits);
-  if (!Number.isInteger(bits) || bits < 1 || bits > 32) {
+  const bitsNum = Number(bits);
+  if (!Number.isInteger(bitsNum) || bitsNum < 1 || bitsNum > 32) {
     return { valid: false, error: '难度参数无效' };
   }
   if (bind && !/^[0-9a-f]{64}$/.test(String(bind))) {
@@ -282,7 +282,7 @@ export async function verifyPowSolution(params, env, ctx) {
     maybeCleanup(env.DB, ctx);
     return { valid: false, error: '尝试次数过多，请重新获取挑战' };
   }
-  if (bits < record.bits) {
+  if (bitsNum < record.bits) {
     return { valid: false, error: '难度低于服务端要求' };
   }
   const steps = record.steps;
