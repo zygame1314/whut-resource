@@ -11,14 +11,14 @@ function powMinVerifyMs(bits) {
 
 const DEVICE_RANKS = [
     { hz: 0, name: '电子垃圾', icon: 'fa-trash-can' },
-    { hz: 5000, name: '小霸王', icon: 'fa-gamepad' },
-    { hz: 10000, name: '树莓派', icon: 'fa-microchip' },
-    { hz: 20000, name: '入门手机', icon: 'fa-mobile-screen' },
-    { hz: 40000, name: '旗舰手机', icon: 'fa-mobile' },
-    { hz: 70000, name: '办公笔记本', icon: 'fa-laptop' },
-    { hz: 120000, name: '游戏电脑', icon: 'fa-laptop-code' },
-    { hz: 250000, name: '超频主机', icon: 'fa-fire' },
-    { hz: 500000, name: '天河二号', icon: 'fa-building' },
+    { hz: 7500, name: '小霸王', icon: 'fa-gamepad' },
+    { hz: 15000, name: '树莓派', icon: 'fa-microchip' },
+    { hz: 30000, name: '入门手机', icon: 'fa-mobile-screen' },
+    { hz: 60000, name: '旗舰手机', icon: 'fa-mobile' },
+    { hz: 105000, name: '办公笔记本', icon: 'fa-laptop' },
+    { hz: 180000, name: '游戏电脑', icon: 'fa-laptop-code' },
+    { hz: 375000, name: '超频主机', icon: 'fa-fire' },
+    { hz: 750000, name: '天河二号', icon: 'fa-building' },
     { hz: Infinity, name: '神威·太湖之光', icon: 'fa-mountain-sun' },
 ];
 
