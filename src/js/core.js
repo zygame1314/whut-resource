@@ -1065,7 +1065,8 @@ function reRenderWithData(data, isGlobalSearch, searchTerm) {
         isGlobalSearch,
         searchTerm,
         paginationData,
-        useAISearch
+        useAISearch,
+        isGlobalSearch ? null : currentFolderInfo
     );
     updateUploadButtonLink();
     updateSelectAllButtonState();
@@ -1470,6 +1471,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                             throw new Error(result?.error || `HTTP 错误 ${response.status}`);
                         }
                     }
+                    currentFolderInfo = receivedData.currentFolder || null;
                     currentRawData = {
                         directories: [...(receivedData.directories || [])],
                         files: [...(receivedData.files || [])]
@@ -1511,6 +1513,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
             }
             currentFetchedData = receivedData;
             currentPaginationData = paginationData;
+            if (!isGlobal) currentFolderInfo = receivedData.currentFolder || null;
             const allDirs = receivedData.directories || [];
             const allFiles = receivedData.files || [];
             const totalItems = allDirs.length + allFiles.length;

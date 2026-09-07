@@ -39,6 +39,7 @@ let currentPaginationData = null;
 let highlightKey = null;
 let currentSortOption = 'name-asc';
 let currentFolderSearchTerm = '';
+let currentFolderInfo = null;
 let currentRawData = null;
 let currentCursor = null;
 let currentHasMore = false;
