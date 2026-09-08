@@ -6503,6 +6503,8 @@ textarea.form-input {
     max-width: 860px;
     margin-left: auto;
     margin-right: auto;
+    position: relative;
+    z-index: 30;
     transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
         opacity 0.3s ease,
         padding 0.4s cubic-bezier(0.4, 0, 0.2, 1),
