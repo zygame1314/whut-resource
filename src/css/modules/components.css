@@ -3019,10 +3019,10 @@
     display: inline-flex;
     align-items: center;
     padding: 0.2rem 0.6rem;
-    background: #fff;
+    background: color-mix(in srgb, var(--warning-color, #f0ad4e) 12%, transparent);
     border: 1px solid rgba(245, 158, 11, 0.4);
     border-radius: 12px;
-    color: #b45309;
+    color: var(--warning-color, #b45309);
     font-size: 0.82rem;
     font-weight: 500;
 }

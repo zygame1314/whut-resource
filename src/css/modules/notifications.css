@@ -219,6 +219,7 @@
 .notification-panel-body {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 6px 0;
 }
 
@@ -256,7 +257,7 @@
     padding: 12px 16px;
     cursor: pointer;
     position: relative;
-    transition: background var(--transition-fast);
+    transition: background var(--transition-fast), border-left-color var(--transition-fast);
     border-left: 3px solid transparent;
 }
 
@@ -267,6 +268,13 @@
 .notification-item.unread {
     background: rgba(var(--primary-rgb, 46, 139, 87), 0.06);
     border-left-color: var(--primary-color, #2e8b57);
+}
+
+.notification-item.removing,
+.notification-item-removing {
+    opacity: 0;
+    transform: translateX(12px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .notification-item-icon {

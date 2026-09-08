@@ -249,7 +249,7 @@
         const delBtn = e.target.closest('.notification-item-del');
         if (delBtn) {
             const item = delBtn.closest('.notification-item');
-            if (item) await deleteOne(item.dataset.id);
+            if (item) await deleteOne(item.dataset.id, item);
             return;
         }
         const markAll = e.target.closest('.notif-mark-all');
@@ -297,7 +297,7 @@
             if (data.success) {
                 setBadge(data.has_unread);
                 state.items.forEach(i => i.is_read = true);
-                renderList();
+                document.querySelectorAll('.notification-item.unread').forEach(el => el.classList.remove('unread'));
             }
         } catch (e) { }
     }
@@ -312,20 +312,30 @@
                 setBadge(data.has_unread);
                 const item = state.items.find(i => String(i.id) === String(id));
                 if (item) item.is_read = true;
-                renderList();
+                const el = document.querySelector('.notification-item.unread[data-id="' + CSS.escape(id) + '"]');
+                if (el) el.classList.remove('unread');
             }
         } catch (e) { }
     }
 
-    async function deleteOne(id) {
+    async function deleteOne(id, itemEl) {
+        const el = itemEl || (document.querySelector('.notification-item[data-id="' + CSS.escape(String(id)) + '"]'));
+        if (el) {
+            el.classList.add('notification-item-removing');
+            setTimeout(() => {
+                state.items = state.items.filter(i => String(i.id) !== String(id));
+                renderList();
+            }, 250);
+        } else {
+            state.items = state.items.filter(i => String(i.id) !== String(id));
+            renderList();
+        }
         try {
             const res = await fetch(`${API_ENDPOINTS.notifications}?id=${encodeURIComponent(id)}`, {
                 method: 'DELETE', headers: authHeaders()
             });
             const data = await res.json();
             if (data.success) {
-                state.items = state.items.filter(i => String(i.id) !== String(id));
-                renderList();
                 fetchUnreadCount();
             }
         } catch (e) { }
@@ -341,16 +351,19 @@
             });
             if (!ok) return;
         }
+        const items = document.querySelectorAll('.notification-item');
+        items.forEach((it, i) => {
+            setTimeout(() => it.classList.add('notification-item-removing'), i * 30);
+        });
+        setTimeout(() => {
+            state.items = [];
+            setBadge(false);
+            renderList();
+        }, items.length * 30 + 250);
         try {
-            const res = await fetch(`${API_ENDPOINTS.notifications}?all=true`, {
+            await fetch(`${API_ENDPOINTS.notifications}?all=true`, {
                 method: 'DELETE', headers: authHeaders()
             });
-            const data = await res.json();
-            if (data.success) {
-                state.items = [];
-                setBadge(false);
-                renderList();
-            }
         } catch (e) { }
     }
 

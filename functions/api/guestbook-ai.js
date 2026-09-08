@@ -413,7 +413,7 @@ async function handleReject(entry, reason, env, autoMode) {
                 payload: { guestbookId: entry.id, rejectReason: reason }
             }).catch(() => {});
         }
-        broadcastGuestbookUpdate(env, entry.id, 'reject', { status: 'rejected', is_hidden: 1 });
+        broadcastGuestbookUpdate(env, entry.id, 'reject', { status: 'rejected', is_hidden: 1, reject_reason: reason, user_id: entry.user_id });
         return {
             success: true,
             action: 'reject',

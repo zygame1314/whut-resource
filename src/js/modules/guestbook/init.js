@@ -51,6 +51,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (d.action === 'new_message') {
             if (d.message) prependMessageToCache(d.message);
             else refreshGuestbook();
+        } else if (d.action === 'reject') {
+            const selfId = window.currentUser ? window.currentUser.id : null;
+            const isOwn = selfId != null && d.user_id === selfId;
+            if (!isGuestbookAdmin(window.currentUser) && !isOwn) {
+                removeFromGuestbookCache(d.guestbookId);
+                return;
+            }
+            updateGuestbookCache(d.guestbookId, { status: 'rejected', is_hidden: 1, reject_reason: d.reject_reason || null });
         } else {
             if (d.is_hidden === 1 && !isGuestbookAdmin(window.currentUser)) {
                 removeFromGuestbookCache(d.guestbookId);
