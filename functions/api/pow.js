@@ -138,11 +138,13 @@ async function coloPenaltyBits(env, colo) {
   }
 }
 
+const ASN_HIGH_RISK_PENALTY_BITS = MAX_BITS - MIN_BITS;
+
 function asnPenaltyBits(cf, action) {
   const asn = cf && cf.asn;
   if (!asn) return 0;
   if (DATA_CENTER_ASN.has(asn)) {
-    if (['prepare-register', 'prepare-reset', 'prepare-change-email'].includes(action)) return Infinity;
+    if (['prepare-register', 'prepare-reset', 'prepare-change-email'].includes(action)) return ASN_HIGH_RISK_PENALTY_BITS;
     return ASN_PENALTY_BITS;
   }
   return 0;
@@ -372,11 +374,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
 
     const cf = request.cf || {};
     const asnPenalty = asnPenaltyBits(cf, action);
-    if (asnPenalty === Infinity) {
-      return new Response(JSON.stringify({ success: false, error: '当前网络环境无法完成验证' }), {
-        status: 403, headers: { 'Content-Type': 'application/json', ...addCors() }
-      });
-    }
 
     await ensurePowSchema(env);
     const floor = isHighRisk ? HIGH_RISK_MIN_BITS : MIN_BITS;

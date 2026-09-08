@@ -115,6 +115,7 @@ const TOOLS = [
     }
 ];
 const AUTO_MODE_TOOLS = TOOLS;
+const SEARCH_MIN_SIMILARITY = 0.35;
 const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助手，分析留言并决定处理方式。所有输出必须是纯文本，禁用Markdown。
 
 【语气人设】你不是客服，正常交流即可，不用拘谨，对没礼貌的留言可以怼回去。
@@ -572,13 +573,33 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode,
         };
     }
     const normalizePath = (p) => p ? p.replace(/\/+/g, '/').replace(/^\/|\/$/, '') : '';
-    const resourceList = searchResults.slice(0, 20).map((f, i) => {
+    const filteredResults = searchResults.filter(f => (f.similarity_score || 0) >= SEARCH_MIN_SIMILARITY);
+    const resourceList = filteredResults.slice(0, 20).map((f, i) => {
         const parentPath = normalizePath(f.parent_path);
         const path = parentPath ? `${parentPath}/${f.name}` : f.name;
         const typeTag = (f.is_directory === 1 || f.is_directory === true) ? '📁目录' : '📄文件';
         const mq = Array.isArray(f.matched_queries) && f.matched_queries.length > 0 ? ` [命中课程: ${f.matched_queries.join('、')}]` : '';
         return `${i + 1}. [${typeTag}] ${f.name} (路径: ${path}, 相似度: ${(f.similarity_score * 100).toFixed(1)}%)${mq}`;
     }).join('\n');
+    if (filteredResults.length === 0) {
+        if (autoMode && env && env.DB) {
+            if (queryList.length > 0) {
+                for (const q of queryList) {
+                    const category = q.trim().substring(0, 100) || '未分类';
+                    await createOrMergeTodo(guestbookEntry, category, '未找到相关资源', env);
+                }
+            } else {
+                const category = query.trim().substring(0, 100) || (guestbookEntry.content ? guestbookEntry.content.trim().substring(0, 50) : '未分类');
+                await createOrMergeTodo(guestbookEntry, category, '未找到相关资源', env);
+            }
+        }
+        return {
+            success: true,
+            action: 'search_no_results',
+            message: '未找到匹配的资源，留言保持待处理状态',
+            auto_applied: false
+        };
+    }
     let todoCategoriesStr = '';
     try {
         const existingTodos = await env.DB.prepare(
@@ -602,6 +623,8 @@ ${resourceList}
 ${hitSummary}
 
 【语气人设】你不是客服，正常交流即可，不用拘谨，对没礼貌的留言可以怼回去。
+
+【匹配铁律】只允许把与用户请求课程【同名或高度相关】的资源视为匹配。严禁用不同课程顶替：例如用户要"金属工艺学B"，"汽车制造工艺学""机械制造工艺""金属学及热处理"等是不同课程，即使相似度较高也【不得】当作匹配资源推荐，应视为未命中。用户要"创业学"，培养方案目录（创业学院培养方案）不是课程资料，不得当作匹配。宁可标记未命中、建待办，也不要硬凑不相关资源。
 
 判断搜索结果中是否有满足用户需求的资源，如果没有就保持未解决，不要硬凑。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。用户请求多门课程时：
 - 把每门命中课程对应的匹配资源序号都填进 matched_file_indices 数组
@@ -686,7 +709,7 @@ ${hitSummary}
                 success: true,
                 action: 'search_completed',
                 message: 'AI参数解析失败，请管理员确认',
-                searchResults: searchResults
+                searchResults: filteredResults
             };
         }
         if (functionName === 'mark_resolved') {
@@ -698,12 +721,12 @@ ${hitSummary}
             const validIndices = new Set();
             for (const rawIdx of indices) {
                 const idx = Number(rawIdx);
-                if (Number.isInteger(idx) && idx > 0 && idx <= searchResults.length) {
+                if (Number.isInteger(idx) && idx > 0 && idx <= filteredResults.length) {
                     validIndices.add(idx);
                 }
             }
             for (const idx of validIndices) {
-                const file = searchResults[idx - 1];
+                const file = filteredResults[idx - 1];
                 if (file.is_directory) {
                     const parentPath = normalizePath(file.parent_path);
                     resourcePaths.push(parentPath ? `${parentPath}/${file.name}` : file.name);
@@ -725,7 +748,7 @@ ${hitSummary}
             const result = await handleResolve(
                 guestbookEntry,
                 functionArgs.reply,
-                searchResults,
+                filteredResults,
                 dedupPaths,
                 env,
                 autoMode,
@@ -747,7 +770,7 @@ ${hitSummary}
                 message: '资源匹配度不够，保持待处理',
                 note: functionArgs.note,
                 category: functionArgs.category || null,
-                searchResults: searchResults,
+                searchResults: filteredResults,
                 auto_applied: false
             };
         }
@@ -756,7 +779,7 @@ ${hitSummary}
         success: true,
         action: 'search_completed',
         message: '已完成搜索，请管理员确认',
-        searchResults: searchResults,
+        searchResults: filteredResults,
         auto_applied: false
     };
 }
