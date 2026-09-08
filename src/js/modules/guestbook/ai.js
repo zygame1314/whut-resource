@@ -163,17 +163,31 @@ async function showAiResultModal(guestbookId, result) {
                 if (result.category) {
                     actionDescription += `<div class="ai-result-note" style="margin-top:0.5rem;"><strong>待办分类：</strong>${escapeHtml(result.category)}</div>`;
                 }
-                buttonsHtml = `<button class="confirm-btn-cancel" data-action="cancel">关闭</button>`;
+                buttonsHtml = `
+                    <button class="confirm-btn-cancel" data-action="cancel">关闭</button>
+                    ${result.category ? `<button class="confirm-btn confirm-btn-warning" data-action="keep_pending">确认建待办</button>` : ''}
+                `;
                 break;
             case 'search_no_results':
                 actionIcon = 'fa-search-minus';
                 actionColor = 'var(--warning)';
                 actionTitle = '未找到相关资源';
                 actionDescription = `<div class="ai-result-message">${escapeHtml(result.message)}</div>`;
-                buttonsHtml = `
+                if (result.category) {
+                    actionDescription += `<div class="ai-result-note" style="margin-top:0.5rem;"><strong>建议待办分类：</strong>${escapeHtml(result.category)}</div>`;
+                }
+                let noResButtons = `
                     <button class="confirm-btn-cancel" data-action="cancel">关闭</button>
                     <button class="confirm-btn confirm-btn-danger" data-action="reject">驳回留言</button>
                 `;
+                if (result.category) {
+                    noResButtons = `
+                        <button class="confirm-btn-cancel" data-action="cancel">关闭</button>
+                        <button class="confirm-btn confirm-btn-warning" data-action="keep_pending">确认建待办</button>
+                        <button class="confirm-btn confirm-btn-danger" data-action="reject">驳回留言</button>
+                    `;
+                }
+                buttonsHtml = noResButtons;
                 break;
             default:
                 actionDescription = `<div class="ai-result-message">${escapeHtml(result.message || result.ai_response || '无法确定操作')}</div>`;
@@ -288,6 +302,22 @@ async function showAiResultModal(guestbookId, result) {
                     window.rejectGuestbook(guestbookId);
                     return;
                 }
+                if (action === 'keep_pending') {
+                    const category = result.category || '';
+                    const note = result.note || '';
+                    const confirmed = await showConfirmation({
+                        title: '确认创建待办',
+                        message: `将创建待办分类「${category}」，标记此留言为待处理。确定吗？`,
+                        confirmText: '确认创建',
+                        confirmClass: 'confirm-btn-warning'
+                    });
+                    if (confirmed) {
+                        await applyAiAction(guestbookId, 'keep_pending', null, null, null, { category, note });
+                        closeModal();
+                        updateGuestbookCache(guestbookId, { status: 'unresolved' });
+                    }
+                    return;
+                }
             });
         });
         modalOverlay.addEventListener('mousedown', (e) => {
@@ -322,7 +352,7 @@ function renderAiSearchResults(results) {
         </div>
     `;
 }
-async function applyAiAction(guestbookId, action, reason, resolveNote, pendingCategories = null) {
+async function applyAiAction(guestbookId, action, reason, resolveNote, pendingCategories = null, keepPending = null) {
     try {
         const token = localStorage.getItem('authToken');
         const body = { id: guestbookId, action: action };
@@ -334,6 +364,10 @@ async function applyAiAction(guestbookId, action, reason, resolveNote, pendingCa
         }
         if (action === 'resolve' && Array.isArray(pendingCategories) && pendingCategories.length > 0) {
             body.pending_categories = pendingCategories;
+        }
+        if (action === 'keep_pending' && keepPending) {
+            if (keepPending.category) body.category = keepPending.category;
+            if (keepPending.note) body.note = keepPending.note;
         }
         const response = await fetch(API_ENDPOINTS.guestbook, {
             method: 'PUT',

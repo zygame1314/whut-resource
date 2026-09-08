@@ -118,7 +118,7 @@ const AUTO_MODE_TOOLS = TOOLS;
 const SEARCH_MIN_SIMILARITY = 0.35;
 const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助手，分析留言并决定处理方式。所有输出必须是纯文本，禁用Markdown。
 
-【语气人设】你不是客服，正常交流即可，不用拘谨，对没礼貌的留言可以怼回去。
+【语气人设：你是本校热心学长，不是客服】像论坛里一个真实的、有点个性的同学，怎么想就怎么写，不用端着，不用套话，不用「亲爱的用户/您好/感谢您的反馈/我们已收到」这套。可以口语化、可以吐槽、可以怼、可以用网络用语（如"稳""蹲一个""整挺好"）。涉及处理留言时给用户的文案（如驳回原因 reason）也要用这种接地气的口吻，而不是书面语。禁止出现任何客服式套话。
 
 本站是资源分享平台，用户请求课程资料、真题、课件、考试答案等属于正常行为，请积极帮助用户找到资源。
 
@@ -131,10 +131,10 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助�
 【工具选择指引】
 ban_user: 极其严重违规（反动/暴恐/违法/昵称违规），封禁用户并删除留言
 delete_message: 严重违规（辱骂/色情/恶意诱导攻击如藏头诗等）
-reject_message: 内容无效或不合规范，驳回并告知原因。适用于：无关内容、泄露联系方式、表述过于简陋无法处理、仅发课程名/文件名而无任何请求语句（如只写"金融学"等）等
+reject_message: 内容无效或不合规范，驳回并告知原因。适用于：无关内容、泄露联系方式、表述过于简陋无法处理、仅发课程名/文件名而无任何请求语句（如只写"金融学"等）等。reason（用户可见的驳回原因）用学长的接地气口吻，可以带点情绪怼一下
 ban_user/delete_message 候补：有偿求资源、倒卖资源、付费交易等行为严重违反本站免费分享原则，视情节轻重选择 delete_message 或 ban_user
 search_resources: 资源请求类留言，提取核心课程名搜索。常见缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留课程后缀(A/B/C、一/二)。用户在一条留言中请求多门课程资源时，把每门课程名作为一个元素放进 queries 数组一次性搜索，每条留言只调用一次 search_resources
-mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景。必须填写reply（管理员审计备注）和note（用户可见备注），reply需说明处理依据
+mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景。必须填写reply（管理员审计备注）和note（用户可见备注），reply需说明处理依据，note用学长的接地气口吻回复
 keep_pending: 合理请求但暂时无法自动处理，等待人工介入。category以课程名为单位，优先精确匹配已有待办分类名；无匹配时使用最通用的标准课程名（如"高等数学"而非"高数"，"大学物理"而非"大物"，"线性代数"而非"线代"），不加"求""资料"等冗余词
 
 处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]
@@ -343,10 +343,26 @@ export async function createOrMergeTodo(guestbookEntry, category, note, env) {
         console.error('创建/合并待办失败:', e);
     }
 }
+function stripMarkdown(text) {
+    if (!text) return text;
+    let s = String(text);
+    s = s.replace(/ thinking[\s\S]*?<\/think>/gi, '');
+    s = s.replace(/\*\*(.+?)\*\*/g, '$1');
+    s = s.replace(/\*(.+?)\*/g, '$1');
+    s = s.replace(/__([^_]+)__/g, '$1');
+    s = s.replace(/`{1,3}(.+?)`{1,3}/g, '$1');
+    s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+    s = s.replace(/^#{1,6}\s*/gm, '');
+    s = s.replace(/^[>\s]*>\s?/gm, '');
+    s = s.replace(/^[-*+]\s+/gm, '');
+    s = s.replace(/^\s*\d+[.)]\s+/gm, '');
+    s = s.replace(/(\r\n|\n){3,}/g, '\n\n');
+    return s.trim();
+}
 async function executeToolCall(functionName, args, guestbookEntry, env, autoMode) {
     for (const key in args) {
         if (typeof args[key] === 'string') {
-            args[key] = args[key].replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+            args[key] = stripMarkdown(args[key]);
         }
     }
     switch (functionName) {
@@ -569,7 +585,9 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode,
             success: true,
             action: 'search_no_results',
             message: '未找到匹配的资源，留言保持待处理状态',
-            auto_applied: false
+            auto_applied: false,
+            pending_categories: queryList.length > 0 ? queryList.map(q => q.trim().substring(0, 100)) : [],
+            category: queryList.length > 0 ? queryList[0].trim().substring(0, 100) : (query.trim().substring(0, 100) || '未分类')
         };
     }
     const normalizePath = (p) => p ? p.replace(/\/+/g, '/').replace(/^\/|\/$/, '') : '';
@@ -597,7 +615,9 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode,
             success: true,
             action: 'search_no_results',
             message: '未找到匹配的资源，留言保持待处理状态',
-            auto_applied: false
+            auto_applied: false,
+            pending_categories: queryList.length > 0 ? queryList.map(q => q.trim().substring(0, 100)) : [],
+            category: queryList.length > 0 ? queryList[0].trim().substring(0, 100) : (query.trim().substring(0, 100) || '未分类')
         };
     }
     let todoCategoriesStr = '';
@@ -622,7 +642,7 @@ ${resourceList}
 用户留言：${guestbookEntry.content}
 ${hitSummary}
 
-【语气人设】你不是客服，正常交流即可，不用拘谨，对没礼貌的留言可以怼回去。
+【语气人设：你是本校热心学长，不是客服】像论坛里一个真实的、有点个性的同学，怎么想就怎么写，不用端着，不用套话，不用「亲爱的用户/您好/感谢您的反馈」这套。可以口语化、可以吐槽、可以用网络用语。mark_resolved 的 note（给用户的可见备注）务必用这种接地气口吻，而不是书面语。示例：找到了说"找到了，直接看下面链接，拿走不谢"；没找到说"这个暂时没存到货，我帮你记一笔，等弄到补给你"。禁止客服套话。
 
 【匹配铁律】只允许把与用户请求课程【同名或高度相关】的资源视为匹配。严禁用不同课程顶替：例如用户要"金属工艺学B"，"汽车制造工艺学""机械制造工艺""金属学及热处理"等是不同课程，即使相似度较高也【不得】当作匹配资源推荐，应视为未命中。用户要"创业学"，培养方案目录（创业学院培养方案）不是课程资料，不得当作匹配。宁可标记未命中、建待办，也不要硬凑不相关资源。
 
@@ -713,6 +733,8 @@ ${hitSummary}
             };
         }
         if (functionName === 'mark_resolved') {
+            if (typeof functionArgs.note === 'string') functionArgs.note = stripMarkdown(functionArgs.note);
+            if (typeof functionArgs.reply === 'string') functionArgs.reply = stripMarkdown(functionArgs.reply);
             const indices = Array.isArray(functionArgs.matched_file_indices)
                 ? functionArgs.matched_file_indices
                 : (functionArgs.matched_file_index != null ? [functionArgs.matched_file_index] : []);
@@ -761,6 +783,7 @@ ${hitSummary}
             return result;
         }
         if (functionName === 'keep_pending') {
+            if (typeof functionArgs.note === 'string') functionArgs.note = stripMarkdown(functionArgs.note);
             if (autoMode && functionArgs.category) {
                 await createOrMergeTodo(guestbookEntry, functionArgs.category, functionArgs.note, env);
             }
@@ -996,7 +1019,7 @@ ${contextLines ? contextLines + '\n' : ''}
         }
         return { pass: true };
     } catch (error) {
-        console.error('回复审核失败，按放行处理:', error);
-        return { pass: true };
+        console.error('回复审核失败，拦截:', error);
+        return { pass: false, reason: '内容审核服务暂时不可用，请稍后重试' };
     }
 }

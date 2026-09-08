@@ -740,6 +740,28 @@ async function handlePut(request, env, context) {
             });
         }
         bcast(parseInt(id), action, { status: action === 'resolve' ? 'resolved' : 'unresolved', is_hidden: action === 'resolve' ? 0 : undefined, resolve_note: action === 'resolve' ? (resolveNote || null) : null });
+    } else if (action === 'keep_pending') {
+        if (!isAdmin(user)) {
+            return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const gbEntryPending = await env.DB.prepare('SELECT g.*, u.nickname FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?').bind(id).first();
+        if (!gbEntryPending) {
+            return new Response(JSON.stringify({ error: '留言不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (!isSuperAdmin(user)) {
+            const entryAuthor = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(gbEntryPending.user_id).first();
+            if (entryAuthor && entryAuthor.role === 'super_admin') {
+                return new Response(JSON.stringify({ error: '普通管理员不能操作超级管理员的留言' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            }
+        }
+        const categoryRaw = String(body.category || '').trim().substring(0, 100);
+        if (!categoryRaw) {
+            return new Response(JSON.stringify({ error: '缺少待办分类' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        const pendingNote = body.note ? String(body.note).trim().substring(0, 500) : null;
+        await createOrMergeTodo(gbEntryPending, categoryRaw, pendingNote, env);
+        await logAdminAction(env, user.id, 'keep_pending', 'guestbook', id, `保持待处理并创建待办: ${categoryRaw}`, JSON.stringify({ snapshot_content: gbEntryPending.content, nickname: gbEntryPending.nickname, user_id: gbEntryPending.user_id, todo_category: categoryRaw }));
+        bcast(parseInt(id), 'keep_pending', { status: 'unresolved', todo_category: categoryRaw });
     } else if (action === 'reject') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });

@@ -107,8 +107,9 @@
 | Cloudflare Vectorize | 向量索引（AI 语义搜索） |
 | Cloudflare Durable Objects | WebSocket 实时日志 + 在线计数 |
 | Cloudflare Email Workers | 邮箱验证码接收/解析 |
+| Cloudflare Queues | 留言板 AI 异步审核（独立 consumer Worker） |
 
-> AI 能力通过 SiliconFlow HTTP API 实现（非 Workers AI 绑定），需在 Pages 环境变量/Secret 中配置 `SILICONFLOW_API_KEY`、`JWT_SECRET`、`JWT_PRIVATE_KEY`、`BOT_EMAIL`、`GOOGLE_SAFE_BROWSING_API_KEY` 等。
+> AI 能力通过 SiliconFlow HTTP API 实现（非 Workers AI 绑定），需在 Pages 环境变量/Secret 中配置 `SILICONFLOW_API_KEY`、`JWT_SECRET`、`JWT_PRIVATE_KEY`、`BOT_EMAIL`、`GOOGLE_SAFE_BROWSING_API_KEY` 等。AI 审核 consumer Worker（`worker-ai/`）额外需要 `AI_API_KEY`（对话模型密钥）与 `SILICONFLOW_API_KEY`（向量嵌入密钥）。
 
 ### AI 服务
 | 模型 / 服务 | 用途 |
@@ -219,6 +220,9 @@
 ├── worker/
 │   ├── download_logger.js     # DownloadLogger Durable Object（WebSocket 日志 + 在线计数）
 │   └── wrangler.toml          # DO Worker 独立部署配置
+├── worker-ai/
+│   ├── index.js               # AI 审核队列 consumer（异步消费留言板消息）
+│   └── wrangler.toml          # AI consumer Worker 独立部署配置（绑定同一 D1/Vectorize/R2 与密钥）
 ├── scripts/
 │   ├── build/                 # 构建脚本（config.js / tasks.js / utils.js）
 │   ├── dev.js                 # 开发热更新
@@ -280,7 +284,14 @@ npm run deploy
 
 # Durable Object Worker 需单独部署（首次部署需执行 migrations）
 wrangler deploy -c worker/wrangler.toml
+
+# AI 审核队列 consumer Worker 需单独部署 + 配置密钥
+wrangler deploy -c worker-ai/wrangler.toml
+wrangler secret put AI_API_KEY --config worker-ai/wrangler.toml
+wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 ```
+
+> **首次开通队列**：需先创建队列 `npx wrangler queues create whut-resource-ai`。Pages 侧 `wrangler.toml` 的 `[[queues.producers]]` 绑定随 `npm run deploy` 一起生效。
 
 ### 环境变量 / Secret
 
