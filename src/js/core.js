@@ -1171,7 +1171,8 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
     }
     const fileExplorer = document.getElementById('breadcrumb-nav');
     if (fileExplorer && shouldScroll) {
-        const headerOffset = 80;
+        const dockedSearch = document.querySelector('.search-container.standalone.docked');
+        const headerOffset = dockedSearch ? dockedSearch.getBoundingClientRect().bottom : 80;
         const elementPosition = fileExplorer.getBoundingClientRect().top;
         const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
         window.scrollTo({
@@ -1554,15 +1555,6 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
         `;
         updateBreadcrumb(isGlobal ? '' : prefix, isGlobal, searchTerm.trim());
         renderPaginationControls(null);
-    }
-    const fileListContainer = document.querySelector('.file-list-container');
-    if (fileListContainer) {
-        const rect = fileListContainer.getBoundingClientRect();
-        if (rect.top < 80) {
-            const offset = 80;
-            const targetY = window.scrollY + rect.top - offset;
-            window.scrollTo({ top: targetY, behavior: 'auto' });
-        }
     }
     fileListElement.style.minHeight = '';
     updateUploadButtonLink();

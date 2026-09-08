@@ -812,7 +812,8 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
 function scrollToBreadcrumb() {
     const breadcrumbNav = document.getElementById('breadcrumb-nav');
     if (breadcrumbNav) {
-        const headerOffset = 80;
+        const dockedSearch = document.querySelector('.search-container.standalone.docked');
+        const headerOffset = dockedSearch ? dockedSearch.getBoundingClientRect().bottom : 80;
         const elementPosition = breadcrumbNav.getBoundingClientRect().top;
         const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
         window.scrollTo({ top: offsetPosition, behavior: 'smooth' });

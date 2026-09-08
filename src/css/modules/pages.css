@@ -201,6 +201,12 @@
     transition: font-size 0.3s ease;
 }
 
+.search-container.standalone.docked .search-tips-content {
+    max-width: 860px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .search-box {
     position: relative;
     max-width: 1080px;

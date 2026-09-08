@@ -6499,14 +6499,20 @@ textarea.form-input {
     max-height: 0;
     opacity: 0;
     overflow: hidden;
-    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    width: 100%;
+    max-width: 860px;
+    margin-left: auto;
+    margin-right: auto;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
         opacity 0.3s ease,
-        padding 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-        border-color 0.3s ease;
+        padding 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 0.3s ease,
+        margin-top 0.35s ease,
+        max-width 0.3s ease;
 }
 
 .search-container:has(#search-tips-checkbox:checked) .search-tips-content {
-    max-height: 300px;
+    max-height: 400px;
     opacity: 1;
     padding: 1.2rem;
     border-color: var(--border-color);
