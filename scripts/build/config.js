@@ -28,6 +28,7 @@ const scriptModules = [
     'modules/batch.js',
     'core.js',
     'modules/search-history.js',
+    'modules/search-dock.js',
     'modules/notifications.js',
     'modules/popup-queue.js',
     'main.js'

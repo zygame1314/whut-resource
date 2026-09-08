@@ -506,6 +506,10 @@
     flex-wrap: wrap;
 }
 
+#file-explorer > .filter-bar {
+    margin: 1.5rem 2rem;
+}
+
 .filter-bar-left {
     display: flex;
     align-items: center;
@@ -535,6 +539,10 @@
 @media (max-width: 768px) {
     .filter-bar {
         gap: 0.5rem;
+    }
+
+    #file-explorer > .filter-bar {
+        margin: 1.5rem 1.5rem;
     }
 
     .filter-bar-left {
@@ -576,7 +584,7 @@
 
 .ai-search-toggle {
     position: absolute;
-    right: 56px;
+    right: 84px;
     top: 50%;
     transform: translateY(-50%);
     display: inline-flex;
@@ -587,7 +595,7 @@
     background: var(--background-alt);
     border-radius: 20px;
     border: 1.5px solid var(--border-color);
-    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, right 0.3s ease, padding 0.3s ease, border-radius 0.3s ease, width 0.3s ease, height 0.3s ease;
     z-index: 2;
 }
 
@@ -636,6 +644,7 @@
         width: 32px;
         height: 32px;
         justify-content: center;
+        right: 68px;
     }
 
     .toggle-text {
@@ -6403,7 +6412,7 @@ textarea.form-input {
 
 .search-tips-toggle {
     position: absolute;
-    right: 160px;
+    right: 196px;
     top: 50%;
     transform: translateY(-50%);
     display: inline-flex;
@@ -6414,7 +6423,7 @@ textarea.form-input {
     background: var(--background-alt);
     border-radius: 20px;
     border: 1.5px solid var(--border-color);
-    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, right 0.3s ease, padding 0.3s ease;
     z-index: 2;
     font: inherit;
     line-height: inherit;
@@ -6465,7 +6474,7 @@ textarea.form-input {
         width: 32px;
         height: 32px;
         justify-content: center;
-        right: 100px;
+        right: 108px;
     }
 
     .tips-toggle-text {

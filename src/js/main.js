@@ -174,6 +174,8 @@ document.addEventListener('DOMContentLoaded', () => {
         breadcrumbHome.style.cursor = 'pointer';
         breadcrumbHome.addEventListener('click', () => {
             if (searchInput) searchInput.value = '';
+            const clearBtn = document.getElementById('clear-search-btn');
+            if (clearBtn) clearBtn.style.display = 'none';
             isShowingSearchResults = false;
             fetchAndDisplayFiles('');
         });

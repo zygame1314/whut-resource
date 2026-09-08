@@ -182,6 +182,48 @@
         </div>
     </header>
 
+    <div class="container">
+        <div class="search-container standalone">
+            <div class="search-box">
+                <i class="fas fa-search search-icon"></i>
+                <input type="search" id="search-input" placeholder="输入关键词...">
+                <button id="clear-search-btn" class="clear-search-btn" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+                <label class="search-tips-toggle" title="搜索小技巧">
+                    <input type="checkbox" id="search-tips-checkbox">
+                    <span class="tips-toggle-label"><i class="fas fa-lightbulb"></i><span
+                            class="tips-toggle-text">技巧</span></span>
+                </label>
+                <label class="ai-search-toggle" title="AI 智能搜索：使用语义理解查找相关文件，即使文件名不完全匹配">
+                    <input type="checkbox" id="ai-search-toggle">
+                    <span class="toggle-label"><i class="fas fa-magic"></i><span class="toggle-text">AI
+                            搜索</span></span>
+                </label>
+                <button id="search-button" class="search-btn">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+            <div id="search-tips-content" class="search-tips-content">
+                <div class="tip-item">
+                    <i class="fas fa-keyboard"></i>
+                    <span class="tip-text"><strong>缩写也能搜</strong>: 自动逐字匹配，搜 <code>高数</code>
+                        就能找到"高等数学"</span>
+                </div>
+                <div class="tip-item">
+                    <i class="fas fa-minus-circle"></i>
+                    <span class="tip-text"><strong>排除词</strong>: 后面加 NOT。例如 <code>线性代数 NOT 答案</code>
+                        找不带答案的卷子</span>
+                </div>
+                <div class="tip-item">
+                    <i class="fas fa-magic"></i>
+                    <span class="tip-text"><strong>AI 模式</strong>: 搜不到？开启开关，直接搜 <code>给我来点大物的真题</code>
+                        试试</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <main class="main-content">
         <div class="container">
             <div class="explorer-container">
@@ -378,91 +420,52 @@
                         </ul>
                     </section>
 
-                    <div class="search-container">
-                        <div class="search-box">
-                            <i class="fas fa-search search-icon"></i>
-                            <input type="search" id="search-input" placeholder="输入关键词...">
-                            <button id="clear-search-btn" class="clear-search-btn" style="display: none;">
-                                <i class="fas fa-times"></i>
-                            </button>
-                            <label class="search-tips-toggle" title="搜索小技巧">
-                                <input type="checkbox" id="search-tips-checkbox">
-                                <span class="tips-toggle-label"><i class="fas fa-lightbulb"></i><span
-                                        class="tips-toggle-text">技巧</span></span>
-                            </label>
-                            <label class="ai-search-toggle" title="AI 智能搜索：使用语义理解查找相关文件，即使文件名不完全匹配">
-                                <input type="checkbox" id="ai-search-toggle">
-                                <span class="toggle-label"><i class="fas fa-magic"></i><span class="toggle-text">AI
-                                        搜索</span></span>
-                            </label>
-                            <button id="search-button" class="search-btn">
-                                <i class="fas fa-arrow-right"></i>
-                            </button>
-                        </div>
-                        <div class="filter-bar">
-                            <div class="filter-bar-left">
-                                <div class="filter-type-dropdown custom-select-container" id="filter-type-dropdown">
-                                    <div class="custom-select-trigger" id="filter-type-trigger">
-                                        <i class="fas fa-filter"></i>
-                                        <span id="filter-type-label">全部类型</span>
-                                        <i class="fas fa-chevron-down"></i>
-                                    </div>
-                                    <div class="custom-select-options dropdown-menu" id="filter-type-options">
-                                        <div class="dropdown-item selected" data-value="all">全部类型</div>
-                                        <div class="dropdown-item" data-value="folder">文件夹</div>
-                                        <div class="dropdown-item" data-value="link">链接</div>
-                                        <div class="dropdown-item" data-value="pdf">PDF</div>
-                                        <div class="dropdown-item" data-value="doc">文档</div>
-                                        <div class="dropdown-item" data-value="image">图片</div>
-                                        <div class="dropdown-item" data-value="video">视频</div>
-                                    </div>
+                    <div class="filter-bar">
+                        <div class="filter-bar-left">
+                            <div class="filter-type-dropdown custom-select-container" id="filter-type-dropdown">
+                                <div class="custom-select-trigger" id="filter-type-trigger">
+                                    <i class="fas fa-filter"></i>
+                                    <span id="filter-type-label">全部类型</span>
+                                    <i class="fas fa-chevron-down"></i>
                                 </div>
-                                <div class="filter-bar-divider"></div>
-                                <div class="folder-search-wrapper">
-                                    <i class="fas fa-search"></i>
-                                    <input type="text" id="folder-search-input" placeholder="筛选当前文件夹...">
-                                    <button id="clear-folder-search" class="clear-folder-search-btn" style="display: none;">
-                                        <i class="fas fa-times"></i>
-                                    </button>
+                                <div class="custom-select-options dropdown-menu" id="filter-type-options">
+                                    <div class="dropdown-item selected" data-value="all">全部类型</div>
+                                    <div class="dropdown-item" data-value="folder">文件夹</div>
+                                    <div class="dropdown-item" data-value="link">链接</div>
+                                    <div class="dropdown-item" data-value="pdf">PDF</div>
+                                    <div class="dropdown-item" data-value="doc">文档</div>
+                                    <div class="dropdown-item" data-value="image">图片</div>
+                                    <div class="dropdown-item" data-value="video">视频</div>
                                 </div>
                             </div>
-                            <div class="filter-bar-right">
-                                <div class="sort-wrapper custom-select-container">
-                                    <div class="custom-select-trigger" id="sort-trigger">
-                                        <i class="fas fa-sort"></i>
-                                        <span id="sort-label">名称 A-Z</span>
-                                        <i class="fas fa-chevron-down"></i>
-                                    </div>
-                                    <div class="custom-select-options dropdown-menu" id="sort-options">
-                                        <div class="dropdown-item selected" data-value="name-asc">名称 A-Z</div>
-                                        <div class="dropdown-item" data-value="name-desc">名称 Z-A</div>
-                                        <div class="dropdown-item" data-value="date-desc">最新上传</div>
-                                        <div class="dropdown-item" data-value="date-asc">最早上传</div>
-                                        <div class="dropdown-item" data-value="size-desc">大小降序</div>
-                                        <div class="dropdown-item" data-value="size-asc">大小升序</div>
-                                        <div class="dropdown-item" data-value="downloads-desc">下载量降序</div>
-                                        <div class="dropdown-item" data-value="downloads-asc">下载量升序</div>
-                                        <div class="dropdown-item" data-value="likes-desc">点赞数降序</div>
-                                        <div class="dropdown-item" data-value="likes-asc">点赞数升序</div>
-                                    </div>
-                                </div>
+                            <div class="filter-bar-divider"></div>
+                            <div class="folder-search-wrapper">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="folder-search-input" placeholder="筛选当前文件夹...">
+                                <button id="clear-folder-search" class="clear-folder-search-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
                             </div>
                         </div>
-                        <div id="search-tips-content" class="search-tips-content">
-                            <div class="tip-item">
-                                <i class="fas fa-keyboard"></i>
-                                <span class="tip-text"><strong>缩写也能搜</strong>: 自动逐字匹配，搜 <code>高数</code>
-                                    就能找到"高等数学"</span>
-                            </div>
-                            <div class="tip-item">
-                                <i class="fas fa-minus-circle"></i>
-                                <span class="tip-text"><strong>排除词</strong>: 后面加 NOT。例如 <code>线性代数 NOT 答案</code>
-                                    找不带答案的卷子</span>
-                            </div>
-                            <div class="tip-item">
-                                <i class="fas fa-magic"></i>
-                                <span class="tip-text"><strong>AI 模式</strong>: 搜不到？开启开关，直接搜 <code>给我来点大物的真题</code>
-                                    试试</span>
+                        <div class="filter-bar-right">
+                            <div class="sort-wrapper custom-select-container">
+                                <div class="custom-select-trigger" id="sort-trigger">
+                                    <i class="fas fa-sort"></i>
+                                    <span id="sort-label">名称 A-Z</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                                <div class="custom-select-options dropdown-menu" id="sort-options">
+                                    <div class="dropdown-item selected" data-value="name-asc">名称 A-Z</div>
+                                    <div class="dropdown-item" data-value="name-desc">名称 Z-A</div>
+                                    <div class="dropdown-item" data-value="date-desc">最新上传</div>
+                                    <div class="dropdown-item" data-value="date-asc">最早上传</div>
+                                    <div class="dropdown-item" data-value="size-desc">大小降序</div>
+                                    <div class="dropdown-item" data-value="size-asc">大小升序</div>
+                                    <div class="dropdown-item" data-value="downloads-desc">下载量降序</div>
+                                    <div class="dropdown-item" data-value="downloads-asc">下载量升序</div>
+                                    <div class="dropdown-item" data-value="likes-desc">点赞数降序</div>
+                                    <div class="dropdown-item" data-value="likes-asc">点赞数升序</div>
+                                </div>
                             </div>
                         </div>
                     </div>
