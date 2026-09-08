@@ -114,7 +114,6 @@ const TOOLS = [
         }
     }
 ];
-const AUTO_MODE_TOOLS = TOOLS;
 const SEARCH_MIN_SIMILARITY = 0.35;
 const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助手，分析留言并决定处理方式。所有输出必须是纯文本，禁用Markdown。
 
@@ -159,7 +158,7 @@ export async function onRequest(context) {
             });
         }
         const body = await request.json();
-        const { guestbook_id, auto_mode } = body;
+        const { guestbook_id } = body;
         if (!guestbook_id) {
             return new Response(JSON.stringify({ error: '缺少留言ID' }), {
                 status: 400,
@@ -175,10 +174,20 @@ export async function onRequest(context) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
         }
+        if (env.AI_QUEUE) {
+            await env.AI_QUEUE.send({ guestbookId: guestbook_id, adminTriggered: true });
+            return new Response(JSON.stringify({
+                success: true,
+                message: 'AI 审核已提交，处理结果将自动生效'
+            }), {
+                status: 202,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+            });
+        }
         const result = await processWithAIAgent(
             guestbookEntry,
             env,
-            auto_mode || false
+            true
         );
         return new Response(JSON.stringify(result), {
             status: 200,
@@ -204,7 +213,7 @@ async function getUser(request, env) {
     if (!payload) return null;
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }
-export async function processWithAIAgent(guestbookEntry, env, autoMode) {
+export async function processWithAIAgent(guestbookEntry, env) {
     if (!env.AI_API_KEY) {
         throw new Error('未配置 AI_API_KEY');
     }
@@ -213,7 +222,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
         用户昵称：${guestbookEntry.nickname || '匿名用户'}
         留言内容：${guestbookEntry.content}
         提交时间：${guestbookEntry.created_at}`;
-    const toolsToUse = autoMode ? AUTO_MODE_TOOLS : TOOLS;
+    const toolsToUse = TOOLS;
     const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     let basePrompt = SYSTEM_PROMPT + `\n当前时间：${now}`;
     try {
@@ -227,9 +236,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
     } catch (e) {
         console.error('查询已有待办分类失败:', e);
     }
-    const systemPromptToUse = autoMode
-        ? basePrompt + `\n\n【自动审核模式】当前为自动审核模式，你的操作将直接生效（而非仅提供建议）。请同时完成内容审核和资源匹配，遇到不确定的情况保持待处理等待人工介入。`
-        : basePrompt;
+    const systemPromptToUse = basePrompt + `\n\n【自动审核模式】当前为自动审核模式，你的操作将直接生效（而非仅提供建议）。请同时完成内容审核和资源匹配，遇到不确定的情况保持待处理等待人工介入。`;
     const messages = [
         { role: 'system', content: systemPromptToUse },
         { role: 'user', content: userMessage }
@@ -285,8 +292,7 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
                 functionName,
                 functionArgs,
                 guestbookEntry,
-                env,
-                autoMode
+                env
             );
             if (functionName === 'search_resources' && toolResult.searchResults) {
                 const queryStr = Array.isArray(functionArgs.queries) ? functionArgs.queries.join('、') : (functionArgs.queries || functionArgs.query || '');
@@ -294,12 +300,11 @@ export async function processWithAIAgent(guestbookEntry, env, autoMode) {
                     guestbookEntry,
                     toolResult.searchResults,
                     env,
-                    autoMode,
                     queryStr,
                     { queryList: toolResult.queryList, perQueryHits: toolResult.perQueryHits }
                 );
             }
-            if (functionName === 'keep_pending' && autoMode && functionArgs.category) {
+            if (functionName === 'keep_pending' && functionArgs.category) {
                 await createOrMergeTodo(guestbookEntry, functionArgs.category, functionArgs.note, env);
             }
             return toolResult;
@@ -359,7 +364,7 @@ function stripMarkdown(text) {
     s = s.replace(/(\r\n|\n){3,}/g, '\n\n');
     return s.trim();
 }
-async function executeToolCall(functionName, args, guestbookEntry, env, autoMode) {
+async function executeToolCall(functionName, args, guestbookEntry, env) {
     for (const key in args) {
         if (typeof args[key] === 'string') {
             args[key] = stripMarkdown(args[key]);
@@ -367,23 +372,23 @@ async function executeToolCall(functionName, args, guestbookEntry, env, autoMode
     }
     switch (functionName) {
         case 'reject_message':
-            return await handleReject(guestbookEntry, args.reason, env, autoMode);
+            return await handleReject(guestbookEntry, args.reason, env);
         case 'delete_message':
-            return await handleDelete(guestbookEntry, args.reason, env, autoMode);
+            return await handleDelete(guestbookEntry, args.reason, env);
         case 'ban_user':
-            return await handleBanUser(guestbookEntry, args.reason, env, autoMode);
+            return await handleBanUser(guestbookEntry, args.reason, env);
         case 'search_resources':
             return await handleSearch(args.queries, env);
         case 'mark_resolved':
-            return await handleResolve(guestbookEntry, args.reply, null, null, env, autoMode, args.note);
+            return await handleResolve(guestbookEntry, args.reply, null, null, env, args.note);
         case 'keep_pending':
+            await createOrMergeTodo(guestbookEntry, args.category, args.note, env);
             return {
                 success: true,
                 action: 'keep_pending',
                 message: '留言保持待处理状态',
                 note: args.note,
-                category: args.category || null,
-                auto_applied: false
+                category: args.category || null
             };
         default:
             return {
@@ -393,101 +398,70 @@ async function executeToolCall(functionName, args, guestbookEntry, env, autoMode
             };
     }
 }
-async function handleReject(entry, reason, env, autoMode) {
-    if (autoMode) {
-        await env.DB.prepare(
-            'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
-        ).bind('rejected', reason, entry.id).run();
-        await logAdminAction(env, null, 'ai_reject', 'guestbook', entry.id, reason, JSON.stringify({
-            snapshot_content: entry.content,
-            nickname: entry.nickname,
-            user_id: entry.user_id
-        }));
-        if (entry.user_id) {
-            await createNotification(env, {
-                userId: entry.user_id,
-                type: 'guestbook_reply',
-                title: '你的留言被驳回',
-                body: reason || '内容不符合规范',
-                link: `#gb-${entry.id}`,
-                payload: { guestbookId: entry.id, rejectReason: reason }
-            });
-        }
-        broadcastGuestbookUpdate(env, entry.id, 'reject', { status: 'rejected', is_hidden: 1, reject_reason: reason, user_id: entry.user_id });
-        return {
-            success: true,
-            action: 'reject',
-            message: `留言已驳回: ${reason}`,
-            reason: reason,
-            auto_applied: true
-        };
+async function handleReject(entry, reason, env) {
+    await env.DB.prepare(
+        'UPDATE guestbook SET status = ?, reject_reason = ?, is_hidden = 1 WHERE id = ?'
+    ).bind('rejected', reason, entry.id).run();
+    await logAdminAction(env, null, 'ai_reject', 'guestbook', entry.id, reason, JSON.stringify({
+        snapshot_content: entry.content,
+        nickname: entry.nickname,
+        user_id: entry.user_id
+    }));
+    if (entry.user_id) {
+        await createNotification(env, {
+            userId: entry.user_id,
+            type: 'guestbook_reply',
+            title: '你的留言被驳回',
+            body: reason || '内容不符合规范',
+            link: `#gb-${entry.id}`,
+            payload: { guestbookId: entry.id, rejectReason: reason }
+        });
     }
+    broadcastGuestbookUpdate(env, entry.id, 'reject', { status: 'rejected', is_hidden: 1, reject_reason: reason, user_id: entry.user_id });
     return {
         success: true,
         action: 'reject',
-        message: '建议驳回留言',
-        reason: reason,
-        auto_applied: false
+        message: `留言已驳回: ${reason}`,
+        reason: reason
     };
 }
-async function handleBanUser(guestbookEntry, reason, env, autoMode) {
+async function handleBanUser(guestbookEntry, reason, env) {
     if (guestbookEntry.role === 'admin' || guestbookEntry.role === 'super_admin') {
         return {
             success: false,
             action: 'no_action',
             message: '无法封禁管理员',
-            reason: reason,
-            auto_applied: false
+            reason: reason
         };
     }
-    if (autoMode) {
-        await env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id).run();
-        await deleteGuestbookWithChildren(env, guestbookEntry.id);
-        await logAdminAction(env, null, 'ai_ban_user', 'user', guestbookEntry.user_id, reason, JSON.stringify({
-            snapshot_content: guestbookEntry.content,
-            nickname: guestbookEntry.nickname,
-            user_id: guestbookEntry.user_id
-        }));
-        broadcastGuestbookUpdate(env, guestbookEntry.id, 'delete');
-        return {
-            success: true,
-            action: 'ban_user',
-            message: `用户已封禁并删除留言: ${reason}`,
-            reason: reason,
-            auto_applied: true
-        };
-    }
+    await env.DB.prepare('UPDATE users SET is_banned = 1 WHERE id = ?').bind(guestbookEntry.user_id).run();
+    await deleteGuestbookWithChildren(env, guestbookEntry.id);
+    await logAdminAction(env, null, 'ai_ban_user', 'user', guestbookEntry.user_id, reason, JSON.stringify({
+        snapshot_content: guestbookEntry.content,
+        nickname: guestbookEntry.nickname,
+        user_id: guestbookEntry.user_id
+    }));
+    broadcastGuestbookUpdate(env, guestbookEntry.id, 'delete');
     return {
         success: true,
         action: 'ban_user',
-        message: '建议封禁用户（并删除留言）',
-        reason: reason,
-        auto_applied: false
+        message: `用户已封禁并删除留言: ${reason}`,
+        reason: reason
     };
 }
-async function handleDelete(entry, reason, env, autoMode) {
-    if (autoMode) {
-        await deleteGuestbookWithChildren(env, entry.id);
-        await logAdminAction(env, null, 'ai_delete', 'guestbook', entry.id, reason, JSON.stringify({
-            snapshot_content: entry.content,
-            nickname: entry.nickname,
-            user_id: entry.user_id
-        }));
-        broadcastGuestbookUpdate(env, entry.id, 'delete');
-        return {
-            success: true,
-            action: 'delete',
-            message: `留言已删除: ${reason}`,
-            reason: reason,
-            auto_applied: true
-        };
-    }
+async function handleDelete(entry, reason, env) {
+    await deleteGuestbookWithChildren(env, entry.id);
+    await logAdminAction(env, null, 'ai_delete', 'guestbook', entry.id, reason, JSON.stringify({
+        snapshot_content: entry.content,
+        nickname: entry.nickname,
+        user_id: entry.user_id
+    }));
+    broadcastGuestbookUpdate(env, entry.id, 'delete');
     return {
         success: true,
         action: 'delete',
-        message: '建议删除留言（严重违规）',
-        reason: reason,
-        auto_applied: false
+        message: `留言已删除: ${reason}`,
+        reason: reason
     };
 }
 async function handleSearch(queries, env) {
@@ -567,10 +541,10 @@ async function handleSearch(queries, env) {
         };
     }
 }
-async function handleSearchResults(guestbookEntry, searchResults, env, autoMode, query = '', searchMeta = {}) {
+async function handleSearchResults(guestbookEntry, searchResults, env, query = '', searchMeta = {}) {
     const { queryList = [], perQueryHits = {} } = searchMeta;
     if (!searchResults || searchResults.length === 0) {
-        if (autoMode && env && env.DB) {
+        if (env && env.DB) {
             if (queryList.length > 0) {
                 for (const q of queryList) {
                     const category = q.trim().substring(0, 100) || '未分类';
@@ -585,7 +559,6 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode,
             success: true,
             action: 'search_no_results',
             message: '未找到匹配的资源，留言保持待处理状态',
-            auto_applied: false,
             pending_categories: queryList.length > 0 ? queryList.map(q => q.trim().substring(0, 100)) : [],
             category: queryList.length > 0 ? queryList[0].trim().substring(0, 100) : (query.trim().substring(0, 100) || '未分类')
         };
@@ -600,7 +573,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode,
         return `${i + 1}. [${typeTag}] ${f.name} (路径: ${path}, 相似度: ${(f.similarity_score * 100).toFixed(1)}%)${mq}`;
     }).join('\n');
     if (filteredResults.length === 0) {
-        if (autoMode && env && env.DB) {
+        if (env && env.DB) {
             if (queryList.length > 0) {
                 for (const q of queryList) {
                     const category = q.trim().substring(0, 100) || '未分类';
@@ -615,7 +588,6 @@ async function handleSearchResults(guestbookEntry, searchResults, env, autoMode,
             success: true,
             action: 'search_no_results',
             message: '未找到匹配的资源，留言保持待处理状态',
-            auto_applied: false,
             pending_categories: queryList.length > 0 ? queryList.map(q => q.trim().substring(0, 100)) : [],
             category: queryList.length > 0 ? queryList[0].trim().substring(0, 100) : (query.trim().substring(0, 100) || '未分类')
         };
@@ -762,10 +734,8 @@ ${hitSummary}
                 : [];
             const dedupPending = [...new Set(pendingCategories)];
             const createdTodos = dedupPending;
-            if (autoMode && dedupPending.length > 0) {
-                for (const cat of dedupPending) {
-                    await createOrMergeTodo(guestbookEntry, cat, functionArgs.note || '部分课程未找到资源，待人工补充', env);
-                }
+            for (const cat of dedupPending) {
+                await createOrMergeTodo(guestbookEntry, cat, functionArgs.note || '部分课程未找到资源，待人工补充', env);
             }
             const result = await handleResolve(
                 guestbookEntry,
@@ -773,7 +743,6 @@ ${hitSummary}
                 filteredResults,
                 dedupPaths,
                 env,
-                autoMode,
                 functionArgs.note,
                 createdTodos
             );
@@ -784,7 +753,7 @@ ${hitSummary}
         }
         if (functionName === 'keep_pending') {
             if (typeof functionArgs.note === 'string') functionArgs.note = stripMarkdown(functionArgs.note);
-            if (autoMode && functionArgs.category) {
+            if (functionArgs.category) {
                 await createOrMergeTodo(guestbookEntry, functionArgs.category, functionArgs.note, env);
             }
             return {
@@ -793,80 +762,62 @@ ${hitSummary}
                 message: '资源匹配度不够，保持待处理',
                 note: functionArgs.note,
                 category: functionArgs.category || null,
-                searchResults: filteredResults,
-                auto_applied: false
+                searchResults: filteredResults
             };
         }
     }
     return {
         success: true,
         action: 'search_completed',
-        message: '已完成搜索，请管理员确认',
-        searchResults: filteredResults,
-        auto_applied: false
+        message: '已完成搜索',
+        searchResults: filteredResults
     };
 }
-async function handleResolve(entry, reply, searchResults = null, resourcePaths = null, env = null, autoMode = false, note = null, createdTodos = null) {
+async function handleResolve(entry, reply, searchResults = null, resourcePaths = null, env = null, note = null, createdTodos = null) {
     const pathsArr = Array.isArray(resourcePaths) ? resourcePaths : (resourcePaths ? [resourcePaths] : []);
     const cleanPaths = [...new Set(pathsArr.filter(p => p && String(p).trim()).map(p => String(p).trim()))];
     const todosArr = Array.isArray(createdTodos) ? createdTodos : [];
-    if (autoMode && env && entry) {
-        let resolveValue = null;
-        if (cleanPaths.length > 0 || note) {
-            const noteObj = { paths: cleanPaths, note: note };
-            if (todosArr.length > 0) noteObj.partial = true;
-            resolveValue = JSON.stringify(noteObj);
-        }
-        await env.DB.prepare(
-            'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?'
-        ).bind('resolved', resolveValue, entry.id).run();
-        const auditReason = reply || `AI自动解决: ${note || '无备注'}`;
-        const logDetails = {
-            snapshot_content: entry.content,
-            nickname: entry.nickname,
-            user_id: entry.user_id,
-            resource_paths: cleanPaths
-        };
-        if (todosArr.length > 0) logDetails.created_todos = todosArr;
-        await logAdminAction(env, null, 'ai_resolve', 'guestbook', entry.id, auditReason, JSON.stringify(logDetails));
-        if (entry.user_id) {
-            const pathsText = cleanPaths.length > 0 ? cleanPaths.map(p => `资源路径：${p}`).join('；') : '';
-            const todoHintText = todosArr.length > 0 ? `（${todosArr.join('、')} 暂未找到，已记录待补充）` : '';
-            await createNotification(env, {
-                userId: entry.user_id,
-                type: 'guestbook_reply',
-                title: '你的留言已被解决',
-                body: note || pathsText || '已处理',
-                link: `#gb-${entry.id}`,
-                payload: { guestbookId: entry.id, resourcePaths: cleanPaths, note: note, pendingCategories: todosArr }
-            });
-        }
-        broadcastGuestbookUpdate(env, entry.id, 'resolve', { status: 'resolved', is_hidden: 0, resolve_note: resolveValue || null });
-        const result = {
-            success: true,
-            action: 'resolve',
-            message: `留言已标记为已解决: ${reply}`,
-            reply: reply,
-            searchResults: searchResults,
-            resource_paths: cleanPaths,
-            note: note,
-            auto_applied: true
-        };
-        if (todosArr.length > 0) result.created_todos = todosArr;
-        return result;
+    let resolveValue = null;
+    if (cleanPaths.length > 0 || note) {
+        const noteObj = { paths: cleanPaths, note: note };
+        if (todosArr.length > 0) noteObj.partial = true;
+        resolveValue = JSON.stringify(noteObj);
     }
-    const suggestResult = {
+    await env.DB.prepare(
+        'UPDATE guestbook SET status = ?, reject_reason = NULL, resolve_note = ? WHERE id = ?'
+    ).bind('resolved', resolveValue, entry.id).run();
+    const auditReason = reply || `AI自动解决: ${note || '无备注'}`;
+    const logDetails = {
+        snapshot_content: entry.content,
+        nickname: entry.nickname,
+        user_id: entry.user_id,
+        resource_paths: cleanPaths
+    };
+    if (todosArr.length > 0) logDetails.created_todos = todosArr;
+    await logAdminAction(env, null, 'ai_resolve', 'guestbook', entry.id, auditReason, JSON.stringify(logDetails));
+    if (entry.user_id) {
+        const pathsText = cleanPaths.length > 0 ? cleanPaths.map(p => `资源路径：${p}`).join('；') : '';
+        await createNotification(env, {
+            userId: entry.user_id,
+            type: 'guestbook_reply',
+            title: '你的留言已被解决',
+            body: note || pathsText || '已处理',
+            link: `#gb-${entry.id}`,
+            payload: { guestbookId: entry.id, resourcePaths: cleanPaths, note: note, pendingCategories: todosArr }
+        });
+    }
+    broadcastGuestbookUpdate(env, entry.id, 'resolve', { status: 'resolved', is_hidden: 0, resolve_note: resolveValue || null });
+    const result = {
         success: true,
         action: 'resolve',
-        message: '建议标记为已解决',
+        message: `留言已标记为已解决: ${reply}`,
         reply: reply,
         searchResults: searchResults,
         resource_paths: cleanPaths,
-        note: note,
-        auto_applied: false
+        note: note
     };
-    if (todosArr.length > 0) suggestResult.pending_categories = todosArr;
-    return suggestResult;
+    if (todosArr.length > 0) result.created_todos = todosArr;
+    return result;
 }
 export async function onRequestGet(context) {
     const { request, env } = context;

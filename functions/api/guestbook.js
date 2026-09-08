@@ -390,7 +390,7 @@ async function handlePost(request, env, context) {
                     if (env.AI_QUEUE) {
                         await env.AI_QUEUE.send({ guestbookId: newId });
                     } else {
-                        const aiResult = await processWithAIAgent(newEntry, env, true);
+                        const aiResult = await processWithAIAgent(newEntry, env);
                         if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
                             await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
                             const fresh = await env.DB.prepare(
@@ -591,7 +591,7 @@ async function handlePut(request, env, context) {
                         if (env.AI_QUEUE) {
                             await env.AI_QUEUE.send({ guestbookId: id });
                         } else {
-                            const aiResult = await processWithAIAgent(updatedEntry, env, true);
+                            const aiResult = await processWithAIAgent(updatedEntry, env);
                             if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
                                 await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
                                 if (aiResult.action !== 'resolve') {
