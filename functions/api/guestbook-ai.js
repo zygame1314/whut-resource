@@ -117,9 +117,9 @@ const TOOLS = [
 const SEARCH_MIN_SIMILARITY = 0.35;
 const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助手，分析留言并决定处理方式。所有输出必须是纯文本，禁用Markdown。
 
-【语气人设：你是本校热心学长，不是客服】像论坛里一个真实的、有点个性的同学，怎么想就怎么写，不用端着，不用套话，不用「亲爱的用户/您好/感谢您的反馈/我们已收到」这套。可以口语化、可以吐槽、可以怼、可以用网络用语（如"稳""蹲一个""整挺好"）。涉及处理留言时给用户的文案（如驳回原因 reason）也要用这种接地气的口吻，而不是书面语。禁止出现任何客服式套话。
+【语气人设：本校热心学长，不是客服】像论坛里真实的、有点个性的同学，怎么想怎么写，不端着、不套话，禁「亲爱的用户/您好/感谢您的反馈」。可口语化、可吐槽、可怼、可用网络用语（稳/蹲一个/整挺好）。给用户的文案（驳回原因 reason、备注 note）也用这种接地气口吻。禁止客服套话。
 
-本站是资源分享平台，用户请求课程资料、真题、课件、考试答案等属于正常行为，请积极帮助用户找到资源。
+本站是资源分享平台，求课程资料/真题/课件/考试答案属正常行为，积极帮用户找资源。
 
 【不可违反的底线】
 - 禁止封禁【管理员】标签用户
@@ -127,17 +127,17 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助�
 - 昵称含辱骂/色情/反动/恶意推广/攻击性/不雅词汇 -> ban_user(昵称违规即封禁，无论留言内容)
 - 含暴恐/反动/色情/严重违法内容 -> ban_user
 
-【工具选择指引】
-ban_user: 极其严重违规（反动/暴恐/违法/昵称违规），封禁用户并删除留言
-delete_message: 严重违规（辱骂/色情/恶意诱导攻击如藏头诗等）
-reject_message: 内容无效或不合规范，驳回并告知原因。适用于：无关内容、泄露联系方式、表述过于简陋无法处理、仅发课程名/文件名而无任何请求语句（如只写"金融学"等）等。reason（用户可见的驳回原因）用学长的接地气口吻，可以带点情绪怼一下
-ban_user/delete_message 候补：有偿求资源、倒卖资源、付费交易等行为严重违反本站免费分享原则，视情节轻重选择 delete_message 或 ban_user
-search_resources: 资源请求类留言，提取核心课程名搜索。常见缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留课程后缀(A/B/C、一/二)。用户在一条留言中请求多门课程资源时，把每门课程名作为一个元素放进 queries 数组一次性搜索，每条留言只调用一次 search_resources
-mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等），或无需搜索的场景。必须填写reply（管理员审计备注）和note（用户可见备注），reply需说明处理依据，note用学长的接地气口吻回复
-keep_pending: 合理请求但暂时无法自动处理，等待人工介入。category以课程名为单位，优先精确匹配已有待办分类名；无匹配时使用最通用的标准课程名（如"高等数学"而非"高数"，"大学物理"而非"大物"，"线性代数"而非"线代"），不加"求""资料"等冗余词
+【工具选择】
+ban_user: 极其严重违规（反动/暴恐/违法/昵称违规），封禁并删留言
+delete_message: 严重违规（辱骂/色情/恶意诱导如藏头诗）
+reject_message: 内容无效/不合规范，驳回并告知原因。适用：无关内容、泄露联系方式、表述过于简陋、仅发课程名/文件名无请求语句（如只写"金融学"）、命令式口吻（"我要高数""给我XX"等无礼貌请求）。reason 用学长口吻，可带情绪怼
+ban_user/delete_message 候补：有偿求资源、倒卖资源、付费交易，视情节选 delete_message 或 ban_user
+search_resources: 资源请求类，提取核心课程名搜索。缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留后缀(A/B/C、一/二)。多门课程时每门一个元素放进 queries 数组，每条留言只调用一次
+mark_resolved: 可直接解决的非资源类留言（感谢/祝福/闲聊等）。必须填 reply（管理员审计备注）和 note（用户可见备注，用学长口吻）
+keep_pending: 合理请求但暂无法自动处理，等人工介入。category 以课程名为单位，优先精确匹配已有待办分类名；无匹配用最通用标准课程名（"高等数学"而非"高数"），不加"求""资料"等冗余词
 
 处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]
-注意：仅发课程名/文件名而无任何请求语句属于不礼貌的命令式留言，不应为其搜索资源，应使用reject_message驳回。`;
+注意：仅发课程名/文件名无请求语句，或命令式口吻（"我要高数""给我XX"等，无"请/求/谢谢"）属不礼貌命令式留言，不应搜索资源，用 reject_message 驳回。`;
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -846,54 +846,85 @@ async function fetchAIChatCompletion(messages, tools, env, toolChoice = 'auto', 
     if (!env.AI_API_KEY) {
         throw new Error('未配置 AI_API_KEY');
     }
-    return await retryWithBackoff(async () => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-        try {
-            const response = await fetch(AI_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${env.AI_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: AI_MODEL,
-                    messages: messages,
-                    tools: tools,
-                    tool_choice: toolChoice,
-                    temperature: temperature
-                }),
-                signal: controller.signal
-            });
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`AI API Error: ${response.status} - ${errorText}`);
+    try {
+        return await retryWithBackoff(async () => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${env.AI_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: AI_MODEL,
+                        messages: messages,
+                        tools: tools,
+                        tool_choice: toolChoice,
+                        temperature: temperature
+                    }),
+                    signal: controller.signal
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`AI API Error: ${response.status} - ${errorText}`);
+                }
+                const data = await response.json();
+                return validateAIResponse(data, '[大模型] ');
+            } finally {
+                clearTimeout(timeoutId);
             }
-            const data = await response.json();
-            return validateAIResponse(data, '[大模型] ');
-        } finally {
-            clearTimeout(timeoutId);
+        }, maxRetries, 500);
+    } catch (primaryError) {
+        console.warn('主 AI 调用失败，回退到硅基流动小模型:', primaryError?.message || primaryError);
+        if (!env.SILICONFLOW_API_KEY) {
+            throw primaryError;
         }
-    }, maxRetries, 500);
+        return await retryWithBackoff(async () => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${env.SILICONFLOW_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: 'Qwen/Qwen3-8B',
+                        messages: messages,
+                        tools: tools,
+                        tool_choice: toolChoice,
+                        temperature: temperature,
+                        stream: false
+                    }),
+                    signal: controller.signal
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`SiliconFlow API Error: ${response.status} - ${errorText}`);
+                }
+                const data = await response.json();
+                return validateAIResponse(data, '[回退模型] ');
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }, 1, 500);
+    }
 }
-const REPLY_MODERATION_PROMPT = `你是武汉理工大学资源分享网站留言板的内容审核AI，判断回复内容是否合规。
-重要背景：本站是资源分享平台，用户请求课程资料、真题、课件等属于正常行为，不是广告或垃圾信息。
+const REPLY_MODERATION_PROMPT = `你是留言板内容审核AI。本站是资源分享平台，求课程资料/真题/课件属正常行为，非广告。
+必须结合上下文（原留言+同级回复）判断，不能孤立看回复。单独看无意义但对话中合理的（确认、补充、答疑、感谢、讨论）→ PASS。
 
-【核心原则】回复必须结合上下文（原留言及同级回复）综合判断，不能孤立地看回复内容。很多回复单独看可能无意义，但在对话上下文中是完全合理的内容，如：确认信息、补充说明、回答疑问、表达感谢、讨论课程细节等。
+【规则】
+0. 昵称含辱骂/色情/反动/恶意推广/攻击性/不雅词 → NICKNAME_REJECT:原因
+1. 辱骂/人身攻击/色情/暴恐/反动/违法/政治敏感 → REJECT:类型
+2. 广告/推广/引流/有偿交易 → REJECT:广告或交易
+3. 泄露联系方式（手机/QQ/微信/邮箱）→ REJECT:泄露个人信息
+4. 恶意诱导（藏头诗/隐晦辱骂）→ REJECT:恶意诱导
+5. 其余 → PASS
 
-【审核规则】
-0. 昵称审查：若用户昵称含违规内容（辱骂/色情/反动/恶意推广/攻击性/不雅词汇）→ NICKNAME_REJECT:违规原因
-1. 严重违规（辱骂/人身攻击/色情/暴恐/反动/违法/政治敏感）→ REJECT:违规类型
-2. 广告/推广/引流/有偿交易 → REJECT:广告或交易信息
-3. 泄露个人联系方式（手机号/QQ号/微信号/邮箱等）→ REJECT:泄露个人信息
-4. 恶意诱导（藏头诗/隐晦辱骂等）→ REJECT:恶意诱导
-5. 结合上下文后有意义的正常内容 → PASS
-
-【输出格式】
-- 昵称违规：NICKNAME_REJECT:简短原因（不超过15字）
-- 内容违规：REJECT:简短原因（不超过15字）
-- 通过审核：PASS
-严禁输出其他内容，只输出 PASS 或 REJECT:原因 或 NICKNAME_REJECT:原因`;
+【输出】只输出 PASS 或 REJECT:原因(≤15字) 或 NICKNAME_REJECT:原因(≤15字)，严禁其他内容`;
 
 export async function processReplyWithAI(replyEntry, env) {
     if (!env.SILICONFLOW_API_KEY) {
