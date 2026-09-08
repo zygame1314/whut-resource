@@ -9457,7 +9457,7 @@ input#prompt-input {
 }
 
 .pow-card::before {
-    content: '✦ powered by';
+    content: 'powered by';
     position: absolute;
     right: 16px;
     top: 50%;
