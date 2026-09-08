@@ -60,7 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             updateGuestbookCache(d.guestbookId, { status: 'rejected', is_hidden: 1, reject_reason: d.reject_reason || null });
         } else {
-            if (d.is_hidden === 1 && !isGuestbookAdmin(window.currentUser)) {
+            const selfId = window.currentUser ? window.currentUser.id : null;
+            const isOwn = selfId != null && d.user_id === selfId;
+            if (d.is_hidden === 1 && !isGuestbookAdmin(window.currentUser) && !isOwn) {
                 removeFromGuestbookCache(d.guestbookId);
                 return;
             }

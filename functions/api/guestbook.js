@@ -653,7 +653,7 @@ async function handlePut(request, env, context) {
         const isHidden = action === 'hide';
         await env.DB.prepare('UPDATE guestbook SET is_hidden = ? WHERE id = ?').bind(isHidden ? 1 : 0, id).run();
         await logAdminAction(env, user.id, action, 'guestbook', id, action === 'hide' ? '隐藏留言' : '取消隐藏留言', JSON.stringify({ snapshot_content: gbEntryHide.content, nickname: gbEntryHide.nickname, user_id: gbEntryHide.user_id }));
-        bcast(parseInt(id), action, { is_hidden: isHidden ? 1 : 0 });
+        bcast(parseInt(id), action, { is_hidden: isHidden ? 1 : 0, user_id: gbEntryHide.user_id });
     } else if (action === 'pin' || action === 'unpin') {
         if (!isAdmin(user)) {
             return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
