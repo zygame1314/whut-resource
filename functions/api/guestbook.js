@@ -387,14 +387,18 @@ async function handlePost(request, env, context) {
                     newEntry.is_hidden = 0;
                     broadcastGuestbookUpdate(env, newId, 'new_message', { message: newEntry });
                 } else if (newEntry) {
-                    const aiResult = await processWithAIAgent(newEntry, env, true);
-                if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
-                    await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
-                    const fresh = await env.DB.prepare(
-                        'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
-                    ).bind(newId).first();
-                    broadcastGuestbookUpdate(env, newId, 'new_message', { message: fresh });
-                }
+                    if (env.AI_QUEUE) {
+                        await env.AI_QUEUE.send({ guestbookId: newId });
+                    } else {
+                        const aiResult = await processWithAIAgent(newEntry, env, true);
+                        if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
+                            await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(newId).run();
+                            const fresh = await env.DB.prepare(
+                                'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
+                            ).bind(newId).first();
+                            broadcastGuestbookUpdate(env, newId, 'new_message', { message: fresh });
+                        }
+                    }
                 }
             } catch (err) {
                 console.error('自动AI处理失败:', err);
@@ -584,11 +588,15 @@ async function handlePut(request, env, context) {
                         await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
                         bcast(parseInt(id), 'unhide', { is_hidden: 0 });
                     } else if (updatedEntry) {
-                        const aiResult = await processWithAIAgent(updatedEntry, env, true);
-                        if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
-                            await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
-                            if (aiResult.action !== 'resolve') {
-                                bcast(parseInt(id), 'unhide', { is_hidden: 0 });
+                        if (env.AI_QUEUE) {
+                            await env.AI_QUEUE.send({ guestbookId: id });
+                        } else {
+                            const aiResult = await processWithAIAgent(updatedEntry, env, true);
+                            if (aiResult && aiResult.success && (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
+                                await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(id).run();
+                                if (aiResult.action !== 'resolve') {
+                                    bcast(parseInt(id), 'unhide', { is_hidden: 0 });
+                                }
                             }
                         }
                     }

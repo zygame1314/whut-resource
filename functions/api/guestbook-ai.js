@@ -971,16 +971,21 @@ export async function processReplyWithAI(replyEntry, env) {
 ${contextLines ? contextLines + '\n' : ''}
 当前回复内容：${replyEntry.content}`;
     try {
-        const data = await fetchSiliconFlowChat(env, {
-            messages: [
-                { role: 'system', content: REPLY_MODERATION_PROMPT },
-                { role: 'user', content: userMessage }
-            ],
-            temperature: 0.1,
-            maxTokens: 50
-        });
+        const data = await Promise.race([
+            fetchSiliconFlowChat(env, {
+                messages: [
+                    { role: 'system', content: REPLY_MODERATION_PROMPT },
+                    { role: 'user', content: userMessage }
+                ],
+                temperature: 0.1,
+                maxTokens: 50
+            }),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('回复审核超时')), 12000)
+            )
+        ]);
         let result = data.choices?.[0]?.message?.content?.trim() || '';
-        result = result.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        result = result.replace(/ thinking[\s\S]*?<\/think>/gi, '').trim();
         if (result.startsWith('NICKNAME_REJECT:')) {
             const reason = result.substring(16).trim();
             return { pass: false, reason: reason || '昵称不合规', isNicknameViolation: true };
@@ -991,7 +996,7 @@ ${contextLines ? contextLines + '\n' : ''}
         }
         return { pass: true };
     } catch (error) {
-        console.error('回复审核失败，拦截:', error);
-        return { pass: false, reason: 'AI审核服务暂时不可用，请稍后重试' };
+        console.error('回复审核失败，按放行处理:', error);
+        return { pass: true };
     }
 }

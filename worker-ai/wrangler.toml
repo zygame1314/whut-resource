@@ -1,7 +1,8 @@
-name = "whut-resource"
-pages_build_output_dir = "dist"
+name = "whut-resource-ai-consumer"
+main = "index.js"
 compatibility_date = "2024-10-22"
 compatibility_flags = ["nodejs_compat"]
+account_id = "f78fada5fe63d8a55e2b2405879203bf"
 
 [observability]
 enabled = true
@@ -19,11 +20,17 @@ bucket_name = "resource"
 binding = "VECTORIZE"
 index_name = "whut-resource-index"
 
-[[queues.producers]]
-binding = "AI_QUEUE"
+[[queues.consumers]]
 queue = "whut-resource-ai"
+max_batch_size = 1
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "whut-resource-ai-dlq"
 
 [durable_objects]
 bindings = [
     { name = "DOWNLOAD_LOGGER", class_name = "DownloadLogger", script_name = "whut-resource-do" }
 ]
+
+[vars]
+AI_MODEL = "deepseek-v4-flash"
