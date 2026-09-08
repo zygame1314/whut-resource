@@ -1,3 +1,4 @@
+let _wsReconnectedOnce = false;
 function initGuestbook() {
     if (guestbookForm) guestbookForm.addEventListener('submit', handleGuestbookSubmit);
     if (guestbookContentInput) {
@@ -32,6 +33,12 @@ function initGuestbook() {
 }
 document.addEventListener('DOMContentLoaded', () => {
     initGuestbook();
+    document.addEventListener('siteWsStatus', (e) => {
+        if (e.detail && e.detail.connected === true) {
+            if (_wsReconnectedOnce && typeof refreshGuestbook === 'function') refreshGuestbook();
+            _wsReconnectedOnce = true;
+        }
+    });
     document.addEventListener('authSuccess', () => {
         refreshGuestbook();
         initTodoPanel();

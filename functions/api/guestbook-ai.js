@@ -404,14 +404,14 @@ async function handleReject(entry, reason, env, autoMode) {
             user_id: entry.user_id
         }));
         if (entry.user_id) {
-            createNotification(env, {
+            await createNotification(env, {
                 userId: entry.user_id,
                 type: 'guestbook_reply',
                 title: '你的留言被驳回',
                 body: reason || '内容不符合规范',
                 link: `#gb-${entry.id}`,
                 payload: { guestbookId: entry.id, rejectReason: reason }
-            }).catch(() => {});
+            });
         }
         broadcastGuestbookUpdate(env, entry.id, 'reject', { status: 'rejected', is_hidden: 1, reject_reason: reason, user_id: entry.user_id });
         return {
@@ -832,14 +832,14 @@ async function handleResolve(entry, reply, searchResults = null, resourcePaths =
         if (entry.user_id) {
             const pathsText = cleanPaths.length > 0 ? cleanPaths.map(p => `资源路径：${p}`).join('；') : '';
             const todoHintText = todosArr.length > 0 ? `（${todosArr.join('、')} 暂未找到，已记录待补充）` : '';
-            createNotification(env, {
+            await createNotification(env, {
                 userId: entry.user_id,
                 type: 'guestbook_reply',
                 title: '你的留言已被解决',
                 body: note || pathsText || '已处理',
                 link: `#gb-${entry.id}`,
                 payload: { guestbookId: entry.id, resourcePaths: cleanPaths, note: note, pendingCategories: todosArr }
-            }).catch(() => {});
+            });
         }
         broadcastGuestbookUpdate(env, entry.id, 'resolve', { status: 'resolved', is_hidden: 0, resolve_note: resolveValue || null });
         const result = {
