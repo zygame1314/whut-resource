@@ -71,13 +71,30 @@ function refreshGuestbook() {
 function prependMessageToCache(message) {
     if (!message) return;
     if (message.is_pinned) {
-        pinnedGuestbookMessages.unshift(message);
+        const pi = pinnedGuestbookMessages.findIndex(m => m.id === message.id);
+        if (pi !== -1) {
+            for (const k of Object.keys(message)) {
+                if (message[k] !== undefined) pinnedGuestbookMessages[pi][k] = message[k];
+            }
+        } else {
+            pinnedGuestbookMessages.unshift(message);
+        }
         renderPinnedGuestbook();
         return;
     }
     const page = guestbookCursorStack[0];
     if (!page || !page.messages) { refreshGuestbook(); return; }
-    if (page.messages.some(m => m.id === message.id)) return;
+    const existingIdx = page.messages.findIndex(m => m.id === message.id);
+    if (existingIdx !== -1) {
+        for (const k of Object.keys(message)) {
+            if (message[k] !== undefined) page.messages[existingIdx][k] = message[k];
+        }
+        if (guestbookPageIndex === 0) {
+            renderGuestbook(page.messages);
+            renderGuestbookPagination(page.hasMore, false);
+        }
+        return;
+    }
     let insertIdx = 0;
     for (let i = 0; i < page.messages.length; i++) {
         if (!page.messages[i].is_pinned) { insertIdx = i; break; }

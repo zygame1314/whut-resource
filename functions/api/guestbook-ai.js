@@ -423,7 +423,7 @@ async function handleReject(entry, reason, env) {
             payload: { guestbookId: entry.id, rejectReason: reason }
         });
     }
-    broadcastGuestbookUpdate(env, entry.id, 'reject', { status: 'rejected', is_hidden: 1, reject_reason: reason, user_id: entry.user_id });
+    await broadcastGuestbookUpdate(env, entry.id, 'reject', { status: 'rejected', is_hidden: 1, reject_reason: reason, user_id: entry.user_id });
     return {
         success: true,
         action: 'reject',
@@ -447,7 +447,7 @@ async function handleBanUser(guestbookEntry, reason, env) {
         nickname: guestbookEntry.nickname,
         user_id: guestbookEntry.user_id
     }));
-    broadcastGuestbookUpdate(env, guestbookEntry.id, 'delete');
+    await broadcastGuestbookUpdate(env, guestbookEntry.id, 'delete');
     return {
         success: true,
         action: 'ban_user',
@@ -462,7 +462,7 @@ async function handleDelete(entry, reason, env) {
         nickname: entry.nickname,
         user_id: entry.user_id
     }));
-    broadcastGuestbookUpdate(env, entry.id, 'delete');
+    await broadcastGuestbookUpdate(env, entry.id, 'delete');
     return {
         success: true,
         action: 'delete',
@@ -812,7 +812,7 @@ async function handleResolve(entry, reply, searchResults = null, resourcePaths =
             payload: { guestbookId: entry.id, resourcePaths: cleanPaths, note: note, pendingCategories: todosArr }
         });
     }
-    broadcastGuestbookUpdate(env, entry.id, 'resolve', { status: 'resolved', is_hidden: 0, resolve_note: resolveValue || null });
+    await broadcastGuestbookUpdate(env, entry.id, 'resolve', { status: 'resolved', is_hidden: 0, resolve_note: resolveValue || null });
     const result = {
         success: true,
         action: 'resolve',

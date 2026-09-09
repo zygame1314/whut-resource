@@ -387,6 +387,7 @@ async function handlePost(request, env, context) {
                     newEntry.is_hidden = 0;
                     broadcastGuestbookUpdate(env, newId, 'new_message', { message: newEntry });
                 } else if (newEntry) {
+                    broadcastGuestbookUpdate(env, newId, 'new_message', { message: newEntry });
                     if (env.AI_QUEUE) {
                         await env.AI_QUEUE.send({ guestbookId: newId });
                     } else {

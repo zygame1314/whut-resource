@@ -33,6 +33,14 @@ export default {
                         const { broadcastGuestbookUpdate } = await import('../functions/utils.js');
                         await broadcastGuestbookUpdate(env, guestbookId, 'new_message', { message: fresh });
                     }
+                } else if (aiResult && aiResult.success &&
+                    (aiResult.action === 'search_no_results' || aiResult.action === 'search_completed')) {
+                    await env.DB.prepare('UPDATE guestbook SET is_hidden = 0 WHERE id = ?').bind(guestbookId).run();
+                    const fresh = await env.DB.prepare(
+                        'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
+                    ).bind(guestbookId).first();
+                    const { broadcastGuestbookUpdate } = await import('../functions/utils.js');
+                    if (fresh) await broadcastGuestbookUpdate(env, guestbookId, 'new_message', { message: fresh });
                 }
             } catch (err) {
                 console.error('AI 队列消费失败:', err);

@@ -56,7 +56,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (d.reply) appendReplyToCache(d.guestbookId, d.reply);
             else refreshGuestbook();
         } else if (d.action === 'new_message') {
-            if (d.message) prependMessageToCache(d.message);
+            if (d.message) {
+                const selfId = window.currentUser ? window.currentUser.id : null;
+                const isOwn = selfId != null && d.message.user_id === selfId;
+                if (d.message.is_hidden === 1 && !isGuestbookAdmin(window.currentUser) && !isOwn) return;
+                prependMessageToCache(d.message);
+            }
             else refreshGuestbook();
         } else if (d.action === 'reject') {
             const selfId = window.currentUser ? window.currentUser.id : null;
