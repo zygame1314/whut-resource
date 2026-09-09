@@ -2,6 +2,13 @@ const fileListElement = document.getElementById('file-list');
 const breadcrumbListElement = document.getElementById('breadcrumb-list');
 const searchInput = document.getElementById('search-input');
 const searchButton = document.getElementById('search-button');
+
+function updateSearchClearButton() {
+    const clearBtn = document.getElementById('clear-search-btn');
+    if (clearBtn) {
+        clearBtn.style.display = searchInput && searchInput.value.length > 0 ? 'flex' : 'none';
+    }
+}
 const themeToggle = document.getElementById('theme-toggle');
 const fileCountElement = document.getElementById('file-count');
 const totalSizeElement = document.getElementById('total-size');

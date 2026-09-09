@@ -207,6 +207,13 @@
     margin-right: auto;
 }
 
+@media (max-width: 1200px) {
+    .search-container.standalone.docked {
+        top: 61px;
+        padding: 0 1rem 0.7rem;
+    }
+}
+
 .search-box {
     position: relative;
     max-width: 1080px;

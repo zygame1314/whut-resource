@@ -403,9 +403,7 @@ if (searchButton && searchInput) {
         fetchAndDisplayFiles(searchTerm ? '' : currentPrefix, searchTerm, 1);
     };
     const updateClearButton = () => {
-        if (clearSearchBtn) {
-            clearSearchBtn.style.display = searchInput.value.length > 0 ? 'flex' : 'none';
-        }
+        if (typeof updateSearchClearButton === 'function') updateSearchClearButton();
     };
     searchButton.addEventListener('click', performSearch);
     searchInput.addEventListener('keydown', (event) => {

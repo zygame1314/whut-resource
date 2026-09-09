@@ -1084,6 +1084,7 @@ function updateUploadButtonLink() {
 }
 async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shouldScroll = true, shouldPushState = true) {
     const token = localStorage.getItem('authToken');
+    if (typeof updateSearchClearButton === 'function') updateSearchClearButton();
     if (!token) {
         fileListElement.innerHTML = `
             <li class="empty-state clickable" title="点击登录">
