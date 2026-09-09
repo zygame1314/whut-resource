@@ -995,7 +995,6 @@ function renderLoadMoreButton(loading) {
 function applyLocalSortAndFilter() {
     if (!currentRawData) return;
     let processedData = sortData(currentRawData, currentSortOption);
-    processedData = filterByFolderSearch(processedData, currentFolderSearchTerm);
     processedData = filterByFileType(processedData, currentFilter);
     reRenderWithData(
         processedData,
@@ -1154,16 +1153,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
     }
     if (!isGlobal) {
         currentPrefix = prefix;
-        currentFolderSearchTerm = '';
         highlightCurrentFolder(prefix);
-        const folderSearchInput = document.getElementById('folder-search-input');
-        const clearFolderSearchBtn = document.getElementById('clear-folder-search');
-        if (folderSearchInput) {
-            folderSearchInput.value = '';
-        }
-        if (clearFolderSearchBtn) {
-            clearFolderSearchBtn.style.display = 'none';
-        }
     }
     if (prefix !== currentPrefix || (isGlobal && !isShowingSearchResults) || page === undefined) {
         currentPage = 1;
@@ -1479,7 +1469,6 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                         files: [...(receivedData.files || [])]
                     };
                     let processedData = sortData(currentRawData, currentSortOption);
-                    processedData = filterByFolderSearch(processedData, currentFolderSearchTerm);
                     const allDirs = processedData.directories || [];
                     const allFiles = processedData.files || [];
                     const totalFilesAndDirs = allDirs.length + allFiles.length;

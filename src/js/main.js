@@ -180,42 +180,27 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchAndDisplayFiles('');
         });
     }
-    if (filterTypeTrigger && filterTypeOptions) {
-        filterTypeTrigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isOpen = filterTypeOptions.classList.contains('show');
-            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-                if (menu !== filterTypeOptions) menu.classList.remove('show');
-            });
-            document.querySelectorAll('.custom-select-trigger.active').forEach(trigger => {
-                if (trigger !== filterTypeTrigger) trigger.classList.remove('active');
-            });
-            filterTypeOptions.classList.toggle('show', !isOpen);
-            filterTypeTrigger.classList.toggle('active', !isOpen);
-        });
-        filterTypeOptions.addEventListener('click', (e) => {
-            const item = e.target.closest('.dropdown-item');
-            if (!item) return;
-            e.stopPropagation();
-            const value = item.dataset.value;
-            const text = item.textContent;
+    if (filterTypeTabs) {
+        const updateTabsEndState = () => {
+            const scrollable = filterTypeTabs.scrollWidth > filterTypeTabs.clientWidth + 1;
+            filterTypeTabs.classList.toggle('at-end', !scrollable || filterTypeTabs.scrollLeft + filterTypeTabs.clientWidth >= filterTypeTabs.scrollWidth - 4);
+        };
+        filterTypeTabs.addEventListener('scroll', updateTabsEndState, { passive: true });
+        window.addEventListener('resize', updateTabsEndState);
+        updateTabsEndState();
+        filterTypeTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.filter-type-tab');
+            if (!tab) return;
+            const value = tab.dataset.value;
+            if (value === currentFilter) return;
             currentFilter = value;
-            filterTypeLabel.textContent = text;
-            filterTypeOptions.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
-            item.classList.add('selected');
-            filterTypeOptions.classList.remove('show');
-            filterTypeTrigger.classList.remove('active');
+            filterTypeTabs.querySelectorAll('.filter-type-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
             currentPage = 1;
             if (currentRawData) {
                 applyLocalSortAndFilter();
             } else {
                 fetchAndDisplayFiles(currentPrefix, isShowingSearchResults ? searchInput.value.trim() : '', 1);
-            }
-        });
-        document.addEventListener('click', (e) => {
-            if (!filterTypeTrigger.contains(e.target) && !filterTypeOptions.contains(e.target)) {
-                filterTypeOptions.classList.remove('show');
-                filterTypeTrigger.classList.remove('active');
             }
         });
     }
@@ -260,54 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 sortTrigger.classList.remove('active');
             }
         });
-    }
-    const folderSearchInput = document.getElementById('folder-search-input');
-    const clearFolderSearchBtn = document.getElementById('clear-folder-search');
-    if (folderSearchInput) {
-        let folderSearchTimeout = null;
-        const updateClearBtn = () => {
-            if (clearFolderSearchBtn) {
-                clearFolderSearchBtn.style.display = folderSearchInput.value.length > 0 ? 'flex' : 'none';
-            }
-        };
-        folderSearchInput.addEventListener('input', (e) => {
-            updateClearBtn();
-            if (folderSearchTimeout) {
-                clearTimeout(folderSearchTimeout);
-            }
-            folderSearchTimeout = setTimeout(() => {
-                const newTerm = e.target.value.trim();
-                if (newTerm === currentFolderSearchTerm) return;
-                currentFolderSearchTerm = newTerm;
-                currentPage = 1;
-                if (currentRawData) {
-                    applyLocalSortAndFilter();
-                }
-            }, 600);
-        });
-        folderSearchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                folderSearchInput.value = '';
-                currentFolderSearchTerm = '';
-                updateClearBtn();
-                if (currentRawData) {
-                    currentPage = 1;
-                    applyLocalSortAndFilter();
-                }
-            }
-        });
-        if (clearFolderSearchBtn) {
-            clearFolderSearchBtn.addEventListener('click', () => {
-                folderSearchInput.value = '';
-                currentFolderSearchTerm = '';
-                updateClearBtn();
-                folderSearchInput.focus();
-                if (currentRawData) {
-                    currentPage = 1;
-                    applyLocalSortAndFilter();
-                }
-            });
-        }
     }
     if (closePreviewBtn && previewModal) {
         const closeAndCleanup = () => {

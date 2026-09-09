@@ -205,20 +205,6 @@ function sortData(data, sortOption) {
     sortedData.files.sort(compareFunction);
     return sortedData;
 }
-function filterByFolderSearch(data, searchTerm) {
-    if (!data || !searchTerm || searchTerm.trim() === '') {
-        return data;
-    }
-    const lowerTerm = searchTerm.toLowerCase().trim();
-    return {
-        directories: (data.directories || []).filter(dir =>
-            (dir.name || '').toLowerCase().includes(lowerTerm)
-        ),
-        files: (data.files || []).filter(file =>
-            (file.name || '').toLowerCase().includes(lowerTerm)
-        )
-    };
-}
 function filterByFileType(data, filter) {
     if (!filter || filter === 'all') return data;
     let dirs = data.directories || [];

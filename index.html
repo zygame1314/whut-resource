@@ -422,29 +422,14 @@
 
                     <div class="filter-bar">
                         <div class="filter-bar-left">
-                            <div class="filter-type-dropdown custom-select-container" id="filter-type-dropdown">
-                                <div class="custom-select-trigger" id="filter-type-trigger">
-                                    <i class="fas fa-filter"></i>
-                                    <span id="filter-type-label">全部类型</span>
-                                    <i class="fas fa-chevron-down"></i>
-                                </div>
-                                <div class="custom-select-options dropdown-menu" id="filter-type-options">
-                                    <div class="dropdown-item selected" data-value="all">全部类型</div>
-                                    <div class="dropdown-item" data-value="folder">文件夹</div>
-                                    <div class="dropdown-item" data-value="link">链接</div>
-                                    <div class="dropdown-item" data-value="pdf">PDF</div>
-                                    <div class="dropdown-item" data-value="doc">文档</div>
-                                    <div class="dropdown-item" data-value="image">图片</div>
-                                    <div class="dropdown-item" data-value="video">视频</div>
-                                </div>
-                            </div>
-                            <div class="filter-bar-divider"></div>
-                            <div class="folder-search-wrapper">
-                                <i class="fas fa-search"></i>
-                                <input type="text" id="folder-search-input" placeholder="筛选当前文件夹...">
-                                <button id="clear-folder-search" class="clear-folder-search-btn" style="display: none;">
-                                    <i class="fas fa-times"></i>
-                                </button>
+                            <div class="filter-type-tabs" id="filter-type-tabs" role="tablist">
+                                <button type="button" class="filter-type-tab active" data-value="all" role="tab">全部</button>
+                                <button type="button" class="filter-type-tab" data-value="folder" role="tab">文件夹</button>
+                                <button type="button" class="filter-type-tab" data-value="link" role="tab">链接</button>
+                                <button type="button" class="filter-type-tab" data-value="pdf" role="tab">PDF</button>
+                                <button type="button" class="filter-type-tab" data-value="doc" role="tab">文档</button>
+                                <button type="button" class="filter-type-tab" data-value="image" role="tab">图片</button>
+                                <button type="button" class="filter-type-tab" data-value="video" role="tab">视频</button>
                             </div>
                         </div>
                         <div class="filter-bar-right">
