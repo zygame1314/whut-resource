@@ -514,6 +514,12 @@ document.addEventListener('click', (e) => {
     const anchor = e.target.closest('a[href^="#"]');
     if (anchor) {
         const href = anchor.getAttribute('href');
+        if (href === '#search-input') {
+            e.preventDefault();
+            const el = document.getElementById('search-input');
+            if (el) el.focus({ preventScroll: true });
+            return;
+        }
         if (href.startsWith('#fn') || href.startsWith('#user-content-fn') || href.startsWith('#footnote-')) {
             e.preventDefault();
             const targetId = decodeURIComponent(href.slice(1));
