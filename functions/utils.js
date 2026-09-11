@@ -13,6 +13,11 @@ export async function invalidateDirListCache(DB) {
   }
 }
 const R2_TASK_CONCURRENCY = 4;
+const D1_MAX_BIND_PARAMS = 90;
+const VECTORIZE_MAX_BATCH = 1000;
+const QUEUE_MSG_SAFE_BYTES = 100 * 1024;
+const R2_MOVE_CHUNK = 100;
+const R2_DELETE_CHUNK = 400;
 export async function enqueueFileTask(env, task) {
   if (!env || !env.FILE_QUEUE) return false;
   try {
@@ -22,6 +27,96 @@ export async function enqueueFileTask(env, task) {
     console.error('文件任务入队失败，回退同步执行:', e?.message || e);
     return false;
   }
+}
+async function sendFileTasksBatched(env, tasks) {
+  if (!env?.FILE_QUEUE) return false;
+  try {
+    if (typeof env.FILE_QUEUE.sendBatch === 'function') {
+      let batch = [];
+      let batchBytes = 0;
+      for (const task of tasks) {
+        const size = JSON.stringify(task).length * 2 + 80;
+        if (batch.length >= 100 || (batch.length > 0 && batchBytes + size > QUEUE_MSG_SAFE_BYTES * 2)) {
+          await env.FILE_QUEUE.sendBatch(batch.map(body => ({ body })));
+          batch = [];
+          batchBytes = 0;
+        }
+        batch.push(task);
+        batchBytes += size;
+      }
+      if (batch.length > 0) {
+        await env.FILE_QUEUE.sendBatch(batch.map(body => ({ body })));
+      }
+    } else {
+      for (const task of tasks) {
+        await env.FILE_QUEUE.send(task);
+      }
+    }
+    return true;
+  } catch (e) {
+    console.error('文件任务批量入队失败，回退同步执行:', e?.message || e);
+    return false;
+  }
+}
+export async function dispatchR2MoveTasks(env, waitUntil, moves) {
+  const list = Array.isArray(moves) ? moves.filter(m => m && m.from && m.to) : [];
+  if (list.length === 0) return;
+  const tasks = [];
+  let current = [];
+  let currentBytes = 0;
+  for (const move of list) {
+    const size = (move.from.length + move.to.length + (move.contentType ? move.contentType.length : 0)) * 2 + 60;
+    if (current.length >= R2_MOVE_CHUNK || (current.length > 0 && currentBytes + size > QUEUE_MSG_SAFE_BYTES)) {
+      tasks.push({ type: 'file', op: 'r2_move', moves: current });
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(move);
+    currentBytes += size;
+  }
+  if (current.length > 0) tasks.push({ type: 'file', op: 'r2_move', moves: current });
+  const dispatched = await sendFileTasksBatched(env, tasks);
+  if (dispatched) return;
+  const run = async () => {
+    try {
+      await runR2Move(env, list);
+    } catch (e) {
+      console.error('R2移动执行失败:', e);
+      await recordFileTaskFailure(env, { op: 'r2_move' }, e?.message || e);
+    }
+  };
+  if (typeof waitUntil === 'function') waitUntil(run());
+  else await run();
+}
+export async function dispatchR2DeleteTasks(env, waitUntil, keys) {
+  const list = Array.isArray(keys) ? keys.filter(Boolean) : [];
+  if (list.length === 0) return;
+  const tasks = [];
+  let current = [];
+  let currentBytes = 0;
+  for (const key of list) {
+    const size = key.length * 2 + 10;
+    if (current.length >= R2_DELETE_CHUNK || (current.length > 0 && currentBytes + size > QUEUE_MSG_SAFE_BYTES)) {
+      tasks.push({ type: 'file', op: 'r2_delete', keys: current });
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(key);
+    currentBytes += size;
+  }
+  if (current.length > 0) tasks.push({ type: 'file', op: 'r2_delete', keys: current });
+  const dispatched = await sendFileTasksBatched(env, tasks);
+  if (dispatched) return;
+  const run = async () => {
+    try {
+      await runR2Delete(env, list);
+    } catch (e) {
+      console.error('R2删除执行失败:', e);
+      await recordFileTaskFailure(env, { op: 'r2_delete' }, e?.message || e);
+    }
+  };
+  if (typeof waitUntil === 'function') waitUntil(run());
+  else await run();
 }
 export async function recordFileTaskFailure(env, task, errorMessage) {
   if (!env?.DB) return;
@@ -65,11 +160,15 @@ export async function runR2Delete(env, keys) {
 export async function runVectorIndex(env, fileIds) {
   const ids = Array.isArray(fileIds) ? fileIds.filter(id => id != null) : [];
   if (!env?.VECTORIZE || !env.SILICONFLOW_API_KEY || !env.DB || ids.length === 0) return;
-  const placeholders = ids.map(() => '?').join(',');
-  const { results } = await env.DB.prepare(
-    `SELECT id, name, key, parent_path, is_directory, description FROM files WHERE id IN (${placeholders})`
-  ).bind(...ids).all();
-  const files = results || [];
+  const files = [];
+  for (let i = 0; i < ids.length; i += D1_MAX_BIND_PARAMS) {
+    const chunk = ids.slice(i, i + D1_MAX_BIND_PARAMS);
+    const placeholders = chunk.map(() => '?').join(',');
+    const { results } = await env.DB.prepare(
+      `SELECT id, name, key, parent_path, is_directory, description FROM files WHERE id IN (${placeholders})`
+    ).bind(...chunk).all();
+    if (results && results.length > 0) files.push(...results);
+  }
   if (files.length === 0) return;
   try {
     const embeddings = await generateEmbeddings(env, files.map(f => buildRichEmbeddingText(f)));
@@ -81,9 +180,12 @@ export async function runVectorIndex(env, fileIds) {
       values: embeddings[index],
       metadata: { name: file.name, path: file.key }
     }));
-    await retryWithBackoff(async () => {
-      await env.VECTORIZE.upsert(vectors);
-    }, 3, 500);
+    for (let i = 0; i < vectors.length; i += VECTORIZE_MAX_BATCH) {
+      const batch = vectors.slice(i, i + VECTORIZE_MAX_BATCH);
+      await retryWithBackoff(async () => {
+        await env.VECTORIZE.upsert(batch);
+      }, 3, 500);
+    }
   } catch (error) {
     console.error('向量索引写入失败:', error);
     for (const file of files) {
@@ -96,9 +198,12 @@ export async function runVectorUnindex(env, fileIds) {
   if (!env?.VECTORIZE || ids.length === 0) return;
   const idsToDelete = ids.map(id => id.toString());
   try {
-    await retryWithBackoff(async () => {
-      await env.VECTORIZE.deleteByIds(idsToDelete);
-    }, 3, 500);
+    for (let i = 0; i < idsToDelete.length; i += VECTORIZE_MAX_BATCH) {
+      const batch = idsToDelete.slice(i, i + VECTORIZE_MAX_BATCH);
+      await retryWithBackoff(async () => {
+        await env.VECTORIZE.deleteByIds(batch);
+      }, 3, 500);
+    }
   } catch (error) {
     console.error('删除向量索引失败:', error);
     for (const id of ids) {

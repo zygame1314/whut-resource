@@ -1,4 +1,5 @@
-import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask } from '../utils.js';
+import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchR2MoveTasks, dispatchR2DeleteTasks } from '../utils.js';
+const MAX_SAFE_BATCH_SIZE = 500;
 function sanitizeSegment(name) {
     if (!name || typeof name !== 'string') return null;
     const decoded = name.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
@@ -646,7 +647,6 @@ export async function onRequestPut({ request, env, waitUntil }) {
             }
             const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
             const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ?").bind(oldFolderPath, endKey, oldFolderPath).all();
-            const MAX_SAFE_BATCH_SIZE = 50;
             if (childItems && childItems.length > MAX_SAFE_BATCH_SIZE) {
                 return new Response(JSON.stringify({
                     success: false,
@@ -696,14 +696,17 @@ export async function onRequestPut({ request, env, waitUntil }) {
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
             }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
-            await DB.batch(batchOperations);
+            for (let i = 0; i < batchOperations.length; i += 100) {
+                const chunk = batchOperations.slice(i, i + 100);
+                if (chunk.length > 0) await DB.batch(chunk);
+            }
             const renameOldSubs = await DB.prepare('SELECT user_id, folder_key FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(key, folderKeyUpperBound(key)).all();
             for (const sub of (renameOldSubs.results || [])) {
                 const newSubKey = key === sub.folder_key ? newFolderKey : newFolderKey + sub.folder_key.slice(key.length);
                 await DB.prepare('UPDATE folder_subscriptions SET folder_key = ? WHERE user_id = ? AND folder_key = ?').bind(newSubKey, sub.user_id, sub.folder_key).run();
             }
             if (r2Moves.length > 0) {
-                await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_move', moves: r2Moves });
+                await dispatchR2MoveTasks(env, waitUntil, r2Moves);
             }
             await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: oldFileIds });
             const newEndKey = newFolderKey.substring(0, newFolderKey.length - 1) + '0';
@@ -953,7 +956,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
             }
             const endKey = oldFolderPath.substring(0, oldFolderPath.length - 1) + '0';
             const { results: childItems } = await DB.prepare("SELECT * FROM files WHERE key >= ? AND key < ? AND key != ?").bind(oldFolderPath, endKey, oldFolderPath).all();
-            const MAX_SAFE_BATCH_SIZE = 50;
             if (childItems && childItems.length > MAX_SAFE_BATCH_SIZE) {
                 return new Response(JSON.stringify({
                     success: false,
@@ -1003,14 +1005,17 @@ export async function onRequestPost({ request, env, waitUntil }) {
                 batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(child.key));
             }
             const oldFileIds = [fileRecord.id, ...(childItems || []).map(c => c.id)];
-            await DB.batch(batchOperations);
+            for (let i = 0; i < batchOperations.length; i += 100) {
+                const chunk = batchOperations.slice(i, i + 100);
+                if (chunk.length > 0) await DB.batch(chunk);
+            }
             const oldSubs = await DB.prepare('SELECT user_id, folder_key FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(sourceKey, folderKeyUpperBound(sourceKey)).all();
             for (const sub of (oldSubs.results || [])) {
                 const newSubKey = sourceKey === sub.folder_key ? newFolderKey : newFolderKey + sub.folder_key.slice(sourceKey.length);
                 await DB.prepare('UPDATE folder_subscriptions SET folder_key = ? WHERE user_id = ? AND folder_key = ?').bind(newSubKey, sub.user_id, sub.folder_key).run();
             }
             if (r2Moves.length > 0) {
-                await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_move', moves: r2Moves });
+                await dispatchR2MoveTasks(env, waitUntil, r2Moves);
             }
             await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: oldFileIds });
             const newEndKey = newFolderKey.substring(0, newFolderKey.length - 1) + '0';
@@ -1115,7 +1120,6 @@ export async function onRequestDelete({ request, env, waitUntil }) {
                 const endKey = folderPath.substring(0, folderPath.length - 1) + '0';
                 const countResult = await DB.prepare("SELECT COUNT(*) as count FROM files WHERE key >= ? AND key < ? AND key != ?").bind(folderPath, endKey, folderPath).first();
                 const childCount = countResult.count;
-                const MAX_SAFE_BATCH_SIZE = 50;
                 if (childCount > MAX_SAFE_BATCH_SIZE) {
                     return new Response(JSON.stringify({
                         success: false,
@@ -1150,7 +1154,6 @@ export async function onRequestDelete({ request, env, waitUntil }) {
             const folderPath = key.endsWith('/') ? key : key + '/';
             const endKey = folderPath.substring(0, folderPath.length - 1) + '0';
             const { results: childItems } = await DB.prepare("SELECT id, key, is_link, is_directory FROM files WHERE key >= ? AND key < ? AND key != ?").bind(folderPath, endKey, folderPath).all();
-            const MAX_SAFE_BATCH_SIZE = 50;
             if (childItems && childItems.length > MAX_SAFE_BATCH_SIZE) {
                 return new Response(JSON.stringify({
                     success: false,
@@ -1169,8 +1172,8 @@ export async function onRequestDelete({ request, env, waitUntil }) {
             const fileIdsToDeleteVector = [fileRecord.id, ...(childItems || []).map(c => c.id)];
             if (childItems && childItems.length > 0) {
                 const childKeys = childItems.map(c => c.key);
-                for (let i = 0; i < childKeys.length; i += 100) {
-                    const batch = childKeys.slice(i, i + 100);
+                for (let i = 0; i < childKeys.length; i += 90) {
+                    const batch = childKeys.slice(i, i + 90);
                     const placeholders = batch.map(() => '?').join(',');
                     await DB.batch([
                         DB.prepare(`DELETE FROM files WHERE key IN (${placeholders})`).bind(...batch),
@@ -1193,7 +1196,7 @@ export async function onRequestDelete({ request, env, waitUntil }) {
                 await DB.prepare('DELETE FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(key, upper).run();
             }
             if (r2Deletes.length > 0) {
-                await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_delete', keys: r2Deletes });
+                await dispatchR2DeleteTasks(env, waitUntil, r2Deletes);
             }
             await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: fileIdsToDeleteVector });
             await invalidateDirListCache(DB);
