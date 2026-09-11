@@ -418,13 +418,13 @@ async function runReindexChunk(env, chunk) {
   const DB = env.DB;
   const VECTORIZE = env.VECTORIZE;
   if (!DB || !VECTORIZE || !env.SILICONFLOW_API_KEY) throw new Error('重建索引缺少 DB/VECTORIZE/SILICONFLOW_API_KEY');
-  const offset = Number(chunk.offset) || 0;
+  const lastId = Number(chunk.lastId) || 0;
   const filesResult = await DB.prepare(
-    'SELECT id, name, key, parent_path, is_directory, description FROM files ORDER BY id LIMIT ? OFFSET ?'
-  ).bind(MAINTENANCE_CHUNK_SIZE, offset).all();
+    'SELECT id, name, key, parent_path, is_directory, description FROM files WHERE id > ? ORDER BY id LIMIT ?'
+  ).bind(lastId, MAINTENANCE_CHUNK_SIZE).all();
   const files = filesResult.results || [];
   if (files.length === 0) {
-    return { done: true, nextChunk: {}, processed: 0, total: offset };
+    return { done: true, nextChunk: {}, processed: 0 };
   }
   const embeddings = await generateEmbeddings(env, files.map(f => buildRichEmbeddingText(f)));
   if (!embeddings || embeddings.length !== files.length) {
@@ -438,14 +438,12 @@ async function runReindexChunk(env, chunk) {
   await retryWithBackoff(async () => {
     await VECTORIZE.upsert(vectors);
   }, 3, 500);
-  const nextOffset = offset + files.length;
-  const countRow = await DB.prepare('SELECT COUNT(*) as total FROM files').first();
-  const total = countRow?.total || nextOffset;
+  const nextLastId = files[files.length - 1].id;
+  const done = files.length < MAINTENANCE_CHUNK_SIZE;
   return {
-    done: nextOffset >= total,
-    nextChunk: { offset: nextOffset },
-    processed: files.length,
-    total
+    done,
+    nextChunk: done ? {} : { lastId: nextLastId },
+    processed: files.length
   };
 }
 async function runDeleteKeysChunk(env, chunk) {

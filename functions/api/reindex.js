@@ -64,7 +64,7 @@ export async function onRequestPost({ request, env }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
-        const offset = parseInt(body.offset || '0');
+        const lastId = parseInt(body.lastId || '0');
         const countResult = await DB.prepare('SELECT COUNT(*) as total FROM files').first();
         const totalFiles = countResult?.total || 0;
         if (totalFiles === 0) {
@@ -80,14 +80,14 @@ export async function onRequestPost({ request, env }) {
             });
         }
         const filesResult = await DB.prepare(
-            'SELECT id, name, key, parent_path, is_directory, description FROM files ORDER BY id LIMIT ? OFFSET ?'
-        ).bind(BATCH_SIZE, offset).all();
+            'SELECT id, name, key, parent_path, is_directory, description FROM files WHERE id > ? ORDER BY id LIMIT ?'
+        ).bind(lastId, BATCH_SIZE).all();
         const files = filesResult.results || [];
         if (files.length === 0) {
             return new Response(JSON.stringify({
                 success: true,
                 message: '索引完成',
-                indexed: offset,
+                indexed: 0,
                 total: totalFiles,
                 completed: true
             }), {
@@ -109,16 +109,16 @@ export async function onRequestPost({ request, env }) {
             }
         }));
         await VECTORIZE.upsert(vectors);
-        const processedCount = offset + files.length;
-        const isCompleted = processedCount >= totalFiles;
-        await logAdminAction(env, user.id, 'reindex', 'system', null, '重建索引', JSON.stringify({ offset, indexed: processedCount, total: totalFiles, completed: isCompleted }));
+        const nextLastId = files[files.length - 1].id;
+        const isCompleted = files.length < BATCH_SIZE;
+        await logAdminAction(env, user.id, 'reindex', 'system', null, '重建索引', JSON.stringify({ last_id: nextLastId, indexed: files.length, total: totalFiles, completed: isCompleted }));
         return new Response(JSON.stringify({
             success: true,
             message: isCompleted ? '索引完成' : '批次处理完成，请继续调用以处理剩余文件',
-            indexed: processedCount,
+            indexed: files.length,
             total: totalFiles,
             completed: isCompleted,
-            nextOffset: isCompleted ? null : processedCount
+            nextLastId: isCompleted ? null : nextLastId
         }), {
             status: 200,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
@@ -276,7 +276,7 @@ async function handleReindexAsync(env, DB, user) {
     const total = countResult?.total || 0;
     const jobId = await createMaintenanceJob(env, {
         kind: 'reindex',
-        chunk: { offset: 0 },
+        chunk: { lastId: 0 },
         total,
         createdBy: user.id
     });
