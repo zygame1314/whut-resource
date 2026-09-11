@@ -26,6 +26,12 @@ max_batch_size = 1
 max_batch_timeout = 30
 max_retries = 3
 
+[[queues.consumers]]
+queue = "whut-resource-file"
+max_batch_size = 1
+max_batch_timeout = 30
+max_retries = 3
+
 [durable_objects]
 bindings = [
     { name = "DOWNLOAD_LOGGER", class_name = "DownloadLogger", script_name = "whut-resource-do" }

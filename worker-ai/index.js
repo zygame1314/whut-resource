@@ -1,10 +1,26 @@
 import { processWithAIAgent } from '../functions/api/guestbook-ai.js';
+import { runFileTask, recordFileTaskFailure } from '../functions/utils.js';
 
 export default {
     async queue(batch, env, ctx) {
         for (const msg of batch.messages) {
             const payload = msg.body;
-            const { guestbookId, adminTriggered } = payload || {};
+            if (!payload) {
+                msg.retry();
+                continue;
+            }
+            if (payload.type === 'file') {
+                try {
+                    await runFileTask(env, payload);
+                    msg.ack();
+                } catch (err) {
+                    console.error('文件任务队列消费失败:', err);
+                    await recordFileTaskFailure(env, payload, err?.message || err);
+                    msg.retry();
+                }
+                continue;
+            }
+            const { guestbookId, adminTriggered } = payload;
             if (!guestbookId) {
                 msg.retry();
                 continue;
@@ -13,7 +29,10 @@ export default {
                 const entry = await env.DB.prepare(
                     'SELECT g.*, u.nickname, u.role FROM guestbook g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?'
                 ).bind(guestbookId).first();
-                if (!entry) continue;
+                if (!entry) {
+                    msg.ack();
+                    continue;
+                }
 
                 const aiResult = await processWithAIAgent(entry, env);
                 if (aiResult && aiResult.success &&
@@ -42,6 +61,7 @@ export default {
                     const { broadcastGuestbookUpdate } = await import('../functions/utils.js');
                     if (fresh) await broadcastGuestbookUpdate(env, guestbookId, 'new_message', { message: fresh });
                 }
+                msg.ack();
             } catch (err) {
                 console.error('AI 队列消费失败:', err);
                 msg.retry();

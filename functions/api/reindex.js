@@ -1,4 +1,4 @@
-import { addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest } from '../utils.js';
+import { addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, runFileTask } from '../utils.js';
 const BATCH_SIZE = 50;
 export async function onRequestPost({ request, env }) {
     const user = await getUserFromRequest(request, env);
@@ -22,6 +22,23 @@ export async function onRequestPost({ request, env }) {
         if (action === 'retryFailed') {
             return await handleRetryFailed(env, DB, VECTORIZE, user);
         }
+        if (action === 'retryFileTasks') {
+            return await handleRetryFileTasks(env, DB, user);
+        }
+        if (action === 'clearFileTaskFailures') {
+            const result = await DB.prepare(
+                'DELETE FROM file_task_failures WHERE resolved = TRUE'
+            ).run();
+            await logAdminAction(env, user.id, 'clear_file_task_failures', 'system', null, '清理文件任务失败记录', JSON.stringify({ deleted: result.meta?.changes || 0 }));
+            return new Response(JSON.stringify({
+                success: true,
+                message: '已清理已解决的文件任务失败记录',
+                deleted: result.meta?.changes || 0
+            }), {
+                status: 200,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
         if (action === 'clearFailures') {
             const cutoff = body.olderThanDays ? `AND created_at < datetime('now', '-${parseInt(body.olderThanDays)} days')` : '';
             const result = await DB.prepare(
@@ -38,7 +55,6 @@ export async function onRequestPost({ request, env }) {
             });
         }
         const offset = parseInt(body.offset || '0');
-        const forceRebuild = body.forceRebuild || false;
         const countResult = await DB.prepare('SELECT COUNT(*) as total FROM files').first();
         const totalFiles = countResult?.total || 0;
         if (totalFiles === 0) {
@@ -183,6 +199,62 @@ async function handleRetryFailed(env, DB, VECTORIZE, user) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
 }
+async function handleRetryFileTasks(env, DB, user) {
+    const { results: failures } = await DB.prepare(
+        'SELECT * FROM file_task_failures WHERE resolved = FALSE ORDER BY created_at ASC LIMIT 100'
+    ).all();
+    if (!failures || failures.length === 0) {
+        return new Response(JSON.stringify({
+            success: true,
+            message: '没有待重试的文件任务失败记录',
+            retried: 0,
+            stillFailed: 0
+        }), {
+            status: 200,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    let retried = 0;
+    let stillFailed = 0;
+    for (const failure of failures) {
+        let task = null;
+        try {
+            task = failure.payload ? JSON.parse(failure.payload) : null;
+        } catch (e) {
+            task = null;
+        }
+        if (!task) {
+            await DB.prepare(
+                'UPDATE file_task_failures SET resolved = TRUE, resolved_at = CURRENT_TIMESTAMP WHERE id = ?'
+            ).bind(failure.id).run();
+            retried++;
+            continue;
+        }
+        try {
+            await runFileTask(env, task);
+            await DB.prepare(
+                'UPDATE file_task_failures SET resolved = TRUE, resolved_at = CURRENT_TIMESTAMP WHERE id = ?'
+            ).bind(failure.id).run();
+            retried++;
+        } catch (retryError) {
+            console.error(`重试文件任务失败 (id=${failure.id}):`, retryError);
+            await DB.prepare(
+                'UPDATE file_task_failures SET retry_count = retry_count + 1, error_message = ? WHERE id = ?'
+            ).bind(retryError.message, failure.id).run();
+            stillFailed++;
+        }
+    }
+    await logAdminAction(env, user.id, 'retry_file_tasks', 'system', null, '重试失败文件任务', JSON.stringify({ retried, still_failed: stillFailed }));
+    return new Response(JSON.stringify({
+        success: true,
+        message: `重试完成: ${retried} 个成功, ${stillFailed} 个仍然失败`,
+        retried,
+        stillFailed
+    }), {
+        status: 200,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
+}
 export async function onRequestGet({ request, env }) {
     const user = await getUserFromRequest(request, env);
     if (!user || !isSuperAdmin(user)) {
@@ -218,17 +290,37 @@ export async function onRequestGet({ request, env }) {
                 headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
             });
         }
+        if (action === 'fileTaskFailures') {
+            const { results: taskFailures } = await DB.prepare(
+                'SELECT * FROM file_task_failures WHERE resolved = FALSE ORDER BY created_at DESC LIMIT 200'
+            ).all();
+            const taskFailCount = await DB.prepare(
+                'SELECT COUNT(*) as count FROM file_task_failures WHERE resolved = FALSE'
+            ).first();
+            return new Response(JSON.stringify({
+                success: true,
+                unresolvedCount: taskFailCount?.count || 0,
+                failures: taskFailures || []
+            }), {
+                status: 200,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
         const countResult = await DB.prepare('SELECT COUNT(*) as total FROM files').first();
         const totalFiles = countResult?.total || 0;
         const indexInfo = await VECTORIZE.describe();
         const unresolvedCount = await DB.prepare(
             'SELECT COUNT(*) as count FROM vector_sync_failures WHERE resolved = FALSE'
         ).first();
+        const unresolvedTaskCount = await DB.prepare(
+            'SELECT COUNT(*) as count FROM file_task_failures WHERE resolved = FALSE'
+        ).first();
         return new Response(JSON.stringify({
             success: true,
             totalFiles: totalFiles,
             indexInfo: indexInfo,
-            unresolvedSyncFailures: unresolvedCount?.count || 0
+            unresolvedSyncFailures: unresolvedCount?.count || 0,
+            unresolvedFileTaskFailures: unresolvedTaskCount?.count || 0
         }), {
             status: 200,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),

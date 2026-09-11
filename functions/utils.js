@@ -12,6 +12,138 @@ export async function invalidateDirListCache(DB) {
     console.error('清除目录列表缓存失败:', e?.message || e);
   }
 }
+const R2_TASK_CONCURRENCY = 4;
+export async function enqueueFileTask(env, task) {
+  if (!env || !env.FILE_QUEUE) return false;
+  try {
+    await env.FILE_QUEUE.send(task);
+    return true;
+  } catch (e) {
+    console.error('文件任务入队失败，回退同步执行:', e?.message || e);
+    return false;
+  }
+}
+export async function recordFileTaskFailure(env, task, errorMessage) {
+  if (!env?.DB) return;
+  try {
+    await env.DB.prepare(
+      'INSERT INTO file_task_failures (operation, payload, error_message) VALUES (?, ?, ?)'
+    ).bind(
+      task?.op || 'unknown',
+      JSON.stringify(task || {}).substring(0, 4000),
+      String(errorMessage || '').substring(0, 1000)
+    ).run();
+  } catch (e) {
+    console.error('记录文件任务失败信息出错:', e?.message || e);
+  }
+}
+export async function runR2Move(env, moves) {
+  const R2 = env?.R2_bucket;
+  const list = Array.isArray(moves) ? moves.filter(m => m && m.from && m.to) : [];
+  if (!R2 || list.length === 0) return;
+  for (let i = 0; i < list.length; i += R2_TASK_CONCURRENCY) {
+    const batch = list.slice(i, i + R2_TASK_CONCURRENCY);
+    await Promise.all(batch.map(async ({ from, to, contentType }) => {
+      const sourceObj = await R2.get(from);
+      if (!sourceObj) return;
+      await R2.put(to, sourceObj.body, {
+        httpMetadata: { contentType: contentType || 'application/octet-stream' }
+      });
+      await R2.delete(from);
+    }));
+  }
+}
+export async function runR2Delete(env, keys) {
+  const R2 = env?.R2_bucket;
+  const list = Array.isArray(keys) ? keys.filter(Boolean) : [];
+  if (!R2 || list.length === 0) return;
+  for (let i = 0; i < list.length; i += R2_TASK_CONCURRENCY) {
+    const batch = list.slice(i, i + R2_TASK_CONCURRENCY);
+    await Promise.all(batch.map(key => R2.delete(key)));
+  }
+}
+export async function runVectorIndex(env, fileIds) {
+  const ids = Array.isArray(fileIds) ? fileIds.filter(id => id != null) : [];
+  if (!env?.VECTORIZE || !env.SILICONFLOW_API_KEY || !env.DB || ids.length === 0) return;
+  const placeholders = ids.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(
+    `SELECT id, name, key, parent_path, is_directory, description FROM files WHERE id IN (${placeholders})`
+  ).bind(...ids).all();
+  const files = results || [];
+  if (files.length === 0) return;
+  try {
+    const embeddings = await generateEmbeddings(env, files.map(f => buildRichEmbeddingText(f)));
+    if (!embeddings || embeddings.length !== files.length) {
+      throw new Error('嵌入生成失败或数量不匹配');
+    }
+    const vectors = files.map((file, index) => ({
+      id: file.id.toString(),
+      values: embeddings[index],
+      metadata: { name: file.name, path: file.key }
+    }));
+    await retryWithBackoff(async () => {
+      await env.VECTORIZE.upsert(vectors);
+    }, 3, 500);
+  } catch (error) {
+    console.error('向量索引写入失败:', error);
+    for (const file of files) {
+      await recordVectorSyncFailure(env, 'create', file.id, { name: file.name, key: file.key }, error.message);
+    }
+  }
+}
+export async function runVectorUnindex(env, fileIds) {
+  const ids = Array.isArray(fileIds) ? fileIds.filter(id => id != null) : [];
+  if (!env?.VECTORIZE || ids.length === 0) return;
+  const idsToDelete = ids.map(id => id.toString());
+  try {
+    await retryWithBackoff(async () => {
+      await env.VECTORIZE.deleteByIds(idsToDelete);
+    }, 3, 500);
+  } catch (error) {
+    console.error('删除向量索引失败:', error);
+    for (const id of ids) {
+      await recordVectorSyncFailure(env, 'delete', id, null, error.message);
+    }
+  }
+}
+export async function runFileTask(env, task) {
+  switch (task?.op) {
+    case 'r2_move':
+      await runR2Move(env, task.moves);
+      return;
+    case 'r2_delete':
+      await runR2Delete(env, task.keys);
+      return;
+    case 'vector_index':
+      await runVectorIndex(env, task.fileIds);
+      return;
+    case 'vector_unindex':
+      await runVectorUnindex(env, task.fileIds);
+      return;
+    case 'vector_refresh':
+      await runVectorUnindex(env, task.fileIds);
+      await runVectorIndex(env, task.fileIds);
+      return;
+    default:
+      throw new Error('未知的文件任务类型: ' + task?.op);
+  }
+}
+export async function dispatchFileTask(env, waitUntil, task) {
+  if (env?.FILE_QUEUE) {
+    const sent = await enqueueFileTask(env, task);
+    if (sent) return;
+  }
+  const run = async () => {
+    try {
+      await runFileTask(env, task);
+    } catch (e) {
+      console.error('文件任务执行失败:', e);
+      await recordFileTaskFailure(env, task, e?.message || e);
+    }
+  };
+  if (typeof waitUntil === 'function') waitUntil(run());
+  else await run();
+}
 const _rlCache = new Map();
 const RL_WINDOW_MS = 60 * 1000;
 const RL_CLEANUP_THRESHOLD = 5000;

@@ -221,8 +221,8 @@
 │   ├── download_logger.js     # DownloadLogger Durable Object（WebSocket 日志 + 在线计数）
 │   └── wrangler.toml          # DO Worker 独立部署配置
 ├── worker-ai/
-│   ├── index.js               # AI 审核队列 consumer（异步消费留言板消息）
-│   └── wrangler.toml          # AI consumer Worker 独立部署配置（绑定同一 D1/Vectorize/R2 与密钥）
+│   ├── index.js               # 队列 consumer（留言板 AI 审核 + 文件异步任务：R2 搬移/删除、向量索引同步）
+│   └── wrangler.toml          # consumer Worker 独立部署配置（绑定同一 D1/Vectorize/R2 与密钥，消费 whut-resource-ai / whut-resource-file 两个队列）
 ├── scripts/
 │   ├── build/                 # 构建脚本（config.js / tasks.js / utils.js）
 │   ├── dev.js                 # 开发热更新
@@ -239,7 +239,7 @@
 
 ### 数据库表（schema.sql）
 
-`users` `files` `files_fts` `downloads` `announcements` `guestbook` `guestbook_likes` `file_reactions` `pending_registrations` `pending_resets` `pending_email_changes` `system_stats` `admin_logs` `system_cache` `admin_requests` `login_attempts` `file_boosts` `vector_sync_failures` `user_passkeys` `oauth_clients` `oauth_authorization_codes` `oauth_access_tokens` `pow_challenges` `todos` `todo_guestbook` `favorites`
+`users` `files` `files_fts` `downloads` `announcements` `guestbook` `guestbook_likes` `file_reactions` `pending_registrations` `pending_resets` `pending_email_changes` `system_stats` `admin_logs` `system_cache` `admin_requests` `login_attempts` `file_boosts` `vector_sync_failures` `file_task_failures` `user_passkeys` `oauth_clients` `oauth_authorization_codes` `oauth_access_tokens` `pow_challenges` `todos` `todo_guestbook` `favorites`
 
 ---
 
@@ -291,7 +291,9 @@ wrangler secret put AI_API_KEY --config worker-ai/wrangler.toml
 wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 ```
 
-> **首次开通队列**：需先创建队列 `npx wrangler queues create whut-resource-ai`。Pages 侧 `wrangler.toml` 的 `[[queues.producers]]` 绑定随 `npm run deploy` 一起生效。
+> **首次开通队列**：需先创建队列 `npx wrangler queues create whut-resource-ai` 和 `npx wrangler queues create whut-resource-file`。Pages 侧 `wrangler.toml` 的 `[[queues.producers]]` 绑定随 `npm run deploy` 一起生效。
+
+> **异步文件任务**：文件夹/文件的重命名、移动、删除会先把 D1 变更同步落地，再通过 `FILE_QUEUE` 队列异步执行 R2 物理搬移/删除与向量索引同步，避免大目录操作阻塞请求。队列消费失败会记录到 `file_task_failures` 表，可通过 `/api/reindex`（`action=retryFileTasks` 重试、`action=fileTaskFailures` 查询、`action=clearFileTaskFailures` 清理）处理。数据库需执行 `schema.sql` 中新增的 `file_task_failures` 表。
 
 ### 环境变量 / Secret
 

@@ -91,6 +91,26 @@ async function ensureSchema(DB) {
             console.error('Failed to alter table:', alterError);
         }
     }
+    try {
+        await DB.prepare('SELECT 1 FROM file_task_failures LIMIT 1').run();
+    } catch (e) {
+        console.log('Creating file_task_failures table...');
+        try {
+            await DB.prepare(`CREATE TABLE IF NOT EXISTS file_task_failures (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                operation TEXT NOT NULL,
+                payload TEXT,
+                error_message TEXT,
+                retry_count INTEGER DEFAULT 0,
+                resolved BOOLEAN DEFAULT FALSE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                resolved_at DATETIME
+            )`).run();
+            await DB.prepare('CREATE INDEX IF NOT EXISTS idx_file_task_failures_unresolved ON file_task_failures(resolved, created_at DESC)').run();
+        } catch (createError) {
+            console.error('Failed to create file_task_failures:', createError);
+        }
+    }
 }
 async function handleInit(DB, env, user) {
     const sessionId = Date.now();

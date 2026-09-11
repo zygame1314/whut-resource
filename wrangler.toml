@@ -23,6 +23,10 @@ index_name = "whut-resource-index"
 binding = "AI_QUEUE"
 queue = "whut-resource-ai"
 
+[[queues.producers]]
+binding = "FILE_QUEUE"
+queue = "whut-resource-file"
+
 [durable_objects]
 bindings = [
     { name = "DOWNLOAD_LOGGER", class_name = "DownloadLogger", script_name = "whut-resource-do" }

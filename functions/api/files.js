@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache } from '../utils.js';
+import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask } from '../utils.js';
 function sanitizeSegment(name) {
     if (!name || typeof name !== 'string') return null;
     const decoded = name.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
@@ -66,48 +66,6 @@ async function annotateUserState(DB, user, items) {
         item.is_subscribed = subscribedSet.has(item.key) ? 1 : 0;
     }
     return items || [];
-}
-async function deleteVectorIndexes(env, fileIds) {
-    if (!env.VECTORIZE || !fileIds || fileIds.length === 0) return;
-    const idsToDelete = fileIds.map(id => id.toString());
-    try {
-        await retryWithBackoff(async () => {
-            await env.VECTORIZE.deleteByIds(idsToDelete);
-        }, 3, 500);
-        console.log(`已删除 ${idsToDelete.length} 个向量索引`);
-    } catch (error) {
-        console.error(`删除向量索引失败（已重试3次）:`, error);
-        for (const id of fileIds) {
-            await recordVectorSyncFailure(env, 'delete', id, null, error.message);
-        }
-    }
-}
-async function createVectorIndexes(env, files) {
-    if (!env.VECTORIZE || !env.SILICONFLOW_API_KEY || !files || files.length === 0) return;
-    try {
-        const textsToEmbed = files.map(f => buildRichEmbeddingText(f));
-        const embeddings = await generateEmbeddings(env, textsToEmbed);
-        if (!embeddings || embeddings.length !== files.length) {
-            throw new Error('嵌入生成失败或数量不匹配');
-        }
-        const vectors = files.map((file, index) => ({
-            id: file.id.toString(),
-            values: embeddings[index],
-            metadata: {
-                name: file.name,
-                path: file.key
-            }
-        }));
-        await retryWithBackoff(async () => {
-            await env.VECTORIZE.upsert(vectors);
-        }, 3, 500);
-        console.log(`已创建 ${vectors.length} 个向量索引`);
-    } catch (error) {
-        console.error(`创建向量索引失败（已重试3次）:`, error);
-        for (const file of files) {
-            await recordVectorSyncFailure(env, 'create', file.id, { name: file.name, key: file.key }, error.message);
-        }
-    }
 }
 export async function onRequestGet({ request, env, waitUntil }) {
     const authHeader = request.headers.get('Authorization');
@@ -643,13 +601,7 @@ export async function onRequestPut({ request, env, waitUntil }) {
             }
             await DB.prepare('UPDATE files SET description = ? WHERE key = ?').bind(description || null, key).run();
             await logAdminAction(env, user.id, 'update_description', 'file', fileRecord.id, '更新文件夹描述', JSON.stringify({ key }));
-            waitUntil((async () => {
-                await deleteVectorIndexes(env, [fileRecord.id]);
-                const updatedRecord = await DB.prepare('SELECT id, name, key, parent_path, is_directory, description FROM files WHERE key = ?').bind(key).first();
-                if (updatedRecord) {
-                    await createVectorIndexes(env, [updatedRecord]);
-                }
-            })());
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_refresh', fileIds: [fileRecord.id] });
             return new Response(JSON.stringify({ success: true, message: '描述已更新' }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         const { key, newName } = body;
@@ -712,30 +664,16 @@ export async function onRequestPut({ request, env, waitUntil }) {
                 `).bind(newFolderKey, sanitizedNewName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, parentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id, fileRecord.likes, fileRecord.boost_count, fileRecord.description, fileRecord.last_verified)
             );
             batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(oldFolderKey));
-            const R2_CONCURRENCY = 4;
             const filesToMove = (childItems || []).filter(child => {
                 const isChildLink = child.is_link === 1 || child.is_link === true;
                 const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
                 return !isChildLink && !isChildDirectory;
             });
-            for (let i = 0; i < filesToMove.length; i += R2_CONCURRENCY) {
-                const batch = filesToMove.slice(i, i + R2_CONCURRENCY);
-                await Promise.all(batch.map(async (child) => {
-                    const relativePath = child.key.substring(oldFolderPath.length);
-                    const newChildKey = `${newFolderKey}${relativePath}`;
-                    try {
-                        const sourceObj = await R2.get(child.key);
-                        if (sourceObj) {
-                            await R2.put(newChildKey, sourceObj.body, {
-                                httpMetadata: { contentType: child.contentType }
-                            });
-                            await R2.delete(child.key);
-                        }
-                    } catch (e) {
-                        console.error(`R2重命名子项失败: ${child.key}`, e);
-                    }
-                }));
-            }
+            const r2Moves = filesToMove.map(child => ({
+                from: child.key,
+                to: `${newFolderKey}${child.key.substring(oldFolderPath.length)}`,
+                contentType: child.contentType
+            }));
             for (const child of childItems || []) {
                 const relativePath = child.key.substring(oldFolderPath.length);
                 const newChildKey = `${newFolderKey}${relativePath}`;
@@ -764,15 +702,15 @@ export async function onRequestPut({ request, env, waitUntil }) {
                 const newSubKey = key === sub.folder_key ? newFolderKey : newFolderKey + sub.folder_key.slice(key.length);
                 await DB.prepare('UPDATE folder_subscriptions SET folder_key = ? WHERE user_id = ? AND folder_key = ?').bind(newSubKey, sub.user_id, sub.folder_key).run();
             }
-            waitUntil((async () => {
-                await deleteVectorIndexes(env, oldFileIds);
-                const newFolderPathForQuery = newFolderKey;
-                const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
-                const { results: newFiles } = await DB.prepare(
-                    "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
-                ).bind(newFolderKey, newFolderKey, newEndKey).all();
-                await createVectorIndexes(env, newFiles || []);
-            })());
+            if (r2Moves.length > 0) {
+                await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_move', moves: r2Moves });
+            }
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: oldFileIds });
+            const newEndKey = newFolderKey.substring(0, newFolderKey.length - 1) + '0';
+            const { results: newFiles } = await DB.prepare(
+                "SELECT id FROM files WHERE key = ? OR (key >= ? AND key < ?)"
+            ).bind(newFolderKey, newFolderKey, newEndKey).all();
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: (newFiles || []).map(f => f.id) });
             await invalidateDirListCache(DB);
             await logAdminAction(env, user.id, 'rename_folder', 'file', fileRecord.id, '重命名文件夹', JSON.stringify({ old_key: key, new_key: newFolderKey, child_count: (childItems || []).length }));
             return new Response(JSON.stringify({ success: true, message: '文件夹重命名成功' }), {
@@ -789,22 +727,6 @@ export async function onRequestPut({ request, env, waitUntil }) {
             });
         }
         const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
-        if (!isLink) {
-            try {
-                const sourceObj = await R2.get(key);
-                if (sourceObj) {
-                    await R2.put(newKey, sourceObj.body, {
-                        httpMetadata: { contentType: fileRecord.contentType }
-                    });
-                    await R2.delete(key);
-                }
-            } catch (e) {
-                return new Response(JSON.stringify({ success: false, error: 'R2重命名失败：' + e.message }), {
-                    status: 500,
-                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-                });
-            }
-        }
         const oldFileId = fileRecord.id;
         await DB.batch([
             DB.prepare(`
@@ -818,13 +740,14 @@ export async function onRequestPut({ request, env, waitUntil }) {
             DB.prepare('UPDATE favorites SET file_key = ? WHERE file_key = ?').bind(newKey, key),
             DB.prepare('DELETE FROM files WHERE key = ?').bind(key)
         ]);
-        waitUntil((async () => {
-            await deleteVectorIndexes(env, [oldFileId]);
-            const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
-            if (newFileRecord) {
-                await createVectorIndexes(env, [newFileRecord]);
-            }
-        })());
+        if (!isLink) {
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_move', moves: [{ from: key, to: newKey, contentType: fileRecord.contentType }] });
+        }
+        await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: [oldFileId] });
+        const newFileRecord = await DB.prepare('SELECT id FROM files WHERE key = ?').bind(newKey).first();
+        if (newFileRecord) {
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: [newFileRecord.id] });
+        }
         await logAdminAction(env, user.id, 'rename_file', 'file', oldFileId, '重命名文件', JSON.stringify({ old_key: key, new_key: newKey }));
         return new Response(JSON.stringify({ success: true, message: '重命名成功' }), {
             status: 200,
@@ -1048,30 +971,16 @@ export async function onRequestPost({ request, env, waitUntil }) {
                 `).bind(newFolderKey, folderName, fileRecord.size, fileRecord.uploaded, fileRecord.contentType, newParentPath, 1, fileRecord.is_link, fileRecord.link_url, fileRecord.downloads, fileRecord.uploader_id, fileRecord.likes, fileRecord.boost_count, fileRecord.description, fileRecord.last_verified)
             );
             batchOperations.push(DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey));
-            const R2_CONCURRENCY = 4;
             const filesToMove = (childItems || []).filter(child => {
                 const isChildLink = child.is_link === 1 || child.is_link === true;
                 const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
                 return !isChildLink && !isChildDirectory;
             });
-            for (let i = 0; i < filesToMove.length; i += R2_CONCURRENCY) {
-                const batch = filesToMove.slice(i, i + R2_CONCURRENCY);
-                await Promise.all(batch.map(async (child) => {
-                    const relativePath = child.key.substring(oldFolderPath.length);
-                    const newChildKey = `${newFolderKey}${relativePath}`;
-                    try {
-                        const sourceObj = await R2.get(child.key);
-                        if (sourceObj) {
-                            await R2.put(newChildKey, sourceObj.body, {
-                                httpMetadata: { contentType: child.contentType }
-                            });
-                            await R2.delete(child.key);
-                        }
-                    } catch (e) {
-                        console.error(`R2移动子项失败: ${child.key}`, e);
-                    }
-                }));
-            }
+            const r2Moves = filesToMove.map(child => ({
+                from: child.key,
+                to: `${newFolderKey}${child.key.substring(oldFolderPath.length)}`,
+                contentType: child.contentType
+            }));
             for (const child of childItems || []) {
                 const relativePath = child.key.substring(oldFolderPath.length);
                 const newChildKey = `${newFolderKey}${relativePath}`;
@@ -1100,15 +1009,15 @@ export async function onRequestPost({ request, env, waitUntil }) {
                 const newSubKey = sourceKey === sub.folder_key ? newFolderKey : newFolderKey + sub.folder_key.slice(sourceKey.length);
                 await DB.prepare('UPDATE folder_subscriptions SET folder_key = ? WHERE user_id = ? AND folder_key = ?').bind(newSubKey, sub.user_id, sub.folder_key).run();
             }
-            waitUntil((async () => {
-                await deleteVectorIndexes(env, oldFileIds);
-                const newFolderPathForQuery = newFolderKey;
-                const newEndKey = newFolderPathForQuery.substring(0, newFolderPathForQuery.length - 1) + '0';
-                const { results: newFiles } = await DB.prepare(
-                    "SELECT id, name, key FROM files WHERE key = ? OR (key >= ? AND key < ?)"
-                ).bind(newFolderKey, newFolderKey, newEndKey).all();
-                await createVectorIndexes(env, newFiles || []);
-            })());
+            if (r2Moves.length > 0) {
+                await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_move', moves: r2Moves });
+            }
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: oldFileIds });
+            const newEndKey = newFolderKey.substring(0, newFolderKey.length - 1) + '0';
+            const { results: newFiles } = await DB.prepare(
+                "SELECT id FROM files WHERE key = ? OR (key >= ? AND key < ?)"
+            ).bind(newFolderKey, newFolderKey, newEndKey).all();
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: (newFiles || []).map(f => f.id) });
             await invalidateDirListCache(DB);
             await logAdminAction(env, user.id, 'move_folder', 'file', fileRecord.id, '移动文件夹', JSON.stringify({ old_key: sourceKey, new_key: newFolderKey, child_count: (childItems || []).length }));
             return new Response(JSON.stringify({ success: true, message: '文件夹移动成功' }), {
@@ -1131,22 +1040,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
             });
         }
         const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
-        if (!isLink) {
-            try {
-                const sourceObj = await R2.get(sourceKey);
-                if (sourceObj) {
-                    await R2.put(newKey, sourceObj.body, {
-                        httpMetadata: { contentType: fileRecord.contentType }
-                    });
-                    await R2.delete(sourceKey);
-                }
-            } catch (e) {
-                return new Response(JSON.stringify({ success: false, error: 'R2移动失败：' + e.message }), {
-                    status: 500,
-                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-                });
-            }
-        }
         const oldFileId = fileRecord.id;
         await DB.batch([
             DB.prepare(`
@@ -1160,13 +1053,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
             DB.prepare('UPDATE favorites SET file_key = ? WHERE file_key = ?').bind(newKey, sourceKey),
             DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey)
         ]);
-        waitUntil((async () => {
-            await deleteVectorIndexes(env, [oldFileId]);
-            const newFileRecord = await DB.prepare('SELECT id, name, key FROM files WHERE key = ?').bind(newKey).first();
-            if (newFileRecord) {
-                await createVectorIndexes(env, [newFileRecord]);
-            }
-        })());
+        if (!isLink) {
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_move', moves: [{ from: sourceKey, to: newKey, contentType: fileRecord.contentType }] });
+        }
+        await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: [oldFileId] });
+        const newFileRecord = await DB.prepare('SELECT id FROM files WHERE key = ?').bind(newKey).first();
+        if (newFileRecord) {
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: [newFileRecord.id] });
+        }
         await logAdminAction(env, user.id, 'move_file', 'file', oldFileId, '移动文件', JSON.stringify({ old_key: sourceKey, new_key: newKey }));
         return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
             status: 200,
@@ -1266,22 +1160,12 @@ export async function onRequestDelete({ request, env, waitUntil }) {
                     headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
                 });
             }
-            const R2_CONCURRENCY = 4;
             const filesToDelete = (childItems || []).filter(child => {
                 const isChildLink = child.is_link === 1 || child.is_link === true;
                 const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
                 return !isChildLink && !isChildDirectory;
             });
-            for (let i = 0; i < filesToDelete.length; i += R2_CONCURRENCY) {
-                const batch = filesToDelete.slice(i, i + R2_CONCURRENCY);
-                await Promise.all(batch.map(async (child) => {
-                    try {
-                        await R2.delete(child.key);
-                    } catch (e) {
-                        console.error(`R2删除子项失败: ${child.key}`, e);
-                    }
-                }));
-            }
+            const r2Deletes = filesToDelete.map(child => child.key);
             const fileIdsToDeleteVector = [fileRecord.id, ...(childItems || []).map(c => c.id)];
             if (childItems && childItems.length > 0) {
                 const childKeys = childItems.map(c => c.key);
@@ -1308,7 +1192,10 @@ export async function onRequestDelete({ request, env, waitUntil }) {
                 const upper = folderKeyUpperBound(key);
                 await DB.prepare('DELETE FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(key, upper).run();
             }
-            waitUntil(deleteVectorIndexes(env, fileIdsToDeleteVector));
+            if (r2Deletes.length > 0) {
+                await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_delete', keys: r2Deletes });
+            }
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: fileIdsToDeleteVector });
             await invalidateDirListCache(DB);
             const deletedCount = (childItems?.length || 0) + 1;
             await logAdminAction(env, user.id, 'delete_folder', 'file', fileRecord.id, '删除文件夹', JSON.stringify({ key, deleted_count: deletedCount }));
@@ -1322,9 +1209,6 @@ export async function onRequestDelete({ request, env, waitUntil }) {
         }
         const fileIdToDelete = fileRecord.id;
         const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
-        if (!isLink) {
-            await R2.delete(key);
-        }
         await DB.batch([
             DB.prepare('DELETE FROM files WHERE key = ?').bind(key),
             DB.prepare('DELETE FROM downloads WHERE file_key = ?').bind(key),
@@ -1332,7 +1216,10 @@ export async function onRequestDelete({ request, env, waitUntil }) {
             DB.prepare('DELETE FROM file_boosts WHERE file_key = ?').bind(key),
             DB.prepare('DELETE FROM favorites WHERE file_key = ?').bind(key)
         ]);
-        waitUntil(deleteVectorIndexes(env, [fileIdToDelete]));
+        if (!isLink) {
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_delete', keys: [key] });
+        }
+        await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: [fileIdToDelete] });
         await logAdminAction(env, user.id, isLink ? 'delete_link' : 'delete_file', 'file', fileIdToDelete, isLink ? '删除链接' : '删除文件', JSON.stringify({ key, snapshot_content: fileRecord.name }));
         return new Response(JSON.stringify({
             success: true,

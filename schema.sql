@@ -372,6 +372,19 @@ CREATE TABLE IF NOT EXISTS vector_sync_failures (
 CREATE INDEX IF NOT EXISTS idx_vector_sync_unresolved ON vector_sync_failures(resolved, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vector_sync_file_id ON vector_sync_failures(file_id, resolved);
 
+CREATE TABLE IF NOT EXISTS file_task_failures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    operation TEXT NOT NULL,
+    payload TEXT,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    resolved BOOLEAN DEFAULT FALSE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME
+);
+
+CREATE INDEX IF NOT EXISTS idx_file_task_failures_unresolved ON file_task_failures(resolved, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS user_passkeys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
