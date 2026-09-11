@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchR2MoveTasks, dispatchR2DeleteTasks, createMaintenanceJob, enqueueMaintenanceJob, getMaintenanceJob } from '../utils.js';
+import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchMoveWithVector, dispatchDeleteWithVector, createMaintenanceJob, enqueueMaintenanceJob, getMaintenanceJob } from '../utils.js';
 const MAX_SAFE_BATCH_SIZE = 500;
 const MAX_BATCH_DELETE_KEYS = 2000;
 function sanitizeSegment(name) {
@@ -729,15 +729,11 @@ export async function onRequestPut({ request, env, waitUntil }) {
                 const newSubKey = key === sub.folder_key ? newFolderKey : newFolderKey + sub.folder_key.slice(key.length);
                 await DB.prepare('UPDATE folder_subscriptions SET folder_key = ? WHERE user_id = ? AND folder_key = ?').bind(newSubKey, sub.user_id, sub.folder_key).run();
             }
-            if (r2Moves.length > 0) {
-                await dispatchR2MoveTasks(env, waitUntil, r2Moves);
-            }
-            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: oldFileIds });
             const newEndKey = newFolderKey.substring(0, newFolderKey.length - 1) + '0';
             const { results: newFiles } = await DB.prepare(
                 "SELECT id FROM files WHERE key = ? OR (key >= ? AND key < ?)"
             ).bind(newFolderKey, newFolderKey, newEndKey).all();
-            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: (newFiles || []).map(f => f.id) });
+            await dispatchMoveWithVector(env, waitUntil, r2Moves, oldFileIds, (newFiles || []).map(f => f.id));
             await invalidateDirListCache(DB);
             await logAdminAction(env, user.id, 'rename_folder', 'file', fileRecord.id, '重命名文件夹', JSON.stringify({ old_key: key, new_key: newFolderKey, child_count: (childItems || []).length }));
             return new Response(JSON.stringify({ success: true, message: '文件夹重命名成功' }), {
@@ -768,12 +764,18 @@ export async function onRequestPut({ request, env, waitUntil }) {
             DB.prepare('DELETE FROM files WHERE key = ?').bind(key)
         ]);
         if (!isLink) {
-            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_move', moves: [{ from: key, to: newKey, contentType: fileRecord.contentType }] });
-        }
-        await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: [oldFileId] });
-        const newFileRecord = await DB.prepare('SELECT id FROM files WHERE key = ?').bind(newKey).first();
-        if (newFileRecord) {
-            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: [newFileRecord.id] });
+            const newFileRecord = await DB.prepare('SELECT id FROM files WHERE key = ?').bind(newKey).first();
+            await dispatchMoveWithVector(env, waitUntil,
+                [{ from: key, to: newKey, contentType: fileRecord.contentType }],
+                [oldFileId],
+                newFileRecord ? [newFileRecord.id] : []
+            );
+        } else {
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: [oldFileId] });
+            const newFileRecord = await DB.prepare('SELECT id FROM files WHERE key = ?').bind(newKey).first();
+            if (newFileRecord) {
+                await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: [newFileRecord.id] });
+            }
         }
         await logAdminAction(env, user.id, 'rename_file', 'file', oldFileId, '重命名文件', JSON.stringify({ old_key: key, new_key: newKey }));
         return new Response(JSON.stringify({ success: true, message: '重命名成功' }), {
@@ -1041,15 +1043,11 @@ export async function onRequestPost({ request, env, waitUntil }) {
                 const newSubKey = sourceKey === sub.folder_key ? newFolderKey : newFolderKey + sub.folder_key.slice(sourceKey.length);
                 await DB.prepare('UPDATE folder_subscriptions SET folder_key = ? WHERE user_id = ? AND folder_key = ?').bind(newSubKey, sub.user_id, sub.folder_key).run();
             }
-            if (r2Moves.length > 0) {
-                await dispatchR2MoveTasks(env, waitUntil, r2Moves);
-            }
-            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: oldFileIds });
             const newEndKey = newFolderKey.substring(0, newFolderKey.length - 1) + '0';
             const { results: newFiles } = await DB.prepare(
                 "SELECT id FROM files WHERE key = ? OR (key >= ? AND key < ?)"
             ).bind(newFolderKey, newFolderKey, newEndKey).all();
-            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: (newFiles || []).map(f => f.id) });
+            await dispatchMoveWithVector(env, waitUntil, r2Moves, oldFileIds, (newFiles || []).map(f => f.id));
             await invalidateDirListCache(DB);
             await logAdminAction(env, user.id, 'move_folder', 'file', fileRecord.id, '移动文件夹', JSON.stringify({ old_key: sourceKey, new_key: newFolderKey, child_count: (childItems || []).length }));
             return new Response(JSON.stringify({ success: true, message: '文件夹移动成功' }), {
@@ -1086,12 +1084,18 @@ export async function onRequestPost({ request, env, waitUntil }) {
             DB.prepare('DELETE FROM files WHERE key = ?').bind(sourceKey)
         ]);
         if (!isLink) {
-            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_move', moves: [{ from: sourceKey, to: newKey, contentType: fileRecord.contentType }] });
-        }
-        await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: [oldFileId] });
-        const newFileRecord = await DB.prepare('SELECT id FROM files WHERE key = ?').bind(newKey).first();
-        if (newFileRecord) {
-            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: [newFileRecord.id] });
+            const newFileRecord = await DB.prepare('SELECT id FROM files WHERE key = ?').bind(newKey).first();
+            await dispatchMoveWithVector(env, waitUntil,
+                [{ from: sourceKey, to: newKey, contentType: fileRecord.contentType }],
+                [oldFileId],
+                newFileRecord ? [newFileRecord.id] : []
+            );
+        } else {
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: [oldFileId] });
+            const newFileRecord = await DB.prepare('SELECT id FROM files WHERE key = ?').bind(newKey).first();
+            if (newFileRecord) {
+                await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: [newFileRecord.id] });
+            }
         }
         await logAdminAction(env, user.id, 'move_file', 'file', oldFileId, '移动文件', JSON.stringify({ old_key: sourceKey, new_key: newKey }));
         return new Response(JSON.stringify({ success: true, message: '移动成功' }), {
@@ -1310,10 +1314,7 @@ export async function onRequestDelete({ request, env, waitUntil }) {
                 const upper = folderKeyUpperBound(key);
                 await DB.prepare('DELETE FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(key, upper).run();
             }
-            if (r2Deletes.length > 0) {
-                await dispatchR2DeleteTasks(env, waitUntil, r2Deletes);
-            }
-            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: fileIdsToDeleteVector });
+            await dispatchDeleteWithVector(env, waitUntil, r2Deletes, fileIdsToDeleteVector);
             await invalidateDirListCache(DB);
             const deletedCount = (childItems?.length || 0) + 1;
             await logAdminAction(env, user.id, 'delete_folder', 'file', fileRecord.id, '删除文件夹', JSON.stringify({ key, deleted_count: deletedCount }));
@@ -1335,9 +1336,10 @@ export async function onRequestDelete({ request, env, waitUntil }) {
             DB.prepare('DELETE FROM favorites WHERE file_key = ?').bind(key)
         ]);
         if (!isLink) {
-            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'r2_delete', keys: [key] });
+            await dispatchDeleteWithVector(env, waitUntil, [key], [fileIdToDelete]);
+        } else {
+            await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: [fileIdToDelete] });
         }
-        await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: [fileIdToDelete] });
         await logAdminAction(env, user.id, isLink ? 'delete_link' : 'delete_file', 'file', fileIdToDelete, isLink ? '删除链接' : '删除文件', JSON.stringify({ key, snapshot_content: fileRecord.name }));
         return new Response(JSON.stringify({
             success: true,

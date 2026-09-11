@@ -61,20 +61,7 @@ async function sendFileTasksBatched(env, tasks) {
 export async function dispatchR2MoveTasks(env, waitUntil, moves) {
   const list = Array.isArray(moves) ? moves.filter(m => m && m.from && m.to) : [];
   if (list.length === 0) return;
-  const tasks = [];
-  let current = [];
-  let currentBytes = 0;
-  for (const move of list) {
-    const size = (move.from.length + move.to.length + (move.contentType ? move.contentType.length : 0)) * 2 + 60;
-    if (current.length >= R2_MOVE_CHUNK || (current.length > 0 && currentBytes + size > QUEUE_MSG_SAFE_BYTES)) {
-      tasks.push({ type: 'file', op: 'r2_move', moves: current });
-      current = [];
-      currentBytes = 0;
-    }
-    current.push(move);
-    currentBytes += size;
-  }
-  if (current.length > 0) tasks.push({ type: 'file', op: 'r2_move', moves: current });
+  const tasks = buildMoveTasks(list);
   const dispatched = await sendFileTasksBatched(env, tasks);
   if (dispatched) return;
   const run = async () => {
@@ -91,6 +78,38 @@ export async function dispatchR2MoveTasks(env, waitUntil, moves) {
 export async function dispatchR2DeleteTasks(env, waitUntil, keys) {
   const list = Array.isArray(keys) ? keys.filter(Boolean) : [];
   if (list.length === 0) return;
+  const tasks = buildDeleteTasks(list);
+  const dispatched = await sendFileTasksBatched(env, tasks);
+  if (dispatched) return;
+  const run = async () => {
+    try {
+      await runR2Delete(env, list);
+    } catch (e) {
+      console.error('R2删除执行失败:', e);
+      await recordFileTaskFailure(env, { op: 'r2_delete' }, e?.message || e);
+    }
+  };
+  if (typeof waitUntil === 'function') waitUntil(run());
+  else await run();
+}
+function buildMoveTasks(list) {
+  const tasks = [];
+  let current = [];
+  let currentBytes = 0;
+  for (const move of list) {
+    const size = (move.from.length + move.to.length + (move.contentType ? move.contentType.length : 0)) * 2 + 60;
+    if (current.length >= R2_MOVE_CHUNK || (current.length > 0 && currentBytes + size > QUEUE_MSG_SAFE_BYTES)) {
+      tasks.push({ type: 'file', op: 'r2_move', moves: current });
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(move);
+    currentBytes += size;
+  }
+  if (current.length > 0) tasks.push({ type: 'file', op: 'r2_move', moves: current });
+  return tasks;
+}
+function buildDeleteTasks(list) {
   const tasks = [];
   let current = [];
   let currentBytes = 0;
@@ -105,18 +124,53 @@ export async function dispatchR2DeleteTasks(env, waitUntil, keys) {
     currentBytes += size;
   }
   if (current.length > 0) tasks.push({ type: 'file', op: 'r2_delete', keys: current });
+  return tasks;
+}
+async function dispatchAttached(env, waitUntil, tasks, fallback) {
   const dispatched = await sendFileTasksBatched(env, tasks);
   if (dispatched) return;
   const run = async () => {
     try {
-      await runR2Delete(env, list);
+      await fallback();
     } catch (e) {
-      console.error('R2删除执行失败:', e);
-      await recordFileTaskFailure(env, { op: 'r2_delete' }, e?.message || e);
+      console.error('复合文件任务执行失败:', e);
+      await recordFileTaskFailure(env, tasks[0], e?.message || e);
     }
   };
   if (typeof waitUntil === 'function') waitUntil(run());
   else await run();
+}
+export async function dispatchMoveWithVector(env, waitUntil, moves, unindexIds = [], indexIds = []) {
+  const list = Array.isArray(moves) ? moves.filter(m => m && m.from && m.to) : [];
+  const unindex = Array.isArray(unindexIds) ? unindexIds.filter(id => id != null) : [];
+  const index = Array.isArray(indexIds) ? indexIds.filter(id => id != null) : [];
+  if (list.length === 0) {
+    if (unindex.length > 0) await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: unindex });
+    if (index.length > 0) await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_index', fileIds: index });
+    return;
+  }
+  const tasks = buildMoveTasks(list);
+  tasks[0].unindexIds = unindex;
+  tasks[0].indexIds = index;
+  await dispatchAttached(env, waitUntil, tasks, async () => {
+    await runR2Move(env, list);
+    if (unindex.length > 0) await runVectorUnindex(env, unindex);
+    if (index.length > 0) await runVectorIndex(env, index);
+  });
+}
+export async function dispatchDeleteWithVector(env, waitUntil, keys, unindexIds = []) {
+  const list = Array.isArray(keys) ? keys.filter(Boolean) : [];
+  const unindex = Array.isArray(unindexIds) ? unindexIds.filter(id => id != null) : [];
+  if (list.length === 0) {
+    if (unindex.length > 0) await dispatchFileTask(env, waitUntil, { type: 'file', op: 'vector_unindex', fileIds: unindex });
+    return;
+  }
+  const tasks = buildDeleteTasks(list);
+  tasks[0].unindexIds = unindex;
+  await dispatchAttached(env, waitUntil, tasks, async () => {
+    await runR2Delete(env, list);
+    if (unindex.length > 0) await runVectorUnindex(env, unindex);
+  });
 }
 export async function recordFileTaskFailure(env, task, errorMessage) {
   if (!env?.DB) return;
@@ -218,9 +272,18 @@ export async function runFileTask(env, task) {
   switch (task?.op) {
     case 'r2_move':
       await runR2Move(env, task.moves);
+      if (Array.isArray(task.unindexIds) && task.unindexIds.length > 0) {
+        await runVectorUnindex(env, task.unindexIds);
+      }
+      if (Array.isArray(task.indexIds) && task.indexIds.length > 0) {
+        await runVectorIndex(env, task.indexIds);
+      }
       return;
     case 'r2_delete':
       await runR2Delete(env, task.keys);
+      if (Array.isArray(task.unindexIds) && task.unindexIds.length > 0) {
+        await runVectorUnindex(env, task.unindexIds);
+      }
       return;
     case 'vector_index':
       await runVectorIndex(env, task.fileIds);
