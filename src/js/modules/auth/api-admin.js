@@ -1,7 +1,23 @@
+async function pollMaintenanceJob(endpoint, jobId, onProgress) {
+    while (true) {
+        await new Promise(r => setTimeout(r, 3000));
+        const resp = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'jobStatus', jobId })
+        });
+        const data = await resp.json();
+        if (!data.success || !data.job) throw new Error(data.error || '查询任务状态失败');
+        const job = data.job;
+        if (onProgress) onProgress(job);
+        if (job.status === 'completed') return job;
+        if (job.status === 'failed') throw new Error(job.message || '任务执行失败');
+    }
+}
 async function syncFiles() {
     const confirmed = await showConfirmation({
         title: 'R2文件同步',
-        message: '此操作将全量遍历 R2 存储桶并与数据库比对。<br><br><span style="color: #ff4444; font-weight: bold;">⚠️ 警告：全量同步会消耗大量数据库写入额度！</span><br><br>请勿频繁使用，仅在数据出现严重不一致（如文件丢失、无法删除）时执行。<br><br>过程分为三个阶段：<br>1. 初始化<br>2. 分批比对<br>3. 清理无效记录<br><br>确定要开始吗？',
+        message: '此操作将全量遍历 R2 存储桶并与数据库比对。<br><br><span style="color: #ff4444; font-weight: bold;">⚠️ 警告：全量同步会消耗大量数据库写入额度！</span><br><br>请勿频繁使用，仅在数据出现严重不一致（如文件丢失、无法删除）时执行。<br><br>任务将在后台异步执行，可关闭页面，稍后回来查看结果。<br><br>确定要开始吗？',
         confirmText: '明白，开始同步'
     });
     if (!confirmed) return;
@@ -11,34 +27,20 @@ async function syncFiles() {
         btn.innerHTML = `<i class="fas ${iconClass}"></i> ${text}`;
     };
     btn.disabled = true;
-    updateStatus('初始化...');
+    updateStatus('提交任务...');
     try {
-        const initResp = await fetch(`${API_BASE}/api/sync`, {
+        const startResp = await fetch(`${API_BASE}/api/sync`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'init' })
+            body: JSON.stringify({ action: 'startSync' })
         });
-        const initData = await initResp.json();
-        if (!initData.success) throw new Error(initData.error || '初始化失败');
-        const sessionId = initData.sessionId;
-        let cursor = null;
-        let truncated = true;
-        let totalProcessed = 0;
-        let totalDirs = 0;
-        while (truncated) {
-            updateStatus(`同步中 (${totalProcessed})...`);
-            const processResp = await fetch(`${API_BASE}/api/sync`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'process', sessionId, cursor })
-            });
-            const processData = await processResp.json();
-            if (!processData.success) throw new Error(processData.error || '同步过程中断');
-            cursor = processData.cursor;
-            truncated = processData.truncated;
-            totalProcessed += (processData.processed || 0);
-            totalDirs += (processData.dirsProcessed || 0);
-        }
+        const startData = await startResp.json();
+        if (!startData.success) throw new Error(startData.error || '任务提交失败');
+        const sessionId = startData.sessionId;
+        updateStatus('同步中...');
+        await pollMaintenanceJob(`${API_BASE}/api/sync`, startData.jobId, (job) => {
+            updateStatus(`同步中 (${job.processed || 0})...`);
+        });
         updateStatus('正在验证目录结构...');
         const repairResp = await fetch(`${API_BASE}/api/sync`, {
             method: 'POST',
@@ -47,15 +49,18 @@ async function syncFiles() {
         });
         const repairData = await repairResp.json();
         const repairedCount = repairData.repaired || 0;
-        updateStatus('正在清理无效记录...');
+        updateStatus('正在提交清理任务...');
         const cleanupResp = await fetch(`${API_BASE}/api/sync`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'cleanup', sessionId })
+            body: JSON.stringify({ action: 'startCleanup', sessionId })
         });
         const cleanupData = await cleanupResp.json();
-        if (!cleanupData.success) throw new Error(cleanupData.error || '清理阶段失败');
-        showNotification(`同步完成！<br>处理文件: ${totalProcessed}<br>修复目录: ${repairedCount}<br>清理记录: ${cleanupData.deletedFiles || 0}`, 'success', 6000);
+        if (!cleanupData.success) throw new Error(cleanupData.error || '清理任务提交失败');
+        const cleanupJob = await pollMaintenanceJob(`${API_BASE}/api/sync`, cleanupData.jobId, (job) => {
+            updateStatus(`清理中 (${job.processed || 0})...`);
+        });
+        showNotification(`同步完成！<br>修复目录: ${repairedCount}<br>清理记录: ${cleanupJob.processed || 0}`, 'success', 6000);
         btn.innerHTML = '<i class="fas fa-check"></i> 完成';
         setTimeout(() => window.location.reload(), 2000);
     } catch (e) {
@@ -68,7 +73,7 @@ async function syncFiles() {
 async function syncVectorIndex() {
     const confirmed = await showConfirmation({
         title: '向量索引同步',
-        message: '此操作将为所有文件重建 AI 搜索索引。<br><br>首次使用或有大量历史文件时需要执行此操作。<br>新上传的文件会自动添加索引，无需手动同步。<br><br>确定要开始同步吗？',
+        message: '此操作将为所有文件重建 AI 搜索索引。<br><br>首次使用或有大量历史文件时需要执行此操作。<br>新上传的文件会自动添加索引，无需手动同步。<br><br>任务将在后台异步执行，可关闭页面，稍后回来查看结果。<br><br>确定要开始同步吗？',
         confirmText: '开始同步'
     });
     if (!confirmed) return;
@@ -76,32 +81,21 @@ async function syncVectorIndex() {
     const originalIcon = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     btn.disabled = true;
-    let offset = 0;
-    let totalProcessed = 0;
-    let totalFiles = 0;
     try {
-        while (true) {
-            const response = await fetch(`${API_ENDPOINTS.reindex}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ offset })
-            });
-            const result = await response.json();
-            if (!result.success) {
-                throw new Error(result.error || '同步失败');
-            }
-            totalFiles = result.total;
-            totalProcessed = result.indexed;
-            btn.innerHTML = `<i class="fas fa-brain"></i> ${totalProcessed}/${totalFiles}`;
-            if (result.completed) {
-                showNotification(`向量索引同步完成！共处理 ${totalProcessed} 个文件。`, 'success');
-                break;
-            }
-            offset = result.nextOffset;
-        }
+        const startResp = await fetch(`${API_ENDPOINTS.reindex}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ action: 'reindexAsync' })
+        });
+        const startData = await startResp.json();
+        if (!startData.success) throw new Error(startData.error || '任务提交失败');
+        const job = await pollMaintenanceJob(`${API_ENDPOINTS.reindex}`, startData.jobId, (j) => {
+            btn.innerHTML = `<i class="fas fa-brain"></i> ${j.processed || 0}/${j.total || startData.total || 0}`;
+        });
+        showNotification(`向量索引同步完成！共处理 ${job.processed || 0} 个文件。`, 'success');
     } catch (e) {
         showNotification('向量索引同步出错: ' + e.message, 'error');
     } finally {

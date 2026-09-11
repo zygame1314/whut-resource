@@ -239,7 +239,7 @@
 
 ### 数据库表（schema.sql）
 
-`users` `files` `files_fts` `downloads` `announcements` `guestbook` `guestbook_likes` `file_reactions` `pending_registrations` `pending_resets` `pending_email_changes` `system_stats` `admin_logs` `system_cache` `admin_requests` `login_attempts` `file_boosts` `vector_sync_failures` `file_task_failures` `user_passkeys` `oauth_clients` `oauth_authorization_codes` `oauth_access_tokens` `pow_challenges` `todos` `todo_guestbook` `favorites`
+`users` `files` `files_fts` `downloads` `announcements` `guestbook` `guestbook_likes` `file_reactions` `pending_registrations` `pending_resets` `pending_email_changes` `system_stats` `admin_logs` `system_cache` `admin_requests` `login_attempts` `file_boosts` `vector_sync_failures` `file_task_failures` `maintenance_jobs` `user_passkeys` `oauth_clients` `oauth_authorization_codes` `oauth_access_tokens` `pow_challenges` `todos` `todo_guestbook` `favorites`
 
 ---
 
@@ -293,7 +293,7 @@ wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 
 > **首次开通队列**：需先创建队列 `npx wrangler queues create whut-resource-ai` 和 `npx wrangler queues create whut-resource-file`。Pages 侧 `wrangler.toml` 的 `[[queues.producers]]` 绑定随 `npm run deploy` 一起生效。
 
-> **异步文件任务**：文件夹/文件的重命名、移动、删除会先把 D1 变更同步落地，再通过 `FILE_QUEUE` 队列异步执行 R2 物理搬移/删除与向量索引同步，避免大目录操作阻塞请求。队列消费失败会记录到 `file_task_failures` 表，可通过 `/api/reindex`（`action=retryFileTasks` 重试、`action=fileTaskFailures` 查询、`action=clearFileTaskFailures` 清理）处理。数据库需执行 `schema.sql` 中新增的 `file_task_failures` 表。
+> **异步文件任务**：文件夹/文件的重命名、移动、删除会先把 D1 变更同步落地，再通过 `FILE_QUEUE` 队列异步执行 R2 物理搬移/删除与向量索引同步，避免大目录操作阻塞请求。R2 全量同步、无效记录清理、向量索引重建同样通过该队列以分片任务异步执行（`maintenance_jobs` 表跟踪进度，前端可关闭页面后回来查看）。队列消费失败会记录到 `file_task_failures` 表，可通过 `/api/reindex`（`action=retryFileTasks` 重试、`action=fileTaskFailures` 查询、`action=clearFileTaskFailures` 清理）处理。数据库需执行 `schema.sql` 中新增的 `file_task_failures`、`maintenance_jobs` 表。
 
 ### 环境变量 / Secret
 

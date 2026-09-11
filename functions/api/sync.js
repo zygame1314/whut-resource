@@ -1,4 +1,4 @@
-import { addCorsHeaders, isSuperAdmin, logAdminAction, getUserFromRequest, invalidateDirListCache } from '../utils.js';
+import { addCorsHeaders, isSuperAdmin, logAdminAction, getUserFromRequest, invalidateDirListCache, createMaintenanceJob, enqueueMaintenanceJob, getMaintenanceJob } from '../utils.js';
 export async function onRequestPost({ request, env }) {
     const user = await getUserFromRequest(request, env);
     if (!user || !isSuperAdmin(user)) {
@@ -19,12 +19,18 @@ export async function onRequestPost({ request, env }) {
         switch (action) {
             case 'init':
                 return await handleInit(DB, env, user);
+            case 'startSync':
+                return await handleStartSync(DB, env, user, body);
+            case 'startCleanup':
+                return await handleStartCleanup(DB, env, user, body);
+            case 'repair':
+                return await handleRepair(DB, env, user);
+            case 'jobStatus':
+                return await handleJobStatus(DB, body);
             case 'process':
                 return await handleProcess(request, env, body, user);
             case 'cleanup':
                 return await handleCleanup(DB, body, VECTORIZE, env, user);
-            case 'repair':
-                return await handleRepair(DB, env, user);
             default:
                 return new Response(JSON.stringify({ success: false, error: '无效的操作类型' }), { status: 400, headers: addCorsHeaders() });
         }
@@ -32,6 +38,67 @@ export async function onRequestPost({ request, env }) {
         console.error('Sync error:', e);
         return new Response(JSON.stringify({ success: false, error: e.message, stack: e.stack }), { status: 500, headers: addCorsHeaders() });
     }
+}
+async function handleStartSync(DB, env, user, body) {
+    const sessionId = body.sessionId || Date.now();
+    if (!env.FILE_QUEUE) {
+        return new Response(JSON.stringify({ success: false, error: '未配置 FILE_QUEUE 队列，无法异步执行' }), { status: 500, headers: addCorsHeaders() });
+    }
+    await ensureSchema(DB);
+    const jobId = await createMaintenanceJob(env, {
+        kind: 'sync_process',
+        chunk: { sessionId },
+        createdBy: user.id
+    });
+    const queued = await enqueueMaintenanceJob(env, jobId);
+    if (!queued) {
+        return new Response(JSON.stringify({ success: false, error: '任务入队失败' }), { status: 500, headers: addCorsHeaders() });
+    }
+    await logAdminAction(env, user.id, 'sync_start', 'system', null, '启动R2同步任务', JSON.stringify({ job_id: jobId, session_id: sessionId }));
+    return new Response(JSON.stringify({
+        success: true,
+        jobId,
+        sessionId,
+        message: '同步任务已提交，处理结果将异步生效'
+    }), { status: 202, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+}
+async function handleStartCleanup(DB, env, user, body) {
+    const sessionId = body.sessionId;
+    if (!sessionId) {
+        return new Response(JSON.stringify({ success: false, error: '缺少 sessionId' }), { status: 400, headers: addCorsHeaders() });
+    }
+    if (!env.FILE_QUEUE) {
+        return new Response(JSON.stringify({ success: false, error: '未配置 FILE_QUEUE 队列，无法异步执行' }), { status: 500, headers: addCorsHeaders() });
+    }
+    await ensureSchema(DB);
+    const jobId = await createMaintenanceJob(env, {
+        kind: 'sync_cleanup',
+        chunk: { sessionId },
+        createdBy: user.id
+    });
+    const queued = await enqueueMaintenanceJob(env, jobId);
+    if (!queued) {
+        return new Response(JSON.stringify({ success: false, error: '任务入队失败' }), { status: 500, headers: addCorsHeaders() });
+    }
+    await logAdminAction(env, user.id, 'sync_cleanup_start', 'system', null, '启动同步清理任务', JSON.stringify({ job_id: jobId, session_id: sessionId }));
+    return new Response(JSON.stringify({
+        success: true,
+        jobId,
+        message: '清理任务已提交，处理结果将异步生效'
+    }), { status: 202, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+}
+async function handleJobStatus(DB, body) {
+    if (body.jobId) {
+        const job = await getMaintenanceJob({ DB }, body.jobId);
+        if (!job) {
+            return new Response(JSON.stringify({ success: false, error: '任务不存在' }), { status: 404, headers: addCorsHeaders() });
+        }
+        return new Response(JSON.stringify({ success: true, job }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
+    const { results } = await DB.prepare(
+        'SELECT * FROM maintenance_jobs ORDER BY created_at DESC LIMIT 20'
+    ).all();
+    return new Response(JSON.stringify({ success: true, jobs: results || [] }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
 }
 async function handleRepair(DB, env, user) {
     const result = await DB.prepare("SELECT DISTINCT parent_path FROM files WHERE parent_path IS NOT NULL AND parent_path != ''").all();
@@ -109,6 +176,31 @@ async function ensureSchema(DB) {
             await DB.prepare('CREATE INDEX IF NOT EXISTS idx_file_task_failures_unresolved ON file_task_failures(resolved, created_at DESC)').run();
         } catch (createError) {
             console.error('Failed to create file_task_failures:', createError);
+        }
+    }
+    try {
+        await DB.prepare('SELECT 1 FROM maintenance_jobs LIMIT 1').run();
+    } catch (e) {
+        console.log('Creating maintenance_jobs table...');
+        try {
+            await DB.prepare(`CREATE TABLE IF NOT EXISTS maintenance_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kind TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                cursor TEXT,
+                total INTEGER,
+                processed INTEGER DEFAULT 0,
+                chunks INTEGER DEFAULT 0,
+                message TEXT,
+                created_by INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                started_at DATETIME,
+                finished_at DATETIME,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`).run();
+            await DB.prepare('CREATE INDEX IF NOT EXISTS idx_maintenance_jobs_status ON maintenance_jobs(status, created_at DESC)').run();
+        } catch (createError) {
+            console.error('Failed to create maintenance_jobs:', createError);
         }
     }
 }

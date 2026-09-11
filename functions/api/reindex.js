@@ -1,4 +1,4 @@
-import { addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, runFileTask } from '../utils.js';
+import { addCorsHeaders, isSuperAdmin, generateEmbeddings, retryWithBackoff, recordVectorSyncFailure, buildRichEmbeddingText, logAdminAction, getUserFromRequest, runFileTask, createMaintenanceJob, enqueueMaintenanceJob, getMaintenanceJob } from '../utils.js';
 const BATCH_SIZE = 50;
 export async function onRequestPost({ request, env }) {
     const user = await getUserFromRequest(request, env);
@@ -19,6 +19,16 @@ export async function onRequestPost({ request, env }) {
     try {
         const body = await request.json().catch(() => ({}));
         const action = body.action || 'reindex';
+        if (action === 'reindexAsync') {
+            return await handleReindexAsync(env, DB, user);
+        }
+        if (action === 'jobStatus') {
+            const job = await getMaintenanceJob(env, body.jobId);
+            if (!job) {
+                return new Response(JSON.stringify({ success: false, error: '任务不存在' }), { status: 404, headers: addCorsHeaders() });
+            }
+            return new Response(JSON.stringify({ success: true, job }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
         if (action === 'retryFailed') {
             return await handleRetryFailed(env, DB, VECTORIZE, user);
         }
@@ -252,6 +262,39 @@ async function handleRetryFileTasks(env, DB, user) {
         stillFailed
     }), {
         status: 200,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
+}
+async function handleReindexAsync(env, DB, user) {
+    if (!env.FILE_QUEUE) {
+        return new Response(JSON.stringify({ success: false, error: '未配置 FILE_QUEUE 队列，无法异步执行' }), {
+            status: 500,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    const countResult = await DB.prepare('SELECT COUNT(*) as total FROM files').first();
+    const total = countResult?.total || 0;
+    const jobId = await createMaintenanceJob(env, {
+        kind: 'reindex',
+        chunk: { offset: 0 },
+        total,
+        createdBy: user.id
+    });
+    const queued = await enqueueMaintenanceJob(env, jobId);
+    if (!queued) {
+        return new Response(JSON.stringify({ success: false, error: '任务入队失败' }), {
+            status: 500,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    await logAdminAction(env, user.id, 'reindex_async', 'system', null, '启动异步向量重建', JSON.stringify({ job_id: jobId, total }));
+    return new Response(JSON.stringify({
+        success: true,
+        jobId,
+        total,
+        message: '向量重建任务已提交，处理结果将异步生效'
+    }), {
+        status: 202,
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
 }

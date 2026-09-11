@@ -144,6 +144,241 @@ export async function dispatchFileTask(env, waitUntil, task) {
   if (typeof waitUntil === 'function') waitUntil(run());
   else await run();
 }
+export const MAINTENANCE_JOB_TYPE = 'maintenance';
+const MAINTENANCE_CHUNK_SIZE = 200;
+const MAINTENANCE_MAX_CHUNKS = 5000;
+export async function createMaintenanceJob(env, { kind, chunk = {}, total = null, createdBy = null }) {
+  if (!env?.DB) throw new Error('数据库未配置');
+  const insert = await env.DB.prepare(
+    'INSERT INTO maintenance_jobs (kind, status, cursor, total, processed, created_by) VALUES (?, ?, ?, ?, 0, ?)'
+  ).bind(kind, 'pending', JSON.stringify(chunk || {}), total, createdBy).run();
+  return insert.meta.last_row_id;
+}
+export async function getMaintenanceJob(env, jobId) {
+  if (!env?.DB) return null;
+  return await env.DB.prepare('SELECT * FROM maintenance_jobs WHERE id = ?').bind(jobId).first();
+}
+export async function enqueueMaintenanceJob(env, jobId) {
+  if (!env?.FILE_QUEUE) return false;
+  try {
+    await env.FILE_QUEUE.send({ type: MAINTENANCE_JOB_TYPE, jobId });
+    return true;
+  } catch (e) {
+    console.error('维护任务入队失败:', e?.message || e);
+    return false;
+  }
+}
+async function finishMaintenanceJob(env, jobId, status, message) {
+  await env.DB.prepare(
+    'UPDATE maintenance_jobs SET status = ?, message = ?, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+  ).bind(status, message || null, jobId).run();
+}
+async function advanceMaintenanceJob(env, jobId, chunk, processed) {
+  await env.DB.prepare(
+    'UPDATE maintenance_jobs SET cursor = ?, processed = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+  ).bind(JSON.stringify(chunk || {}), processed, jobId).run();
+}
+async function runSyncProcessChunk(env, chunk) {
+  const R2 = env.R2_bucket;
+  const DB = env.DB;
+  const sessionId = chunk.sessionId;
+  if (!R2 || !DB || !sessionId) throw new Error('同步处理缺少 R2/DB/sessionId');
+  const options = { limit: 1000 };
+  if (chunk.cursor) options.cursor = chunk.cursor;
+  const list = await R2.list(options);
+  const objects = list.objects || [];
+  const dirPaths = new Set();
+  const statements = [];
+  for (const object of objects) {
+    const key = object.key;
+    if (key.endsWith('/')) continue;
+    const name = key.split('/').pop();
+    const parentPath = key.includes('/') ? key.substring(0, key.lastIndexOf('/') + 1) : '';
+    const size = object.size;
+    const uploaded = object.uploaded.toISOString();
+    const contentType = object.httpMetadata?.contentType || 'application/octet-stream';
+    if (parentPath) {
+      let currentPath = parentPath;
+      while (currentPath) {
+        dirPaths.add(currentPath);
+        if (currentPath.endsWith('/')) currentPath = currentPath.slice(0, -1);
+        const lastSlash = currentPath.lastIndexOf('/');
+        if (lastSlash === -1) break;
+        currentPath = currentPath.substring(0, lastSlash + 1);
+      }
+    }
+    statements.push(DB.prepare(`
+      INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads, uploader_id, last_verified)
+      VALUES (?, ?, ?, ?, ?, ?, FALSE, 0, NULL, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        size = excluded.size,
+        uploaded = excluded.uploaded,
+        contentType = excluded.contentType,
+        parent_path = excluded.parent_path,
+        last_verified = excluded.last_verified
+    `).bind(key, name, size, uploaded, contentType, parentPath, sessionId));
+  }
+  for (const dirPath of dirPaths) {
+    const parts = dirPath.split('/').filter(p => p);
+    const dirName = parts[parts.length - 1];
+    const parentDir = parts.length > 1 ? parts.slice(0, parts.length - 1).join('/') + '/' : '';
+    statements.push(DB.prepare(`
+      INSERT INTO files (key, name, size, uploaded, contentType, parent_path, is_directory, downloads, last_verified)
+      VALUES (?, ?, 0, ?, 'inode/directory', ?, TRUE, 0, ?)
+      ON CONFLICT(key) DO UPDATE SET last_verified = excluded.last_verified
+    `).bind(dirPath, dirName, new Date().toISOString(), parentDir, sessionId));
+  }
+  for (let i = 0; i < statements.length; i += 50) {
+    const batch = statements.slice(i, i + 50);
+    if (batch.length > 0) await DB.batch(batch);
+  }
+  return {
+    done: !list.truncated,
+    nextChunk: list.truncated ? { sessionId, cursor: list.cursor } : { sessionId },
+    processed: objects.length
+  };
+}
+async function runSyncCleanupChunk(env, chunk) {
+  const DB = env.DB;
+  const VECTORIZE = env.VECTORIZE;
+  const sessionId = chunk.sessionId;
+  if (!DB || !sessionId) throw new Error('同步清理缺少 DB/sessionId');
+  const filesToDeleteResult = await DB.prepare(`
+    SELECT id, key FROM files
+    WHERE (last_verified IS NULL OR last_verified != ?)
+      AND is_link = FALSE
+      AND is_directory = FALSE
+  `).bind(sessionId).all();
+  const filesToDelete = filesToDeleteResult.results || [];
+  const deleteStatements = [];
+  const vectorIdsToDelete = [];
+  for (const file of filesToDelete) {
+    deleteStatements.push(DB.prepare('DELETE FROM files WHERE id = ?').bind(file.id));
+    if (file.id) vectorIdsToDelete.push(file.id.toString());
+  }
+  const dirsToDeleteResult = await DB.prepare(`
+    SELECT id, key FROM files
+    WHERE is_directory = TRUE
+      AND (last_verified IS NULL OR last_verified != ?)
+      AND key NOT IN (
+        SELECT DISTINCT parent_path FROM files
+        WHERE parent_path IS NOT NULL AND (last_verified = ? OR is_link = TRUE)
+      )
+  `).bind(sessionId, sessionId).all();
+  const dirsToDelete = dirsToDeleteResult.results || [];
+  for (const dir of dirsToDelete) deleteStatements.push(DB.prepare('DELETE FROM files WHERE id = ?').bind(dir.id));
+  for (let i = 0; i < deleteStatements.length; i += 50) {
+    const batch = deleteStatements.slice(i, i + 50);
+    if (batch.length > 0) await DB.batch(batch);
+  }
+  if (dirsToDelete.length > 0) await invalidateDirListCache(DB);
+  let deletedVectorsCount = 0;
+  if (VECTORIZE && vectorIdsToDelete.length > 0) {
+    for (let i = 0; i < vectorIdsToDelete.length; i += 100) {
+      const batch = vectorIdsToDelete.slice(i, i + 100);
+      try {
+        await VECTORIZE.deleteByIds(batch);
+        deletedVectorsCount += batch.length;
+      } catch (e) {
+        console.error('清理向量索引失败:', e);
+        for (const id of batch) await recordVectorSyncFailure(env, 'delete', Number(id), null, e.message);
+      }
+    }
+  }
+  try {
+    await DB.prepare(`
+      INSERT INTO system_stats (id, total_files, total_size)
+      VALUES (1, 0, 0)
+      ON CONFLICT(id) DO UPDATE SET
+        total_files = (SELECT COUNT(*) FROM files WHERE is_directory = FALSE),
+        total_size = COALESCE((SELECT SUM(size) FROM files WHERE is_directory = FALSE), 0),
+        updated_at = CURRENT_TIMESTAMP
+    `).run();
+  } catch (e) {
+    console.error('更新系统统计失败', e);
+  }
+  return { done: true, nextChunk: {}, processed: filesToDelete.length + dirsToDelete.length };
+}
+async function runReindexChunk(env, chunk) {
+  const DB = env.DB;
+  const VECTORIZE = env.VECTORIZE;
+  if (!DB || !VECTORIZE || !env.SILICONFLOW_API_KEY) throw new Error('重建索引缺少 DB/VECTORIZE/SILICONFLOW_API_KEY');
+  const offset = Number(chunk.offset) || 0;
+  const filesResult = await DB.prepare(
+    'SELECT id, name, key, parent_path, is_directory, description FROM files ORDER BY id LIMIT ? OFFSET ?'
+  ).bind(MAINTENANCE_CHUNK_SIZE, offset).all();
+  const files = filesResult.results || [];
+  if (files.length === 0) {
+    return { done: true, nextChunk: {}, processed: 0, total: offset };
+  }
+  const embeddings = await generateEmbeddings(env, files.map(f => buildRichEmbeddingText(f)));
+  if (!embeddings || embeddings.length !== files.length) {
+    throw new Error('AI 嵌入生成失败或数量不匹配');
+  }
+  const vectors = files.map((file, index) => ({
+    id: file.id.toString(),
+    values: embeddings[index],
+    metadata: { name: file.name, path: file.key }
+  }));
+  await retryWithBackoff(async () => {
+    await VECTORIZE.upsert(vectors);
+  }, 3, 500);
+  const nextOffset = offset + files.length;
+  const countRow = await DB.prepare('SELECT COUNT(*) as total FROM files').first();
+  const total = countRow?.total || nextOffset;
+  return {
+    done: nextOffset >= total,
+    nextChunk: { offset: nextOffset },
+    processed: files.length,
+    total
+  };
+}
+async function runMaintenanceChunk(env, job) {
+  const chunk = job.cursor ? JSON.parse(job.cursor) : {};
+  switch (job.kind) {
+    case 'sync_process':
+      return await runSyncProcessChunk(env, chunk);
+    case 'sync_cleanup':
+      return await runSyncCleanupChunk(env, chunk);
+    case 'reindex':
+      return await runReindexChunk(env, chunk);
+    default:
+      throw new Error('未知的维护任务类型: ' + job.kind);
+  }
+}
+export async function runMaintenanceJob(env, jobId) {
+  const job = await getMaintenanceJob(env, jobId);
+  if (!job) return { success: false, message: '任务不存在' };
+  if (job.status === 'completed' || job.status === 'failed') {
+    return { success: true, message: '任务已结束', status: job.status };
+  }
+  const chunks = Number(job.chunks) || 0;
+  if (chunks >= MAINTENANCE_MAX_CHUNKS) {
+    await finishMaintenanceJob(env, jobId, 'failed', `超过最大分片次数(${MAINTENANCE_MAX_CHUNKS})，已中止`);
+    return { success: false, message: '超过最大分片次数' };
+  }
+  await env.DB.prepare(
+    "UPDATE maintenance_jobs SET status = 'running', chunks = chunks + 1, started_at = COALESCE(started_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+  ).bind(jobId).run();
+  let result;
+  try {
+    result = await runMaintenanceChunk(env, job);
+  } catch (e) {
+    console.error(`维护任务执行失败 (job=${jobId}, kind=${job.kind}):`, e);
+    await finishMaintenanceJob(env, jobId, 'failed', e?.message || String(e));
+    await recordFileTaskFailure(env, { op: MAINTENANCE_JOB_TYPE, jobId, kind: job.kind }, e?.message || e);
+    return { success: false, message: e?.message || '任务执行失败' };
+  }
+  const processed = (Number(job.processed) || 0) + (Number(result.processed) || 0);
+  if (result.done) {
+    await advanceMaintenanceJob(env, jobId, {}, processed);
+    await finishMaintenanceJob(env, jobId, 'completed', `处理完成，共 ${processed} 项`);
+    return { success: true, done: true, processed };
+  }
+  await advanceMaintenanceJob(env, jobId, result.nextChunk || {}, processed);
+  await enqueueMaintenanceJob(env, jobId);
+  return { success: true, done: false, processed };
+}
 const _rlCache = new Map();
 const RL_WINDOW_MS = 60 * 1000;
 const RL_CLEANUP_THRESHOLD = 5000;

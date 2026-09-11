@@ -385,6 +385,24 @@ CREATE TABLE IF NOT EXISTS file_task_failures (
 
 CREATE INDEX IF NOT EXISTS idx_file_task_failures_unresolved ON file_task_failures(resolved, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS maintenance_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    cursor TEXT,
+    total INTEGER,
+    processed INTEGER DEFAULT 0,
+    chunks INTEGER DEFAULT 0,
+    message TEXT,
+    created_by INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    started_at DATETIME,
+    finished_at DATETIME,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_maintenance_jobs_status ON maintenance_jobs(status, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS user_passkeys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,

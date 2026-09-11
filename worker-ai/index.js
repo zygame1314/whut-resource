@@ -1,5 +1,5 @@
 import { processWithAIAgent } from '../functions/api/guestbook-ai.js';
-import { runFileTask, recordFileTaskFailure } from '../functions/utils.js';
+import { runFileTask, recordFileTaskFailure, runMaintenanceJob, MAINTENANCE_JOB_TYPE } from '../functions/utils.js';
 
 export default {
     async queue(batch, env, ctx) {
@@ -7,6 +7,17 @@ export default {
             const payload = msg.body;
             if (!payload) {
                 msg.retry();
+                continue;
+            }
+            if (payload.type === MAINTENANCE_JOB_TYPE) {
+                try {
+                    await runMaintenanceJob(env, payload.jobId);
+                    msg.ack();
+                } catch (err) {
+                    console.error('维护任务队列消费失败:', err);
+                    await recordFileTaskFailure(env, { op: MAINTENANCE_JOB_TYPE, jobId: payload.jobId }, err?.message || err);
+                    msg.retry();
+                }
                 continue;
             }
             if (payload.type === 'file') {
