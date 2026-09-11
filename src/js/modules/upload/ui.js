@@ -143,6 +143,9 @@ function showSelectedFile(files, append) {
 }
 
 function clearSelectedFile() {
+    if (typeof cancelActiveUpload === 'function' && cancelActiveUpload()) {
+        showNotification('已取消正在进行的上传', 'info');
+    }
     selectedFiles = [];
     if (fileInput) fileInput.value = '';
     if (selectedFileInfo) {

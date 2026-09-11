@@ -494,6 +494,19 @@ async function retrySingleFileUpload(file) {
         xhr.send(formData);
     });
 }
+let activeUploadSession = null;
+
+function cancelActiveUpload() {
+    const session = activeUploadSession;
+    if (!session || session.cancelled) return false;
+    session.cancelled = true;
+    session.xhrs.forEach((xhr) => {
+        try { xhr.abort(); } catch (e) { }
+    });
+    session.xhrs.clear();
+    return true;
+}
+
 async function handleUpload(event) {
     event.preventDefault();
     const isAdmin = window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'super_admin');
@@ -513,9 +526,19 @@ async function handleUpload(event) {
         showNotification('请选择要上传的文件或文件夹', 'error');
         return;
     }
-    const CONCURRENT_UPLOADS = 3;
-    const BATCH_SIZE_COUNT = 5;
-    const BATCH_SIZE_BYTES = 50 * 1024 * 1024;
+    if (activeUploadSession && !activeUploadSession.cancelled) {
+        showNotification('已有上传任务正在进行', 'warning');
+        return;
+    }
+    const uploadSession = { cancelled: false, xhrs: new Set() };
+    activeUploadSession = uploadSession;
+    const filesSnapshot = [...selectedFiles];
+    const SERVER_MAX_FILES = 20;
+    const SINGLE_UPLOAD_THRESHOLD = 8 * 1024 * 1024;
+    const MAX_BATCH_BYTES = 40 * 1024 * 1024;
+    const MAX_ACTIVE_BYTES = 48 * 1024 * 1024;
+    const MAX_CONCURRENCY = 6;
+    const MAX_PROCESSING_CONCURRENCY = 15;
     if (uploadSubmitBtn) {
         uploadSubmitBtn.disabled = true;
         uploadSubmitBtn.innerHTML = `
@@ -524,8 +547,8 @@ async function handleUpload(event) {
         `;
     }
     let filesUploaded = 0;
-    const totalFiles = selectedFiles.length;
-    const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    const totalFiles = filesSnapshot.length;
+    const totalSize = filesSnapshot.reduce((sum, file) => sum + file.size, 0);
     const fileProgress = new Map();
     const allUploadResults = { success: [], failed: [] };
     let currentStage = 'upload';
@@ -537,7 +560,7 @@ async function handleUpload(event) {
     let lastShownSpeed = 0;
     const updateTotalProgress = () => {
         let totalUploadedSize = 0;
-        for (const file of selectedFiles) {
+        for (const file of filesSnapshot) {
             totalUploadedSize += (fileProgress.get(file) || 0) * file.size;
         }
         const uploadedRatio = totalSize > 0 ? totalUploadedSize / totalSize : 0;
@@ -608,6 +631,7 @@ async function handleUpload(event) {
         });
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
+            uploadSession.xhrs.add(xhr);
             xhr.upload.addEventListener('progress', (e) => {
                 if (e.lengthComputable) {
                     const percent = e.loaded / e.total;
@@ -617,13 +641,14 @@ async function handleUpload(event) {
                     if (currentStage !== 'upload' && !isProcessing()) setUploadStage('upload');
                     updateTotalProgress();
                     let totalLoaded = 0;
-                    for (const file of selectedFiles) {
+                    for (const file of filesSnapshot) {
                         totalLoaded += (fileProgress.get(file) || 0) * file.size;
                     }
                     updateUploadSpeed(totalLoaded);
                 }
             });
             xhr.addEventListener('load', () => {
+                uploadSession.xhrs.delete(xhr);
                 try {
                     const result = JSON.parse(xhr.responseText);
                     if (xhr.status === 200) {
@@ -639,124 +664,185 @@ async function handleUpload(event) {
                     reject(error);
                 }
             });
-            xhr.addEventListener('error', () => reject(new Error('网络错误')));
+            xhr.addEventListener('error', () => {
+                uploadSession.xhrs.delete(xhr);
+                reject(new Error('网络错误'));
+            });
+            xhr.addEventListener('abort', () => {
+                uploadSession.xhrs.delete(xhr);
+                reject(new Error('上传已取消'));
+            });
             xhr.open('POST', API_ENDPOINTS.upload);
             xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('authToken'));
             xhr.send(formData);
         });
     };
+    let activeBytes = 0;
+    let processingActive = 0;
+    const processingWaiters = [];
+    const acquireProcessingSlot = () => new Promise((resolve) => {
+        if (processingActive < MAX_PROCESSING_CONCURRENCY) {
+            processingActive++;
+            resolve();
+        } else {
+            processingWaiters.push(resolve);
+        }
+    });
+    const releaseProcessingSlot = () => {
+        const next = processingWaiters.shift();
+        if (next) next();
+        else processingActive = Math.max(0, processingActive - 1);
+    };
+    const waitForCapacity = async (batchFiles) => {
+        const batchBytes = batchFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+        while (
+            !uploadSession.cancelled &&
+            activeBytes > 0 &&
+            activeBytes + batchBytes > MAX_ACTIVE_BYTES
+        ) {
+            await new Promise((resolve) => setTimeout(resolve, 40));
+        }
+        activeBytes += batchBytes;
+    };
+    const releaseCapacity = (batchFiles) => {
+        const batchBytes = batchFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+        activeBytes = Math.max(0, activeBytes - batchBytes);
+    };
     const createBatches = (files) => {
         const batches = [];
         let currentBatch = [];
         let currentBatchSize = 0;
+        const flush = () => {
+            if (currentBatch.length > 0) batches.push(currentBatch);
+            currentBatch = [];
+            currentBatchSize = 0;
+        };
         for (const file of files) {
-            if (currentBatch.length >= BATCH_SIZE_COUNT || (currentBatchSize + file.size > BATCH_SIZE_BYTES && currentBatch.length > 0)) {
-                batches.push(currentBatch);
-                currentBatch = [];
-                currentBatchSize = 0;
+            if (file.size >= SINGLE_UPLOAD_THRESHOLD) {
+                flush();
+                batches.push([file]);
+                continue;
+            }
+            if (currentBatch.length >= SERVER_MAX_FILES || (currentBatchSize + file.size > MAX_BATCH_BYTES && currentBatch.length > 0)) {
+                flush();
             }
             currentBatch.push(file);
             currentBatchSize += file.size;
         }
-        if (currentBatch.length > 0) batches.push(currentBatch);
+        flush();
         return batches;
     };
+    const worker = async () => {
+        while (queue.length > 0) {
+            if (uploadSession.cancelled) return;
+            const batchFiles = queue.shift();
+            if (!batchFiles || batchFiles.length === 0) continue;
+            try {
+                const enableWatermark = watermarkToggle ? watermarkToggle.checked : true;
+                const enableTrace = traceToggle ? traceToggle.checked : true;
+                const processedFiles = await Promise.all(batchFiles.map(async (file) => {
+                    let fileDone = false;
+                    await acquireProcessingSlot();
+                    try {
+                        processingCount++;
+                        if (enableWatermark && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
+                            setProcessingDetail(`正在给 "${file.name}" 加水印...`, 'watermark');
+                        }
+                        let f = enableWatermark ? await addWatermarkToPDF(file, (info) => {
+                            if (fileDone) return;
+                            if (info.stage === 'bake') {
+                                if (info.totalPages) {
+                                    setProcessingDetail(`正在烘焙 "${info.file}" 第 ${info.page}/${info.totalPages} 页...`, 'bake');
+                                } else {
+                                    setProcessingDetail(`正在准备烘焙 "${info.file}"...`, 'bake');
+                                }
+                            } else if (info.stage === 'watermark') {
+                                setProcessingDetail(`正在给 "${info.file}" 加水印...`, 'watermark');
+                            }
+                        }) : file;
+                        if (enableTrace && f === file) {
+                            const ext = file.name.split('.').pop().toLowerCase();
+                            if (ext !== 'pdf' && !['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', '7zip', 'docx', 'xlsx', 'pptx', 'docm', 'xlsm', 'pptm', 'doc', 'xls', 'ppt', 'odt', 'ods', 'odp', 'iso', 'dmg', 'pkg', 'apk', 'ipa', 'exe', 'msi'].includes(ext)) {
+                                setProcessingDetail(`正在给 "${file.name}" 注入追踪码...`, 'trace');
+                            }
+                        }
+                        f = enableTrace ? await injectTraceCode(f) : f;
+                        processingCount = Math.max(0, processingCount - 1);
+                        releaseProcessingSlot();
+                        fileDone = true;
+                        return f;
+                    } catch (e) {
+                        processingCount = Math.max(0, processingCount - 1);
+                        releaseProcessingSlot();
+                        fileDone = true;
+                        console.error(`预处理失败: ${file.name}`, e);
+                        return file;
+                    }
+                }));
+                if (processingCount <= 0 && currentStage !== 'done') setUploadStage('upload');
+                if (uploadSession.cancelled) return;
+                await waitForCapacity(batchFiles);
+                if (uploadSession.cancelled) return;
+                const result = await uploadBatch(processedFiles, batchFiles);
+                if (uploadSession.cancelled) return;
+                if (result.results) {
+                    result.results.forEach(res => {
+                        if (res.success) {
+                            filesUploaded++;
+                            allUploadResults.success.push({ name: res.name });
+                        } else {
+                            const originalFile = batchFiles.find(pf => {
+                                const fullPath = pf._webkitRelativePath || pf.webkitRelativePath || pf.originalRelativePath || pf.name;
+                                return fullPath === res.name ||
+                                    res.name.endsWith('/' + pf.name) ||
+                                    res.name === pf.name ||
+                                    fullPath.endsWith(res.name);
+                            });
+                            allUploadResults.failed.push({ name: res.name, error: res.error, file: originalFile || null });
+                        }
+                    });
+                } else if (result.success) {
+                    filesUploaded += processedFiles.length;
+                    processedFiles.forEach(f => allUploadResults.success.push({ name: f.name }));
+                }
+                if (processedFiles.length > 0) {
+                    const successCountInBatch = result.results ? result.results.filter(r => r.success).length : processedFiles.length;
+                    if (successCountInBatch > 0) {
+                        const f = processedFiles[0];
+                        const displayName = f.webkitRelativePath || f._webkitRelativePath || f.name;
+                        if (processedFiles.length > 1) {
+                            showNotification(`本批次 ${successCountInBatch} 个文件上传成功`, 'success');
+                        } else {
+                            showNotification(`文件 "${displayName}" 上传成功！`, 'success');
+                        }
+                    }
+                }
+            } catch (error) {
+                if (uploadSession.cancelled) return;
+                const errorMsg = error.message || '未知错误';
+                showNotification(`一批次 (${batchFiles.length}个) 上传失败: ${errorMsg}`, 'error');
+            } finally {
+                releaseCapacity(batchFiles);
+            }
+        }
+    };
+    const concurrency = Math.max(1, Math.min(MAX_CONCURRENCY, filesSnapshot.length));
+    const queue = createBatches(filesSnapshot);
     try {
         uploadStartTs = performance.now();
         lastSpeedSample = { ts: performance.now(), loaded: 0 };
         setProgressStage('idle', `共 ${totalFiles} 个文件 · ${formatBytes(totalSize)}`);
         updateProgress(0, `准备上传 ${totalFiles} 个文件...`);
-        const rawBatches = createBatches(selectedFiles);
-        const queue = [...rawBatches];
-        const worker = async () => {
-            while (queue.length > 0) {
-                const batchFiles = queue.shift();
-                if (batchFiles && batchFiles.length > 0) {
-                    try {
-                        const enableWatermark = watermarkToggle ? watermarkToggle.checked : true;
-                        const enableTrace = traceToggle ? traceToggle.checked : true;
-                        const processedFiles = await Promise.all(batchFiles.map(async (file) => {
-                            let fileDone = false;
-                            try {
-                                processingCount++;
-                                if (enableWatermark && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
-                                    setProcessingDetail(`正在给 "${file.name}" 加水印...`, 'watermark');
-                                }
-                                let f = enableWatermark ? await addWatermarkToPDF(file, (info) => {
-                                    if (fileDone) return;
-                                    if (info.stage === 'bake') {
-                                        if (info.totalPages) {
-                                            setProcessingDetail(`正在烘焙 "${info.file}" 第 ${info.page}/${info.totalPages} 页...`, 'bake');
-                                        } else {
-                                            setProcessingDetail(`正在准备烘焙 "${info.file}"...`, 'bake');
-                                        }
-                                    } else if (info.stage === 'watermark') {
-                                        setProcessingDetail(`正在给 "${info.file}" 加水印...`, 'watermark');
-                                    }
-                                }) : file;
-                                if (enableTrace && f === file) {
-                                    const ext = file.name.split('.').pop().toLowerCase();
-                                    if (ext !== 'pdf' && !['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', '7zip', 'docx', 'xlsx', 'pptx', 'docm', 'xlsm', 'pptm', 'doc', 'xls', 'ppt', 'odt', 'ods', 'odp', 'iso', 'dmg', 'pkg', 'apk', 'ipa', 'exe', 'msi'].includes(ext)) {
-                                        setProcessingDetail(`正在给 "${file.name}" 注入追踪码...`, 'trace');
-                                    }
-                                }
-                                f = enableTrace ? await injectTraceCode(f) : f;
-                                processingCount = Math.max(0, processingCount - 1);
-                                fileDone = true;
-                                return f;
-                            } catch (e) {
-                                processingCount = Math.max(0, processingCount - 1);
-                                fileDone = true;
-                                console.error(`预处理失败: ${file.name}`, e);
-                                return file;
-                            }
-                        }));
-                        if (processingCount <= 0 && currentStage !== 'done') setUploadStage('upload');
-                        const result = await uploadBatch(processedFiles, batchFiles);
-                        if (result.results) {
-                            result.results.forEach(res => {
-                                if (res.success) {
-                                    filesUploaded++;
-                                    allUploadResults.success.push({ name: res.name });
-                                } else {
-                                    const originalFile = batchFiles.find(pf => {
-                                        const fullPath = pf._webkitRelativePath || pf.webkitRelativePath || pf.originalRelativePath || pf.name;
-                                        return fullPath === res.name ||
-                                            res.name.endsWith('/' + pf.name) ||
-                                            res.name === pf.name ||
-                                            fullPath.endsWith(res.name);
-                                    });
-                                    allUploadResults.failed.push({ name: res.name, error: res.error, file: originalFile || null });
-                                }
-                            });
-                        } else if (result.success) {
-                            filesUploaded += processedFiles.length;
-                            processedFiles.forEach(f => allUploadResults.success.push({ name: f.name }));
-                        }
-                        if (processedFiles.length > 0) {
-                            const successCountInBatch = result.results ? result.results.filter(r => r.success).length : processedFiles.length;
-                            if (successCountInBatch > 0) {
-                                const f = processedFiles[0];
-                                const displayName = f.webkitRelativePath || f._webkitRelativePath || f.name;
-                                if (processedFiles.length > 1) {
-                                    showNotification(`本批次 ${successCountInBatch} 个文件上传成功`, 'success');
-                                } else {
-                                    showNotification(`文件 "${displayName}" 上传成功！`, 'success');
-                                }
-                            }
-                        }
-                    } catch (error) {
-                        const errorMsg = error.message || '未知错误';
-                        showNotification(`一批次 (${batchFiles.length}个) 上传失败: ${errorMsg}`, 'error');
-                    }
-                }
-            }
-        };
         const workers = [];
-        for (let i = 0; i < CONCURRENT_UPLOADS; i++) {
+        for (let i = 0; i < concurrency; i++) {
             workers.push(worker());
         }
         await Promise.all(workers);
+        if (uploadSession.cancelled) {
+            showUploadStatus('上传已取消', 'warning');
+            resetProgress();
+            return;
+        }
         currentStage = 'done';
         setProgressStage('done');
         setProgressUploadSpeed(0);
@@ -781,8 +867,11 @@ async function handleUpload(event) {
         setProgressStage('idle');
         setProgressUploadSpeed(0);
         setProgressDetail('');
-        showUploadStatus(`上传处理出错: ${error.message}`, 'error');
+        if (!uploadSession.cancelled) {
+            showUploadStatus(`上传处理出错: ${error.message}`, 'error');
+        }
     } finally {
+        if (activeUploadSession === uploadSession) activeUploadSession = null;
         if (uploadSubmitBtn) {
             uploadSubmitBtn.disabled = false;
             uploadSubmitBtn.innerHTML = `
