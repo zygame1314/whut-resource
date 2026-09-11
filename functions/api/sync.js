@@ -198,10 +198,27 @@ async function ensureSchema(DB) {
                 finished_at DATETIME,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )`).run();
-            await DB.prepare('CREATE INDEX IF NOT EXISTS idx_maintenance_jobs_status ON maintenance_jobs(status, created_at DESC)').run();
         } catch (createError) {
             console.error('Failed to create maintenance_jobs:', createError);
         }
+    }
+    await migrateIndexes(DB);
+}
+async function migrateIndexes(DB) {
+    try {
+        await DB.prepare('DROP INDEX IF EXISTS idx_vector_sync_file_id').run();
+    } catch (e) {
+        console.error('删除死索引 idx_vector_sync_file_id 失败:', e);
+    }
+    try {
+        await DB.prepare('DROP INDEX IF EXISTS idx_maintenance_jobs_status').run();
+    } catch (e) {
+        console.error('删除旧索引 idx_maintenance_jobs_status 失败:', e);
+    }
+    try {
+        await DB.prepare('CREATE INDEX IF NOT EXISTS idx_maintenance_jobs_created ON maintenance_jobs(created_at DESC)').run();
+    } catch (e) {
+        console.error('创建 idx_maintenance_jobs_created 失败:', e);
     }
 }
 async function handleInit(DB, env, user) {

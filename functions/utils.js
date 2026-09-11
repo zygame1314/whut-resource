@@ -128,6 +128,9 @@ export async function recordFileTaskFailure(env, task, errorMessage) {
       JSON.stringify(task || {}).substring(0, 4000),
       String(errorMessage || '').substring(0, 1000)
     ).run();
+    await env.DB.prepare(
+      "DELETE FROM file_task_failures WHERE resolved = TRUE AND created_at < datetime('now', '-7 days')"
+    ).run();
   } catch (e) {
     console.error('记录文件任务失败信息出错:', e?.message || e);
   }
@@ -257,6 +260,13 @@ export async function createMaintenanceJob(env, { kind, chunk = {}, total = null
   const insert = await env.DB.prepare(
     'INSERT INTO maintenance_jobs (kind, status, cursor, total, processed, created_by) VALUES (?, ?, ?, ?, 0, ?)'
   ).bind(kind, 'pending', JSON.stringify(chunk || {}), total, createdBy).run();
+  try {
+    await env.DB.prepare(
+      "DELETE FROM maintenance_jobs WHERE status IN ('completed', 'failed') AND created_at < datetime('now', '-7 days')"
+    ).run();
+  } catch (e) {
+    console.error('清理旧维护任务失败:', e);
+  }
   return insert.meta.last_row_id;
 }
 export async function getMaintenanceJob(env, jobId) {
@@ -1175,6 +1185,9 @@ export async function recordVectorSyncFailure(env, operation, fileId, fileData, 
       fileId || null,
       fileData ? JSON.stringify(fileData) : null,
       errorMessage || ''
+    ).run();
+    await env.DB.prepare(
+      "DELETE FROM vector_sync_failures WHERE resolved = TRUE AND created_at < datetime('now', '-7 days')"
     ).run();
   } catch (dbError) {
     console.error('记录向量同步失败信息出错:', dbError);

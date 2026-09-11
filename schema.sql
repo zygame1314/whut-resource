@@ -370,7 +370,6 @@ CREATE TABLE IF NOT EXISTS vector_sync_failures (
 );
 
 CREATE INDEX IF NOT EXISTS idx_vector_sync_unresolved ON vector_sync_failures(resolved, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_vector_sync_file_id ON vector_sync_failures(file_id, resolved);
 
 CREATE TABLE IF NOT EXISTS file_task_failures (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -401,7 +400,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_maintenance_jobs_status ON maintenance_jobs(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_maintenance_jobs_created ON maintenance_jobs(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS user_passkeys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
