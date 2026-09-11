@@ -1,5 +1,6 @@
-import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchR2MoveTasks, dispatchR2DeleteTasks } from '../utils.js';
+import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchR2MoveTasks, dispatchR2DeleteTasks, createMaintenanceJob, enqueueMaintenanceJob, getMaintenanceJob } from '../utils.js';
 const MAX_SAFE_BATCH_SIZE = 500;
+const MAX_BATCH_DELETE_KEYS = 2000;
 function sanitizeSegment(name) {
     if (!name || typeof name !== 'string') return null;
     const decoded = name.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
@@ -116,6 +117,29 @@ export async function onRequestGet({ request, env, waitUntil }) {
             }
             await DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ? AND is_link = TRUE').bind(key).run();
             return new Response(JSON.stringify({ success: true }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+        }
+        if (action === 'jobStatus') {
+            if (!isAdmin(user)) {
+                return new Response(JSON.stringify({ success: false, error: '需要管理员权限。' }), {
+                    status: 403,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            const jobId = url.searchParams.get('jobId');
+            if (!jobId) {
+                return new Response(JSON.stringify({ success: false, error: '缺少jobId参数' }), {
+                    status: 400,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            const job = await getMaintenanceJob(env, jobId);
+            if (!job) {
+                return new Response(JSON.stringify({ success: false, error: '任务不存在' }), {
+                    status: 404,
+                    headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+                });
+            }
+            return new Response(JSON.stringify({ success: true, job }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'updateLinkUrl') {
             if (!isAdmin(user)) {
@@ -784,6 +808,9 @@ export async function onRequestPost({ request, env, waitUntil }) {
     }
     try {
         const body = await request.json();
+        if (action === 'batchDelete') {
+            return await handleBatchDeleteRequest(body, user, env, DB);
+        }
         if (action === 'toggleReaction') {
             const { key } = body;
             if (!key) {
@@ -1078,6 +1105,94 @@ export async function onRequestPost({ request, env, waitUntil }) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
+}
+async function handleBatchDeleteRequest(body, user, env, DB) {
+    const keys = Array.isArray(body.keys) ? body.keys.filter(k => k && typeof k === 'string').map(k => k.trim()).filter(Boolean) : [];
+    if (keys.length === 0) {
+        return new Response(JSON.stringify({ success: false, error: '缺少keys参数。' }), {
+            status: 400,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    const uniqueKeys = [...new Set(keys)];
+    if (uniqueKeys.length > MAX_BATCH_DELETE_KEYS) {
+        return new Response(JSON.stringify({ success: false, error: `单次批量删除最多 ${MAX_BATCH_DELETE_KEYS} 项，请分批操作。` }), {
+            status: 400,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    const fullUser = await DB.prepare('SELECT * FROM users WHERE id = ?').bind(user.id).first();
+    const isSuperAdminUser = fullUser && fullUser.role === 'super_admin';
+    const folderKeys = uniqueKeys.filter(k => k.endsWith('/'));
+    for (const folderKey of folderKeys) {
+        const endKey = folderKey.substring(0, folderKey.length - 1) + '0';
+        const countResult = await DB.prepare(
+            "SELECT COUNT(*) as count FROM files WHERE key >= ? AND key < ? AND key != ?"
+        ).bind(folderKey, endKey, folderKey).first();
+        const childCount = countResult?.count || 0;
+        if (childCount > MAX_SAFE_BATCH_SIZE) {
+            return new Response(JSON.stringify({
+                success: false,
+                error: `文件夹 "${folderKey}" 包含 ${childCount} 个项目，超过安全操作限制 (${MAX_SAFE_BATCH_SIZE})。请先进入文件夹分批删除其中内容。`
+            }), {
+                status: 400,
+                headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+            });
+        }
+    }
+    if (!isSuperAdminUser) {
+        const placeholders = uniqueKeys.map(() => '?').join(',');
+        const { results: existing } = await DB.prepare(
+            `SELECT key, name, is_directory FROM files WHERE key IN (${placeholders})`
+        ).bind(...uniqueKeys).all();
+        const fileNames = (existing || []).map(r => r.name);
+        const result = await DB.prepare(`
+            INSERT INTO admin_requests (request_type, request_data, requested_by, status)
+            VALUES (?, ?, ?, 'pending')
+        `).bind('delete_file', JSON.stringify({
+            keys: uniqueKeys,
+            fileNames,
+            count: uniqueKeys.length
+        }), user.id).run();
+        return new Response(JSON.stringify({
+            success: true,
+            pending_approval: true,
+            request_id: result.meta.last_row_id,
+            message: `已提交 ${uniqueKeys.length} 个删除请求，等待超级管理员审批`
+        }), {
+            status: 200,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    if (!env.FILE_QUEUE) {
+        return new Response(JSON.stringify({ success: false, error: '未配置 FILE_QUEUE 队列，无法异步执行批量删除。' }), {
+            status: 500,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    const jobId = await createMaintenanceJob(env, {
+        kind: 'delete_keys',
+        chunk: { keys: uniqueKeys },
+        total: uniqueKeys.length,
+        createdBy: user.id
+    });
+    const queued = await enqueueMaintenanceJob(env, jobId);
+    if (!queued) {
+        return new Response(JSON.stringify({ success: false, error: '任务入队失败。' }), {
+            status: 500,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+        });
+    }
+    await logAdminAction(env, user.id, 'batch_delete_start', 'file', null, '提交批量删除任务', JSON.stringify({ job_id: jobId, count: uniqueKeys.length }));
+    return new Response(JSON.stringify({
+        success: true,
+        jobId,
+        count: uniqueKeys.length,
+        message: `批量删除任务已提交（${uniqueKeys.length} 项），处理结果将异步生效`
+    }), {
+        status: 202,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
 }
 export async function onRequestDelete({ request, env, waitUntil }) {
     const user = await getUserFromRequest(request, env);

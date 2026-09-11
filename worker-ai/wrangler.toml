@@ -20,6 +20,14 @@ bucket_name = "resource"
 binding = "VECTORIZE"
 index_name = "whut-resource-index"
 
+[[queues.producers]]
+binding = "AI_QUEUE"
+queue = "whut-resource-ai"
+
+[[queues.producers]]
+binding = "FILE_QUEUE"
+queue = "whut-resource-file"
+
 [[queues.consumers]]
 queue = "whut-resource-ai"
 max_batch_size = 1

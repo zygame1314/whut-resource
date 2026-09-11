@@ -438,6 +438,100 @@ async function runReindexChunk(env, chunk) {
     total
   };
 }
+async function runDeleteKeysChunk(env, chunk) {
+  const DB = env.DB;
+  if (!DB) throw new Error('批量删除缺少 DB');
+  const allKeys = Array.isArray(chunk.keys) ? chunk.keys.filter(Boolean) : [];
+  if (allKeys.length === 0) return { done: true, nextChunk: {}, processed: 0 };
+  const ROW_BUDGET = 5000;
+  const offset = Number(chunk.offset) || 0;
+  const allKeysToRemove = new Set();
+  const fileIdsToUnindex = [];
+  const r2DeleteKeys = [];
+  const folderSubKeys = [];
+  let rows = 0;
+  let index = offset;
+  for (; index < allKeys.length; index++) {
+    const key = allKeys[index];
+    if (key.endsWith('/')) {
+      const folderPath = key;
+      const endKey = folderPath.substring(0, folderPath.length - 1) + '0';
+      const { results: childItems } = await DB.prepare(
+        "SELECT id, key, is_link, is_directory FROM files WHERE key >= ? AND key < ? AND key != ?"
+      ).bind(folderPath, endKey, folderPath).all();
+      const children = childItems || [];
+      for (const child of children) {
+        allKeysToRemove.add(child.key);
+        if (child.id) fileIdsToUnindex.push(child.id);
+        const isChildLink = child.is_link === 1 || child.is_link === true;
+        const isChildDirectory = child.is_directory === 1 || child.is_directory === true;
+        if (!isChildLink && !isChildDirectory) r2DeleteKeys.push(child.key);
+      }
+      allKeysToRemove.add(folderPath);
+      const folderRecord = await DB.prepare('SELECT id FROM files WHERE key = ?').bind(folderPath).first();
+      if (folderRecord?.id) fileIdsToUnindex.push(folderRecord.id);
+      folderSubKeys.push(folderPath);
+      rows += children.length + 1;
+    } else {
+      const fileRecord = await DB.prepare('SELECT id, is_link FROM files WHERE key = ?').bind(key).first();
+      if (fileRecord) {
+        allKeysToRemove.add(key);
+        if (fileRecord.id) fileIdsToUnindex.push(fileRecord.id);
+        const isLink = fileRecord.is_link === 1 || fileRecord.is_link === true;
+        if (!isLink) r2DeleteKeys.push(key);
+        rows += 1;
+      }
+    }
+    if (rows >= ROW_BUDGET) {
+      index++;
+      break;
+    }
+  }
+  for (const folderPath of folderSubKeys) {
+    const upper = folderKeyUpperBound(folderPath);
+    await DB.prepare('DELETE FROM folder_subscriptions WHERE folder_key >= ? AND folder_key < ?').bind(folderPath, upper).run();
+  }
+  const keyList = [...allKeysToRemove];
+  const CHUNK = 90;
+  for (let i = 0; i < keyList.length; i += CHUNK) {
+    const batch = keyList.slice(i, i + CHUNK);
+    const placeholders = batch.map(() => '?').join(',');
+    await DB.batch([
+      DB.prepare(`DELETE FROM files WHERE key IN (${placeholders})`).bind(...batch),
+      DB.prepare(`DELETE FROM downloads WHERE file_key IN (${placeholders})`).bind(...batch),
+      DB.prepare(`DELETE FROM file_reactions WHERE file_key IN (${placeholders})`).bind(...batch),
+      DB.prepare(`DELETE FROM file_boosts WHERE file_key IN (${placeholders})`).bind(...batch),
+      DB.prepare(`DELETE FROM favorites WHERE file_key IN (${placeholders})`).bind(...batch)
+    ]);
+  }
+  if (r2DeleteKeys.length > 0) {
+    await runR2Delete(env, r2DeleteKeys);
+  }
+  if (fileIdsToUnindex.length > 0) {
+    await runVectorUnindex(env, fileIdsToUnindex);
+  }
+  await invalidateDirListCache(DB);
+  const done = index >= allKeys.length;
+  if (done) {
+    try {
+      await DB.prepare(`
+        INSERT INTO system_stats (id, total_files, total_size)
+        VALUES (1, 0, 0)
+        ON CONFLICT(id) DO UPDATE SET
+          total_files = (SELECT COUNT(*) FROM files WHERE is_directory = FALSE),
+          total_size = COALESCE((SELECT SUM(size) FROM files WHERE is_directory = FALSE), 0),
+          updated_at = CURRENT_TIMESTAMP
+      `).run();
+    } catch (e) {
+      console.error('更新系统统计失败', e);
+    }
+  }
+  return {
+    done,
+    nextChunk: done ? {} : { keys: allKeys, offset: index },
+    processed: index - offset
+  };
+}
 async function runMaintenanceChunk(env, job) {
   const chunk = job.cursor ? JSON.parse(job.cursor) : {};
   switch (job.kind) {
@@ -447,6 +541,8 @@ async function runMaintenanceChunk(env, job) {
       return await runSyncCleanupChunk(env, chunk);
     case 'reindex':
       return await runReindexChunk(env, chunk);
+    case 'delete_keys':
+      return await runDeleteKeysChunk(env, chunk);
     default:
       throw new Error('未知的维护任务类型: ' + job.kind);
   }

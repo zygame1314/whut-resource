@@ -744,39 +744,69 @@ window.executeBatchDelete = async (keys) => {
         throw new Error("无法删除：未获取到验证令牌。请重新登录。");
     }
     if (!keys || keys.length === 0) return [];
-    const deleteOneItem = async (key) => {
+    const uniqueKeys = [...new Set(keys)];
+    const CHUNK = 1000;
+    const results = [];
+    for (let i = 0; i < uniqueKeys.length; i += CHUNK) {
+        const chunk = uniqueKeys.slice(i, i + CHUNK);
         try {
-            const response = await fetch(`${FILES_API_URL}`, {
-                method: 'DELETE',
+            const response = await fetch(`${FILES_API_URL}?action=batchDelete`, {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
                 },
-                body: JSON.stringify({ key: key }),
+                body: JSON.stringify({ keys: chunk }),
             });
             const result = await response.json();
             if (!response.ok || !result.success) {
-                return { status: 'error', key, error: result.error || '未知错误' };
-            } else if (result.pending_approval) {
-                return { status: 'pending', key };
-            } else {
-                return { status: 'success', key };
+                for (const key of chunk) {
+                    results.push({ status: 'error', key, error: result.error || '未知错误' });
+                }
+                continue;
             }
+            if (result.pending_approval) {
+                for (const key of chunk) {
+                    results.push({ status: 'pending', key });
+                }
+                continue;
+            }
+            const job = await pollBatchDeleteJob(token, result.jobId, chunk.length);
+            for (const key of chunk) {
+                results.push({ status: 'success', key });
+            }
+            void job;
         } catch (e) {
-            return { status: 'error', key, error: e.message };
+            for (const key of chunk) {
+                results.push({ status: 'error', key, error: e.message });
+            }
         }
-    };
-    const CONCURRENCY = 3;
-    const results = [];
-    for (let i = 0; i < keys.length; i += CONCURRENCY) {
-        const batch = keys.slice(i, i + CONCURRENCY);
-        const batchResults = await Promise.all(batch.map(deleteOneItem));
-        results.push(...batchResults);
     }
     const deletedAnyDir = results.some(r => r.status === 'success' && typeof r.key === 'string' && r.key.endsWith('/'));
     if (deletedAnyDir && typeof window.filesApiCache !== 'undefined') window.filesApiCache.invalidate('listAllDirs');
     return results;
 };
+async function pollBatchDeleteJob(token, jobId, total) {
+    if (!jobId) return null;
+    while (true) {
+        await new Promise(r => setTimeout(r, 2000));
+        try {
+            const resp = await fetch(`${FILES_API_URL}?action=jobStatus&jobId=${encodeURIComponent(jobId)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await resp.json();
+            if (!data.success || !data.job) continue;
+            const job = data.job;
+            if (typeof showNotification === 'function' && total > 0) {
+                showNotification(`正在删除 (${job.processed || 0}/${job.total || total})...`, 'info', 1500);
+            }
+            if (job.status === 'completed') return job;
+            if (job.status === 'failed') throw new Error(job.message || '批量删除失败');
+        } catch (e) {
+            if (e && e.message && e.message.includes('批量删除失败')) throw e;
+        }
+    }
+}
 async function toggleReaction(fileKey, btnElement) {
     const token = localStorage.getItem('authToken');
     if (!token) {
