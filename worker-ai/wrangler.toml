@@ -46,4 +46,4 @@ bindings = [
 ]
 
 [vars]
-AI_MODEL = "deepseek-v4-flash"
+AI_MODEL = "deepseek-v4.1-flash"
