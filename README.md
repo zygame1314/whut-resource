@@ -67,7 +67,9 @@
 - 维护模式开关
 - 用户管理（封禁、配额调整、admin-management）
 - OAuth 客户端管理
-- 向量索引重建（reindex）
+- 向量索引重建（reindex，异步分片）
+- 批量删除（异步分片任务）
+- R2 全量同步 / 无效记录清理（异步分片）
 
 ### 📋 其他
 - 知识图谱可视化
@@ -107,7 +109,7 @@
 | Cloudflare Vectorize | 向量索引（AI 语义搜索） |
 | Cloudflare Durable Objects | WebSocket 实时日志 + 在线计数 |
 | Cloudflare Email Workers | 邮箱验证码接收/解析 |
-| Cloudflare Queues | 留言板 AI 异步审核（独立 consumer Worker） |
+| Cloudflare Queues | 异步任务：留言板 AI 审核、文件 R2 搬移/删除、向量索引同步、R2 全量同步/清理、向量重建、批量删除（独立 consumer Worker） |
 
 > AI 能力通过 SiliconFlow HTTP API 实现（非 Workers AI 绑定），需在 Pages 环境变量/Secret 中配置 `SILICONFLOW_API_KEY`、`JWT_SECRET`、`JWT_PRIVATE_KEY`、`BOT_EMAIL`、`GOOGLE_SAFE_BROWSING_API_KEY` 等。AI 审核 consumer Worker（`worker-ai/`）额外需要 `AI_API_KEY`（对话模型密钥）与 `SILICONFLOW_API_KEY`（向量嵌入密钥）。
 
@@ -221,8 +223,8 @@
 │   ├── download_logger.js     # DownloadLogger Durable Object（WebSocket 日志 + 在线计数）
 │   └── wrangler.toml          # DO Worker 独立部署配置
 ├── worker-ai/
-│   ├── index.js               # 队列 consumer（留言板 AI 审核 + 文件异步任务：R2 搬移/删除、向量索引同步）
-│   └── wrangler.toml          # consumer Worker 独立部署配置（绑定同一 D1/Vectorize/R2 与密钥，消费 whut-resource-ai / whut-resource-file 两个队列）
+│   ├── index.js               # 队列 consumer（按 type 分流：AI 审核 / file 文件任务 / maintenance 分片任务）
+│   └── wrangler.toml          # consumer Worker 独立部署配置（绑定同一 D1/Vectorize/R2 与密钥，同时作为 whut-resource-ai / whut-resource-file 两个队列的生产者与消费者）
 ├── scripts/
 │   ├── build/                 # 构建脚本（config.js / tasks.js / utils.js）
 │   ├── dev.js                 # 开发热更新
@@ -232,14 +234,14 @@
 ├── docs/
 │   └── SSO集成教程.md          # OAuth2/OIDC 接入文档
 ├── dist/                      # 生产构建产物（npm run build 输出）
-├── schema.sql                 # D1 数据库 Schema（25 张表）
+├── schema.sql                 # D1 数据库 Schema（29 张表 + files_fts 虚拟表）
 ├── wrangler.toml              # Cloudflare Pages 配置
 └── build.js                   # 构建入口
 ```
 
 ### 数据库表（schema.sql）
 
-`users` `files` `files_fts` `downloads` `announcements` `guestbook` `guestbook_likes` `file_reactions` `pending_registrations` `pending_resets` `pending_email_changes` `system_stats` `admin_logs` `system_cache` `admin_requests` `login_attempts` `file_boosts` `vector_sync_failures` `file_task_failures` `maintenance_jobs` `user_passkeys` `oauth_clients` `oauth_authorization_codes` `oauth_access_tokens` `pow_challenges` `todos` `todo_guestbook` `favorites`
+`users` `files` `files_fts`(FTS5 虚拟表) `downloads` `announcements` `guestbook` `guestbook_likes` `file_reactions` `pending_registrations` `pending_resets` `pending_email_changes` `system_stats` `admin_logs` `system_cache` `admin_requests` `login_attempts` `file_boosts` `vector_sync_failures` `file_task_failures` `maintenance_jobs` `user_passkeys` `oauth_clients` `oauth_authorization_codes` `oauth_access_tokens` `pow_challenges` `todos` `todo_guestbook` `favorites` `folder_subscriptions` `notifications`
 
 ---
 
@@ -291,9 +293,15 @@ wrangler secret put AI_API_KEY --config worker-ai/wrangler.toml
 wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 ```
 
-> **首次开通队列**：需先创建队列 `npx wrangler queues create whut-resource-ai` 和 `npx wrangler queues create whut-resource-file`。Pages 侧 `wrangler.toml` 的 `[[queues.producers]]` 绑定随 `npm run deploy` 一起生效。
+> **首次开通队列**：需先创建队列 `npx wrangler queues create whut-resource-ai` 和 `npx wrangler queues create whut-resource-file`。Pages 侧 `wrangler.toml` 声明 `[[queues.producers]]` 绑定，`worker-ai/wrangler.toml` 同时声明 `[[queues.producers]]` 与 `[[queues.consumers]]`（维护任务需自我续跑，consumer 也必须是 producer）。
 
-> **异步文件任务**：文件夹/文件的重命名、移动、删除会先把 D1 变更同步落地，再通过 `FILE_QUEUE` 队列异步执行 R2 物理搬移/删除与向量索引同步，避免大目录操作阻塞请求。R2 全量同步、无效记录清理、向量索引重建同样通过该队列以分片任务异步执行（`maintenance_jobs` 表跟踪进度，前端可关闭页面后回来查看）。队列消费失败会记录到 `file_task_failures` 表，可通过 `/api/reindex`（`action=retryFileTasks` 重试、`action=fileTaskFailures` 查询、`action=clearFileTaskFailures` 清理）处理。数据库需执行 `schema.sql` 中新增的 `file_task_failures`、`maintenance_jobs` 表。
+> **异步文件任务**：文件夹/文件的重命名、移动、删除会先把 D1 变更同步落地，再通过 `FILE_QUEUE` 队列异步执行 R2 物理搬移/删除与向量索引同步，避免大目录操作阻塞请求。重命名/移动/删除的 R2 操作与向量任务会合并进同一条队列消息（携带 `unindexIds`/`indexIds`），减少队列操作计费。
+
+> **分片维护任务**：R2 全量同步、无效记录清理、向量索引重建、批量删除（批量删除上限 2000 项）均通过该队列以分片任务异步执行，进度记录在 `maintenance_jobs` 表，前端提交后轮询 `jobStatus` 查看，可关闭页面后回来查看。R2 同步分片每批 1000 个对象、向量重建按 `id > ?` 游标每批 200 条。
+
+> **失败兜底**：队列消费失败会记录到 `file_task_failures` 表（写入时自动清理 7 天前已解决记录），可通过 `/api/reindex` 的 `action=retryFileTasks` 重试、`action=fileTaskFailures` 查询、`action=clearFileTaskFailures` 清理；向量同步失败记录在 `vector_sync_failures`，通过 `action=retryFailed` / `action=clearFailures` 处理。
+
+> **数据库初始化**：调用 `/api/sync`（`action=init`）会执行 `ensureSchema`，自动创建缺失的表并将 `maintenance_jobs` 索引迁移为 `(created_at DESC)`、删除废弃索引 `idx_vector_sync_file_id`。
 
 ### 环境变量 / Secret
 
@@ -313,7 +321,7 @@ wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 | 端点 | 方法 | 说明 |
 |---|---|---|
 | `/api/auth` | POST | 注册/登录/密码重置/SSO/资料修改 |
-| `/api/files` | GET/POST/PUT/DELETE | 文件 CRUD、搜索、统计、点赞 |
+| `/api/files` | GET/POST/PUT/DELETE | 文件 CRUD、搜索、统计、点赞；`POST ?action=batchDelete` 批量删除（异步任务），`GET ?action=jobStatus&jobId=` 查询任务进度 |
 | `/api/upload` | POST | 文件/链接上传至 R2 + D1 |
 | `/api/preview` | GET | 生成预览签名链接 |
 | `/api/download/*` | GET | 动态路径下载 |
@@ -330,9 +338,9 @@ wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 | `/api/file-boosts` | GET/POST | 文件助推/评论（含 AI 审核） |
 | `/api/passkey` | POST/DELETE | Passkey/WebAuthn 凭证 |
 | `/api/pow` | GET/POST | 工作量证明挑战 |
-| `/api/reindex` | POST | 向量索引重建 |
+| `/api/reindex` | POST | 向量索引重建；`action=reindexAsync` 异步任务、`action=jobStatus` 查询进度、`action=retryFailed`/`clearFailures` 处理向量失败、`action=retryFileTasks`/`fileTaskFailures`/`clearFileTaskFailures` 处理文件任务失败 |
 | `/api/site-stats` | GET | 站点统计 |
-| `/api/sync` | POST | R2/D1/Vectorize 数据同步 |
+| `/api/sync` | POST | R2/D1/Vectorize 数据同步；`action=startSync`/`startCleanup` 提交异步分片任务（返回 jobId）、`action=jobStatus` 查询进度、`action=init` 初始化表与索引、`action=repair` 修复目录 |
 | `/api/todos` | GET/POST/PUT/DELETE | TODO 任务管理 |
 | `/api/url-safety` | POST | 链接安全检测 |
 | `/api/oauth-admin` | GET/POST/PUT/DELETE | OAuth 客户端管理 |
