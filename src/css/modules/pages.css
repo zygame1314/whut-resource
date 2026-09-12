@@ -193,7 +193,15 @@
     top: calc(50% - 20px);
     width: 40px;
     height: 40px;
-    transition: width 0.3s ease, height 0.3s ease, top 0.3s ease;
+    transition:
+        transform var(--transition-fast),
+        box-shadow var(--transition-fast),
+        width 0.3s ease,
+        height 0.3s ease,
+        top 0.3s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .search-container.standalone.docked .search-icon {
