@@ -35,15 +35,6 @@
     min-width: 72px;
     font-size: 0.85rem;
     font-weight: 500;
-    color: var(--text-secondary);
-    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
-    transform-origin: center center;
-    will-change: transform;
-    backface-visibility: hidden;
-}
-
-#theme-toggle .theme-toggle-label {
-    display: inline;
 }
 
 #theme-toggle .fa-moon,
@@ -51,25 +42,21 @@
 #theme-toggle .fa-palette {
     transition: transform var(--transition-fast);
     will-change: transform;
-    transform-box: fill-box;
-    transform-origin: center;
 }
 
 #theme-toggle:hover .fa-moon,
 #theme-toggle:hover .fa-sun,
 #theme-toggle:hover .fa-palette {
-    transform: rotate(12deg) scale(1.12);
+    transform: rotate(12deg);
 }
 
 #tutorial-btn .fa-question-circle {
     transition: transform var(--transition-fast);
     will-change: transform;
-    transform-box: fill-box;
-    transform-origin: center;
 }
 
 #tutorial-btn:hover .fa-question-circle {
-    transform: rotate(12deg) scale(1.12);
+    transform: rotate(12deg);
 }
 
 @media (max-width: 1200px) {

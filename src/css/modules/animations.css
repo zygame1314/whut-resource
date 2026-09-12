@@ -1016,6 +1016,20 @@
     }
 }
 
+@keyframes searchBtnPulse {
+    0% {
+        box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.35), 0 0 0 0 rgba(var(--primary-rgb), 0.45);
+    }
+
+    70% {
+        box-shadow: 0 8px 22px rgba(var(--primary-rgb), 0.4), 0 0 0 12px rgba(var(--primary-rgb), 0);
+    }
+
+    100% {
+        box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.35), 0 0 0 0 rgba(var(--primary-rgb), 0);
+    }
+}
+
 @keyframes loadMoreIn {
     from {
         opacity: 0;

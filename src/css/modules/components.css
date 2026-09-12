@@ -8,7 +8,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
     color: var(--text-secondary);
     transform-origin: center center;
     will-change: transform;
@@ -56,9 +56,14 @@
 }
 
 .icon-btn:hover {
-    background: var(--primary-light);
-    color: white;
-    transform: scale(1.05);
+    color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.35);
+}
+
+.icon-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
 }
 
 .icon-btn i {
@@ -76,8 +81,9 @@
 }
 
 .icon-btn.success:hover {
-    background: var(--success-color);
-    color: white;
+    color: var(--success-color);
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.35);
 }
 
 .icon-btn.danger {
@@ -85,8 +91,9 @@
 }
 
 .icon-btn.danger:hover {
-    background: var(--accent-color);
-    color: white;
+    color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35);
 }
 
 .primary-btn {
@@ -693,163 +700,142 @@
     animation: dots 1.5s steps(4, end) infinite;
 }
 
-.file-action-buttons button,
-.file-action-buttons .share-button,
-.file-action-buttons .favorite-toggle-btn,
-.file-action-buttons .subscribe-toggle-btn,
-.file-action-buttons .enter-folder-button,
-.file-action-buttons .preview-button,
-.file-action-buttons .download-button,
-.file-action-buttons .edit-link-button,
-.file-action-buttons .edit-desc-button,
-.file-action-buttons .rename-button,
-.file-action-buttons .move-button,
-.file-action-buttons .delete-button {
+.file-action-buttons button {
+    position: relative;
+    overflow: hidden;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: var(--primary-color);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
     transform-origin: center center;
     will-change: transform;
     backface-visibility: hidden;
 }
 
-.download-button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
+.file-action-buttons button::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -140%;
+    width: 55%;
+    height: 200%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    transform: skewX(-20deg);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.file-action-buttons button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-light);
+}
+
+.file-action-buttons button:hover::after {
+    opacity: 1;
+    animation: shimmerSweep 0.65s ease;
+}
+
+.file-action-buttons button:active {
+    transform: translateY(0) scale(0.97);
+    box-shadow: none;
+}
+
+.file-action-buttons button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.file-action-buttons .download-button {
     background: var(--success-color);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: background 0.2s ease, transform 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-.download-button:hover {
-    background: #229954;
-    transform: scale(1.08);
-}
-
-.preview-button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
+.file-action-buttons .preview-button {
     background: var(--info-color);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: background 0.2s ease, transform 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-.preview-button:hover {
-    background: #2E86C1;
-    transform: scale(1.08);
-}
-
-.enter-folder-button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
+.file-action-buttons .enter-folder-button {
     background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: background 0.2s ease, transform 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-.enter-folder-button:hover {
-    background: var(--primary-dark);
-    transform: scale(1.08);
-}
-
-.share-button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
+.file-action-buttons .share-button {
     background: #9B59B6;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: background 0.2s ease, transform 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-.share-button:hover {
-    background: #8E44AD;
-    transform: scale(1.08);
+.file-action-buttons .open-link-button,
+.file-action-buttons .rename-button {
+    background: var(--primary-color);
 }
 
-.favorite-toggle-btn,
-.subscribe-toggle-btn {
+.file-action-buttons .move-button {
+    background: var(--secondary-color);
+}
+
+.file-action-buttons .edit-link-button,
+.file-action-buttons .edit-desc-button {
+    background: var(--info-color);
+}
+
+.file-action-buttons .delete-button {
+    background: var(--accent-color);
+}
+
+.file-action-buttons .favorite-toggle-btn,
+.file-action-buttons .subscribe-toggle-btn {
     background: var(--background-alt, #f0f0f0);
     color: var(--text-secondary);
     border: 1px solid var(--border-color, #e0e0e0);
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, filter 0.2s ease;
-    transform-origin: center center;
-    will-change: transform;
-    backface-visibility: hidden;
 }
 
-.favorite-toggle-btn:hover,
-.subscribe-toggle-btn:hover {
-    background: rgba(var(--primary-rgb), 0.12);
+.file-action-buttons .favorite-toggle-btn:hover,
+.file-action-buttons .subscribe-toggle-btn:hover {
     color: var(--primary-color);
     border-color: rgba(var(--primary-rgb), 0.2);
-    transform: scale(1.08);
 }
 
-.favorite-toggle-btn.active,
-.subscribe-toggle-btn.active {
+.file-action-buttons .favorite-toggle-btn.active,
+.file-action-buttons .subscribe-toggle-btn.active {
     background: var(--primary-gradient);
     color: #fff;
     border-color: transparent;
     box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.25);
 }
 
-.favorite-toggle-btn.active i,
-.subscribe-toggle-btn.active i {
+.file-action-buttons .favorite-toggle-btn.active i,
+.file-action-buttons .subscribe-toggle-btn.active i {
     animation: heartbeat 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.favorite-toggle-btn i,
-.subscribe-toggle-btn i {
+.file-action-buttons .favorite-toggle-btn i,
+.file-action-buttons .subscribe-toggle-btn i {
     transition: color 0.2s ease;
 }
 
-.favorite-toggle-btn.active:hover,
-.subscribe-toggle-btn.active:hover {
+.file-action-buttons .favorite-toggle-btn.active:hover,
+.file-action-buttons .subscribe-toggle-btn.active:hover {
     filter: brightness(1.08);
-    transform: scale(1.08);
 }
 
-[data-theme="dark"] .favorite-toggle-btn,
-[data-theme="dark"] .subscribe-toggle-btn {
+[data-theme="dark"] .file-action-buttons .favorite-toggle-btn,
+[data-theme="dark"] .file-action-buttons .subscribe-toggle-btn {
     background: rgba(255, 255, 255, 0.05);
     color: var(--text-secondary);
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-[data-theme="dark"] .favorite-toggle-btn.active,
-[data-theme="dark"] .subscribe-toggle-btn.active {
+[data-theme="dark"] .file-action-buttons .favorite-toggle-btn.active,
+[data-theme="dark"] .file-action-buttons .subscribe-toggle-btn.active {
     background: var(--primary-gradient);
     color: #fff;
     box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.25);
@@ -1506,7 +1492,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background var(--transition-fast), color var(--transition-fast);
+    transition: color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .recent-action-btn.downloading {
@@ -1521,8 +1510,14 @@
 }
 
 .recent-action-btn:hover {
-    background: var(--primary-color);
-    color: white;
+    color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.35);
+}
+
+.recent-action-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
 }
 
 .recent-uploads-section .empty-state-small,
@@ -7090,48 +7085,6 @@ textarea.form-input {
     border-color: var(--primary-light);
 }
 
-.delete-button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    background: var(--accent-color);
-    border: none;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.delete-button:hover {
-    background: #c0392b;
-    transform: scale(1.08);
-}
-
-.edit-desc-button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    background: #3498db;
-    border: none;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.edit-desc-button:hover {
-    background: #2980b9;
-    transform: scale(1.08);
-}
-
 .folder-desc-badge {
     color: var(--primary-color);
     font-size: 0.85rem;
@@ -7324,70 +7277,6 @@ textarea.form-input {
     background: var(--primary-color);
     border-radius: 10px;
 }
-
-.rename-button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    background: var(--primary-color);
-    border: none;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.rename-button:hover {
-    background: var(--primary-dark);
-    transform: scale(1.08);
-}
-
-.move-button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    background: var(--secondary-color);
-    border: none;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.move-button:hover {
-    background: #357ABD;
-    transform: scale(1.08);
-}
-
-.edit-link-button {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    background: var(--info-color);
-    border: none;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.edit-link-button:hover {
-    background: #2980b9;
-    transform: scale(1.08);
-}
-
 
 .notification-container {
     position: fixed;
