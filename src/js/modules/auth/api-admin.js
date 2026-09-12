@@ -157,7 +157,16 @@ async function handleBatchAction(ids, action, refreshCallback, reviewNote = '') 
         const data = await response.json();
         const successCount = data.count || 0;
         const failCount = data.failCount || 0;
-        const allFrontendDeleteKeys = (data.executeResult && data.executeResult.keys) ? data.executeResult.keys : [];
+        const execResult = data.executeResult || {};
+        const serverJobs = Array.isArray(execResult.jobs) ? execResult.jobs : [];
+        const allFrontendDeleteKeys = execResult.keys ? execResult.keys : [];
+        if (serverJobs.length > 0) {
+            const totalItems = serverJobs.reduce((sum, j) => sum + (j.count || 0), 0);
+            let msg = `批量处理完成: 审批成功 ${successCount}`;
+            if (failCount > 0) msg += `, 审批失败 ${failCount}`;
+            msg += `<br>文件删除任务已提交（${totalItems} 项），正在后台异步执行`;
+            showNotification(msg, 'success', 6000);
+        }
         if (allFrontendDeleteKeys.length > 0 && typeof window.executeBatchDelete === 'function') {
             showNotification(`审批完成，正清理 ${allFrontendDeleteKeys.length} 个关联文件...`, 'info');
             try {
@@ -176,7 +185,7 @@ async function handleBatchAction(ids, action, refreshCallback, reviewNote = '') 
             } catch (e) {
                 showNotification(`批量处理完成，但文件清理出错: ${e.message}`, 'warning');
             }
-        } else {
+        } else if (serverJobs.length === 0) {
             if (data.success) {
                 showNotification(`批量处理完成: ${successCount} 成功${failCount > 0 ? `, ${failCount} 失败` : ''}`, failCount > 0 ? 'warning' : 'success');
             } else {
@@ -207,6 +216,11 @@ async function handleRequestAction(requestId, action, refreshCallback, reviewNot
         const data = await response.json();
         if (data.success) {
             showNotification(data.message || (action === 'approve' ? '已批准' : '已拒绝'), 'success');
+            if (data.executeResult && data.executeResult.action_required === 'delete_files_server') {
+                const jobs = Array.isArray(data.executeResult.jobs) ? data.executeResult.jobs : [];
+                const count = jobs.reduce((sum, j) => sum + (j.count || 0), 0) || data.executeResult.count || (data.executeResult.keys ? data.executeResult.keys.length : 0);
+                showNotification(`已提交异步删除任务（${count} 项），正在后台执行`, 'info');
+            }
             if (data.executeResult && data.executeResult.action_required === 'delete_files_frontend') {
                 if (typeof window.executeBatchDelete === 'function') {
                     showNotification('正在执行文件删除操作...', 'info');

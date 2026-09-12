@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupAdminLogs } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupAdminLogs, enqueueDeleteKeysJob } from '../utils.js';
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -415,6 +415,7 @@ async function handlePut(request, env, user) {
             let successCount = 0;
             let failCount = 0;
             let accumulatedKeys = [];
+            let accumulatedJobs = [];
             let errors = [];
             const BATCH_TIME_BUDGET_MS = 25000;
             const startTime = Date.now();
@@ -450,9 +451,11 @@ async function handlePut(request, env, user) {
                     ]);
                     if (action === 'approve') {
                         try {
-                            const execResult = await executeApprovedRequest(adminRequest, env, banUnbanContext);
+                            const execResult = await executeApprovedRequest(adminRequest, env, banUnbanContext, user.id);
                             if (execResult && execResult.action_required === 'delete_files_frontend') {
                                 accumulatedKeys.push(...execResult.keys);
+                            } else if (execResult && execResult.action_required === 'delete_files_server') {
+                                accumulatedJobs.push({ jobId: execResult.jobId, count: execResult.count });
                             }
                         } catch (execErr) {
                             console.error(`Request ${adminRequest.id} execution failed:`, execErr);
@@ -475,11 +478,15 @@ async function handlePut(request, env, user) {
             }
             await cleanupAdminLogs(env);
             let executeResult = null;
-            if (accumulatedKeys.length > 0) {
+            if (accumulatedJobs.length > 0) {
                 executeResult = {
-                    action_required: 'delete_files_frontend',
-                    keys: accumulatedKeys
+                    action_required: 'delete_files_server',
+                    jobs: accumulatedJobs
                 };
+            }
+            if (accumulatedKeys.length > 0) {
+                executeResult = executeResult || { action_required: 'delete_files_frontend', keys: [] };
+                executeResult.keys = accumulatedKeys;
             }
             const message = successCount > 0
                 ? (action === 'approve' ? `成功批准 ${successCount} 个请求` : `成功拒绝 ${successCount} 个请求`)
@@ -498,16 +505,27 @@ async function handlePut(request, env, user) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' })
     });
 }
-async function executeApprovedRequest(adminRequest, env, banUnbanContext = null) {
+async function executeApprovedRequest(adminRequest, env, banUnbanContext = null, operatorId = null) {
     const requestData = JSON.parse(adminRequest.request_data);
     switch (adminRequest.request_type) {
         case 'delete_file':
-        case 'delete_folder':
+        case 'delete_folder': {
+            const keys = requestData.keys || [requestData.key];
+            const jobInfo = await enqueueDeleteKeysJob(env, keys, operatorId);
+            if (jobInfo) {
+                return {
+                    action_required: 'delete_files_server',
+                    jobId: jobInfo.jobId,
+                    count: jobInfo.count,
+                    is_folder: adminRequest.request_type === 'delete_folder'
+                };
+            }
             return {
                 action_required: 'delete_files_frontend',
-                keys: requestData.keys || [requestData.key],
+                keys,
                 is_folder: adminRequest.request_type === 'delete_folder'
             };
+        }
         case 'ban_user':
             return await executeBanUser(requestData, env, banUnbanContext);
         case 'unban_user':

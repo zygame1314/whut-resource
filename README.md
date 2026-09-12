@@ -62,7 +62,7 @@
 ### 🛡️ 管理后台
 - 公告管理（Markdown 支持）
 - 留言板 AI 辅助审核
-- 删除审批工作流（admin_requests）
+- 删除审批工作流（admin_requests，审批通过后服务端直接入队异步删除 R2 文件）
 - 操作审计日志（admin_logs）
 - 维护模式开关
 - 用户管理（封禁、配额调整、admin-management）
@@ -297,7 +297,7 @@ wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 
 > **异步文件任务**：文件夹/文件的重命名、移动、删除会先把 D1 变更同步落地，再通过 `FILE_QUEUE` 队列异步执行 R2 物理搬移/删除与向量索引同步，避免大目录操作阻塞请求。重命名/移动/删除的 R2 操作与向量任务会合并进同一条队列消息（携带 `unindexIds`/`indexIds`），减少队列操作计费。
 
-> **分片维护任务**：R2 全量同步、无效记录清理、向量索引重建、批量删除（批量删除上限 2000 项）均通过该队列以分片任务异步执行，进度记录在 `maintenance_jobs` 表，前端提交后轮询 `jobStatus` 查看，可关闭页面后回来查看。R2 同步分片每批 1000 个对象、向量重建按 `id > ?` 游标每批 200 条。
+> **分片维护任务**：R2 全量同步、无效记录清理、向量索引重建、批量删除（批量删除上限 2000 项）均通过该队列以分片任务异步执行，进度记录在 `maintenance_jobs` 表，前端提交后轮询 `jobStatus` 查看，可关闭页面后回来查看。R2 同步分片每批 1000 个对象、向量重建按 `id > ?` 游标每批 200 条。管理员审批 `delete_file`/`delete_folder` 通过后，服务端直接创建删除任务并入队，不再依赖提交审批的管理员页面保持在线；仅在未绑定 `FILE_QUEUE` 时回退为前端删除。
 
 > **失败兜底**：队列消费失败会记录到 `file_task_failures` 表（写入时自动清理 7 天前已解决记录），可通过 `/api/reindex` 的 `action=retryFileTasks` 重试、`action=fileTaskFailures` 查询、`action=clearFileTaskFailures` 清理；向量同步失败记录在 `vector_sync_failures`，通过 `action=retryFailed` / `action=clearFailures` 处理。
 

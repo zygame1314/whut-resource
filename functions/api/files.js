@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchMoveWithVector, dispatchDeleteWithVector, createMaintenanceJob, enqueueMaintenanceJob, getMaintenanceJob } from '../utils.js';
+import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchMoveWithVector, dispatchDeleteWithVector, enqueueDeleteKeysJob, getMaintenanceJob } from '../utils.js';
 const MAX_SAFE_BATCH_SIZE = 500;
 const MAX_BATCH_DELETE_KEYS = 2000;
 function sanitizeSegment(name) {
@@ -1168,25 +1168,14 @@ async function handleBatchDeleteRequest(body, user, env, DB) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
-    if (!env.FILE_QUEUE) {
-        return new Response(JSON.stringify({ success: false, error: '未配置 FILE_QUEUE 队列，无法异步执行批量删除。' }), {
+    const jobInfo = await enqueueDeleteKeysJob(env, uniqueKeys, user.id);
+    if (!jobInfo) {
+        return new Response(JSON.stringify({ success: false, error: '未配置 FILE_QUEUE 队列或任务入队失败，无法异步执行批量删除。' }), {
             status: 500,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
-    const jobId = await createMaintenanceJob(env, {
-        kind: 'delete_keys',
-        chunk: { keys: uniqueKeys },
-        total: uniqueKeys.length,
-        createdBy: user.id
-    });
-    const queued = await enqueueMaintenanceJob(env, jobId);
-    if (!queued) {
-        return new Response(JSON.stringify({ success: false, error: '任务入队失败。' }), {
-            status: 500,
-            headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
-        });
-    }
+    const { jobId } = jobInfo;
     await logAdminAction(env, user.id, 'batch_delete_start', 'file', null, '提交批量删除任务', JSON.stringify({ job_id: jobId, count: uniqueKeys.length }));
     return new Response(JSON.stringify({
         success: true,

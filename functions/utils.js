@@ -346,6 +346,20 @@ export async function enqueueMaintenanceJob(env, jobId) {
     return false;
   }
 }
+export async function enqueueDeleteKeysJob(env, keys, createdBy = null) {
+  if (!env?.FILE_QUEUE) return null;
+  const uniqueKeys = [...new Set((Array.isArray(keys) ? keys : []).filter(k => k && typeof k === 'string').map(k => k.trim()).filter(Boolean))];
+  if (uniqueKeys.length === 0) return null;
+  const jobId = await createMaintenanceJob(env, {
+    kind: 'delete_keys',
+    chunk: { keys: uniqueKeys },
+    total: uniqueKeys.length,
+    createdBy
+  });
+  const queued = await enqueueMaintenanceJob(env, jobId);
+  if (!queued) return null;
+  return { jobId, count: uniqueKeys.length };
+}
 async function finishMaintenanceJob(env, jobId, status, message) {
   await env.DB.prepare(
     'UPDATE maintenance_jobs SET status = ?, message = ?, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
