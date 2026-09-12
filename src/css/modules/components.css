@@ -10768,6 +10768,14 @@ input#prompt-input {
     margin: 0;
 }
 
+.oauth-detail-loading {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 0;
+}
+
 .oauth-detail-info {
     background: var(--background-alt);
     border: 1px solid var(--border-color);
@@ -10925,16 +10933,90 @@ input#prompt-input {
 
     .oauth-detail-box {
         width: 95%;
-        padding: 1.5rem;
+        padding: 1.25rem;
     }
 
-    .oauth-detail-table {
-        font-size: 0.72rem;
+    .oauth-detail-table-wrap {
+        max-height: none;
     }
 
-    .oauth-detail-table th,
+    .oauth-detail-table,
+    .oauth-detail-table tbody,
+    .oauth-detail-table tr,
     .oauth-detail-table td {
-        padding: 0.4rem 0.4rem;
+        display: block;
+        width: 100%;
+    }
+
+    .oauth-detail-table thead {
+        display: none;
+    }
+
+    .oauth-detail-table tr {
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--background-alt);
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .oauth-detail-table tbody tr:hover {
+        background: var(--background-alt);
+    }
+
+    .oauth-detail-table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.35rem 0;
+        border-bottom: 1px dashed var(--border-color);
+        font-size: 0.78rem;
+        text-align: right;
+    }
+
+    .oauth-detail-table td:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .oauth-detail-table td::before {
+        content: attr(data-label);
+        flex-shrink: 0;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-align: left;
+    }
+
+    .oauth-detail-table td.oauth-detail-time {
+        white-space: normal;
+    }
+
+    .oauth-detail-code,
+    .oauth-detail-scope {
+        max-width: 60%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .oauth-detail-table tr.oauth-detail-empty-row {
+        border: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+    }
+
+    .oauth-detail-table td.oauth-detail-empty {
+        display: block;
+        text-align: center;
+        border-bottom: none;
+        padding: 1.5rem 0 !important;
+    }
+
+    .oauth-detail-table td.oauth-detail-empty::before {
+        content: none;
     }
 }
 

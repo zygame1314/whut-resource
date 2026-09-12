@@ -1387,51 +1387,70 @@ async function showOauthClientsModal() {
                 const clientId = btn.dataset.id;
                     if (action === 'detail') {
                         const clientName = btn.dataset.name;
+                        const detailModal = document.createElement('div');
+                        detailModal.className = 'auth-modal';
+                        detailModal.innerHTML = `
+                            <div class="auth-box oauth-detail-box">
+                                <button id="close-detail-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+                                <div class="oauth-detail-header">
+                                    <h2 class="auth-title"><i class="fas fa-info-circle"></i> ${escapeHtml(clientName)}</h2>
+                                    <span id="oauth-detail-status"></span>
+                                </div>
+                                <div id="oauth-detail-body" class="oauth-detail-loading">
+                                    <div class="loading-spinner"></div>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(detailModal);
+                        detailModal.querySelector('#close-detail-modal').onclick = () => closeAuthModal(detailModal);
+                        const bodyEl = detailModal.querySelector('#oauth-detail-body');
                         try {
                             const res = await fetch(`${API_ENDPOINTS.oauthAdmin}?action=detail&client_id=${encodeURIComponent(clientId)}`, {
                                 headers: { 'Authorization': `Bearer ${token}` }
                             });
                             const d = await res.json();
-                            if (!d.success) { showNotification(d.error, 'error'); return; }
-                            const detailModal = document.createElement('div');
-                            detailModal.className = 'auth-modal';
+                            if (!d.success) {
+                                closeAuthModal(detailModal);
+                                showNotification(d.error, 'error');
+                                return;
+                            }
                             const authRows = (d.recentAuthorizations && d.recentAuthorizations.length > 0)
                                 ? d.recentAuthorizations.map(a => `
                                     <tr>
-                                        <td title="${escapeHtml(a.code)}"><code class="oauth-detail-code">${escapeHtml(a.code ? a.code.substring(0, 12) + '...' : '')}</code></td>
-                                        <td>${escapeHtml(a.nickname || a.email || '-')}</td>
-                                        <td><span class="oauth-detail-scope">${escapeHtml(a.scope || '-')}</span></td>
-                                        <td class="oauth-detail-time">${new Date(a.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
-                                        <td>${new Date(a.expires_at) > new Date() ? '<span class="oauth-detail-active">有效</span>' : '<span class="oauth-detail-expired">已过期</span>'}</td>
+                                        <td data-label="授权码" title="${escapeHtml(a.code)}"><code class="oauth-detail-code">${escapeHtml(a.code ? a.code.substring(0, 12) + '...' : '')}</code></td>
+                                        <td data-label="用户">${escapeHtml(a.nickname || a.email || '-')}</td>
+                                        <td data-label="Scope"><span class="oauth-detail-scope">${escapeHtml(a.scope || '-')}</span></td>
+                                        <td data-label="时间" class="oauth-detail-time">${new Date(a.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+                                        <td data-label="状态">${new Date(a.expires_at) > new Date() ? '<span class="oauth-detail-active">有效</span>' : '<span class="oauth-detail-expired">已过期</span>'}</td>
                                     </tr>
                                 `).join('')
-                                : '<tr><td colspan="5" class="oauth-detail-empty">暂无授权记录</td></tr>';
+                                : '<tr class="oauth-detail-empty-row"><td colspan="5" class="oauth-detail-empty">暂无授权记录</td></tr>';
                             const c = d.client;
-                            detailModal.innerHTML = `
-                                <div class="auth-box oauth-detail-box">
-                                    <button id="close-detail-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
-                                    <div class="oauth-detail-header">
-                                        <h2 class="auth-title"><i class="fas fa-info-circle"></i> ${escapeHtml(clientName)}</h2>
-                                        <span class="oauth-status-badge ${c.is_active ? 'oauth-status-active' : 'oauth-status-inactive'}">${c.is_active ? '● 启用' : '● 禁用'}</span>
-                                    </div>
-                                    <div class="oauth-detail-info">
-                                        <div class="oauth-meta-row"><i class="fas fa-fingerprint"></i><span class="oauth-detail-label">Client ID</span><code class="oauth-code">${escapeHtml(c.client_id)}</code></div>
-                                        <div class="oauth-meta-row"><i class="fas fa-link"></i><span class="oauth-detail-label">回调地址</span><code class="oauth-code oauth-code-uri">${escapeHtml(c.redirect_uris)}</code></div>
-                                        ${c.description ? `<div class="oauth-meta-row"><i class="fas fa-align-left"></i><span class="oauth-detail-label">描述</span><span>${escapeHtml(c.description)}</span></div>` : ''}
-                                        ${c.logo_url ? `<div class="oauth-meta-row"><i class="fas fa-image"></i><span class="oauth-detail-label">Logo</span><code class="oauth-code oauth-code-uri">${escapeHtml(c.logo_url)}</code></div>` : ''}
-                                    </div>
-                                    <h3 class="oauth-detail-section-title"><i class="fas fa-history"></i> 最近授权记录 <span class="oauth-detail-badge">20</span></h3>
-                                    <div class="oauth-detail-table-wrap">
-                                        <table class="oauth-detail-table">
-                                            <thead><tr><th>授权码</th><th>用户</th><th>Scope</th><th>时间</th><th>状态</th></tr></thead>
-                                            <tbody>${authRows}</tbody>
-                                        </table>
-                                    </div>
+                            const statusEl = detailModal.querySelector('#oauth-detail-status');
+                            if (statusEl) {
+                                statusEl.className = `oauth-status-badge ${c.is_active ? 'oauth-status-active' : 'oauth-status-inactive'}`;
+                                statusEl.textContent = c.is_active ? '● 启用' : '● 禁用';
+                            }
+                            bodyEl.classList.remove('oauth-detail-loading');
+                            bodyEl.innerHTML = `
+                                <div class="oauth-detail-info">
+                                    <div class="oauth-meta-row"><i class="fas fa-fingerprint"></i><span class="oauth-detail-label">Client ID</span><code class="oauth-code">${escapeHtml(c.client_id)}</code></div>
+                                    <div class="oauth-meta-row"><i class="fas fa-link"></i><span class="oauth-detail-label">回调地址</span><code class="oauth-code oauth-code-uri">${escapeHtml(c.redirect_uris)}</code></div>
+                                    ${c.description ? `<div class="oauth-meta-row"><i class="fas fa-align-left"></i><span class="oauth-detail-label">描述</span><span>${escapeHtml(c.description)}</span></div>` : ''}
+                                    ${c.logo_url ? `<div class="oauth-meta-row"><i class="fas fa-image"></i><span class="oauth-detail-label">Logo</span><code class="oauth-code oauth-code-uri">${escapeHtml(c.logo_url)}</code></div>` : ''}
+                                </div>
+                                <h3 class="oauth-detail-section-title"><i class="fas fa-history"></i> 最近授权记录 <span class="oauth-detail-badge">20</span></h3>
+                                <div class="oauth-detail-table-wrap">
+                                    <table class="oauth-detail-table">
+                                        <thead><tr><th>授权码</th><th>用户</th><th>Scope</th><th>时间</th><th>状态</th></tr></thead>
+                                        <tbody>${authRows}</tbody>
+                                    </table>
                                 </div>
                             `;
-                            document.body.appendChild(detailModal);
-                            detailModal.querySelector('#close-detail-modal').onclick = () => closeAuthModal(detailModal);
-                        } catch (e) { showNotification('加载详情失败: ' + e.message, 'error'); }
+                        } catch (e) {
+                            closeAuthModal(detailModal);
+                            showNotification('加载详情失败: ' + e.message, 'error');
+                        }
                         finally { btn.disabled = false; }
                     } else if (action === 'toggle') {
                         try {
