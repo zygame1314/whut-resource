@@ -1281,6 +1281,18 @@
     }
 }
 
+@keyframes tutorialSpotlightPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 4px rgba(var(--ring-rgb), 0.18), 0 0 18px rgba(var(--ring-rgb), 0.45), inset 0 0 14px rgba(var(--ring-rgb), 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 0 7px rgba(var(--ring-rgb), 0.1), 0 0 26px rgba(var(--ring-rgb), 0.6), inset 0 0 18px rgba(var(--ring-rgb), 0.4);
+    }
+}
+
 @keyframes oauthBgDrift {
     0% {
         transform: translate(0, 0) rotate(0deg);

@@ -47,15 +47,32 @@
     opacity: 1;
 }
 
-.shepherd-custom-theme .shepherd-arrow:before {
+.shepherd-custom-theme.shepherd-element .shepherd-arrow:before {
     background: var(--background);
+    clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 
-.shepherd-custom-theme.shepherd-has-title[data-popper-placement^="bottom"] > .shepherd-arrow:before {
+.shepherd-custom-theme.shepherd-element[data-popper-placement^="bottom"] > .shepherd-arrow:before {
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.shepherd-custom-theme.shepherd-element[data-popper-placement^="top"] > .shepherd-arrow:before {
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.shepherd-custom-theme.shepherd-element[data-popper-placement^="left"] > .shepherd-arrow:before {
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.shepherd-custom-theme.shepherd-element[data-popper-placement^="right"] > .shepherd-arrow:before {
+    clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.shepherd-custom-theme.shepherd-element.shepherd-has-title[data-popper-placement^="bottom"] > .shepherd-arrow:before {
     background: var(--background-alt);
 }
 
-.shepherd-custom-theme.shepherd-has-title[data-popper-placement^="top"] > .shepherd-arrow:before {
+.shepherd-custom-theme.shepherd-element.shepherd-has-title[data-popper-placement^="top"] > .shepherd-arrow:before {
     background: var(--background);
 }
 
@@ -149,24 +166,26 @@
     font-weight: 600;
     font-size: 0.88rem;
     padding: 0.55rem 1.2rem;
-    transition: box-shadow 0.3s ease, filter 0.3s ease, transform 0.3s ease;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
     margin-right: 0;
     position: relative;
     overflow: hidden;
     font-family: var(--font-family);
     box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.15);
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .shepherd-custom-theme .shepherd-button:not(:disabled):hover {
     box-shadow: 0 6px 18px rgba(var(--primary-rgb), 0.35);
-    filter: brightness(1.1);
+    transform: scale(1.04);
     background: var(--primary-gradient);
 }
 
 .shepherd-custom-theme .shepherd-button:not(:disabled):active {
     box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.15);
-    filter: brightness(0.95);
-    transform: translateY(0);
+    transform: scale(0.98);
     background: var(--primary-gradient);
 }
 
@@ -175,9 +194,11 @@
     color: var(--text-secondary);
     border: 1px solid var(--border-color);
     font-weight: 600;
-    filter: brightness(1);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    transition: box-shadow 0.3s ease, border-color 0.3s ease, color 0.3s ease, background 0.3s ease, transform 0.3s ease;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .shepherd-custom-theme .shepherd-button.shepherd-button-secondary:not(:disabled):hover {
@@ -185,11 +206,12 @@
     color: var(--primary-color);
     border-color: var(--primary-color);
     box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.15);
+    transform: scale(1.03);
 }
 
 .shepherd-custom-theme .shepherd-button.shepherd-button-secondary:not(:disabled):active {
     box-shadow: 0 1px 4px rgba(var(--primary-rgb), 0.08);
-    transform: translateY(0);
+    transform: scale(0.98);
 }
 
 .shepherd-custom-theme .shepherd-button:disabled {
@@ -235,19 +257,100 @@
 }
 
 .shepherd-modal-overlay-container {
-    transition: opacity 0.4s ease, backdrop-filter 0.4s ease, -webkit-backdrop-filter 0.4s ease, height 0s 0s;
+    transition: opacity 0.4s ease, height 0s 0s;
 }
 
 .shepherd-modal-overlay-container.shepherd-modal-is-visible {
-    opacity: 0.6;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-    transition: opacity 0.4s ease, backdrop-filter 0.4s ease, -webkit-backdrop-filter 0.4s ease, height 0s 0s;
+    opacity: 1;
+    background: transparent;
+    transition: opacity 0.4s ease, height 0s 0s;
 }
 
-[data-theme="dark"] .shepherd-modal-overlay-container.shepherd-modal-is-visible {
-    background: rgba(0, 0, 0, 0.3);
+.shepherd-modal-overlay-container.shepherd-modal-is-visible path {
+    fill: rgba(0, 0, 0, 0.55);
+}
+
+[data-theme="dark"] .shepherd-modal-overlay-container.shepherd-modal-is-visible path {
+    fill: rgba(0, 0, 0, 0.72);
+}
+
+[data-theme="sepia"] .shepherd-modal-overlay-container.shepherd-modal-is-visible path {
+    fill: rgba(62, 44, 26, 0.6);
+}
+
+[data-theme="ocean"] .shepherd-modal-overlay-container.shepherd-modal-is-visible path {
+    fill: rgba(4, 36, 56, 0.62);
+}
+
+[data-theme="forest"] .shepherd-modal-overlay-container.shepherd-modal-is-visible path {
+    fill: rgba(4, 30, 14, 0.62);
+}
+
+[data-theme="nord"] .shepherd-modal-overlay-container.shepherd-modal-is-visible path {
+    fill: rgba(30, 36, 48, 0.6);
+}
+
+[data-theme="rose"] .shepherd-modal-overlay-container.shepherd-modal-is-visible path {
+    fill: rgba(78, 38, 52, 0.6);
+}
+
+[data-theme="cyberpunk"] .shepherd-modal-overlay-container.shepherd-modal-is-visible path {
+    fill: rgba(4, 4, 10, 0.76);
+}
+
+[data-theme="terminal"] .shepherd-modal-overlay-container.shepherd-modal-is-visible path {
+    fill: rgba(8, 6, 3, 0.74);
+}
+
+[data-theme="volcano"] .shepherd-modal-overlay-container.shepherd-modal-is-visible path {
+    fill: rgba(12, 3, 3, 0.74);
+}
+
+.tutorial-spotlight-ring {
+    --ring-rgb: var(--primary-rgb);
+    position: fixed;
+    z-index: 9998;
+    pointer-events: none;
+    box-sizing: border-box;
+    opacity: 0;
+    transform: scale(1.16);
+    border-radius: 999px;
+    border: 3px solid var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(var(--ring-rgb), 0.18), 0 0 18px rgba(var(--ring-rgb), 0.45), inset 0 0 14px rgba(var(--ring-rgb), 0.3);
+    transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+}
+
+.tutorial-spotlight-ring.is-visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.tutorial-spotlight-ring.is-hiding {
+    transition: opacity 0.25s ease-in, transform 0.25s ease-in;
+}
+
+.tutorial-spotlight-ring.is-pulsing {
+    animation: tutorialSpotlightPulse 2s ease-in-out infinite;
+}
+
+[data-theme="dark"] .tutorial-spotlight-ring {
+    --ring-rgb: 77, 163, 255;
+    border-color: var(--primary-light);
+}
+
+[data-theme="sepia"] .tutorial-spotlight-ring,
+[data-theme="ocean"] .tutorial-spotlight-ring,
+[data-theme="forest"] .tutorial-spotlight-ring,
+[data-theme="nord"] .tutorial-spotlight-ring,
+[data-theme="volcano"] .tutorial-spotlight-ring {
+    border-color: var(--primary-light);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tutorial-spotlight-ring.is-pulsing {
+        animation: none;
+    }
 }
 
 [data-theme="dark"] .shepherd-custom-theme.shepherd-element {

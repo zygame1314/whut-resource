@@ -147,11 +147,94 @@ async function startTutorial() {
         defaultStepOptions: {
             classes: 'shepherd-custom-theme',
             scrollTo: { behavior: 'smooth', block: 'center' },
+            modalOverlayOpeningPadding: 4,
+            modalOverlayOpeningRadius: 8,
+            popperOptions: {
+                modifiers: [
+                    { name: 'offset', options: { offset: [0, 12] } }
+                ]
+            },
             cancelIcon: {
                 enabled: true
             }
         }
     });
+
+    tour.on('show', () => {
+        if (tour.modal) tour.modal.show();
+    });
+
+    const spotlightRing = document.createElement('div');
+    spotlightRing.className = 'tutorial-spotlight-ring';
+    let spotlightTracking = false;
+    let spotlightToken = 0;
+
+    function getSpotlightTarget() {
+        const step = tour.getCurrentStep();
+        const target = step && typeof step.getTarget === 'function' ? step.getTarget() : null;
+        if (!target || target === document.body || !document.body.contains(target)) return null;
+        return { step, target };
+    }
+
+    function updateSpotlight() {
+        const info = getSpotlightTarget();
+        if (!info) return;
+        const options = info.step.options || {};
+        const rect = info.target.getBoundingClientRect();
+        if (!rect.width && !rect.height) return;
+        const pad = typeof options.modalOverlayOpeningPadding === 'number' ? options.modalOverlayOpeningPadding : 0;
+        const radius = typeof options.modalOverlayOpeningRadius === 'number' ? options.modalOverlayOpeningRadius : 0;
+        spotlightRing.style.left = (rect.left - pad) + 'px';
+        spotlightRing.style.top = (rect.top - pad) + 'px';
+        spotlightRing.style.width = (rect.width + pad * 2) + 'px';
+        spotlightRing.style.height = (rect.height + pad * 2) + 'px';
+        spotlightRing.style.borderRadius = radius + 'px';
+    }
+
+    function spotlightLoop() {
+        if (!spotlightTracking) return;
+        updateSpotlight();
+        requestAnimationFrame(spotlightLoop);
+    }
+
+    function startSpotlightTracking() {
+        if (spotlightTracking) return;
+        spotlightTracking = true;
+        requestAnimationFrame(spotlightLoop);
+    }
+
+    function showSpotlight() {
+        if (!getSpotlightTarget()) {
+            hideSpotlight();
+            return;
+        }
+        if (!spotlightRing.isConnected) document.body.appendChild(spotlightRing);
+        const token = ++spotlightToken;
+        spotlightTracking = false;
+        spotlightRing.classList.remove('is-hiding', 'is-visible', 'is-pulsing');
+        spotlightRing.style.transition = 'none';
+        updateSpotlight();
+        void spotlightRing.offsetWidth;
+        spotlightRing.style.transition = '';
+        startSpotlightTracking();
+        requestAnimationFrame(() => {
+            if (token !== spotlightToken) return;
+            spotlightRing.classList.add('is-visible', 'is-pulsing');
+        });
+    }
+
+    function hideSpotlight() {
+        spotlightToken++;
+        spotlightTracking = false;
+        spotlightRing.classList.add('is-hiding');
+        spotlightRing.classList.remove('is-visible', 'is-pulsing');
+        const token = spotlightToken;
+        setTimeout(() => {
+            if (token !== spotlightToken) return;
+            spotlightRing.classList.remove('is-hiding');
+            if (spotlightRing.isConnected) spotlightRing.remove();
+        }, 240);
+    }
 
     function fileActionStepHooks(selector) {
         return {
@@ -181,10 +264,6 @@ async function startTutorial() {
         };
     }
 
-    const _origRemoveNavActive = () => {
-        const navActions = document.querySelector('.nav-actions');
-        if (navActions) navActions.classList.remove('active');
-    };
     if (!window._tutorialNavGuardInstalled) {
         window._tutorialNavGuardInstalled = true;
         window._tutorialKeepNavOpen = false;
@@ -543,12 +622,14 @@ async function startTutorial() {
     tour.next = function () {
         if (animating) return;
         animating = true;
+        hideSpotlight();
         const el = tour.getCurrentStep()?.el;
         animateOut(el, () => { animating = false; originalNext(); });
     };
     tour.back = function () {
         if (animating) return;
         animating = true;
+        hideSpotlight();
         const el = tour.getCurrentStep()?.el;
         animateOut(el, () => { animating = false; originalBack(); });
     };
@@ -556,6 +637,7 @@ async function startTutorial() {
         if (animating) return;
         animating = true;
         tutorialCompleted = false;
+        hideSpotlight();
         const el = tour.getCurrentStep()?.el;
         const overlay = document.querySelector('.shepherd-modal-overlay-container.shepherd-modal-is-visible');
         animateOut(el, () => { });
@@ -580,6 +662,7 @@ async function startTutorial() {
         if (animating) return;
         animating = true;
         tutorialCompleted = true;
+        hideSpotlight();
         const el = tour.getCurrentStep()?.el;
         const overlay = document.querySelector('.shepherd-modal-overlay-container.shepherd-modal-is-visible');
         animateOut(el, () => { });
@@ -695,6 +778,7 @@ async function startTutorial() {
                     progressEl.appendChild(barEl);
                     footer.insertBefore(progressEl, footer.firstChild);
                 }
+                requestAnimationFrame(showSpotlight);
             }
         };
     });
