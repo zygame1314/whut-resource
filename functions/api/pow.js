@@ -387,7 +387,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const interval = CHECKPOINT_INTERVAL;
     const nowISO = new Date().toISOString();
     const expiresAt = new Date(Date.now() + CHALLENGE_EXPIRES_MS).toISOString();
-    const bindHash = await bindHashHex(action, bind, env);
+    const bindHash = BIND_FIELDS[action] ? await bindHashHex(action, bind, env) : '';
     await env.DB.prepare(
       'INSERT INTO pow_challenges (challenge, bits, ip, bp_hash, colo, steps, interval, bind_hash, issued_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(challenge, bits, ip, bpHash, sp.colo, steps, interval, bindHash, nowISO, expiresAt).run();
