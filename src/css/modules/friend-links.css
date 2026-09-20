@@ -13,6 +13,7 @@
     border: 1px solid var(--border-color);
     border-radius: 16px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    animation: fadeInUp 0.8s ease 1.4s both;
 }
 
 .hero-links::before {
@@ -143,5 +144,11 @@
 
     .hero-links-item-text {
         gap: 0.45rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-links {
+        animation: none;
     }
 }
