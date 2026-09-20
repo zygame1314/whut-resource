@@ -260,7 +260,7 @@
 }
 
 
-@keyframes createFolderSlideIn {
+@keyframes slideFadeIn {
     from {
         opacity: 0;
         transform: translateY(-6px);
@@ -328,17 +328,6 @@
 
     75% {
         transform: translateX(12px) translateY(-6px);
-    }
-}
-
-@keyframes particleGlow {
-    0%,
-    100% {
-        filter: drop-shadow(0 0 1px currentColor);
-    }
-
-    50% {
-        filter: drop-shadow(0 0 4px currentColor);
     }
 }
 
@@ -414,30 +403,6 @@
     }
 }
 
-@keyframes slideInRight {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
-@keyframes glow-warning {
-
-    0%,
-    100% {
-        box-shadow: 0 4px 20px rgba(255, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    }
-
-    50% {
-        box-shadow: 0 6px 30px rgba(255, 68, 68, 0.6), 0 0 40px rgba(255, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    }
-}
-
 @keyframes shake-attention {
 
     0%,
@@ -460,17 +425,6 @@
         transform: translateX(2px);
     }
 }
-
-@keyframes warning-stripe {
-    0% {
-        background-position: 0 0;
-    }
-
-    100% {
-        background-position: 100px 0;
-    }
-}
-
 
 @keyframes checkbox-pop {
     0% {
@@ -550,20 +504,6 @@
 
     75% {
         transform: translateY(-1px) rotate(3deg);
-    }
-}
-
-@keyframes ai-border-gradient {
-    0% {
-        background-position: 100% 100%, 0% 50%;
-    }
-
-    50% {
-        background-position: 100% 100%, 100% 50%;
-    }
-
-    100% {
-        background-position: 100% 100%, 0% 50%;
     }
 }
 
@@ -972,16 +912,6 @@
     }
 }
 
-@keyframes rotateGlow {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
 @keyframes shimmerSweep {
     0% {
         left: -60%;
@@ -1027,18 +957,6 @@
 
     100% {
         box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.35), 0 0 0 0 rgba(var(--primary-rgb), 0);
-    }
-}
-
-@keyframes loadMoreIn {
-    from {
-        opacity: 0;
-        transform: translateY(-6px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
     }
 }
 
@@ -1151,26 +1069,6 @@
     }
 }
 
-@keyframes celebrationFadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes celebrationFadeOut {
-    from {
-        opacity: 1;
-    }
-
-    to {
-        opacity: 0;
-    }
-}
-
 @keyframes celebrationContentIn {
     from {
         opacity: 0;
@@ -1224,34 +1122,6 @@
     100% {
         transform: translateY(110vh) rotate(720deg);
         opacity: 0;
-    }
-}
-
-@keyframes celebrationConfettiSway {
-
-    0%,
-    100% {
-        transform: translateX(0);
-    }
-
-    25% {
-        transform: translateX(30px);
-    }
-
-    75% {
-        transform: translateX(-30px);
-    }
-}
-
-@keyframes celebrationPulse {
-
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.05);
     }
 }
 
@@ -1396,5 +1266,40 @@
 
     50% {
         transform: translateX(-50%) translateY(-4px);
+    }
+}
+
+@keyframes progressBakeStripe {
+    from {
+        background-position: 0 0;
+    }
+
+    to {
+        background-position: 1rem 0;
+    }
+}
+
+@keyframes progressBakeFlicker {
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: scale(1.15);
+    }
+}
+
+@keyframes powStampIn {
+    0% {
+        transform: translateY(calc(-50% + 9px)) rotate(-18deg) scale(1.9);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateY(calc(-50% + 9px)) rotate(-4deg) scale(1);
+        opacity: 1;
     }
 }

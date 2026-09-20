@@ -11,6 +11,11 @@
     z-index: 2;
 }
 
+.hero-text {
+    position: relative;
+    z-index: 2;
+}
+
 .main-heading {
     font-size: clamp(2.5rem, 5vw, 4rem);
     font-weight: 700;

@@ -3306,7 +3306,7 @@
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--border-color);
     background: linear-gradient(180deg, rgba(var(--primary-rgb), 0.04) 0%, var(--background-alt) 100%);
-    animation: createFolderSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: slideFadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
 }
@@ -4661,7 +4661,7 @@
     width: 200%;
     height: 200%;
     background: radial-gradient(circle, rgba(var(--primary-rgb), 0.1) 0%, transparent 70%);
-    animation: rotateGlow 6s linear infinite;
+    animation: spin 6s linear infinite;
     pointer-events: none;
 }
 
@@ -8323,28 +8323,6 @@ input#prompt-input {
     animation: progressBakeFlicker 1s ease-in-out infinite;
 }
 
-@keyframes progressBakeStripe {
-    from {
-        background-position: 0 0;
-    }
-
-    to {
-        background-position: 1rem 0;
-    }
-}
-
-@keyframes progressBakeFlicker {
-    0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-
-    50% {
-        opacity: 0.7;
-        transform: scale(1.15);
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
     .upload-progress.stage-baking .progress-fill,
     .upload-progress.stage-baking .progress-stage i {
@@ -9323,17 +9301,6 @@ input#prompt-input {
 .pow-card.pow-done::after {
     color: rgba(39, 174, 96, 0.75);
     animation: powStampIn 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
-}
-
-@keyframes powStampIn {
-    0% {
-        transform: translateY(calc(-50% + 9px)) rotate(-18deg) scale(1.9);
-        opacity: 0;
-    }
-    100% {
-        transform: translateY(calc(-50% + 9px)) rotate(-4deg) scale(1);
-        opacity: 1;
-    }
 }
 
 .pow-visual {
@@ -11749,7 +11716,7 @@ input#prompt-input {
     transform: translateY(0);
     pointer-events: auto;
     order: -1;
-    animation: loadMoreIn 0.3s ease;
+    animation: slideFadeIn 0.3s ease;
 }
 
 .boost-load-more.visible {

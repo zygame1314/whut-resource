@@ -416,7 +416,7 @@
     background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    animation: celebrationFadeIn 0.4s ease forwards;
+    animation: fadeIn 0.4s ease forwards;
     pointer-events: auto;
 }
 
@@ -429,7 +429,7 @@
 }
 
 .tutorial-celebration-overlay.closing {
-    animation: celebrationFadeOut 0.4s ease forwards;
+    animation: fadeOut 0.4s ease forwards;
 }
 
 .tutorial-celebration-content {
@@ -481,7 +481,7 @@
     inset: -8px;
     border-radius: 50%;
     background: radial-gradient(circle, rgba(var(--primary-rgb), 0.15) 0%, transparent 70%);
-    animation: celebrationPulse 2s ease-in-out infinite;
+    animation: pulse 2s ease-in-out infinite;
 }
 
 .tutorial-celebration-title {

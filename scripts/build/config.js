@@ -103,7 +103,8 @@ const cssBundles = {
         'modules/browser-guide.css',
         'modules/page-viewer.css',
         'modules/authorize.css',
-        'modules/notifications.css'
+        'modules/notifications.css',
+        'modules/friend-links.css'
     ],
     'css/graph.css': ['modules/graph.css']
 };
