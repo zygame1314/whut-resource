@@ -1,13 +1,4 @@
 const POW_BENCHMARK_MS = 300;
-const POW_TARGET_TIME_MS = 4000;
-const POW_MIN_VERIFY_MS = 1500;
-const POW_ASSUMED_ATTACKER_HPS = 1_000_000;
-const POW_VERIFY_MARGIN_MS = 300;
-
-function powMinVerifyMs(bits) {
-    const formulaMs = (Math.pow(2, bits) / POW_ASSUMED_ATTACKER_HPS) * 1000;
-    return Math.max(formulaMs, POW_MIN_VERIFY_MS) + POW_VERIFY_MARGIN_MS;
-}
 
 const DEVICE_RANKS = [
     { hz: 0, name: '电子垃圾', icon: 'fa-trash-can' },
@@ -32,13 +23,6 @@ function getDeviceRank(hashRate) {
     return DEVICE_RANKS[DEVICE_RANKS.length - 1];
 }
 
-function bitsFromHashRate(hashRate) {
-    if (!hashRate || hashRate <= 0) return 16;
-    const targetHashes = (POW_TARGET_TIME_MS / 1000) * hashRate;
-    const bits = Math.floor(Math.log2(targetHashes));
-    return Math.max(Math.min(bits, 21), 16);
-}
-
 async function powBindHash(action, fields) {
     const parts = [action || ''];
     for (const f of fields) parts.push(String(f == null ? '' : f));
@@ -46,6 +30,223 @@ async function powBindHash(action, fields) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
     const arr = Array.from(new Uint8Array(buf));
     return arr.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function sha256Hex(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function canonicalJson(value) {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
+    const keys = Object.keys(value).sort();
+    return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalJson(value[k])).join(',') + '}';
+}
+
+const ENV_FONT_CANDIDATES = [
+    'Arial', 'Times New Roman', 'Courier New', 'Georgia', 'Verdana', 'Tahoma',
+    'Trebuchet MS', 'Impact', 'Comic Sans MS', 'Segoe UI', 'Calibri', 'Cambria',
+    'Helvetica Neue', 'Roboto', 'Ubuntu', 'Noto Sans CJK SC', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'SimSun', 'SimHei', 'KaiTi', 'WenQuanYi Micro Hei'
+];
+
+function envProbeCanvas(nonce) {
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 240;
+        canvas.height = 60;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.textBaseline = 'top';
+        ctx.font = '16px "Arial"';
+        ctx.fillStyle = '#f60';
+        ctx.fillRect(0, 0, 100, 30);
+        ctx.fillStyle = '#069';
+        ctx.fillText('WHUT|' + nonce, 2, 15);
+        ctx.fillStyle = 'rgba(102,204,0,0.7)';
+        ctx.font = '14px "Microsoft YaHei"';
+        ctx.fillText('人机验证|' + nonce, 4, 32);
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.beginPath();
+        ctx.arc(140, 30, 25, 0, Math.PI * 2);
+        ctx.fill();
+        return canvas.toDataURL();
+    } catch (e) {
+        return null;
+    }
+}
+
+function envProbeWebGL() {
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) return null;
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        const vendor = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR);
+        const renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+        const dims = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+        const line = gl.getParameter(gl.ALIASED_LINE_WIDTH_RANGE);
+        const params = [
+            gl.getParameter(gl.VERSION),
+            gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
+            gl.getParameter(gl.MAX_TEXTURE_SIZE),
+            gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),
+            gl.getParameter(gl.MAX_VERTEX_ATTRIBS),
+            gl.getParameter(gl.MAX_VARYING_VECTORS),
+            Array.isArray(line) || line ? Array.from(line).join('/') : '',
+            Array.isArray(dims) || dims ? Array.from(dims).join('/') : ''
+        ].join(',');
+        return {
+            vendor: String(vendor == null ? '' : vendor),
+            renderer: String(renderer == null ? '' : renderer),
+            params
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+function envProbeAudio(nonce) {
+    return new Promise((resolve) => {
+        let settled = false;
+        const done = (value) => {
+            if (settled) return;
+            settled = true;
+            resolve(Number.isFinite(value) ? value : 0);
+        };
+        try {
+            const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+            if (!OfflineCtx) { done(0); return; }
+            const ctx = new OfflineCtx(1, 44100, 44100);
+            const osc = ctx.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.value = 2000 + (parseInt(nonce.slice(0, 4), 16) % 8000);
+            const comp = ctx.createDynamicsCompressor();
+            comp.threshold.value = -50;
+            comp.knee.value = 40;
+            comp.ratio.value = 12;
+            comp.attack.value = 0;
+            comp.release.value = 0.25;
+            osc.connect(comp);
+            comp.connect(ctx.destination);
+            osc.start(0);
+            const finish = (buffer) => {
+                try {
+                    const data = buffer.getChannelData(0);
+                    let sum = 0;
+                    const end = Math.min(6000, data.length);
+                    for (let i = 4000; i < end; i++) sum += Math.abs(data[i]);
+                    done(sum);
+                } catch (e) {
+                    done(0);
+                }
+            };
+            if (typeof ctx.oncomplete !== 'undefined') {
+                ctx.oncomplete = (e) => finish(e.renderedBuffer);
+            }
+            setTimeout(() => done(0), 2500);
+            const pending = ctx.startRendering();
+            if (pending && typeof pending.then === 'function') {
+                pending.then(finish).catch(() => done(0));
+            }
+        } catch (e) {
+            done(0);
+        }
+    });
+}
+
+function envProbeFonts(nonce) {
+    try {
+        const bases = ['monospace', 'sans-serif', 'serif'];
+        const span = document.createElement('span');
+        span.style.cssText = 'position:absolute;left:-9999px;top:-9999px;font-size:72px;white-space:nowrap;';
+        span.textContent = 'mmmmmmmmmmlliWHUT' + nonce.slice(0, 6) + '资源';
+        document.body.appendChild(span);
+        const baseline = {};
+        for (const b of bases) {
+            span.style.fontFamily = b;
+            baseline[b] = span.offsetWidth + 'x' + span.offsetHeight;
+        }
+        let count = 0;
+        for (const font of ENV_FONT_CANDIDATES) {
+            let detected = false;
+            for (const b of bases) {
+                span.style.fontFamily = `'${font}',${b}`;
+                if (span.offsetWidth + 'x' + span.offsetHeight !== baseline[b]) {
+                    detected = true;
+                    break;
+                }
+            }
+            if (detected) count++;
+        }
+        span.remove();
+        return count;
+    } catch (e) {
+        return 0;
+    }
+}
+
+function envProbeHardware() {
+    const nav = navigator || {};
+    const cores = Number(nav.hardwareConcurrency);
+    const memory = Number(nav.deviceMemory);
+    const dpr = Number(window.devicePixelRatio);
+    let tzOffset = 0;
+    try { tzOffset = -new Date().getTimezoneOffset(); } catch (e) { tzOffset = 0; }
+    return {
+        cores: Number.isInteger(cores) && cores >= 1 ? cores : 1,
+        memory: Number.isInteger(memory) && memory >= 0 ? memory : 0,
+        tzOffset: Number.isFinite(tzOffset) ? Math.round(tzOffset) : 0,
+        langs: String(nav.language || (nav.languages && nav.languages[0]) || ''),
+        dpr: Number.isFinite(dpr) && dpr > 0 ? dpr : 1,
+        touch: ('ontouchstart' in window) || Number(nav.maxTouchPoints) > 0
+    };
+}
+
+function envProbeRaf() {
+    return new Promise((resolve) => {
+        try {
+            const start = performance.now();
+            let done = false;
+            const fallback = setTimeout(() => {
+                if (done) return;
+                done = true;
+                resolve(16.7);
+            }, 300);
+            requestAnimationFrame(() => {
+                if (done) return;
+                done = true;
+                clearTimeout(fallback);
+                const delta = performance.now() - start;
+                resolve(delta > 0 && delta <= 200 ? delta : 16.7);
+            });
+        } catch (e) {
+            resolve(16.7);
+        }
+    });
+}
+
+async function collectEnvSignals(nonce, hashRate) {
+    const canvasRaw = envProbeCanvas(nonce);
+    if (!canvasRaw) throw new Error('当前环境不支持 Canvas，请使用标准浏览器访问');
+    const webgl = envProbeWebGL();
+    if (!webgl) throw new Error('当前环境不支持 WebGL，请使用标准浏览器访问');
+    const [audio, raf] = await Promise.all([envProbeAudio(nonce), envProbeRaf()]);
+    return {
+        canvas: await sha256Hex(canvasRaw),
+        webgl,
+        audio,
+        fonts: envProbeFonts(nonce),
+        hardware: envProbeHardware(),
+        timing: { raf: raf > 0 && raf <= 200 ? raf : 16.7, hashRate: Math.max(1, Math.round(hashRate) || 1) }
+    };
+}
+
+async function buildEnvProof(nonce, hashRate) {
+    const signals = await collectEnvSignals(nonce, hashRate);
+    const digest = await sha256Hex(`${nonce}|${canonicalJson(signals)}`);
+    return { nonce, digest, signals };
 }
 
 const POW_WORKER_CODE = `
@@ -92,9 +293,8 @@ self.onmessage = async function(e) {
         var challenge = e.data.challenge;
         var steps = e.data.steps;
         var interval = e.data.interval;
-        var bpHash = e.data.bpHash || '';
         var bindHash = e.data.bindHash || '';
-        var x0 = await hashHex(challenge + ':' + bpHash + ':' + bindHash);
+        var x0 = await hashHex(challenge + ':' + bindHash);
         x0 = x0.substring(0, 16);
         var cur = x0;
         var checkpoints = [];
@@ -137,7 +337,7 @@ function powBenchmarkInWorker(durationMs) {
     });
 }
 
-function solveChainInWorker(challenge, steps, interval, bpHash, bindHash, onProgress) {
+function solveChainInWorker(challenge, steps, interval, bindHash, onProgress) {
     return new Promise((resolve, reject) => {
         let worker;
         try { worker = createPowWorker(); } catch (e) { reject(e); return; }
@@ -151,16 +351,21 @@ function solveChainInWorker(challenge, steps, interval, bpHash, bindHash, onProg
             }
         };
         worker.onerror = (e) => { worker.terminate(); reject(new Error(e.message || 'Worker error')); };
-        worker.postMessage({ type: 'solve', challenge, steps, interval, bpHash, bindHash });
+        worker.postMessage({ type: 'solve', challenge, steps, interval, bindHash });
     });
 }
 
-async function fetchPowChallenge(hashRate, minBits, action, bindHash) {
+async function fetchPowChallenge(hashRate, escalateBits, action, bindHash) {
     const powApiUrl = (typeof API_ENDPOINTS !== 'undefined' && API_ENDPOINTS.pow) ? API_ENDPOINTS.pow : '/api/pow';
     const res = await fetch(powApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: action || 'challenge', hashRate, minBits: minBits || 0, bind: bindHash || '' })
+        body: JSON.stringify({
+            action: action || 'challenge',
+            hashRate: Math.max(0, Math.round(hashRate) || 0),
+            escalateBits: escalateBits || 0,
+            bind: bindHash || ''
+        })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || '获取 PoW 挑战失败');
@@ -169,27 +374,26 @@ async function fetchPowChallenge(hashRate, minBits, action, bindHash) {
         bits: data.bits,
         steps: data.steps,
         interval: data.interval,
-        bpHash: data.bpHash || '',
+        envNonce: data.envNonce || '',
+        requiresBrowser: !!data.requiresBrowser,
         expiresIn: data.expiresIn
     };
 }
 
-async function solvePowChallenge(onProgress, minBits, action, bindFields) {
+async function solvePowChallenge(onProgress, escalateBits, action, bindFields) {
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'benchmark', challenge: '' });
     const hashRate = await powBenchmarkInWorker(POW_BENCHMARK_MS);
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'benchmark_done', challenge: '', hashRate });
     const bindHash = (bindFields && bindFields.length) ? await powBindHash(action, bindFields) : '';
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'fetching', challenge: '' });
-    const { challenge, bits, steps, interval, bpHash } = await fetchPowChallenge(hashRate, minBits, action, bindHash);
+    const { challenge, bits, steps, interval, envNonce } = await fetchPowChallenge(hashRate, escalateBits, action, bindHash);
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'solving', challenge });
-    const { checkpoints, elapsed } = await solveChainInWorker(challenge, steps, interval, bpHash, bindHash, (p) => {
+    const solvePromise = solveChainInWorker(challenge, steps, interval, bindHash, (p) => {
         if (onProgress) onProgress({ step: p.step, hash: p.hash, phase: p.phase || 'computing', totalSteps: steps });
     });
-    const minWait = powMinVerifyMs(bits);
-    if (elapsed < minWait) {
-        await new Promise(r => setTimeout(r, minWait - elapsed));
-    }
-    return { powChallenge: challenge, powCheckpoints: checkpoints, powBits: bits, powBind: bindHash };
+    const envPromise = envNonce ? buildEnvProof(envNonce, hashRate) : Promise.resolve(null);
+    const [{ checkpoints }, powEnv] = await Promise.all([solvePromise, envPromise]);
+    return { powChallenge: challenge, powCheckpoints: checkpoints, powBits: bits, powBind: bindHash, powEnv: powEnv || undefined };
 }
 
 function updatePowUI(powEl, progress) {
@@ -251,7 +455,7 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
     let solved = false;
     let solving = false;
     let result = null;
-    let minBits = 0;
+    let escalateBits = 0;
     let action = riskAction || '';
     powEl.classList.add('pow-idle');
     powEl.style.cursor = 'pointer';
@@ -262,7 +466,7 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
         powEl.style.cursor = 'default';
         try {
             const bindFields = typeof getBindFields === 'function' ? getBindFields() : [];
-            result = await solvePowChallenge((p) => updatePowUI(powEl, p), minBits, action, bindFields);
+            result = await solvePowChallenge((p) => updatePowUI(powEl, p), escalateBits, action, bindFields);
             solved = true;
             setTimeout(() => { if (onSolved) onSolved(result); }, 600);
         } catch (e) {
@@ -282,10 +486,11 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
         getResult: () => result,
         isSolved: () => solved,
         isSolving: () => solving,
-        setMinBits: (b) => { minBits = b; },
+        setEscalateBits: (b) => { escalateBits = Math.max(0, Number(b) || 0); },
+        setMinBits: (b) => { escalateBits = Math.max(escalateBits, Number(b) || 0); },
         reset: () => { solved = false; solving = false; result = null; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', step: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
-        meetsRequired: () => solved && result && result.powBits >= minBits,
-        requiredBits: () => minBits,
+        meetsRequired: () => solved && !!result && result.powBits >= escalateBits,
+        requiredBits: () => escalateBits,
         el: powEl
     };
 }

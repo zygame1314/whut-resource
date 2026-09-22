@@ -1,6 +1,7 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
 import { verifyPowSolution, computePowBind } from './pow.js';
+const HIGH_RISK_MIN_BITS = 18;
 const NICKNAME_MODERATION_PROMPT = `你是严格的昵称审核助手。逐条检查以下规则，命中任意一条即 REJECT。
 
 【必须拒绝的类型】
@@ -70,13 +71,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
   try {
     const body = await request.json();
     const { action, email, password } = body;
+    const powEnvProof = body.powEnv && typeof body.powEnv === 'object' ? body.powEnv : null;
     if (!env.DB) {
       return new Response(JSON.stringify({ success: false, error: '数据库未配置' }), { status: 500, headers: addCorsHeaders() });
     }
     if (action === 'prepare-register') {
-      const { powChallenge, powCheckpoints, powBits, nickname } = body;
-      if (powChallenge && powCheckpoints && powBits) {
-        const powResult = await verifyPowSolution({ challenge: powChallenge, bits: powBits, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action }, env, ctx);
+      const { powChallenge, powCheckpoints, nickname } = body;
+      if (powChallenge && powCheckpoints) {
+        const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: HIGH_RISK_MIN_BITS, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action, envProof: powEnvProof }, env, ctx);
         if (!powResult.valid) {
           return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
@@ -166,9 +168,9 @@ export async function onRequestPost({ request, env, waitUntil }) {
       return new Response(JSON.stringify({ success: true, activated: false, pending: false, expired: true }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'prepare-reset') {
-      const { powChallenge, powCheckpoints, powBits, newPassword } = body;
-      if (powChallenge && powCheckpoints && powBits) {
-        const powResult = await verifyPowSolution({ challenge: powChallenge, bits: powBits, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action }, env, ctx);
+      const { powChallenge, powCheckpoints, newPassword } = body;
+      if (powChallenge && powCheckpoints) {
+        const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: HIGH_RISK_MIN_BITS, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action, envProof: powEnvProof }, env, ctx);
         if (!powResult.valid) {
           return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
@@ -233,13 +235,13 @@ export async function onRequestPost({ request, env, waitUntil }) {
       return new Response(JSON.stringify({ success: true, completed: true, pending: false, message: '请求已处理或已过期。' }), { status: 200, headers: addCorsHeaders() });
     }
     if (action === 'prepare-change-email') {
-      const { newEmail, powChallenge, powCheckpoints, powBits } = body;
+      const { newEmail, powChallenge, powCheckpoints } = body;
       const user = await getUserFromRequest(request, env);
       if (!user) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
       }
-      if (powChallenge && powCheckpoints && powBits) {
-        const powResult = await verifyPowSolution({ challenge: powChallenge, bits: powBits, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action }, env, ctx);
+      if (powChallenge && powCheckpoints) {
+        const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: HIGH_RISK_MIN_BITS, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action, envProof: powEnvProof }, env, ctx);
         if (!powResult.valid) {
           return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
@@ -356,7 +358,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       return new Response(JSON.stringify(result), { status: result.success ? 200 : 500, headers: addCorsHeaders() });
     }
     if (action === 'whut-login') {
-      const { studentId: inputId, password, powChallenge, powCheckpoints, powBits, ssoCode, ssoCookies, ssoSmsCode } = body;
+      const { studentId: inputId, password, powChallenge, powCheckpoints, ssoCode, ssoCookies, ssoSmsCode } = body;
       if (!inputId || !password) {
         return new Response(JSON.stringify({ success: false, error: '学号/卡号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
       }
@@ -376,21 +378,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const requiredBits = requireCaptcha ? Math.min(15 + Math.floor((maxFailCount - 3) / 2), 21) : 0;
       const isSmsVerification = ssoSmsCode && ssoCookies;
       if (requireCaptcha && !isSmsVerification) {
-        if (powChallenge && powCheckpoints && powBits) {
-          if (powBits < requiredBits) {
-            return new Response(JSON.stringify({
-              success: false,
-              error: `人机验证难度不足，需要 ${requiredBits} 位难度`,
-              requireCaptcha: true,
-              requiredBits
-            }), { status: 403, headers: addCorsHeaders() });
-          }
-          const powResult = await verifyPowSolution({ challenge: powChallenge, bits: powBits, checkpoints: powCheckpoints, bind: '', action }, env, ctx);
+        if (powChallenge && powCheckpoints) {
+          const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: requiredBits, checkpoints: powCheckpoints, bind: '', action, envProof: powEnvProof }, env, ctx);
           if (!powResult.valid) {
             return new Response(JSON.stringify({
               success: false,
               error: powResult.error || 'PoW 验证失败',
-              requireCaptcha: true
+              requireCaptcha: true,
+              requiredBits
             }), { status: 403, headers: addCorsHeaders() });
           }
         } else {
@@ -525,7 +520,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       }
     }
     if (action === 'login') {
-      const { powChallenge, powCheckpoints, powBits } = body;
+      const { powChallenge, powCheckpoints } = body;
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const now = new Date().toISOString();
       if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => { });
@@ -541,21 +536,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const requireCaptcha = maxFailCount >= 3;
       const requiredBits = requireCaptcha ? Math.min(15 + Math.floor((maxFailCount - 3) / 2), 21) : 0;
       if (requireCaptcha) {
-        if (powChallenge && powCheckpoints && powBits) {
-          if (powBits < requiredBits) {
-            return new Response(JSON.stringify({
-              success: false,
-              error: `人机验证难度不足，需要 ${requiredBits} 位难度`,
-              requireCaptcha: true,
-              requiredBits
-            }), { status: 403, headers: addCorsHeaders() });
-          }
-          const powResult = await verifyPowSolution({ challenge: powChallenge, bits: powBits, checkpoints: powCheckpoints, bind: '', action }, env, ctx);
+        if (powChallenge && powCheckpoints) {
+          const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: requiredBits, checkpoints: powCheckpoints, bind: '', action, envProof: powEnvProof }, env, ctx);
           if (!powResult.valid) {
             return new Response(JSON.stringify({
               success: false,
               error: powResult.error || 'PoW 验证失败',
-              requireCaptcha: true
+              requireCaptcha: true,
+              requiredBits
             }), { status: 403, headers: addCorsHeaders() });
           }
         } else {
@@ -577,7 +565,10 @@ export async function onRequestPost({ request, env, waitUntil }) {
         user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(finalEmail).first();
       }
       if (!user) {
-        await Promise.all([recordLoginAttempt(env.DB, ip, 'ip'), recordLoginAttempt(env.DB, email, 'email')]);
+        await Promise.all([
+          recordLoginAttempt(env.DB, ip, 'ip'),
+          recordLoginAttempt(env.DB, email, 'email')
+        ]);
         const newMaxFail = Math.max(ipFailCount + 1, emailFailCount + 1);
         return new Response(JSON.stringify({
           success: false,
@@ -587,8 +578,10 @@ export async function onRequestPost({ request, env, waitUntil }) {
       }
       const isValid = await verifyPasswordHash(password, user.password_hash, env.SALT);
       if (!isValid) {
-        await recordLoginAttempt(env.DB, ip, 'ip');
-        await recordLoginAttempt(env.DB, email, 'email');
+        await Promise.all([
+          recordLoginAttempt(env.DB, ip, 'ip'),
+          recordLoginAttempt(env.DB, email, 'email')
+        ]);
         const newMaxFail = Math.max(ipFailCount + 1, emailFailCount + 1);
         return new Response(JSON.stringify({
           success: false,

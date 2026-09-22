@@ -361,7 +361,7 @@ function showAuthModal(mode = 'login') {
         const captchaContainer = modal.querySelector('#login-captcha-container');
         const loginPowEl = modal.querySelector('#pow-login-status');
         if (captchaContainer && captchaContainer.style.display !== 'none' && loginPowEl) {
-            loginPowCtrl = initPowCard(loginPowEl);
+            loginPowCtrl = initPowCard(loginPowEl, undefined, isSso ? 'whut-login' : 'login');
         }
         form.onsubmit = async (e) => {
             e.preventDefault();
@@ -390,16 +390,16 @@ function showAuthModal(mode = 'login') {
                 powData = loginPowCtrl.getResult();
                 if (powData && loginPowCtrl.requiredBits() && powData.powBits < loginPowCtrl.requiredBits()) {
                     loginPowCtrl.reset();
-                showNotification(`人机验证难度不足，需要 ${loginPowCtrl.requiredBits()} 位难度，请重新验证`, 'error', 5000);
-                return;
+                    showNotification(`人机验证难度不足，需要 ${loginPowCtrl.requiredBits()} 位难度，请重新验证`, 'error', 5000);
+                    return;
                 }
             }
             let payload = { password };
             if (powData) {
                 payload.powChallenge = powData.powChallenge;
                 payload.powCheckpoints = powData.powCheckpoints;
-                payload.powBits = powData.powBits;
                 if (powData.powBind) payload.powBind = powData.powBind;
+                if (powData.powEnv) payload.powEnv = powData.powEnv;
             }
             if (isSso) {
                 payload.action = 'whut-login';
@@ -551,17 +551,17 @@ function showAuthModal(mode = 'login') {
                     if (needCaptcha && captchaContainer.style.display === 'none') {
                         captchaContainer.style.display = 'block';
                         if (!loginPowCtrl && loginPowEl) {
-                            loginPowCtrl = initPowCard(loginPowEl);
+                            loginPowCtrl = initPowCard(loginPowEl, undefined, isSso ? 'whut-login' : 'login');
                         }
                         if (loginPowCtrl && data.requiredBits) {
                             loginPowCtrl.reset();
-                            loginPowCtrl.setMinBits(data.requiredBits);
+                            loginPowCtrl.setEscalateBits(data.requiredBits);
                         }
                         showNotification(data.error, 'error');
                     } else if (needCaptcha) {
                         if (loginPowCtrl && data.requiredBits) {
                             loginPowCtrl.reset();
-                            loginPowCtrl.setMinBits(data.requiredBits);
+                            loginPowCtrl.setEscalateBits(data.requiredBits);
                         } else if (loginPowCtrl) {
                             loginPowCtrl.reset();
                         }
@@ -649,7 +649,7 @@ function showAuthModal(mode = 'login') {
         const registerPowCtrl = registerPowEl ? initPowCard(registerPowEl, undefined, 'prepare-register', () => {
             const raw = document.getElementById('auth-email').value.trim();
             const prefix = raw.toLowerCase().endsWith('@whut.edu.cn') ? raw.slice(0, -12) : raw;
-            return [prefix, document.getElementById('auth-password').value];
+            return [prefix];
         }) : null;
         const step1Form = modal.querySelector('#register-form-step1');
         const step1Div = modal.querySelector('#register-step-1');
@@ -693,7 +693,7 @@ function showAuthModal(mode = 'login') {
                 }
                 powData = registerPowCtrl.getResult();
             }
-            const bindOk = powData && powData.powBind === await powBindHash('prepare-register', [emailPrefix, password]);
+            const bindOk = powData && powData.powBind === await powBindHash('prepare-register', [emailPrefix]);
             if (powData && !bindOk) {
                 registerPowCtrl.reset();
                 showNotification('表单内容已变更，请重新完成人机验证', 'error');
@@ -713,8 +713,8 @@ function showAuthModal(mode = 'login') {
                         nickname,
                         powChallenge: powData.powChallenge,
                         powCheckpoints: powData.powCheckpoints,
-                        powBits: powData.powBits,
-                        powBind: powData.powBind
+                        powBind: powData.powBind,
+                        powEnv: powData.powEnv
                     })
                 });
                 const data = await res.json();

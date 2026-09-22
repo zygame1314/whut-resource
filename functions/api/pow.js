@@ -1,10 +1,8 @@
 const CHALLENGE_EXPIRES_MS = 5 * 60 * 1000;
 const MIN_BITS = 16;
 const MAX_BITS = 21;
-const TARGET_WORK_SECONDS = 5;
 const HIGH_RISK_MIN_BITS = 18;
-const ASSUMED_ATTACKER_SERIAL_HPS = 3_000_000;
-const MIN_VERIFY_MS = 1500;
+const DEVICE_TARGET_WORK_MS = 3000;
 const IP_RATE_WINDOW_MS = 5 * 60 * 1000;
 const IP_RATE_BASE_COUNT = 3;
 const IP_RATE_BITS_STEP = 1;
@@ -20,11 +18,13 @@ const DATA_CENTER_ASN = new Set([
   197540, 42652, 61159, 8107, 32934, 54113, 36459, 16509
 ]);
 
-function bitsFromHashRate(hashRate) {
-  if (!hashRate || hashRate <= 0) return MIN_BITS;
-  const targetHashes = TARGET_WORK_SECONDS * hashRate;
+function bitsFromDevice(hashRate, floor) {
+  const rate = Number(hashRate);
+  if (!Number.isFinite(rate) || rate <= 0) return floor;
+  const targetHashes = (DEVICE_TARGET_WORK_MS / 1000) * rate;
+  if (!(targetHashes > 0)) return floor;
   const bits = Math.floor(Math.log2(targetHashes));
-  return Math.max(Math.min(bits, MAX_BITS), MIN_BITS);
+  return Math.min(Math.max(bits, floor), MAX_BITS);
 }
 
 async function sha256Hex(data) {
@@ -53,19 +53,129 @@ async function keyedHex(key, message) {
   return sha256Hex(message);
 }
 
-async function bpHashHex(bp, env) {
-  const stable = JSON.stringify(bp);
-  const h = await keyedHex(env && env.POW_HMAC_KEY, stable);
-  return h.slice(0, 16);
-}
-
 async function bindHashHex(action, bindHex, env) {
   return keyedHex(env && env.POW_HMAC_KEY, `${action || ''}|${bindHex || ''}`);
 }
 
+const BROWSER_ACTIONS = ['prepare-register', 'prepare-reset', 'prepare-change-email', 'login', 'whut-login'];
+const ENV_NONCE_BYTES = 12;
+
+function shouldRequireBrowser(action) {
+  return BROWSER_ACTIONS.includes(String(action || ''));
+}
+
+function randomEnvNonce() {
+  const u8 = new Uint8Array(ENV_NONCE_BYTES);
+  crypto.getRandomValues(u8);
+  let s = '';
+  for (let i = 0; i < u8.length; i++) s += HEX_TABLE[u8[i]];
+  return s;
+}
+
+const ENV_FLAG_CANVAS = 1;
+const ENV_FLAG_WEBGL = 2;
+const ENV_FLAG_AUDIO = 4;
+const ENV_FLAG_FONTS = 8;
+const ENV_FLAG_HARDWARE = 16;
+const ENV_FLAG_TIMING = 32;
+const ENV_REQUIRED_FLAGS = ENV_FLAG_CANVAS | ENV_FLAG_WEBGL | ENV_FLAG_AUDIO | ENV_FLAG_FONTS | ENV_FLAG_HARDWARE | ENV_FLAG_TIMING;
+
+function canonicalJson(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
+  const keys = Object.keys(value).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalJson(value[k])).join(',') + '}';
+}
+
+const HEX64_RE = /^[0-9a-f]{64}$/;
+
+function evaluateEnvSignals(signals) {
+  const flags = { ok: 0, reasons: [] };
+  const s = signals && typeof signals === 'object' ? signals : null;
+  if (!s) {
+    flags.reasons.push('缺少环境数据');
+    return flags;
+  }
+  const canvas = s.canvas;
+  if (typeof canvas === 'string' && HEX64_RE.test(canvas) && canvas !== '0'.repeat(64)) {
+    flags.ok |= ENV_FLAG_CANVAS;
+  } else {
+    flags.reasons.push('canvas 信号异常');
+  }
+  const gl = s.webgl;
+  if (gl && typeof gl.vendor === 'string' && gl.vendor.trim() && typeof gl.renderer === 'string' && gl.renderer.trim() && typeof gl.params === 'string' && gl.params.trim()) {
+    if (!/swiftshader|llvmpipe|mesa offscreen|headless/i.test(gl.renderer)) {
+      flags.ok |= ENV_FLAG_WEBGL;
+    } else {
+      flags.reasons.push('WebGL 渲染器为软件实现');
+    }
+  } else {
+    flags.reasons.push('缺少 WebGL 信号');
+  }
+  const audio = s.audio;
+  if (typeof audio === 'number' && Number.isFinite(audio) && audio !== 0) {
+    flags.ok |= ENV_FLAG_AUDIO;
+  } else {
+    flags.reasons.push('AudioContext 信号异常');
+  }
+  const fonts = s.fonts;
+  if (typeof fonts === 'number' && Number.isInteger(fonts) && fonts >= 1 && fonts <= 4096) {
+    flags.ok |= ENV_FLAG_FONTS;
+  } else {
+    flags.reasons.push('字体探测结果异常');
+  }
+  const hw = s.hardware;
+  if (hw && typeof hw === 'object' &&
+    Number.isInteger(hw.cores) && hw.cores >= 1 && hw.cores <= 256 &&
+    Number.isInteger(hw.memory) && hw.memory >= 0 && hw.memory <= 256 &&
+    Number.isInteger(hw.tzOffset) && hw.tzOffset >= -900 && hw.tzOffset <= 900 &&
+    typeof hw.langs === 'string' && hw.langs.length > 0 &&
+    typeof hw.dpr === 'number' && hw.dpr >= 0.25 && hw.dpr <= 8 &&
+    typeof hw.touch === 'boolean') {
+    flags.ok |= ENV_FLAG_HARDWARE;
+  } else {
+    flags.reasons.push('硬件/区域信息异常');
+  }
+  const timing = s.timing;
+  if (timing && typeof timing === 'object' &&
+    typeof timing.raf === 'number' && Number.isFinite(timing.raf) && timing.raf > 0 && timing.raf <= 200 &&
+    typeof timing.hashRate === 'number' && Number.isFinite(timing.hashRate) && timing.hashRate > 0) {
+    flags.ok |= ENV_FLAG_TIMING;
+  } else {
+    flags.reasons.push('时间基准信号异常');
+  }
+  return flags;
+}
+
+async function verifyEnvProof(envProof, record, env) {
+  if (!record.env_nonce) return { ok: true, skipped: true };
+  if (!envProof || typeof envProof !== 'object') {
+    return { ok: false, error: '缺少浏览器环境证明' };
+  }
+  const nonce = String(envProof.nonce || '');
+  if (nonce !== record.env_nonce) {
+    return { ok: false, error: '环境证明已过期，请重新验证' };
+  }
+  const digest = String(envProof.digest || '');
+  if (!HEX64_RE.test(digest)) {
+    return { ok: false, error: '环境证明格式无效' };
+  }
+  const signals = envProof.signals;
+  const evaluated = evaluateEnvSignals(signals);
+  const expected = await sha256Hex(`${nonce}|${canonicalJson(signals)}`);
+  if (expected !== digest) {
+    return { ok: false, error: '环境证明校验失败' };
+  }
+  const required = record.env_flags ? record.env_flags : ENV_REQUIRED_FLAGS;
+  if ((evaluated.ok & required) !== required) {
+    return { ok: false, error: '浏览器环境不完整，请使用标准浏览器访问' };
+  }
+  return { ok: true, flags: evaluated.ok };
+}
+
 const BIND_FIELDS = {
-  'prepare-register': b => [b.emailPrefix, b.password],
-  'prepare-reset': b => [b.email, b.newPassword],
+  'prepare-register': b => [b.emailPrefix],
+  'prepare-reset': b => [b.email],
   'prepare-change-email': b => [b.newEmail]
 };
 
@@ -79,12 +189,12 @@ function computePowBind(action, body) {
 let _schemaEnsured = false;
 async function ensurePowSchema(env) {
   if (_schemaEnsured) return;
-  for (const col of ['bp_hash', 'colo', 'steps', 'interval', 'bind_hash']) {
+  for (const col of ['steps', 'interval', 'bind_hash', 'env_nonce', 'env_flags', 'req_action']) {
     try {
       await env.DB.prepare(`SELECT ${col} FROM pow_challenges LIMIT 1`).run();
     } catch (e) {
       try {
-        await env.DB.prepare(`ALTER TABLE pow_challenges ADD COLUMN ${col} ${col === 'steps' || col === 'interval' ? 'INTEGER' : 'TEXT'}`).run();
+        await env.DB.prepare(`ALTER TABLE pow_challenges ADD COLUMN ${col} ${['steps', 'interval', 'env_flags'].includes(col) ? 'INTEGER' : 'TEXT'}`).run();
       } catch (alterError) {
         console.error('pow schema migrate failed:', col, alterError && alterError.message ? alterError.message : alterError);
       }
@@ -92,10 +202,6 @@ async function ensurePowSchema(env) {
   }
   try {
     await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_pow_challenges_ip_issued ON pow_challenges(ip, issued_at)').run();
-  } catch (e) {
-  }
-  try {
-    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_pow_challenges_colo_issued ON pow_challenges(colo, issued_at)').run();
   } catch (e) {
   }
   _schemaEnsured = true;
@@ -111,28 +217,6 @@ async function ipPenaltyBits(env, ip) {
     const count = (row && row.cnt) || 0;
     if (count <= IP_RATE_BASE_COUNT) return 0;
     return Math.min((count - IP_RATE_BASE_COUNT) * IP_RATE_BITS_STEP, MAX_BITS - MIN_BITS);
-  } catch (e) {
-    return 0;
-  }
-}
-
-const COLO_PROXY_DISTINCT_IPS = 15;
-const COLO_PROXY_TOTAL_COUNT = 20;
-const COLO_PROXY_PENALTY_BITS = 3;
-
-async function coloPenaltyBits(env, colo) {
-  if (!colo) return 0;
-  try {
-    const since = new Date(Date.now() - IP_RATE_WINDOW_MS).toISOString();
-    const row = await env.DB.prepare(
-      'SELECT COUNT(DISTINCT ip) AS distinctIps, COUNT(*) AS cnt FROM pow_challenges WHERE colo = ? AND issued_at > ?'
-    ).bind(colo, since).first();
-    const distinctIps = (row && row.distinctIps) || 0;
-    const cnt = (row && row.cnt) || 0;
-    if (cnt > COLO_PROXY_TOTAL_COUNT && distinctIps > COLO_PROXY_DISTINCT_IPS) {
-      return COLO_PROXY_PENALTY_BITS;
-    }
-    return 0;
   } catch (e) {
     return 0;
   }
@@ -162,77 +246,6 @@ function shouldCleanup() {
   return Math.random() < 0.02;
 }
 
-const SP_PASS_SCORE = 50;
-
-function collectServerProof(request) {
-  const h = request.headers;
-  const cf = request.cf || {};
-  return {
-    ua: h.get('user-agent') || '',
-    chua: h.get('sec-ch-ua') || '',
-    chuaMobile: h.get('sec-ch-ua-mobile') || '',
-    chuaPlatform: h.get('sec-ch-ua-platform') || '',
-    secFetchSite: h.get('sec-fetch-site') || '',
-    secFetchMode: h.get('sec-fetch-mode') || '',
-    secFetchDest: h.get('sec-fetch-dest') || '',
-    acceptEncoding: h.get('accept-encoding') || '',
-    acceptLang: h.get('accept-language') || '',
-    httpVersion: cf.httpVersion || '',
-    colo: cf.colo || '',
-  };
-}
-
-function scoreServerProof(sp) {
-  let score = 0;
-  const reasons = [];
-
-  if (sp.chua && sp.chuaMobile && sp.chuaPlatform) {
-    score += 15;
-    if (/Chrome\/\d/.test(sp.ua) && /Chrome/.test(sp.chua)) score += 10;
-    else reasons.push('sec-ch-ua 与 UA 不自洽');
-  } else {
-    reasons.push('缺少 sec-ch-ua 头');
-  }
-
-  if (sp.secFetchSite && sp.secFetchMode && sp.secFetchDest) {
-    score += 20;
-  } else {
-    reasons.push('缺少 sec-fetch 头');
-  }
-
-  const ae = (sp.acceptEncoding || '').toLowerCase();
-  if (ae.includes('br') || ae.includes('zstd')) {
-    score += 15;
-  } else if (ae.includes('gzip')) {
-    score += 5;
-    reasons.push('accept-encoding 缺 br');
-  } else {
-    reasons.push('accept-encoding 异常');
-  }
-
-  if (/,/.test(sp.acceptLang) && /q=/.test(sp.acceptLang)) {
-    score += 10;
-  } else if (sp.acceptLang) {
-    score += 3;
-  } else {
-    reasons.push('缺少 accept-language');
-  }
-
-  if (sp.httpVersion === 'HTTP/2' || sp.httpVersion === 'HTTP/3') {
-    score += 10;
-  } else {
-    reasons.push('HTTP/1.1');
-  }
-
-  if (/Mozilla\/5[\.\d].*\(.*?(Windows|Macintosh|Linux|Android|iPhone).*?\)/.test(sp.ua)) {
-    score += 10;
-  } else {
-    reasons.push('UA 非浏览器');
-  }
-
-  return { score, reasons, valid: score >= SP_PASS_SCORE };
-}
-
 async function lazyCleanup(db) {
   try {
     await db.prepare('DELETE FROM pow_challenges WHERE expires_at < ?').bind(new Date().toISOString()).run();
@@ -251,28 +264,24 @@ function maybeCleanup(db, ctx) {
   return p;
 }
 
-function minVerifyMs(steps) {
-  return Math.max((steps / ASSUMED_ATTACKER_SERIAL_HPS) * 1000, MIN_VERIFY_MS);
-}
-
 export async function verifyPowSolution(params, env, ctx) {
-  const { challenge, bits, checkpoints, bind, action } = params || {};
-  if (!challenge || !bits || !checkpoints || typeof checkpoints !== 'string') {
+  const { challenge, checkpoints, bind, action, envProof, minBits } = params || {};
+  if (!challenge || !checkpoints || typeof checkpoints !== 'string') {
     return { valid: false, error: '缺少 PoW 参数' };
   }
   const normAction = String(action || '');
-  const bitsNum = Number(bits);
-  if (!Number.isInteger(bitsNum) || bitsNum < 1 || bitsNum > 32) {
-    return { valid: false, error: '难度参数无效' };
-  }
   if (bind && !/^[0-9a-f]{64}$/.test(String(bind))) {
     return { valid: false, error: '业务绑定参数无效' };
   }
   if (!/^[0-9a-f]+$/.test(checkpoints)) {
     return { valid: false, error: 'checkpoint 数据无效' };
   }
+  const requiredBits = Number(minBits) || 0;
+  if (!Number.isInteger(requiredBits) || requiredBits < 0 || requiredBits > 32) {
+    return { valid: false, error: '难度参数无效' };
+  }
   const record = await env.DB.prepare(
-    'SELECT bits, issued_at, expires_at, attempts, bp_hash, bind_hash, steps, interval FROM pow_challenges WHERE challenge = ? AND expires_at > ?'
+    'SELECT bits, issued_at, expires_at, attempts, bind_hash, steps, interval, env_nonce, env_flags, req_action FROM pow_challenges WHERE challenge = ? AND expires_at > ?'
   ).bind(challenge, new Date().toISOString()).first();
   if (!record) {
     maybeCleanup(env.DB, ctx);
@@ -284,8 +293,19 @@ export async function verifyPowSolution(params, env, ctx) {
     maybeCleanup(env.DB, ctx);
     return { valid: false, error: '尝试次数过多，请重新获取挑战' };
   }
-  if (bitsNum < record.bits) {
-    return { valid: false, error: '难度低于服务端要求' };
+  if (record.req_action && normAction !== record.req_action) {
+    return { valid: false, error: '挑战用途不匹配，请重新获取' };
+  }
+  if (record.bits < requiredBits) {
+    return { valid: false, error: '难度低于服务端要求，请重新获取挑战' };
+  }
+  if (record.env_nonce) {
+    const envResult = await verifyEnvProof(envProof, record, env);
+    if (!envResult.ok) {
+      await env.DB.prepare('UPDATE pow_challenges SET attempts = COALESCE(attempts, 0) + 1 WHERE challenge = ?').bind(challenge).run();
+      maybeCleanup(env.DB, ctx);
+      return { valid: false, error: envResult.error };
+    }
   }
   const steps = record.steps;
   const interval = record.interval;
@@ -293,10 +313,8 @@ export async function verifyPowSolution(params, env, ctx) {
     return { valid: false, error: '挑战数据无效，请重新获取' };
   }
   const elapsedMs = Date.now() - new Date(record.issued_at).getTime();
-  if (elapsedMs < minVerifyMs(steps)) {
-    await env.DB.prepare('UPDATE pow_challenges SET attempts = COALESCE(attempts, 0) + 1 WHERE challenge = ?').bind(challenge).run();
-    maybeCleanup(env.DB, ctx);
-    return { valid: false, error: '验证过快，请重试' };
+  if (!Number.isFinite(elapsedMs) || elapsedMs < 0) {
+    return { valid: false, error: '挑战数据无效，请重新获取' };
   }
   await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
   const clientBind = bind || '';
@@ -306,7 +324,7 @@ export async function verifyPowSolution(params, env, ctx) {
       return { valid: false, error: '表单内容已变更，请重新完成人机验证' };
     }
   }
-  const x0 = (await sha256Hex(`${challenge}:${record.bp_hash || ''}:${clientBind}`)).slice(0, 16);
+  const x0 = (await sha256Hex(`${challenge}:${clientBind}`)).slice(0, 16);
   const windows = steps / interval;
   if (checkpoints.length !== windows * 16) {
     return { valid: false, error: 'checkpoint 数据无效' };
@@ -351,9 +369,9 @@ export async function onRequestPost({ request, env, waitUntil }) {
       });
     }
     const body = await request.json().catch(() => ({}));
-    const hashRate = Number(body.hashRate) || 0;
-    const minBits = Number(body.minBits) || 0;
     const action = String(body.action || '');
+    const hashRate = Number(body.hashRate) || 0;
+    const escalateBits = Number(body.escalateBits) || 0;
     const bind = (typeof body.bind === 'string' && /^[0-9a-f]{64}$/.test(body.bind)) ? body.bind : '';
 
     const isHighRisk = ['prepare-register', 'prepare-reset', 'prepare-change-email'].includes(action);
@@ -363,15 +381,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
       });
     }
 
-    const sp = collectServerProof(request);
-    const spResult = scoreServerProof(sp);
-    if (!spResult.valid) {
-      return new Response(JSON.stringify({ success: false, error: '环境验证失败', reasons: spResult.reasons }), {
-        status: 403, headers: { 'Content-Type': 'application/json', ...addCors() }
-      });
-    }
-    const bpHash = await bpHashHex(sp, env);
-
     const cf = request.cf || {};
     const asnPenalty = asnPenaltyBits(cf, action);
 
@@ -379,18 +388,21 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const floor = isHighRisk ? HIGH_RISK_MIN_BITS : MIN_BITS;
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const penalty = await ipPenaltyBits(env, ip);
-    const coloPenalty = await coloPenaltyBits(env, sp.colo);
     const botPenalty = botScorePenaltyBits(cf);
-    const bits = Math.min(Math.max(bitsFromHashRate(hashRate), minBits, floor, floor + penalty + coloPenalty + asnPenalty + botPenalty), MAX_BITS);
+    const deviceBits = bitsFromDevice(hashRate, floor);
+    const escalateFloor = Number.isInteger(escalateBits) && escalateBits >= MIN_BITS && escalateBits <= MAX_BITS ? escalateBits : 0;
+    const bits = Math.min(Math.max(floor, deviceBits, escalateFloor, floor + penalty + asnPenalty + botPenalty), MAX_BITS);
     const challenge = crypto.randomUUID().replace(/-/g, '');
     const steps = Math.pow(2, bits);
     const interval = CHECKPOINT_INTERVAL;
     const nowISO = new Date().toISOString();
     const expiresAt = new Date(Date.now() + CHALLENGE_EXPIRES_MS).toISOString();
     const bindHash = BIND_FIELDS[action] ? await bindHashHex(action, bind, env) : '';
+    const requireBrowser = shouldRequireBrowser(action);
+    const envNonce = requireBrowser ? randomEnvNonce() : '';
     await env.DB.prepare(
-      'INSERT INTO pow_challenges (challenge, bits, ip, bp_hash, colo, steps, interval, bind_hash, issued_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(challenge, bits, ip, bpHash, sp.colo, steps, interval, bindHash, nowISO, expiresAt).run();
+      'INSERT INTO pow_challenges (challenge, bits, ip, steps, interval, bind_hash, issued_at, expires_at, env_nonce, env_flags, req_action) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(challenge, bits, ip, steps, interval, bindHash, nowISO, expiresAt, envNonce, requireBrowser ? ENV_REQUIRED_FLAGS : 0, action).run();
     maybeCleanup(env.DB, ctx);
     return new Response(JSON.stringify({
       success: true,
@@ -398,7 +410,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
       bits,
       steps,
       interval,
-      bpHash,
+      envNonce: envNonce || undefined,
+      requiresBrowser: requireBrowser,
       expiresIn: CHALLENGE_EXPIRES_MS / 1000
     }), { status: 200, headers: { 'Content-Type': 'application/json', ...addCors() } });
   } catch (e) {

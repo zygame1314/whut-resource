@@ -12,9 +12,8 @@ CREATE TABLE users (
     school_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_users_banned ON users(is_banned, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_banned ON users(is_banned, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-CREATE INDEX IF NOT EXISTS idx_users_email_role ON users(email, role);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_id ON users(school_id);
 
 DROP TABLE IF EXISTS files;
@@ -136,7 +135,7 @@ CREATE INDEX IF NOT EXISTS idx_guestbook_cleanup ON guestbook(created_at);
 CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(is_published, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_announcements_created ON announcements(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_files_recent_uploads ON files(is_directory, uploaded DESC);
-CREATE INDEX IF NOT EXISTS idx_files_listing_optimized ON files(parent_path, is_directory DESC, is_link DESC, name ASC, uploaded DESC);
+CREATE INDEX IF NOT EXISTS idx_files_listing_optimized ON files(parent_path, is_directory DESC, is_link DESC, name ASC, key ASC);
 CREATE INDEX IF NOT EXISTS idx_files_dir_key ON files(is_directory, key);
 CREATE INDEX IF NOT EXISTS idx_files_stats ON files(is_directory, parent_path, downloads);
 CREATE INDEX IF NOT EXISTS idx_files_cleanup_sync ON files(is_link, last_verified);
@@ -175,8 +174,6 @@ CREATE TABLE pending_registrations (
     expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_pending_reg_code ON pending_registrations(verify_code);
-CREATE INDEX IF NOT EXISTS idx_pending_reg_student ON pending_registrations(email_prefix);
 CREATE INDEX IF NOT EXISTS idx_pending_reg_expires ON pending_registrations(expires_at);
 CREATE INDEX IF NOT EXISTS idx_pending_reg_student_expires ON pending_registrations(email_prefix, expires_at);
 
@@ -191,8 +188,6 @@ CREATE TABLE pending_resets (
     expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_pending_reset_code ON pending_resets(verify_code);
-CREATE INDEX IF NOT EXISTS idx_pending_reset_email ON pending_resets(email);
 CREATE INDEX IF NOT EXISTS idx_pending_reset_expires ON pending_resets(expires_at);
 CREATE INDEX IF NOT EXISTS idx_pending_reset_email_expires ON pending_resets(email, expires_at);
 
@@ -208,7 +203,6 @@ CREATE TABLE pending_email_changes (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_pending_email_code ON pending_email_changes(verify_code);
 CREATE INDEX IF NOT EXISTS idx_pending_email_user ON pending_email_changes(user_id);
 CREATE INDEX IF NOT EXISTS idx_pending_email_expires ON pending_email_changes(expires_at);
 
@@ -275,9 +269,7 @@ CREATE TABLE IF NOT EXISTS admin_logs (
     FOREIGN KEY (operator_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_admin_logs_action ON admin_logs(action);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_admin_logs_operator ON admin_logs(operator_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_target_created ON admin_logs(target_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_action_created ON admin_logs(action, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_target ON admin_logs(target_type, target_id);
@@ -319,7 +311,6 @@ CREATE TABLE admin_requests (
 
 CREATE INDEX idx_admin_requests_status_created ON admin_requests(status, created_at DESC);
 CREATE INDEX idx_admin_requests_requester ON admin_requests(requested_by, created_at DESC);
-CREATE INDEX idx_admin_requests_reviewer ON admin_requests(reviewed_by, reviewed_at DESC);
 CREATE INDEX idx_admin_requests_created_at ON admin_requests(created_at);
 
 DROP TABLE IF EXISTS login_attempts;
@@ -401,6 +392,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_maintenance_jobs_created ON maintenance_jobs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_maint_jobs_status_created ON maintenance_jobs(status, created_at);
 
 CREATE TABLE IF NOT EXISTS user_passkeys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -442,7 +434,7 @@ CREATE TABLE IF NOT EXISTS oauth_clients (
     created_by INTEGER,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_oauth_clients_client_id ON oauth_clients(client_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_clients_created ON oauth_clients(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -458,7 +450,7 @@ CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_oauth_codes_code ON oauth_authorization_codes(code);
+CREATE INDEX IF NOT EXISTS idx_oauth_codes_client ON oauth_authorization_codes(client_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_oauth_codes_expires ON oauth_authorization_codes(expires_at);
 
 CREATE TABLE IF NOT EXISTS oauth_access_tokens (
@@ -472,7 +464,7 @@ CREATE TABLE IF NOT EXISTS oauth_access_tokens (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_oauth_tokens_token ON oauth_access_tokens(access_token);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_client ON oauth_access_tokens(client_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expires ON oauth_access_tokens(expires_at);
 
 CREATE TABLE IF NOT EXISTS pow_challenges (
@@ -480,17 +472,17 @@ CREATE TABLE IF NOT EXISTS pow_challenges (
     bits INTEGER NOT NULL,
     ip TEXT NOT NULL,
     attempts INTEGER DEFAULT 0,
-    bp_hash TEXT,
-    colo TEXT,
     steps INTEGER,
     interval INTEGER,
     bind_hash TEXT,
+    env_nonce TEXT,
+    env_flags INTEGER DEFAULT 0,
+    req_action TEXT,
     issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     expires_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pow_challenges_expires ON pow_challenges(expires_at);
 CREATE INDEX IF NOT EXISTS idx_pow_challenges_ip_issued ON pow_challenges(ip, issued_at);
-CREATE INDEX IF NOT EXISTS idx_pow_challenges_colo_issued ON pow_challenges(colo, issued_at);
 
 CREATE TABLE IF NOT EXISTS todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -554,3 +546,4 @@ CREATE TABLE IF NOT EXISTS folder_subscriptions (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_folder_subs_folder ON folder_subscriptions(folder_key);
+CREATE INDEX IF NOT EXISTS idx_folder_subs_user_time ON folder_subscriptions(user_id, created_at DESC);

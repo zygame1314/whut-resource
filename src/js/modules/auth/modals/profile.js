@@ -210,8 +210,7 @@ function showForgotPasswordModal(prefillEmail = '') {
     initPasswordToggles(modal);
     const resetPowEl = modal.querySelector('#pow-reset-status');
     const resetPowCtrl = resetPowEl ? initPowCard(resetPowEl, undefined, 'prepare-reset', () => [
-        document.getElementById('reset-email').value.trim(),
-        document.getElementById('reset-new-password').value
+        document.getElementById('reset-email').value.trim()
     ]) : null;
     const closeBtn = modal.querySelector('#close-modal');
     const backToLoginLink = modal.querySelector('#back-to-login');
@@ -265,8 +264,7 @@ function showForgotPasswordModal(prefillEmail = '') {
             }
             powPayload = resetPowCtrl.getResult();
             const bindOk = powPayload && powPayload.powBind === await powBindHash('prepare-reset', [
-                document.getElementById('reset-email').value.trim(),
-                document.getElementById('reset-new-password').value
+                document.getElementById('reset-email').value.trim()
             ]);
             if (powPayload && !bindOk) {
                 resetPowCtrl.reset();
@@ -287,8 +285,8 @@ function showForgotPasswordModal(prefillEmail = '') {
                     newPassword,
                     powChallenge: powPayload.powChallenge,
                     powCheckpoints: powPayload.powCheckpoints,
-                    powBits: powPayload.powBits,
-                    powBind: powPayload.powBind
+                    powBind: powPayload.powBind,
+                    powEnv: powPayload.powEnv
                 })
             });
             const data = await res.json();
@@ -654,8 +652,8 @@ function showChangeEmailModal() {
                     newEmail,
                     powChallenge: powPayload.powChallenge,
                     powCheckpoints: powPayload.powCheckpoints,
-                    powBits: powPayload.powBits,
-                    powBind: powPayload.powBind
+                    powBind: powPayload.powBind,
+                    powEnv: powPayload.powEnv
                 })
             });
             const data = await res.json();
