@@ -173,11 +173,6 @@ function addVirtualDir(parentPath, folderName) {
     saveVirtualDirs(dirs);
     return { key: newKey };
 }
-function removeVirtualDir(dirKey) {
-    const dirs = getVirtualDirs();
-    const filtered = dirs.filter(function(d) { return d !== dirKey && !d.startsWith(dirKey); });
-    saveVirtualDirs(filtered);
-}
 function mergeVirtualDirs(realDirs) {
     const virtual = getVirtualDirs();
     if (!virtual.length) return realDirs;

@@ -58,40 +58,6 @@ async function sendFileTasksBatched(env, tasks) {
     return false;
   }
 }
-export async function dispatchR2MoveTasks(env, waitUntil, moves) {
-  const list = Array.isArray(moves) ? moves.filter(m => m && m.from && m.to) : [];
-  if (list.length === 0) return;
-  const tasks = buildMoveTasks(list);
-  const dispatched = await sendFileTasksBatched(env, tasks);
-  if (dispatched) return;
-  const run = async () => {
-    try {
-      await runR2Move(env, list);
-    } catch (e) {
-      console.error('R2移动执行失败:', e);
-      await recordFileTaskFailure(env, { op: 'r2_move' }, e?.message || e);
-    }
-  };
-  if (typeof waitUntil === 'function') waitUntil(run());
-  else await run();
-}
-export async function dispatchR2DeleteTasks(env, waitUntil, keys) {
-  const list = Array.isArray(keys) ? keys.filter(Boolean) : [];
-  if (list.length === 0) return;
-  const tasks = buildDeleteTasks(list);
-  const dispatched = await sendFileTasksBatched(env, tasks);
-  if (dispatched) return;
-  const run = async () => {
-    try {
-      await runR2Delete(env, list);
-    } catch (e) {
-      console.error('R2删除执行失败:', e);
-      await recordFileTaskFailure(env, { op: 'r2_delete' }, e?.message || e);
-    }
-  };
-  if (typeof waitUntil === 'function') waitUntil(run());
-  else await run();
-}
 function buildMoveTasks(list) {
   const tasks = [];
   let current = [];
@@ -716,12 +682,6 @@ export function toBase64Url(data) {
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
-export function fromBase64UrlBytes(str) {
-  const binary = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
 export async function signToken(payload, secret) {
   const header = { alg: "HS256", typ: "JWT" };
   const encodedHeader = toBase64Url(JSON.stringify(header));
@@ -841,9 +801,6 @@ export async function getJwks(env) {
       }
     ]
   };
-}
-export function getJwtKeyId() {
-  return JWT_KEY_ID;
 }
 export function addCorsHeaders(headers = {}) {
   return {
@@ -1294,22 +1251,6 @@ export async function createNotification(env, { userId, type, title, body = null
     console.error('创建通知失败:', e);
     return null;
   }
-}
-export async function broadcastNotification(env, { type, title, body = null, link = null, icon = null, payload = null }) {
-  if (!env || !env.DB || !type || !title) return 0;
-  if (!VALID_NOTIFICATION_TYPES.has(type)) return 0;
-  let inserted = 0;
-  try {
-    const { results } = await env.DB.prepare('SELECT id FROM users WHERE is_banned = FALSE OR is_banned = 0').all();
-    const userIds = (results || []).map(r => r.id);
-    for (const uid of userIds) {
-      const id = await createNotification(env, { userId: uid, type, title, body, link, icon, payload });
-      if (id) inserted++;
-    }
-  } catch (e) {
-    console.error('广播通知失败:', e);
-  }
-  return inserted;
 }
 async function pushNotificationToUser(env, userId, notifId) {
   if (!env.DOWNLOAD_LOGGER || !notifId) return;

@@ -189,13 +189,6 @@ function updateQuotaDisplay(quotaUsed, quotaLimit) {
         }
     }
 }
-function incrementQuotaDisplay() {
-    if (!currentUser || isAdmin(currentUser)) return;
-    const newUsed = (currentUser.quota_used || 0) + 1;
-    if (newUsed <= (currentUser.quota_limit || 0)) {
-        updateQuotaDisplay(newUsed);
-    }
-}
 let _quotaRefreshTimer = null;
 function refreshQuotaFromServer() {
     if (_quotaRefreshTimer) return;

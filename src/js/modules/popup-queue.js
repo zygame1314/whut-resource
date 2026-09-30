@@ -10,10 +10,6 @@
     let lastClosedAt = 0;
     let seqCounter = 0;
 
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
     async function runItem(item) {
         let result = null;
         try {

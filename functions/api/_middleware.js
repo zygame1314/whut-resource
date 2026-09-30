@@ -1,10 +1,6 @@
 import { verifyToken, isAdmin, addCorsHeaders } from '../utils.js';
 const MAINTENANCE_CACHE_TTL = 60000;
 let maintenanceCache = { status: null, lastChecked: 0 };
-export function invalidateMaintenanceCache() {
-    maintenanceCache.status = null;
-    maintenanceCache.lastChecked = 0;
-}
 export async function onRequest(context) {
     const { request, env, next } = context;
     const url = new URL(request.url);

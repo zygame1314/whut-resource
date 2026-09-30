@@ -1,22 +1,3 @@
-function getFileTypeLabel(extension) {
-    const map = {
-        'pdf': 'PDF 文档', 'doc': 'Word 文档', 'docx': 'Word 文档',
-        'ppt': 'PowerPoint 演示文稿', 'pptx': 'PowerPoint 演示文稿',
-        'xls': 'Excel 表格', 'xlsx': 'Excel 表格',
-    };
-    return map[extension] || `${extension.toUpperCase()} 文件`;
-}
-
-function getFileTypeIcon(extension) {
-    const map = {
-        'pdf': 'fas fa-file-pdf', 'doc': 'fas fa-file-word', 'docx': 'fas fa-file-word',
-        'ppt': 'fas fa-file-powerpoint', 'pptx': 'fas fa-file-powerpoint',
-        'xls': 'fas fa-file-excel', 'xlsx': 'fas fa-file-excel',
-    };
-    return map[extension] || 'fas fa-file';
-}
-
-
 async function previewFile(fileKey, fileName, fileSize) {
     const extension = fileName.split('.').pop().toLowerCase();
     const officeExtensions = ['docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls'];
