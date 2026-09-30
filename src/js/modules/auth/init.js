@@ -197,14 +197,17 @@ document.addEventListener('DOMContentLoaded', () => {
             positionHintRaf();
             window.addEventListener('resize', positionHintRaf);
             window.addEventListener('scroll', positionHintRaf, { passive: true });
+            let hintResizeObserver = null;
+            let hintMutationObserver = null;
             if (window.ResizeObserver) {
-                const ro = new ResizeObserver(positionHintRaf);
-                ro.observe(themeToggle);
-                if (containingBlock) ro.observe(containingBlock);
+                hintResizeObserver = new ResizeObserver(positionHintRaf);
+                hintResizeObserver.observe(themeToggle);
+                if (containingBlock) hintResizeObserver.observe(containingBlock);
+                if (navActionsEl) hintResizeObserver.observe(navActionsEl);
             }
             if (navActionsEl && window.MutationObserver) {
-                const mo = new MutationObserver(positionHintRaf);
-                mo.observe(navActionsEl, { attributes: true, attributeFilter: ['class'] });
+                hintMutationObserver = new MutationObserver(positionHintRaf);
+                hintMutationObserver.observe(navActionsEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
             }
             let hintRemoved = false;
             const removeHint = function () {
@@ -218,6 +221,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (hint.parentNode) hint.remove();
                     window.removeEventListener('resize', positionHintRaf);
                     window.removeEventListener('scroll', positionHintRaf);
+                    if (hintResizeObserver) { hintResizeObserver.disconnect(); hintResizeObserver = null; }
+                    if (hintMutationObserver) { hintMutationObserver.disconnect(); hintMutationObserver = null; }
                 };
                 hint.addEventListener('transitionend', cleanup, { once: true });
                 setTimeout(cleanup, 260);
