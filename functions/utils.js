@@ -1391,26 +1391,43 @@ async function loadComparableDirs(DB, anchorDirs) {
   }
   return children.slice(0, SCOPE_PICK_MAX_CANDIDATES);
 }
+function pickDirectoryByTime(candidates, parsed) {
+  if (!parsed) return null;
+  const exact = candidates.filter(dir => matchesTimeConstraint(dir, parsed));
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1 && parsed.years.length === 1) {
+    const year = parsed.years[0];
+    const sameStartYear = exact.filter(dir => {
+      const tag = collectTermTags(dir.key)[0];
+      return tag && tag.start === year;
+    });
+    if (sameStartYear.length === 1) return sameStartYear[0];
+  }
+  return null;
+}
 async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) {
   const anchorDirs = collectAnchorDirs(baseResults);
   if (anchorDirs.length === 0) return null;
   const candidates = await loadComparableDirs(DB, anchorDirs);
   if (candidates.length === 0) return null;
-  const numbered = candidates.map((d, i) => `${i + 1}. ${d.key}`).join('\n');
-  const pickResponse = await fetchSiliconFlowChat(env, {
-    messages: [
-      { role: 'system', content: SCOPE_PICK_PROMPT + `\n当前时间：${now}` },
-      { role: 'user', content: `用户需求：${query}\n限定条件：${constraint}\n候选目录：\n${numbered}\n请返回最符合限定条件的目录编号：` }
-    ],
-    maxTokens: 32
-  });
-  const pickText = stripThinkTags(pickResponse.choices?.[0]?.message?.content);
-  const picked = parseInt((pickText.match(/\d+/) || [])[0] || '0', 10);
-  if (!(picked > 0 && picked <= candidates.length)) return null;
-  const chosen = candidates[picked - 1];
+  const parsed = parseTimeConstraint(constraint, query, now);
+  let chosen = pickDirectoryByTime(candidates, parsed);
+  if (!chosen) {
+    const numbered = candidates.map((d, i) => `${i + 1}. ${d.key}`).join('\n');
+    const pickResponse = await fetchSiliconFlowChat(env, {
+      messages: [
+        { role: 'system', content: SCOPE_PICK_PROMPT + `\n当前时间：${now}` },
+        { role: 'user', content: `用户需求：${query}\n限定条件：${constraint}\n候选目录：\n${numbered}\n请返回最符合限定条件的目录编号：` }
+      ],
+      maxTokens: 32
+    });
+    const pickText = stripThinkTags(pickResponse.choices?.[0]?.message?.content);
+    const picked = parseInt((pickText.match(/\d+/) || [])[0] || '0', 10);
+    if (!(picked > 0 && picked <= candidates.length)) return null;
+    chosen = candidates[picked - 1];
+  }
   const scopeKey = normalizeDirKey(chosen.key);
-  const scopeLower = `${scopeKey}/`;
-  const scopeUpper = buildPrefixUpperBound(scopeLower);
+  const scopeUpper = buildPrefixUpperBound(`${scopeKey}/`);
   const fullRows = await DB.prepare(
     `SELECT id, name, key, parent_path, is_directory, is_link, link_url, description, contentType, size, downloads, likes, uploaded
      FROM files
@@ -1421,7 +1438,6 @@ async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) 
   const directory = rows.find(r => normalizeDirKey(r.key) === scopeKey);
   if (!directory) return null;
   const children = rows.filter(r => normalizeDirKey(r.key) !== scopeKey);
-  const parsed = parseTimeConstraint(constraint, query, now);
   if (!parsed || matchesTimeConstraint(directory, parsed)) {
     return { path: scopeKey, directory, children };
   }
