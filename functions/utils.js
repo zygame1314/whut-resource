@@ -896,7 +896,7 @@ export function parseTimeConstraint(constraint, query, now) {
   return { years, semester, explicitTerms };
 }
 
-function matchesTimeConstraint(row, parsed) {
+function matchesTimeConstraint(row, parsed, loose = false) {
   const haystack = `${row.name || ''} ${row.key || ''}`;
   const tags = collectTermTags(haystack);
   if (parsed.explicitTerms.length > 0) {
@@ -909,17 +909,29 @@ function matchesTimeConstraint(row, parsed) {
     return parsed.years.some(year => haystack.includes(String(year)));
   }
   return tags.some(tag => parsed.years.some(year => {
+    if (loose) {
+      if (year < tag.start || year > tag.end) return false;
+      return parsed.semester ? tag.semester === parsed.semester : true;
+    }
     if (parsed.semester === 2) return tag.end === year && tag.semester === 2;
     if (parsed.semester === 1) return tag.semester === 1 && (tag.start === year || tag.end === year);
     return year >= tag.start && year <= tag.end;
   }));
 }
 
+// 先按自然年精确匹配；一个都没有时退回"学年区间覆盖该年"的宽松口径
+function filterByTime(rows, parsed) {
+  if (!parsed) return rows;
+  const strict = rows.filter(row => matchesTimeConstraint(row, parsed));
+  if (strict.length > 0) return strict;
+  return rows.filter(row => matchesTimeConstraint(row, parsed, true));
+}
+
 export function applyTimeConstraint(rows, constraint, query, now) {
   if (!Array.isArray(rows) || rows.length === 0) return rows || null;
   const parsed = parseTimeConstraint(constraint, query, now);
   if (!parsed) return rows;
-  const filtered = rows.filter(row => matchesTimeConstraint(row, parsed));
+  const filtered = filterByTime(rows, parsed);
   return filtered.length > 0 ? filtered : null;
 }
 export async function searchByLiteralTerms(DB, keywords, terms, limit = 50) {
@@ -1247,9 +1259,9 @@ export async function rerankRows(env, query, rows, { topN = 30, minScore = 0.02 
 }
 const SCOPE_PICK_MAX_CANDIDATES = 30;
 const SCOPE_CHILD_LIMIT = 150;
-// 硅基流动 L0 为 80k TPM：单批 120 条候选约 5k tokens，避免多批并发触发限流。
+// 硅基流动 L0 为 80k TPM：单批 120 条约 5k tokens，超过 1 批时串行请求，避免并发撞限流
 const FILE_PICK_BATCH_SIZE = 120;
-const FILE_PICK_MAX_BATCHES = 1;
+const FILE_PICK_MAX_BATCHES = 2;
 const FILE_PICK_MAX_CANDIDATES = FILE_PICK_BATCH_SIZE * FILE_PICK_MAX_BATCHES;
 const FILE_PICK_MAX_DIRS = 3;
 const FILE_PICK_DIR_LIMIT = 120;
@@ -1393,7 +1405,7 @@ async function loadComparableDirs(DB, anchorDirs) {
 }
 function pickDirectoryByTime(candidates, parsed) {
   if (!parsed) return null;
-  const exact = candidates.filter(dir => matchesTimeConstraint(dir, parsed));
+  const exact = filterByTime(candidates, parsed);
   if (exact.length === 1) return exact[0];
   if (exact.length > 1 && parsed.years.length === 1) {
     const year = parsed.years[0];
@@ -1438,11 +1450,11 @@ async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) 
   const directory = rows.find(r => normalizeDirKey(r.key) === scopeKey);
   if (!directory) return null;
   const children = rows.filter(r => normalizeDirKey(r.key) !== scopeKey);
-  if (!parsed || matchesTimeConstraint(directory, parsed)) {
+  if (!parsed || matchesTimeConstraint(directory, parsed, true)) {
     return { path: scopeKey, directory, children };
   }
   // 目录名本身不带时间（如"期末试卷"），时间限定落在具体试卷上，按子项再筛一遍
-  const timedChildren = children.filter(row => matchesTimeConstraint(row, parsed));
+  const timedChildren = filterByTime(children, parsed);
   if (timedChildren.length === 0) return null;
   return { path: scopeKey, directory: null, children: timedChildren };
 }
@@ -1510,7 +1522,8 @@ async function pickNameMatched(env, DB, query, constraint, baseResults, now) {
   for (let offset = 0; offset < scopedPool.length; offset += FILE_PICK_BATCH_SIZE) {
     chunks.push(scopedPool.slice(offset, offset + FILE_PICK_BATCH_SIZE));
   }
-  const pickTexts = await Promise.all(chunks.map(async chunk => {
+  const pickTexts = [];
+  for (const chunk of chunks) {
     const numbered = chunk.map((row, i) => {
       const parentPath = shortDirPath(row.parent_path);
       return `${i + 1}. ${row.name}${parentPath ? `（路径: ${parentPath}）` : ''}`;
@@ -1523,12 +1536,12 @@ async function pickNameMatched(env, DB, query, constraint, baseResults, now) {
         ],
         maxTokens: 768
       });
-      return stripThinkTags(pickResponse.choices?.[0]?.message?.content);
+      pickTexts.push(stripThinkTags(pickResponse.choices?.[0]?.message?.content));
     } catch (e) {
       console.error('文件名级限定裁决失败:', e);
-      return '';
+      pickTexts.push('');
     }
-  }));
+  }
   const hits = new Set();
   let usedTerms = [];
   for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
