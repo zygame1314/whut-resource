@@ -1,25 +1,19 @@
 import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms } from '../utils.js';
-const SEARCH_PROMPT = `你是大学课程资源搜索助手，把用户【搜索词】解析成检索计划。
-    资源库按 "0.课程资料/<课程名>/<学年学期>/" 组织。
+const SEARCH_PROMPT = `把搜索语解析成检索计划，只输出一行 JSON：
+{"keywords":"...","constraint":"...","unrelated":false}
 
-    规则：
-    1. keywords：用户真正要找的内容，2-3 个词，用空格分隔。简称保持原样即可（高数、大物、毛概
-       都能直接搜到），保留课程后缀（A/B、一/二、1）。
-       - 只写"要找什么"，不含时间、年份、老师、章节等限定词
-       - 课程名必须整体保留，禁止拆成"政策""资料""答案""文件"这类通用词，
-         否则会召回转专业政策、保研政策等完全无关的内容
-    2. constraint：用户附加的限定，原样摘录。包括时间（"2024年""这学期""2026第二学期"）、
-       老师名、版本号、章节号等。没有则填 ""。
-    3. constraintTerms：把 constraint 换成【库里可能真实存在的字面词】，数组，后端拿去直接搜文件名/目录名。
-       - 去掉口语修饰："2024年"→["2024"]、"张老师的线代"→["张"]
-       - 已有格式原样保留："2025-2026-2"→["2025-2026-2"]
-       - 相对说法必须按【当前时间】自己换算成具体学年学期：
-         "这学期"→当前学期、"上学期"→上一学期、"去年"→上一学年两个学期都列
-       - 学期口径：9月~次年1月为第 1 学期，2月~8月为第 2 学期
-       - 拿不准就多给几个候选；实在无法字面表达才填 []
-    4. 只输出严格 JSON，无 markdown、无解释：
-       {"keywords":"...","constraint":"...","constraintTerms":[],"unrelated":false}
-    5. 与学习无关（纯聊天、脏话、娱乐八卦）输出 {"keywords":"","constraint":"","constraintTerms":[],"unrelated":true}；不确定时按相关处理。`;
+keywords：要找的内容，空格分隔。不含时间/老师/章节。
+  简称原样保留（高数、大物、毛概都能直接搜到）。课程名要整体写，
+  禁止拆成"政策""资料""答案"这类通用词，否则会召回保研政策等无关内容。
+constraint：附加限定，写成【库里可能出现的字面词】，多个用空格分隔。
+  相对时间先按当前时间换算成绝对年份/学年学期再输出。
+  没有限定就填 ""。
+
+示例（当前 2026 年）：
+给我2024年的高数 → {"keywords":"高数","constraint":"2024","unrelated":false}
+前年的毛概 → {"keywords":"毛概","constraint":"2024-2025-1 2024-2025-2","unrelated":false}
+张老师的线代课件 → {"keywords":"线代","constraint":"张","unrelated":false}
+今天好烦 → {"keywords":"","constraint":"","unrelated":true}`;
 export async function onRequestGet({ request, env }) {
     const authHeader = request.headers.get('Authorization');
     let user = null;
@@ -62,7 +56,6 @@ export async function onRequestGet({ request, env }) {
         const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         let finalKeywords = query;
         let constraint = '';
-        let constraintTerms = [];
         try {
             const llmResponse = await fetchSiliconFlowChat(env, {
                 messages: [{ role: 'system', content: SEARCH_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: query }]
@@ -82,16 +75,18 @@ export async function onRequestGet({ request, env }) {
                 }
                 if (plan.keywords) finalKeywords = plan.keywords;
                 constraint = plan.constraint;
-                constraintTerms = plan.constraintTerms;
             }
         } catch (e) {
             console.error('LLM 解析检索计划失败，使用原始查询:', e);
         }
+        const constraintTerms = constraint
+            ? constraint.split(/\s+/).map(t => t.trim()).filter(Boolean)
+            : [];
         let scopedPath = '';
         let constraintResolved = true;
         let scopedByName = false;
         let literalHit = null;
-        if (constraint && constraintTerms.length > 0) {
+        if (constraintTerms.length > 0) {
             literalHit = await searchByLiteralTerms(DB, finalKeywords, constraintTerms, topK);
             if (literalHit) scopedByName = true;
         }
@@ -176,7 +171,7 @@ function parseSearchPlan(rawContent) {
     const cleaned = stripThink(rawContent);
     if (!cleaned) return null;
     if (cleaned.toUpperCase() === 'NULL') {
-        return { keywords: '', constraint: '', constraintTerms: [], unrelated: true };
+        return { keywords: '', constraint: '', unrelated: true };
     }
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (!match) return null;
@@ -186,15 +181,9 @@ function parseSearchPlan(rawContent) {
     } catch {
         return null;
     }
-    const constraintTerms = Array.isArray(parsed.constraintTerms)
-        ? parsed.constraintTerms
-            .filter(v => typeof v === 'string' && v.trim().length > 0)
-            .map(v => v.trim())
-        : [];
     return {
         keywords: typeof parsed.keywords === 'string' ? parsed.keywords.trim() : '',
         constraint: typeof parsed.constraint === 'string' ? parsed.constraint.trim() : '',
-        constraintTerms,
         unrelated: parsed.unrelated === true
     };
 }

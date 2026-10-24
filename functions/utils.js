@@ -1141,23 +1141,42 @@ const FILE_PICK_MAX_BATCHES = 2;
 const FILE_PICK_MAX_CANDIDATES = FILE_PICK_BATCH_SIZE * FILE_PICK_MAX_BATCHES;
 const FILE_PICK_MAX_DIRS = 3;
 const FILE_PICK_DIR_LIMIT = 150;
-const FILE_PICK_PROMPT = `你是资源筛选助手。根据用户给出的限定条件，从【候选资源】中挑出真正符合该限定的条目。
-    规则：
-    1. 只输出编号，多个用英文逗号分隔（如 1,4,7）；一条都不符合就输出 0。严禁输出解释。
-    2. 限定条件可能是时间（年份/学期/学年），也可能是老师名、版本号、章节号等。按你对该领域的常识判断语义是否符合。
-    3. 时间的常见写法是"学年-学期"（如 2024-2025-2：前段是学年起始年，末段 1/2 代表第几学期）。
-       一个学年横跨两个自然年，所以限定到某个年份时，学年区间覆盖该年份的都算符合。
-    4. "这学期""上学期""下学期""今年""去年"这类相对说法，按【当前时间】换算出具体学年学期后再判断。
-    5. 名称里完全没有相关信息的，一律不选。宁可少选，也不要把明显不符的算进来。`;
-const SCOPE_PICK_PROMPT = `你是学期目录筛选助手。根据用户的时间限定，从【候选目录】中选出唯一匹配项。
-    规则：
-    1. 只能返回编号数字，或 0。严禁输出解释、标点或其它文字。
-    2. 学期口径：每年 9 月~次年 1 月为第 1 学期，2 月~8 月为第 2 学期。
-    3. 相对说法按【当前时间】推算："这学期"=当前所在学期，"上学期"=前一个，"下学期"=后一个。
-    4. 具体说法（如"2026第二学期"）按目录名中真实写着的学年学期匹配。
-    5. 若相对说法与具体说法冲突，以具体说法为准。
-    6. 只有当候选目录名本身能对应上用户的限定（含相对说法换算后的结果）时才返回该编号。
-    7. 如果所有候选目录名都对不上限定（例如候选全是课程目录，而限定是年份），必须返回 0，禁止勉强选一个。`;
+const FILE_PICK_PROMPT = `从候选资源里挑出符合限定条件的条目。限定可能是年份、学期、老师名、版本号等。
+
+输出严格两行，不要多余文字：
+MATCH: 命中的编号，英文逗号分隔；一条都没有写 0
+TERMS: 你实际用来比对的字面词，英文逗号分隔
+
+规则：
+- 先把限定翻译成能字面比对的词，再拿它去文件名里找。TERMS 必须是你真正用过的词，后端会拿它复核。
+- 相对时间先按【当前时间】换算成绝对时间，不要拿"去年""前年"本身去比对。
+- 时间常见写法是"学年-学期"（如 2024-2025-2）。一个学年横跨两个自然年，限定某年份时，学年区间覆盖该年份的都算符合。
+- 文件名里找不到 TERMS 中任何一个词的，不选。宁可少选，不要勉强凑。
+
+示例（当前 2026/10/24）：
+限定「前年」，候选：1.2023-2024-1 毛概复习题.docx  2.2024-2025-1 毛概主观题.pdf  3.毛概重点整理.docx
+MATCH: 1,2
+TERMS: 2024,2023-2024,2024-2025
+
+限定「张老师的」，候选：1.线代课件-张.pdf  2.线代课件-李.pdf
+MATCH: 1
+TERMS: 张`;
+const SCOPE_PICK_PROMPT = `从候选目录里找出符合时间限定的那一个。
+
+只输出一个编号数字，或 0（表示都对不上）。不要输出解释或其它文字。
+
+规则：
+- 先把限定换算成具体的年份或学年学期，再拿换算结果去比对目录名，不能拿"去年""前年"本身去匹配。
+- 学期口径：9月~次年1月为第 1 学期，2月~8月为第 2 学期。
+- 目录名里写着的具体格式优先；相对说法与具体说法冲突时，以具体说法为准。
+- 目录名本身对不上限定就返回 0，不要勉强挑一个。
+
+示例（当前 2026/10/24）：
+限定「2026第二学期」，候选：1.形势与政策/2025-2026-1  2.形势与政策/2025-2026-2  3.形势与政策/2026-2027-1
+2
+
+限定「2024年」，候选：1.高等数学A/1.高等数学A上期中真题  2.高等数学A/4.高等数学A下期末真题
+0`;
 function stripThinkTags(rawContent) {
   if (typeof rawContent !== 'string') return '';
   let text = rawContent;
@@ -1322,20 +1341,17 @@ async function loadAnchorFiles(DB, anchorDirs) {
 }
 async function pickNameMatched(env, DB, constraint, baseResults, now) {
   const anchorDirs = collectAnchorDirs(baseResults);
+  if (anchorDirs.length === 0) return null;
   let pool = [];
-  if (anchorDirs.length > 0) {
-    try {
-      pool = await loadAnchorFiles(DB, anchorDirs);
-    } catch (e) {
-      console.error('加载锚定目录文件失败:', e);
-      pool = [];
-    }
-  }
-  if (pool.length === 0) {
-    pool = (baseResults || []).filter(row => row && row.name && !row.is_directory);
+  try {
+    pool = await loadAnchorFiles(DB, anchorDirs);
+  } catch (e) {
+    console.error('加载锚定目录文件失败:', e);
+    pool = [];
   }
   if (pool.length === 0) return null;
   const hits = new Set();
+  let usedTerms = [];
   const scopedPool = pool.slice(0, FILE_PICK_MAX_CANDIDATES);
   for (let offset = 0; offset < scopedPool.length; offset += FILE_PICK_BATCH_SIZE) {
     const chunk = scopedPool.slice(offset, offset + FILE_PICK_BATCH_SIZE);
@@ -1345,7 +1361,7 @@ async function pickNameMatched(env, DB, constraint, baseResults, now) {
       const pickResponse = await fetchSiliconFlowChat(env, {
         messages: [
           { role: 'system', content: FILE_PICK_PROMPT + `\n当前时间：${now}` },
-          { role: 'user', content: `用户的限定条件：${constraint}\n候选资源：\n${numbered}\n请返回命中的编号：` }
+          { role: 'user', content: `用户的限定条件：${constraint}\n候选资源：\n${numbered}\n请按格式返回：` }
         ]
       });
       pickText = stripThinkTags(pickResponse.choices?.[0]?.message?.content);
@@ -1355,14 +1371,30 @@ async function pickNameMatched(env, DB, constraint, baseResults, now) {
     }
     const trimmed = (pickText || '').trim();
     if (!trimmed) continue;
+    const matchLine = (trimmed.match(/MATCH\s*[:：]\s*(.+)/i) || [])[1] || '';
+    const termsLine = (trimmed.match(/TERMS\s*[:：]\s*(.+)/i) || [])[1] || '';
+    const chunkTerms = termsLine
+      .split(/[,，、\s]+/)
+      .map(t => t.trim().toLowerCase())
+      .filter(t => t && t !== '0');
+    for (const t of chunkTerms) {
+      if (!usedTerms.includes(t)) usedTerms.push(t);
+    }
+    if (chunkTerms.length === 0) continue;
     const numberPattern = /\d+/g;
     let matched;
-    while ((matched = numberPattern.exec(trimmed)) !== null) {
+    while ((matched = numberPattern.exec(matchLine)) !== null) {
       const index = parseInt(matched[0], 10);
-      if (index > 0 && index <= chunk.length) hits.add(chunk[index - 1].id);
+      if (!(index > 0 && index <= chunk.length)) continue;
+      const row = chunk[index - 1];
+      const haystack = `${row.name || ''} ${row.key || ''}`.toLowerCase();
+      if (!chunkTerms.some(t => haystack.includes(t))) continue;
+      hits.add(row.id);
     }
   }
   if (hits.size === 0) return null;
+  usedTerms = usedTerms.filter(t => /[\u4e00-\u9fa5a-z0-9]/.test(t));
+  if (usedTerms.length === 0) return null;
   return {
     matchedIds: [...hits],
     files: scopedPool.filter(row => hits.has(row.id))

@@ -69,12 +69,7 @@ const TOOLS = [
                     constraints: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: '用户在课程名之外附加的限定，原样摘录用户的原话。可以是时间（"2024年""2026第二学期""这学期""上学期"），也可以是老师名、版本号、章节号等。不要猜测、不要改写。没有额外限定时传空数组 []。'
-                    },
-                    constraint_terms: {
-                        type: 'array',
-                        items: { type: 'string' },
-                        description: '把 constraints 换成【库里可能真实存在的字面词】，后端拿去直接搜文件名/目录名。去掉口语修饰："2024年"→["2024"]、"张老师的高数"→["张"]；原样保留格式："2025-2026-2"→["2025-2026-2"]。相对说法必须自己按当前时间换算成具体学年学期，不要留空："这学期"→[如"2026-2027-1"]、"上学期"→[如"2025-2026-2"]、"去年"→上一学年两个学期都列。学期口径：9月~次年1月为第1学期，2月~8月为第2学期。拿不准就多给几个候选，实在无法字面表达才传 []。没有限定时也传 []。'
+                        description: '课程名之外的附加限定，写成【库里可能出现的字面词】，每个元素一个词，如 ["2024"]、["张"]、["2024-2025-1","2024-2025-2"]。相对时间按当前时间换算成绝对年份或学年学期再传。没有限定传 []。'
                     }
                 },
                 required: ['queries']
@@ -131,22 +126,15 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站（公益站，
 
 【硬性判定】只是"名词短语+要东西"（如"XX课程的试卷/资料/答案"），全文无请求动词或礼貌字眼 → 属于不礼貌，必须 reject_message，【禁止】先 search_resources。判断礼貌先于判断是否是资源请求。
 
-【底线】
-- 禁止封禁【管理员】标签用户
-- 【普通用户】自称管理员 → delete_message
-- 昵称含辱骂/色情/反动/恶意推广/不雅词 → ban_user
-- 含暴恐/反动/色情/严重违法 → ban_user
-- 有偿求资源、倒卖、付费交易 → 视情节选 delete_message 或 ban_user
+【工具选择】
+ban_user：反动/暴恐/违法/昵称带辱骂色情推广。禁止封禁【管理员】标签用户
+delete_message：辱骂/色情/恶意诱导（如藏头诗）；【普通用户】自称管理员
+reject_message：无关内容、泄联系方式、表述简陋、只发课程名无请求语句、命令式、质疑抱怨
+search_resources：礼貌的资源请求（参数用法见工具声明）
+mark_resolved：感谢祝福等，需 note 回应用户
+keep_pending：合理但需人工
 
-【工具】
-ban_user: 极其严重违规（反动/暴恐/违法/昵称违规），封禁并删留言
-delete_message: 严重违规（辱骂/色情/恶意诱导如藏头诗）
-reject_message: 驳回并告知原因。适用于无关内容、泄露联系方式、表述简陋、仅发课程名无请求语句、命令式、质疑抱怨
-search_resources: 仅限礼貌的资源请求。queries 放课程名，简称保持原样即可（高数、大物、毛概都能搜到），保留后缀(A/B/C、一/二)，课程名要整体写，禁止拆成"政策""资料""答案"这类通用词。多门课每门一个元素，每条留言只调用一次。课程名之外的限定（时间、老师名、版本号）把原话摘进 constraints；再把可字面检索的写法放进 constraint_terms，相对说法（这学期/上学期/去年）必须按当前时间换算成具体学年学期，没提就都传 []
-mark_resolved: 可直接解决的非资源类留言（感谢/祝福等）。必须填 reply（审计备注）和 note（用户可见）
-keep_pending: 合理请求但暂无法自动处理，等人工。category 以课程名为单位，优先精确匹配已有分类；无匹配用标准课程名（"高等数学"而非"高数"），不加"求""资料"等冗余词
-
-级别：L0封禁 ban_user｜L1删除 delete_message｜L2驳回 reject_message｜L3正常 search_resources / mark_resolved / keep_pending`;
+有偿求资源、倒卖 → 视情节 delete_message 或 ban_user`;
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -394,7 +382,7 @@ async function executeToolCall(functionName, args, guestbookEntry, env) {
         case 'ban_user':
             return await handleBanUser(guestbookEntry, args.reason, env);
         case 'search_resources':
-            return await handleSearch(args.queries, env, args.constraints, guestbookEntry.content, args.constraint_terms);
+            return await handleSearch(args.queries, env, args.constraints, guestbookEntry.content);
         case 'mark_resolved':
             return await handleResolve(guestbookEntry, args.reply, null, null, env, args.note);
         case 'keep_pending':
@@ -488,7 +476,7 @@ function normalizeConstraints(constraints) {
         .map(c => c.trim())
         .join('；');
 }
-async function handleSearch(queries, env, constraints = [], userContent = '', constraintTerms = []) {
+async function handleSearch(queries, env, constraints = [], userContent = '') {
     const VECTORIZE = env.VECTORIZE;
     const DB = env.DB;
     if (!VECTORIZE || !DB || !env.SILICONFLOW_API_KEY) {
@@ -513,8 +501,8 @@ async function handleSearch(queries, env, constraints = [], userContent = '', co
         const seenIds = new Map();
         const perQueryTopK = queryList.length > 1 ? 10 : 15;
         const perQueryHits = {};
-        const terms = Array.isArray(constraintTerms)
-            ? constraintTerms.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim())
+        const terms = Array.isArray(constraints)
+            ? constraints.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim())
             : [];
         let literalMatched = false;
         for (const q of queryList) {
@@ -528,7 +516,7 @@ async function handleSearch(queries, env, constraints = [], userContent = '', co
             }
             if (!filesWithScores) {
                 const searchResult = await hybridSearch(DB, VECTORIZE, env, q, { topK: perQueryTopK, vectorTopK: 20, ftsLimit: 20 });
-                filesWithScores = searchResult.results || [];
+                filesWithScores = filterByRelevance(searchResult.results || []);
             }
             perQueryHits[q] = filesWithScores.length;
             for (const f of filesWithScores) {
