@@ -1,8 +1,8 @@
-import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms } from '../utils.js';
+import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint } from '../utils.js';
 const SEARCH_PROMPT = `把搜索语解析成检索计划，只输出一行 JSON：
 {"keywords":"...","constraint":"...","unrelated":false}
 
-keywords：核心课程名或连续词，空格分隔；简称原样保留，禁止拆成"资料""答案"等通用词。
+keywords：核心课程名或连续词，空格分隔；简称原样保留，禁止拆成"资料""答案"等通用词。同音错别字按库内常见写法纠正（形式与政策→形势与政策、线形代数→线性代数）。
 constraint：附加限定，写成库里可能连续出现的字面词。时间只写四位年份（如 2024），用户写明的学年学期原样保留；相对时间换算成四位年份，不要自己拼学年区间。老师只写姓名，不确定留空。
 
 示例（当前 2026 年）：
@@ -85,7 +85,8 @@ export async function onRequestGet({ request, env }) {
         let scopedByName = false;
         let literalHit = null;
         if (constraintTerms.length > 0) {
-            literalHit = await searchByLiteralTerms(DB, finalKeywords, constraintTerms, topK);
+            const rawLiteral = await searchByLiteralTerms(DB, finalKeywords, constraintTerms, topK);
+            literalHit = applyTimeConstraint(rawLiteral, constraint, query, now);
             if (literalHit) scopedByName = true;
         }
         let filesWithScores;

@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'deepseek-v4.1-flash';
 const TOOLS = [
@@ -507,12 +507,14 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
             : [];
         let literalMatched = false;
         let literalPartial = false;
+        const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         for (const q of queryList) {
             let filesWithScores = null;
             if (terms.length > 0) {
                 const literal = await searchByLiteralTerms(DB, q, terms, Math.max(perQueryTopK, 20));
-                if (literal) {
-                    filesWithScores = literal.map(row => ({ ...row, similarity_score: 1, relevance: 1, scoped: true }));
+                const timeFiltered = applyTimeConstraint(literal, terms.join(' '), userContent || q, now);
+                if (timeFiltered) {
+                    filesWithScores = timeFiltered.map(row => ({ ...row, similarity_score: 1, relevance: 1, scoped: true }));
                     literalMatched = true;
                 } else {
                     literalPartial = true;
@@ -546,7 +548,6 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
         let scopedByName = false;
         let scopeApplied = false;
         if (constraintText && merged.length > 0 && !literalMatched) {
-            const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
             try {
                 const scope = await resolveConstraintScope(env, DB, userContent || constraintText, constraintText, merged, now);
                 if (scope) {

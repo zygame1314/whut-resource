@@ -848,6 +848,79 @@ export function buildFtsMatchQuery(input) {
   }
   return processedTerms.join(' ').trim();
 }
+const CN_SEMESTER_DIGIT = { 一: 1, 二: 2, 1: 1, 2: 2 };
+const TERM_TAG_SOURCE = '(20\\d{2})\\s*[-~至到]\\s*(20\\d{2})\\s*[-~至到]\\s*([12])(?!\\d)';
+
+function currentSemester(now) {
+  const matched = String(now || '').match(/(20\d{2})\D{1,3}(\d{1,2})\D/);
+  let year, month;
+  if (matched) {
+    year = Number(matched[1]);
+    month = Number(matched[2]);
+  } else {
+    const date = new Date();
+    year = date.getFullYear();
+    month = date.getMonth() + 1;
+  }
+  if (month >= 9) return { year, semester: 1 };
+  if (month === 1) return { year: year - 1, semester: 1 };
+  return { year: year - 1, semester: 2 };
+}
+
+function collectTermTags(text, target = []) {
+  const regex = new RegExp(TERM_TAG_SOURCE, 'g');
+  let matched;
+  while ((matched = regex.exec(text)) !== null) {
+    target.push({ start: Number(matched[1]), end: Number(matched[2]), semester: Number(matched[3]) });
+  }
+  return target;
+}
+
+export function parseTimeConstraint(constraint, query, now) {
+  const text = `${constraint || ''} ${query || ''}`;
+  const years = [...new Set([...text.matchAll(/(?<!\d)(20\d{2})(?!\d)/g)].map(m => Number(m[1])))];
+  const explicitTerms = collectTermTags(`${constraint || ''}`);
+  if (years.length === 0 && explicitTerms.length === 0) return null;
+  let semester = 0;
+  const termMatch = text.match(/第\s*([一二12])\s*学期/);
+  if (termMatch) {
+    semester = CN_SEMESTER_DIGIT[termMatch[1]] || 0;
+  } else if (/上学期/.test(text)) {
+    semester = 1;
+  } else if (/下学期/.test(text)) {
+    semester = 2;
+  } else if (/这学期|本学期|当前学期/.test(text)) {
+    semester = currentSemester(now).semester;
+  }
+  return { years, semester, explicitTerms };
+}
+
+function matchesTimeConstraint(row, parsed) {
+  const haystack = `${row.name || ''} ${row.key || ''}`;
+  const tags = collectTermTags(haystack);
+  if (parsed.explicitTerms.length > 0) {
+    return parsed.explicitTerms.some(term => tags.some(
+      tag => tag.start === term.start && tag.end === term.end && tag.semester === term.semester
+    ) || haystack.includes(`${term.start}-${term.end}-${term.semester}`));
+  }
+  if (tags.length === 0) {
+    if (parsed.semester) return false;
+    return parsed.years.some(year => haystack.includes(String(year)));
+  }
+  return tags.some(tag => {
+    const covers = parsed.years.some(year => year >= tag.start && year <= tag.end);
+    if (!covers) return false;
+    return parsed.semester ? tag.semester === parsed.semester : true;
+  });
+}
+
+export function applyTimeConstraint(rows, constraint, query, now) {
+  if (!Array.isArray(rows) || rows.length === 0) return rows || null;
+  const parsed = parseTimeConstraint(constraint, query, now);
+  if (!parsed) return rows;
+  const filtered = rows.filter(row => matchesTimeConstraint(row, parsed));
+  return filtered.length > 0 ? filtered : null;
+}
 export async function searchByLiteralTerms(DB, keywords, terms, limit = 50) {
   if (!Array.isArray(terms) || terms.length === 0) return null;
   const baseQuery = buildFtsMatchQuery(keywords);
@@ -1432,7 +1505,7 @@ async function pickNameMatched(env, DB, query, constraint, baseResults, now) {
   };
 }
 export async function resolveConstraintScope(env, DB, query, constraint, baseResults, now) {
-  const hasSemesterHint = /学年|学期|\d{4}-\d{4}/.test(constraint || '');
+  const hasSemesterHint = /学年|学期|\d{4}\s*[-~至到]\s*\d{4}/.test(`${constraint || ''} ${query || ''}`);
   let directoryScope = null;
   if (hasSemesterHint) {
     try {
