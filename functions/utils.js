@@ -1216,7 +1216,7 @@ export async function rerankResults(env, query, documents, topN = 20) {
   }
 }
 const SCOPE_PICK_MAX_CANDIDATES = 30;
-const SCOPE_CHILD_LIMIT = 60;
+const SCOPE_CHILD_LIMIT = 150;
 // 硅基流动 L0 为 80k TPM：单批 120 条候选约 5k tokens，避免多批并发触发限流。
 const FILE_PICK_BATCH_SIZE = 120;
 const FILE_PICK_MAX_BATCHES = 1;
@@ -1234,7 +1234,7 @@ TERMS: 实际用于比对的字面词，英文逗号分隔
 - 相对时间按【当前时间】换算成四位年份，不要拿"去年""前年"直接比对。
 - 找不到对应字面词的不要选，宁可少选。
 
-示例（当前 2026/10/24）：
+示例（当前 2026 年）：
 用户需求「前年的毛概」，限定「2024」，候选：1.2023-2024-1 毛概复习题.docx（路径: 0.课程资料/毛概/2023-2024-1）  2.2024-2025-1 毛概主观题.pdf（路径: 0.课程资料/毛概/2024-2025-1）  3.毛概重点整理.docx（路径: 0.课程资料/毛概）
 MATCH: 1,2
 TERMS: 2024,2023-2024,2024-2025`;
@@ -1242,13 +1242,18 @@ const SCOPE_PICK_PROMPT = `从候选目录中选出符合时间限定的一个�
 
 规则：
 - 先把限定换算成具体年份/学年学期，不能直接用"去年""前年"比对。
-- 四位年份展开为覆盖该年的学年（2024 → 2023-2024、2024-2025）；多个匹配时优先学年起始年等于该年份，没有再选覆盖该年的。
+- 目录名带学年学期（如 2024-2025-2）时按名称匹配；四位年份展开为覆盖该年的学年（2024 → 2023-2024、2024-2025）。
+- 多个目录都覆盖该年份时，优先学年起始年等于该年份的，没有再选覆盖该年的。
+- 目录名不含时间（如"期末试卷""往年资料"）但里面按年份分试卷时，也可以选它，后续会按子项再筛。
 - 用户写明学期的先按学期缩小范围；学期口径：9月~次年1月为第 1 学期，2月~8月为第 2 学期。
-- 目录名对不上就返回 0，不要勉强选。
+- 候选里没有任何目录跟时间沾边就返回 0，不要勉强选。
 
-示例（当前 2026/10/24）：
+示例（当前 2026 年）：
 限定「2024」，候选：1.高等数学A/2023-2024-2  2.高等数学A/2024-2025-1  3.高等数学A/2025-2026-1
 2
+
+限定「2024」，候选：1.高等数学A/期末试卷  2.高等数学A/练习册
+1
 
 限定「2024」，候选：1.高等数学A/1.期中真题  2.高等数学A/4.期末真题
 0`;
@@ -1380,11 +1385,15 @@ async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) 
   const rows = fullRows.results || [];
   const directory = rows.find(r => normalizeDirKey(r.key) === scopeKey);
   if (!directory) return null;
-  return {
-    path: scopeKey,
-    directory,
-    children: rows.filter(r => normalizeDirKey(r.key) !== scopeKey)
-  };
+  const children = rows.filter(r => normalizeDirKey(r.key) !== scopeKey);
+  const parsed = parseTimeConstraint(constraint, query, now);
+  if (!parsed || matchesTimeConstraint(directory, parsed)) {
+    return { path: scopeKey, directory, children };
+  }
+  // 目录名本身不带时间（如"期末试卷"），时间限定落在具体试卷上，按子项再筛一遍
+  const timedChildren = children.filter(row => matchesTimeConstraint(row, parsed));
+  if (timedChildren.length === 0) return null;
+  return { path: scopeKey, directory: null, children: timedChildren };
 }
 function interleaveByDir(groups, limit) {
   const out = [];
