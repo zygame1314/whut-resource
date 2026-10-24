@@ -571,19 +571,6 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
         }
         const constraintPartial = terms.length > 0 && literalPartial && !scopeApplied;
         const filesWithScores = merged.slice(0, 20);
-        console.log('[handleSearch]', JSON.stringify({
-            queryList,
-            terms,
-            literalMatched,
-            literalPartial,
-            mergedCount: merged.length,
-            constraintText,
-            constraintResolved,
-            scopedPath,
-            scopedByName,
-            outCount: filesWithScores.length,
-            topKeys: filesWithScores.slice(0, 3).map(row => row.key)
-        }));
         if (filesWithScores.length === 0) {
             return {
                 success: true,

@@ -1450,17 +1450,9 @@ async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) 
   const anchorDirs = collectAnchorDirs(baseResults);
   if (anchorDirs.length === 0) return null;
   const candidates = await loadComparableDirs(DB, anchorDirs);
-  if (candidates.length === 0) {
-    console.log('[目录选择]', JSON.stringify({
-      candidates: [],
-      reason: 'no-comparable-dirs',
-      anchors: anchorDirs.map(dir => dir.key)
-    }));
-    return null;
-  }
+  if (candidates.length === 0) return null;
   const parsed = parseTimeConstraint(constraint, query, now);
   let chosen = pickDirectoryByTime(candidates, parsed);
-  const autoPicked = chosen ? normalizeDirKey(chosen.key) : null;
   if (!chosen) {
     const numbered = candidates.map((d, i) => `${i + 1}. ${d.key}`).join('\n');
     const pickResponse = await fetchSiliconFlowChat(env, {
@@ -1472,23 +1464,8 @@ async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) 
     });
     const pickText = stripThinkTags(pickResponse.choices?.[0]?.message?.content);
     const picked = parseInt((pickText.match(/\d+/) || [])[0] || '0', 10);
-    console.log('[目录选择]', JSON.stringify({
-      candidates: candidates.map(d => normalizeDirKey(d.key)),
-      parsed,
-      autoPicked,
-      llmRaw: (pickText || '').slice(0, 40),
-      picked
-    }));
     if (!(picked > 0 && picked <= candidates.length)) return null;
     chosen = candidates[picked - 1];
-  } else {
-    console.log('[目录选择]', JSON.stringify({
-      candidates: candidates.map(d => normalizeDirKey(d.key)),
-      parsed,
-      autoPicked,
-      llmRaw: null,
-      picked: 0
-    }));
   }
   const scopeKey = normalizeDirKey(chosen.key);
   const scopeUpper = buildPrefixUpperBound(`${scopeKey}/`);
@@ -1633,16 +1610,6 @@ async function pickNameMatched(env, DB, query, constraint, baseResults, now) {
 }
 export async function resolveConstraintScope(env, DB, query, constraint, baseResults, now) {
   const hasSemesterHint = /学年|学期|\d{4}\s*[-~至到]\s*\d{4}/.test(`${constraint || ''} ${query || ''}`);
-  const parsed = parseTimeConstraint(constraint, query, now);
-  const anchors = collectAnchorDirs(baseResults);
-  console.log('[限定解析]', JSON.stringify({
-    constraint,
-    query: String(query || '').slice(0, 60),
-    hasSemesterHint,
-    parsed,
-    baseCount: Array.isArray(baseResults) ? baseResults.length : -1,
-    anchors: anchors.map(dir => dir.key)
-  }));
   let directoryScope = null;
   if (hasSemesterHint) {
     try {
