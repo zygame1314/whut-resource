@@ -1508,9 +1508,11 @@ async function pickNameMatched(env, DB, query, constraint, baseResults, now) {
   if (hits.size === 0) return null;
   usedTerms = usedTerms.filter(t => /[\u4e00-\u9fa5a-z0-9]/.test(t));
   if (usedTerms.length === 0) return null;
+  const timedFiles = applyTimeConstraint(scopedPool.filter(row => hits.has(row.id)), constraint, query, now);
+  if (!timedFiles) return null;
   return {
-    matchedIds: [...hits],
-    files: scopedPool.filter(row => hits.has(row.id))
+    matchedIds: timedFiles.map(row => row.id),
+    files: timedFiles
   };
 }
 export async function resolveConstraintScope(env, DB, query, constraint, baseResults, now) {
@@ -1578,9 +1580,12 @@ export function mergeScopeFirst(scope, baseResults) {
   for (const child of scope.children) {
     push(child, 0.95, true);
   }
-  for (const item of baseResults || []) {
-    if (!inScope(item)) continue;
-    push(item, item.similarity_score ?? 0, true);
+  // 目录名不带时间（directory 为 null）时只信任已按子项筛过的结果，不再回捞原始列表
+  if (scope.directory) {
+    for (const item of baseResults || []) {
+      if (!inScope(item)) continue;
+      push(item, item.similarity_score ?? 0, true);
+    }
   }
   return merged;
 }
