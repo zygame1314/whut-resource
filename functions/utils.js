@@ -825,6 +825,29 @@ export function buildRichEmbeddingText(file) {
   if (file.description && file.description.trim()) parts.push(file.description.trim());
   return [...new Set(parts)].join(' ');
 }
+const FTS_RESERVED_OPERATORS = ['AND', 'OR', 'NOT'];
+const FTS_SPECIAL_CHARS = /[-*():^"'./\\?!,;=<>@#$%&|~{}\[\]`]/g;
+export function buildFtsMatchQuery(input) {
+  if (typeof input !== 'string') return '';
+  const terms = input.replace(/"/g, '').split(/\s+/).filter(t => t.length > 0);
+  const processedTerms = [];
+  for (const term of terms) {
+    const upperTerm = term.toUpperCase();
+    if (FTS_RESERVED_OPERATORS.includes(upperTerm)) {
+      if (processedTerms.length > 0) processedTerms.push(upperTerm);
+      continue;
+    }
+    const stripped = term.replace(FTS_SPECIAL_CHARS, '');
+    const chars = Array.from(stripped).filter(c => /\S/.test(c));
+    if (chars.length === 0) continue;
+    if (/[^\x00-\x7F]/.test(stripped)) {
+      processedTerms.push(chars.join(' '));
+    } else {
+      processedTerms.push(`"${chars.join(' ')}"`);
+    }
+  }
+  return processedTerms.join(' ').trim();
+}
 export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
   const {
     topK = 50,
@@ -852,32 +875,21 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     }
   }
   let ftsResults = [];
-  try {
-    const cleanQuery = query.replace(/"/g, '');
-    const terms = cleanQuery.split(/\s+/).filter(t => t.length > 0);
-    const processedTerms = terms.map(term => {
-      const upperTerm = term.toUpperCase();
-      if (['AND', 'OR', 'NOT'].includes(upperTerm)) return upperTerm;
-      const stripped = term.replace(/[-*():^"']/g, '');
-      const chars = Array.from(stripped).filter(c => /\S/.test(c));
-      if (chars.length === 0) return null;
-      if (/[^\x00-\x7F]/.test(stripped)) {
-        return chars.join(' ');
-      }
-      return `"${chars.join(' ')}"`;
-    }).filter(Boolean);
-    const ftsTokenizedQuery = processedTerms.join(' ');
-    const ftsResult = await DB.prepare(
-      `SELECT f.id, f.name, f.key, f.parent_path, f.is_directory, f.description, f.contentType, f.size, f.downloads, f.likes
-       FROM files f
-       JOIN files_fts ON f.id = files_fts.rowid
-       WHERE files_fts MATCH ?
-       ORDER BY rank
-       LIMIT ?`
-    ).bind(ftsTokenizedQuery, ftsLimit).all();
-    ftsResults = ftsResult.results || [];
-  } catch (e) {
-    console.error('FTS搜索失败:', e);
+  const ftsTokenizedQuery = buildFtsMatchQuery(query);
+  if (ftsTokenizedQuery) {
+    try {
+      const ftsResult = await DB.prepare(
+        `SELECT f.id, f.name, f.key, f.parent_path, f.is_directory, f.description, f.contentType, f.size, f.downloads, f.likes
+         FROM files f
+         JOIN files_fts ON f.id = files_fts.rowid
+         WHERE files_fts MATCH ?
+         ORDER BY rank
+         LIMIT ?`
+      ).bind(ftsTokenizedQuery, ftsLimit).all();
+      ftsResults = ftsResult.results || [];
+    } catch (e) {
+      console.error('FTS搜索失败:', e);
+    }
   }
   for (const row of ftsResults) {
     candidateIds.add(row.id);
@@ -947,7 +959,7 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     const nm = f.name_match || 0;
     let combined;
     if (f.rerank_score > 0) {
-      combined = 0.60 * rn + 0.20 * vs + 0.20 * nm;
+      combined = 0.55 * rn + 0.15 * vs + 0.15 * ft + 0.15 * nm;
     } else {
       combined = 0.35 * vs + 0.35 * ft + 0.30 * nm;
     }
@@ -1073,6 +1085,127 @@ export async function rerankResults(env, query, documents, topN = 20) {
     console.error('重排请求失败（已重试）:', error);
     return null;
   }
+}
+const SCOPE_PICK_MAX_CANDIDATES = 30;
+const SCOPE_CHILD_LIMIT = 60;
+const SCOPE_PICK_PROMPT = `你是目录筛选助手。用户提出了一个时间/范围限定，你要从【候选目录】中选出最符合该限定的那个。
+    规则：
+    1. 只能返回候选目录的编号数字，或 0
+    2. 判断依据是目录名中真实写着的学期信息，结合当前时间推算"这学期/上学期/第二学期"具体对应哪一个
+    3. 用户没有限定、或候选目录均不符合限定要求时，返回 0
+    4. 严禁输出解释、标点或其它文字`;
+function stripThinkTags(rawContent) {
+  if (typeof rawContent !== 'string') return '';
+  let text = rawContent;
+  const open = '<' + 'think>';
+  const close = '<' + '/think>';
+  while (text.includes(open) && text.includes(close)) {
+    const start = text.indexOf(open);
+    const end = text.indexOf(close, start);
+    if (end < 0) break;
+    text = text.slice(0, start) + text.slice(end + close.length);
+  }
+  return text.trim();
+}
+function collectAnchorDirs(baseResults) {
+  const anchors = new Map();
+  for (const row of baseResults || []) {
+    if (!row.is_directory || !row.key) continue;
+    if (anchors.size >= 5) break;
+    anchors.set(row.key, {
+      id: row.id,
+      key: row.key,
+      name: row.name,
+      parent_path: row.parent_path || ''
+    });
+  }
+  return [...anchors.values()];
+}
+async function loadChildDirs(DB, dirKeys) {
+  const anchorKeys = new Set(dirKeys);
+  const seen = new Set();
+  const collected = [];
+  for (const key of dirKeys) {
+    const rows = await DB.prepare(
+      `SELECT id, key, name, parent_path FROM files
+       WHERE is_directory = 1 AND key LIKE ?
+       ORDER BY key LIMIT 200`
+    ).bind(`${key}/%`).all();
+    for (const row of rows.results || []) {
+      if (!row.key || anchorKeys.has(row.key) || seen.has(row.key)) continue;
+      const rest = row.key.slice(key.length + 1);
+      if (rest.includes('/')) continue;
+      seen.add(row.key);
+      collected.push(row);
+    }
+  }
+  return collected;
+}
+async function loadComparableDirs(DB, anchorDirs) {
+  const depthOf = key => (key || '').split('/').filter(Boolean).length;
+  const shallowest = [...anchorDirs].sort((a, b) => depthOf(a.key) - depthOf(b.key))[0];
+  const children = await loadChildDirs(DB, [shallowest.key]);
+  if (children.length > 1) return children.slice(0, SCOPE_PICK_MAX_CANDIDATES);
+  const parentSet = [...new Set(anchorDirs.map(d => d.parent_path || ''))].filter(Boolean);
+  if (parentSet.length > 0) {
+    const siblingRows = await DB.prepare(
+      `SELECT id, key, name, parent_path FROM files
+       WHERE is_directory = 1 AND parent_path IN (${parentSet.map(() => '?').join(',')})
+       ORDER BY key LIMIT 200`
+    ).bind(...parentSet).all();
+    const siblings = (siblingRows.results || []).filter(r => r.key && r.key.includes('/'));
+    if (siblings.length > 1) return siblings.slice(0, SCOPE_PICK_MAX_CANDIDATES);
+  }
+  return children.slice(0, SCOPE_PICK_MAX_CANDIDATES);
+}
+export async function resolveConstraintScope(env, DB, query, constraint, baseResults, now) {
+  const anchorDirs = collectAnchorDirs(baseResults);
+  if (anchorDirs.length === 0) return null;
+  const candidates = await loadComparableDirs(DB, anchorDirs);
+  if (candidates.length < 2) return null;
+  const numbered = candidates.map((d, i) => `${i + 1}. ${d.key}`).join('\n');
+  const pickResponse = await fetchSiliconFlowChat(env, {
+    messages: [
+      { role: 'system', content: SCOPE_PICK_PROMPT + `\n当前时间：${now}` },
+      { role: 'user', content: `用户需求：${query}\n限定条件：${constraint}\n候选目录：\n${numbered}\n请返回最符合限定条件的目录编号：` }
+    ]
+  });
+  const pickText = stripThinkTags(pickResponse.choices?.[0]?.message?.content);
+  const picked = parseInt((pickText.match(/\d+/) || [])[0] || '0', 10);
+  if (!(picked > 0 && picked <= candidates.length)) return null;
+  const chosen = candidates[picked - 1];
+  const fullRows = await DB.prepare(
+    `SELECT id, name, key, parent_path, is_directory, is_link, link_url, description, contentType, size, downloads, likes, uploaded
+     FROM files
+     WHERE key = ? OR key LIKE ?
+     ORDER BY is_directory DESC, name
+     LIMIT ?`
+  ).bind(chosen.key, `${chosen.key}/%`, SCOPE_CHILD_LIMIT + 1).all();
+  const rows = fullRows.results || [];
+  const directory = rows.find(r => r.key === chosen.key);
+  if (!directory) return null;
+  return {
+    path: chosen.key,
+    directory,
+    children: rows.filter(r => r.key !== chosen.key)
+  };
+}
+export function mergeScopeFirst(scope, baseResults) {
+  const seen = new Set();
+  const merged = [];
+  const push = (item, score) => {
+    if (!item || seen.has(item.id)) return;
+    seen.add(item.id);
+    merged.push({ ...item, similarity_score: score, scoped: true });
+  };
+  push(scope.directory, 1);
+  for (const child of scope.children) {
+    push(child, 0.95);
+  }
+  for (const item of baseResults || []) {
+    push(item, item.similarity_score ?? 0);
+  }
+  return merged;
 }
 const SILICONFLOW_CHAT_URL = 'https://api.siliconflow.cn/v1/chat/completions';
 const DEFAULT_CHAT_MODEL = 'Qwen/Qwen3-8B';

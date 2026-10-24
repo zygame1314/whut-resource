@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchMoveWithVector, dispatchDeleteWithVector, enqueueDeleteKeysJob, getMaintenanceJob } from '../utils.js';
+import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchMoveWithVector, dispatchDeleteWithVector, enqueueDeleteKeysJob, getMaintenanceJob, buildFtsMatchQuery } from '../utils.js';
 const MAX_SAFE_BATCH_SIZE = 500;
 const MAX_BATCH_DELETE_KEYS = 2000;
 function sanitizeSegment(name) {
@@ -477,27 +477,17 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 ORDER BY rank
                 LIMIT ?
             `;
-            const cleanSearch = search.replace(/"/g, '');
-            const terms = cleanSearch.split(/\s+/).filter(t => t.length > 0);
-            const processedTerms = terms.map(term => {
-                const upperTerm = term.toUpperCase();
-                if (['AND', 'OR', 'NOT'].includes(upperTerm)) {
-                    return upperTerm;
-                }
-                const stripped = term.replace(/[-*():^"']/g, '');
-                const chars = Array.from(stripped).filter(c => /\S/.test(c));
-                if (chars.length === 0) return null;
-                if (/[^\x00-\x7F]/.test(stripped)) {
-                    return chars.join(' ');
-                }
-                return `"${chars.join(' ')}"`;
-            }).filter(Boolean);
-            const ftsTokenizedQuery = processedTerms.join(' ');
+            const ftsTokenizedQuery = buildFtsMatchQuery(search);
             const SEARCH_MAX_LIMIT = 50;
-            try {
-                itemsResult = await DB.prepare(ftsQuery).bind(ftsTokenizedQuery, SEARCH_MAX_LIMIT).all();
-            } catch (e) {
+            if (!ftsTokenizedQuery) {
                 itemsResult = { results: [] };
+            } else {
+                try {
+                    itemsResult = await DB.prepare(ftsQuery).bind(ftsTokenizedQuery, SEARCH_MAX_LIMIT).all();
+                } catch (e) {
+                    console.error('FTS搜索失败:', e);
+                    itemsResult = { results: [] };
+                }
             }
         } else {
             let searchPath = prefix;

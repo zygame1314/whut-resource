@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'deepseek-v4.1-flash';
 const TOOLS = [
@@ -57,14 +57,19 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'search_resources',
-            description: '搜索资源库。仅当用户【礼貌地】请求查找特定资源、课程资料、文件时使用（留言里需出现"请/求/谢谢/麻烦/帮忙/劳驾/您"等请求或礼貌字眼）。无任何请求/礼貌字眼的纯名词短语（如"工程力学B近两年的试卷""高数答案"）禁止搜索，改用 reject_message。支持同时搜索多个关键词（如一条留言请求多门课程，可一次性传入多个核心课程名）。每条留言只需调用一次此工具，把所有需要的课程名都放进 queries 数组。',
+            description: '搜索资源库。仅限礼貌的资源请求（含"请/求/谢谢/麻烦/帮忙/劳驾/您"等字眼）；纯名词短语（如"高数答案"）禁止搜索，改用 reject_message。每条留言只调用一次，多门课程分别放进 queries，时间/学期限定放进 constraints。',
             parameters: {
                 type: 'object',
                 properties: {
                     queries: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: '搜索关键词数组，每个元素是一个核心课程名或关键名词（如"遗传学"）。用户请求多门课程时，每门课程名作为一个数组元素。核心规则：必须仅提取核心课程名或关键名词。'
+                        description: '课程/资源关键词数组，每个元素是一个核心课程名或关键名词（如"遗传学"）。用户请求多门课程时，每门课程名作为一个数组元素。只填"要什么内容"，不要把学期限定混进来（学期放到 constraints）。'
+                    },
+                    constraints: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: '用户明确提出的时间/学期限定，原样摘录，例如"2026第二学期""这学期""上学期""2025-2026-2"。不要猜测、不要换算成别的格式、不要补全学年，用户怎么说就怎么抄。用户没有提到任何时间或学期限定时，传空数组 []。'
                     }
                 },
                 required: ['queries']
@@ -115,35 +120,29 @@ const TOOLS = [
     }
 ];
 const SEARCH_MIN_SIMILARITY = 0.35;
-const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站留言板AI助手，分析留言并决定处理方式。所有输出必须是纯文本，禁用Markdown。
+const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站（公益站，学长学姐免费分享）的留言板AI，分析留言并决定处理方式。纯文本输出，禁用Markdown。
 
-【语气人设：不是客服，不惯着人】怎么想怎么写，不端着、不套话，可口语化、可吐槽、可怼。给用户的文案（驳回原因 reason、备注 note）也用这种口吻。禁止客服套话。
+【语气】不是客服，不惯着人。可口语化、可吐槽、可怼，给用户的 reason/note 也用这口吻，禁止客服套话。
+【立场】用户是来求资源的，不是来消费或下命令的。礼貌求助（请/求/谢谢/麻烦/帮忙/劳驾/您/辛苦/能否/可以吗）→ 热情帮忙；命令式、简陋、阴阳怪气 → 怼回去并驳回。别怕得罪人。
 
-【立场：这是公益站，用户有求于我们】本站是学长学姐免费分享资源的公益平台，不收费、不欠用户任何东西。用户是来【求】资源的，不是来消费的，更不是来命令我们的。所以：
-- 礼貌求助（有"请/求/谢谢"等）→ 热情帮忙
-- 命令式、过于简陋、毫无礼貌用语、质疑抱怨、阴阳怪气、颐指气使 → 一律怼回去并驳回，别惯着，别低声下气解释
-- 别把用户当上帝，别怕得罪人。我们是帮忙的，不是伺候的
-- 【硬性判定】留言只是"名词短语+要东西"（如"XX课程的试卷/资料/答案"），全文没有一个请求动词或礼貌字眼（请/求/谢谢/麻烦/帮忙/劳驾/您/辛苦/能否/可以吗），就属于"过于简陋、毫无礼貌用语"，必须 reject_message，【禁止】先 search_resources 再说。搜索工具只能用于礼貌的求助留言。
+【硬性判定】只是"名词短语+要东西"（如"XX课程的试卷/资料/答案"），全文无请求动词或礼貌字眼 → 属于不礼貌，必须 reject_message，【禁止】先 search_resources。判断礼貌先于判断是否是资源请求。
 
-本站是资源分享平台，求课程资料/真题/课件/考试答案属正常行为。对礼貌求助热情帮忙，对不礼貌的该怼就怼、该驳回就驳回，不因"是资源请求"就降低标准。
-
-【不可违反的底线】
+【底线】
 - 禁止封禁【管理员】标签用户
-- 【普通用户】自称管理员 -> delete_message(冒充管理员)
-- 昵称含辱骂/色情/反动/恶意推广/攻击性/不雅词汇 -> ban_user(昵称违规即封禁，无论留言内容)
-- 含暴恐/反动/色情/严重违法内容 -> ban_user
+- 【普通用户】自称管理员 → delete_message
+- 昵称含辱骂/色情/反动/恶意推广/不雅词 → ban_user
+- 含暴恐/反动/色情/严重违法 → ban_user
+- 有偿求资源、倒卖、付费交易 → 视情节选 delete_message 或 ban_user
 
-【工具选择】
+【工具】
 ban_user: 极其严重违规（反动/暴恐/违法/昵称违规），封禁并删留言
 delete_message: 严重违规（辱骂/色情/恶意诱导如藏头诗）
-reject_message: 内容无效/不合规范，驳回并告知原因。适用：无关内容、泄露联系方式、表述过于简陋、仅发课程名/文件名无请求语句、命令式口吻、质疑抱怨/阴阳怪气等不礼貌留言
-ban_user/delete_message 候补：有偿求资源、倒卖资源、付费交易，视情节选 delete_message 或 ban_user
-search_resources: 礼貌的资源请求类留言才可用，提取核心课程名搜索。缩写需展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留后缀(A/B/C、一/二)。多门课程时每门一个元素放进 queries 数组，每条留言只调用一次。无礼貌/请求字眼的留言禁止用此工具，应 reject_message
-mark_resolved: 可直接解决的非资源类留言（感谢/祝福等）。必须填 reply（管理员审计备注）和 note（用户可见备注）
-keep_pending: 合理请求但暂无法自动处理，等人工介入。category 以课程名为单位，优先精确匹配已有待办分类名；无匹配用最通用标准课程名（"高等数学"而非"高数"），不加"求""资料"等冗余词
+reject_message: 驳回并告知原因。适用于无关内容、泄露联系方式、表述简陋、仅发课程名无请求语句、命令式、质疑抱怨
+search_resources: 仅限礼貌的资源请求。课程缩写展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留后缀(A/B/C、一/二)。多门课每门一个元素放进 queries，每条留言只调用一次。用户提到时间/学期（"这学期""2026第二学期""上学期""去年的"）必须把原话摘进 constraints，不改写不换算，没提就传 []
+mark_resolved: 可直接解决的非资源类留言（感谢/祝福等）。必须填 reply（审计备注）和 note（用户可见）
+keep_pending: 合理请求但暂无法自动处理，等人工。category 以课程名为单位，优先精确匹配已有分类；无匹配用标准课程名（"高等数学"而非"高数"），不加"求""资料"等冗余词
 
-处理级别：L0封禁[ban_user] L1删除[delete_message] L2驳回[reject_message] L3正常[search_resources/mark_resolved/keep_pending]
-注意：仅发课程名/文件名无请求语句（含"课程名+试卷/资料/答案"式名词短语），或命令式、过于简陋、质疑抱怨等不礼貌留言，不应搜索资源，必须用 reject_message 驳回。判断是否礼貌先于判断是否资源请求。`;
+级别：L0封禁 ban_user｜L1删除 delete_message｜L2驳回 reject_message｜L3正常 search_resources / mark_resolved / keep_pending`;
 export async function onRequest(context) {
     const { request, env } = context;
     if (request.method === 'OPTIONS') {
@@ -307,7 +306,13 @@ export async function processWithAIAgent(guestbookEntry, env) {
                     toolResult.searchResults,
                     env,
                     queryStr,
-                    { queryList: toolResult.queryList, perQueryHits: toolResult.perQueryHits }
+                    {
+                        queryList: toolResult.queryList,
+                        perQueryHits: toolResult.perQueryHits,
+                        constraint: toolResult.constraint,
+                        constraintResolved: toolResult.constraintResolved,
+                        scopedPath: toolResult.scopedPath
+                    }
                 );
             }
             if (functionName === 'keep_pending' && functionArgs.category) {
@@ -384,7 +389,7 @@ async function executeToolCall(functionName, args, guestbookEntry, env) {
         case 'ban_user':
             return await handleBanUser(guestbookEntry, args.reason, env);
         case 'search_resources':
-            return await handleSearch(args.queries, env);
+            return await handleSearch(args.queries, env, args.constraints, guestbookEntry.content);
         case 'mark_resolved':
             return await handleResolve(guestbookEntry, args.reply, null, null, env, args.note);
         case 'keep_pending':
@@ -470,7 +475,15 @@ async function handleDelete(entry, reason, env) {
         reason: reason
     };
 }
-async function handleSearch(queries, env) {
+function normalizeConstraints(constraints) {
+    if (!constraints) return '';
+    const list = Array.isArray(constraints) ? constraints : [constraints];
+    return list
+        .filter(c => typeof c === 'string' && c.trim().length > 0)
+        .map(c => c.trim())
+        .join('；');
+}
+async function handleSearch(queries, env, constraints = [], userContent = '') {
     const VECTORIZE = env.VECTORIZE;
     const DB = env.DB;
     if (!VECTORIZE || !DB || !env.SILICONFLOW_API_KEY) {
@@ -514,8 +527,26 @@ async function handleSearch(queries, env) {
                 }
             }
         }
-        const merged = [...seenIds.values()];
+        let merged = [...seenIds.values()];
         merged.sort((a, b) => (b.similarity_score || 0) - (a.similarity_score || 0));
+        const constraintText = normalizeConstraints(constraints);
+        let constraintResolved = true;
+        let scopedPath = '';
+        if (constraintText && merged.length > 0) {
+            const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+            try {
+                const scope = await resolveConstraintScope(env, DB, userContent || constraintText, constraintText, merged, now);
+                if (scope) {
+                    scopedPath = scope.path;
+                    merged = mergeScopeFirst(scope, merged);
+                } else {
+                    constraintResolved = false;
+                }
+            } catch (e) {
+                constraintResolved = false;
+                console.error('留言板学期限定定位失败:', e);
+            }
+        }
         const filesWithScores = merged.slice(0, 20);
         if (filesWithScores.length === 0) {
             return {
@@ -525,7 +556,9 @@ async function handleSearch(queries, env) {
                 searchResults: [],
                 query: queryList.join('、'),
                 queryList,
-                perQueryHits
+                perQueryHits,
+                constraint: constraintText,
+                constraintResolved: false
             };
         }
         return {
@@ -535,7 +568,10 @@ async function handleSearch(queries, env) {
             searchResults: filesWithScores,
             query: queryList.join('、'),
             queryList,
-            perQueryHits
+            perQueryHits,
+            constraint: constraintText,
+            constraintResolved,
+            scopedPath
         };
     } catch (error) {
         console.error('搜索错误:', error);
@@ -548,7 +584,7 @@ async function handleSearch(queries, env) {
     }
 }
 async function handleSearchResults(guestbookEntry, searchResults, env, query = '', searchMeta = {}) {
-    const { queryList = [], perQueryHits = {} } = searchMeta;
+    const { queryList = [], perQueryHits = {}, constraint = '', constraintResolved = true, scopedPath = '' } = searchMeta;
     if (!searchResults || searchResults.length === 0) {
         if (env && env.DB) {
             if (queryList.length > 0) {
@@ -614,28 +650,29 @@ async function handleSearchResults(guestbookEntry, searchResults, env, query = '
     const hitSummary = queryList.length > 0
         ? `\n【用户请求的课程】${queryList.join('、')}\n【各课程命中情况】${queryList.map(q => `${q}: ${perQueryHits[q] > 0 ? '✓找到' : '✗未找到'}(${perQueryHits[q] || 0}个结果)`).join('；')}`
         : '';
+    const constraintBlock = constraint
+        ? (constraintResolved
+            ? `\n【学期限定】${constraint}（已定位到 ${scopedPath || '列表首位'}，优先推荐该项）`
+            : `\n【学期限定】${constraint}（库中未找到该学期目录。下列结果可能是其他学期，禁止当作该学期资源推荐，改填 pending_categories 并在 note 里说明已登记补充）`)
+        : '';
     const secondPrompt = `搜索结果：
 ${resourceList}
 
 用户留言：${guestbookEntry.content}
-${hitSummary}
+${hitSummary}${constraintBlock}
 
-【语气人设：不是客服，不惯着人】怎么想怎么写，不端着、不套话，可口语化、可吐槽、可怼。给用户的文案（备注 note）也用这种口吻。禁止客服套话。
+【匹配规则】只认同名或高度相关的课程。不同课程严禁顶替（"金属工艺学B"≠"汽车制造工艺学"/"金属学及热处理"；"创业学"≠培养方案目录）。宁可判未命中也不硬凑。
+【学期规则】用户有学期限定时，只有学期一致的资源才算匹配。学期不符即使课程名完全命中也不得推荐，禁止用"仅供参考"把旧学期资料当替代品。
 
-【匹配铁律】只允许把与用户请求课程【同名或高度相关】的资源视为匹配。严禁用不同课程顶替：例如用户要"金属工艺学B"，"汽车制造工艺学""机械制造工艺""金属学及热处理"等是不同课程，即使相似度较高也【不得】当作匹配资源推荐，应视为未命中。用户要"创业学"，培养方案目录（创业学院培养方案）不是课程资料，不得当作匹配。宁可标记未命中、建待办，也不要硬凑不相关资源。
-
-判断搜索结果中是否有满足用户需求的资源，如果没有就保持未解决，不要硬凑。优先推荐目录（📁），目录代表整个资源合集，对用户更有价值。用户请求多门课程时：
-- 把每门命中课程对应的匹配资源序号都填进 matched_file_indices 数组
-- 对于【未命中的课程】，填进 pending_categories 数组（会自动建待办给管理员处理）
-- 全部未命中时改用 keep_pending
-匹配成功请用 mark_resolved，完全不匹配则用 keep_pending。${todoHint}`;
+有满足需求的资源就用 mark_resolved：每门命中课程的资源序号填进 matched_file_indices；未命中的课程填进 pending_categories 自动建待办。全部未命中用 keep_pending。
+优先推荐目录（📁，代表资源合集），但学期不符的目录同样不得推荐。${todoHint}`;
 
     const searchTools = [
         {
             type: 'function',
             function: {
                 name: 'mark_resolved',
-                description: '标记留言为已解决。当从搜索结果中找到至少一个匹配资源时使用。支持一次匹配多个资源（用户请求多门课程时，把每门命中的资源序号都填进 matched_file_indices）。未命中的课程填进 pending_categories（会自动建待办给管理员后续处理），这样命中的资源可立即给用户、未命中的进入待办，不必整条挂起。',
+                description: '找到至少一个匹配资源时使用。多门课程时，命中项填 matched_file_indices，未命中项填 pending_categories（自动建待办），不必整条挂起。',
                 parameters: {
                     type: 'object',
                     properties: {
@@ -651,7 +688,7 @@ ${hitSummary}
                         pending_categories: {
                             type: 'array',
                             items: { type: 'string' },
-                            description: '未命中的课程名数组（用于建待办给管理员补充资源）。仅当用户请求多门课程且部分未命中时填写。每项为标准课程名，优先精确匹配已有待办分类。全部命中则留空数组或不填。'
+                            description: '未命中的课程名数组（自动建待办）。每项用标准课程名，优先精确匹配已有分类。全部命中则留空。'
                         },
                         reply: {
                             type: 'string',
