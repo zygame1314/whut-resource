@@ -908,11 +908,11 @@ function matchesTimeConstraint(row, parsed) {
     if (parsed.semester) return false;
     return parsed.years.some(year => haystack.includes(String(year)));
   }
-  return tags.some(tag => {
-    const covers = parsed.years.some(year => year >= tag.start && year <= tag.end);
-    if (!covers) return false;
-    return parsed.semester ? tag.semester === parsed.semester : true;
-  });
+  return tags.some(tag => parsed.years.some(year => {
+    if (parsed.semester === 2) return tag.end === year && tag.semester === 2;
+    if (parsed.semester === 1) return tag.semester === 1 && (tag.start === year || tag.end === year);
+    return year >= tag.start && year <= tag.end;
+  }));
 }
 
 export function applyTimeConstraint(rows, constraint, query, now) {
@@ -1272,13 +1272,18 @@ const SCOPE_PICK_PROMPT = `从候选目录中选出符合时间限定的一个�
 
 规则：
 - 先把限定换算成具体年份/学年学期，不能直接用"去年""前年"比对。
-- 目录名带学年学期（如 2024-2025-2）时按名称匹配；四位年份展开为覆盖该年的学年（2024 → 2023-2024、2024-2025）。
-- 多个目录都覆盖该年份时，优先学年起始年等于该年份的，没有再选覆盖该年的。
+- 用户写明学期时按自然年锁定唯一学年，这条优先级最高：
+  Y年第2学期 = (Y-1)-Y-2（Y年2~8月）；Y年第1学期 = Y-(Y+1)-1（Y年9~12月）或 (Y-1)-Y-1（Y年1月）。
+  例：2026第2学期 → 2025-2026-2；2026第1学期 → 2026-2027-1 或 2025-2026-1。
+- 只写年份、没写学期时，才用"优先学年起始年等于该年份"的规则（2024 → 2024-2025-* 优先，其次覆盖该年的）。
 - 目录名不含时间（如"期末试卷""往年资料"）但里面按年份分试卷时，也可以选它，后续会按子项再筛。
-- 用户写明学期的先按学期缩小范围；学期口径：9月~次年1月为第 1 学期，2月~8月为第 2 学期。
+- 学期口径：9月~次年1月为第 1 学期，2月~8月为第 2 学期。
 - 候选里没有任何目录跟时间沾边就返回 0，不要勉强选。
 
 示例（当前 2026 年）：
+限定「2026」，用户需求「2026第二学期」，候选：1.形势与政策/2025-2026-1  2.形势与政策/2025-2026-2  3.形势与政策/2026-2027-1
+2
+
 限定「2024」，候选：1.高等数学A/2023-2024-2  2.高等数学A/2024-2025-1  3.高等数学A/2025-2026-1
 2
 
