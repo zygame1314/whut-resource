@@ -220,6 +220,11 @@ async function migrateIndexes(DB) {
     } catch (e) {
         console.error('创建 idx_maintenance_jobs_created 失败:', e);
     }
+    try {
+        await DB.prepare('CREATE INDEX IF NOT EXISTS idx_files_listing_optimized ON files(parent_path, is_directory DESC, is_link DESC, name ASC, key ASC)').run();
+    } catch (e) {
+        console.error('创建 idx_files_listing_optimized 失败:', e);
+    }
 }
 async function handleInit(DB, env, user) {
     const sessionId = Date.now();

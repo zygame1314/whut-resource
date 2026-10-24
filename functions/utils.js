@@ -1103,12 +1103,14 @@ export async function rerankResults(env, query, documents, topN = 20) {
 }
 const SCOPE_PICK_MAX_CANDIDATES = 30;
 const SCOPE_CHILD_LIMIT = 60;
-const SCOPE_PICK_PROMPT = `你是目录筛选助手。用户提出了一个时间/范围限定，你要从【候选目录】中选出最符合该限定的那个。
+const SCOPE_PICK_PROMPT = `你是学期目录筛选助手。根据用户的时间限定，从【候选目录】中选出唯一匹配项。
     规则：
-    1. 只能返回候选目录的编号数字，或 0
-    2. 判断依据是目录名中真实写着的学期信息，结合当前时间推算"这学期/上学期/第二学期"具体对应哪一个
-    3. 用户没有限定、或候选目录均不符合限定要求时，返回 0
-    4. 严禁输出解释、标点或其它文字`;
+    1. 只能返回编号数字，或 0。严禁输出解释、标点或其它文字。
+    2. 学期口径：每年 9 月~次年 1 月为第 1 学期，2 月~8 月为第 2 学期。
+    3. 相对说法按【当前时间】推算："这学期"=当前所在学期，"上学期"=前一个，"下学期"=后一个。
+    4. 具体说法（如"2026第二学期"）按目录名中真实写着的学年学期匹配。
+    5. 若相对说法与具体说法冲突，以具体说法为准。
+    6. 只要存在可解释的匹配就必须返回编号；仅当所有候选目录都与限定明显无关时才返回 0。`;
 function stripThinkTags(rawContent) {
   if (typeof rawContent !== 'string') return '';
   let text = rawContent;
@@ -1136,39 +1138,54 @@ function collectAnchorDirs(baseResults) {
   }
   return [...anchors.values()];
 }
-async function loadChildDirs(DB, dirKeys) {
-  const anchorKeys = new Set(dirKeys);
-  const seen = new Set();
-  const collected = [];
-  for (const key of dirKeys) {
-    const rows = await DB.prepare(
-      `SELECT id, key, name, parent_path FROM files
-       WHERE is_directory = 1 AND key LIKE ?
-       ORDER BY key LIMIT 200`
-    ).bind(`${key}/%`).all();
-    for (const row of rows.results || []) {
-      if (!row.key || anchorKeys.has(row.key) || seen.has(row.key)) continue;
-      const rest = row.key.slice(key.length + 1);
-      if (rest.includes('/')) continue;
-      seen.add(row.key);
-      collected.push(row);
+function normalizeDirKey(key) {
+  return (key || '').replace(/\/+$/, '');
+}
+function buildPrefixUpperBound(prefix) {
+  const chars = Array.from(prefix);
+  for (let i = chars.length - 1; i >= 0; i--) {
+    const code = chars[i].codePointAt(0);
+    if (code < 0x10FFFF) {
+      chars[i] = String.fromCodePoint(code + 1);
+      return chars.slice(0, i + 1).join('');
     }
   }
+  return prefix + '\uFFFF';
+}
+async function loadChildDirs(DB, dirKeys) {
+  const normalized = dirKeys.map(normalizeDirKey).filter(Boolean);
+  if (normalized.length === 0) return [];
+  const anchorKeys = new Set(normalized);
+  const lookups = normalized.map(k => `${k}/`);
+  const seen = new Set();
+  const collected = [];
+  const rows = await DB.prepare(
+    `SELECT id, key, name, parent_path FROM files
+     WHERE is_directory = 1 AND parent_path IN (${lookups.map(() => '?').join(',')})
+     LIMIT 200`
+  ).bind(...lookups).all();
+  for (const row of rows.results || []) {
+    if (!row.key || seen.has(row.key)) continue;
+    if (anchorKeys.has(normalizeDirKey(row.key))) continue;
+    seen.add(row.key);
+    collected.push(row);
+  }
+  collected.sort((a, b) => (a.key || '').localeCompare(b.key || ''));
   return collected;
 }
 async function loadComparableDirs(DB, anchorDirs) {
-  const depthOf = key => (key || '').split('/').filter(Boolean).length;
+  const depthOf = key => normalizeDirKey(key).split('/').filter(Boolean).length;
   const shallowest = [...anchorDirs].sort((a, b) => depthOf(a.key) - depthOf(b.key))[0];
   const children = await loadChildDirs(DB, [shallowest.key]);
   if (children.length > 1) return children.slice(0, SCOPE_PICK_MAX_CANDIDATES);
-  const parentSet = [...new Set(anchorDirs.map(d => d.parent_path || ''))].filter(Boolean);
+  const parentSet = [...new Set(anchorDirs.map(d => normalizeDirKey(d.parent_path)))].filter(Boolean);
   if (parentSet.length > 0) {
     const siblingRows = await DB.prepare(
       `SELECT id, key, name, parent_path FROM files
        WHERE is_directory = 1 AND parent_path IN (${parentSet.map(() => '?').join(',')})
        ORDER BY key LIMIT 200`
     ).bind(...parentSet).all();
-    const siblings = (siblingRows.results || []).filter(r => r.key && r.key.includes('/'));
+    const siblings = (siblingRows.results || []).filter(r => r.key && normalizeDirKey(r.key) !== normalizeDirKey(r.parent_path));
     if (siblings.length > 1) return siblings.slice(0, SCOPE_PICK_MAX_CANDIDATES);
   }
   return children.slice(0, SCOPE_PICK_MAX_CANDIDATES);
@@ -1189,36 +1206,45 @@ export async function resolveConstraintScope(env, DB, query, constraint, baseRes
   const picked = parseInt((pickText.match(/\d+/) || [])[0] || '0', 10);
   if (!(picked > 0 && picked <= candidates.length)) return null;
   const chosen = candidates[picked - 1];
+  const scopeKey = normalizeDirKey(chosen.key);
+  const scopeLower = `${scopeKey}/`;
+  const scopeUpper = buildPrefixUpperBound(scopeLower);
   const fullRows = await DB.prepare(
     `SELECT id, name, key, parent_path, is_directory, is_link, link_url, description, contentType, size, downloads, likes, uploaded
      FROM files
-     WHERE key = ? OR key LIKE ?
-     ORDER BY is_directory DESC, name
+     WHERE key >= ? AND key < ?
+     ORDER BY key
      LIMIT ?`
-  ).bind(chosen.key, `${chosen.key}/%`, SCOPE_CHILD_LIMIT + 1).all();
+  ).bind(scopeKey, scopeUpper, SCOPE_CHILD_LIMIT + 1).all();
   const rows = fullRows.results || [];
-  const directory = rows.find(r => r.key === chosen.key);
+  const directory = rows.find(r => normalizeDirKey(r.key) === scopeKey);
   if (!directory) return null;
   return {
-    path: chosen.key,
+    path: scopeKey,
     directory,
-    children: rows.filter(r => r.key !== chosen.key)
+    children: rows.filter(r => normalizeDirKey(r.key) !== scopeKey)
   };
 }
 export function mergeScopeFirst(scope, baseResults) {
   const seen = new Set();
   const merged = [];
-  const push = (item, score) => {
+  const scopePrefix = normalizeDirKey(scope.path);
+  const inScope = item => {
+    const key = normalizeDirKey(item && item.key);
+    return Boolean(key) && (key === scopePrefix || key.startsWith(`${scopePrefix}/`));
+  };
+  const push = (item, score, scoped) => {
     if (!item || seen.has(item.id)) return;
     seen.add(item.id);
-    merged.push({ ...item, similarity_score: score, scoped: true });
+    merged.push({ ...item, similarity_score: score, scoped });
   };
-  push(scope.directory, 1);
+  push(scope.directory, 1, true);
   for (const child of scope.children) {
-    push(child, 0.95);
+    push(child, 0.95, true);
   }
   for (const item of baseResults || []) {
-    push(item, item.similarity_score ?? 0);
+    if (!inScope(item)) continue;
+    push(item, item.similarity_score ?? 0, false);
   }
   return merged;
 }
