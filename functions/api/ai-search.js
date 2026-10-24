@@ -1,4 +1,4 @@
-import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint, rerankRows } from '../utils.js';
+import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint, rerankRows, sanitizeConstraintTerms } from '../utils.js';
 const SEARCH_PROMPT = `把搜索语解析成检索计划，只输出一行 JSON：
 {"keywords":"...","constraint":"...","unrelated":false}
 
@@ -78,7 +78,7 @@ export async function onRequestGet({ request, env }) {
             console.error('LLM 解析检索计划失败，使用原始查询:', e);
         }
         const constraintTerms = constraint
-            ? constraint.split(/\s+/).map(t => t.trim()).filter(Boolean)
+            ? sanitizeConstraintTerms(constraint.split(/\s+/))
             : [];
         let scopedPath = '';
         let constraintResolved = true;

@@ -46,6 +46,22 @@ export default {
                 }
 
                 const aiResult = await processWithAIAgent(entry, env);
+                console.log('[AI结果]', JSON.stringify({
+                    guestbookId,
+                    adminTriggered: !!adminTriggered,
+                    success: aiResult?.success,
+                    action: aiResult?.action,
+                    message: aiResult?.message,
+                    query: aiResult?.query,
+                    constraint: aiResult?.constraint,
+                    constraintResolved: aiResult?.constraintResolved,
+                    scopedPath: aiResult?.scopedPath,
+                    scopedByName: aiResult?.scopedByName,
+                    resultCount: Array.isArray(aiResult?.searchResults) ? aiResult.searchResults.length : null,
+                    topResults: Array.isArray(aiResult?.searchResults)
+                        ? aiResult.searchResults.slice(0, 5).map(row => row.key || row.name)
+                        : null
+                }));
                 if (aiResult && aiResult.success &&
                     (aiResult.action === 'no_action' || aiResult.action === 'keep_pending' || aiResult.action === 'resolve')) {
                     if (adminTriggered) {

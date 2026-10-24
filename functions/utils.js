@@ -934,6 +934,27 @@ export function applyTimeConstraint(rows, constraint, query, now) {
   const filtered = filterByTime(rows, parsed);
   return filtered.length > 0 ? filtered : null;
 }
+const NON_LITERAL_CONSTRAINT = /^(?:第?[一二三四1-4]学期|上学期|下学期|这学期|本学期|学年|今年|明年|去年|前年)$/;
+
+// 模型偶尔会把"第二学期""这学期"这类描述性时间词塞进限定；
+// 它们永远不可能出现在文件名里，留着会让字面检索的 AND 必然落空。
+// 学期/学年信息由 parseTimeConstraint 从原文解析，这里只需要保留年份之类的字面词。
+export function sanitizeConstraintTerms(terms) {
+  const list = Array.isArray(terms) ? terms : (terms == null ? [] : [terms]);
+  const out = [];
+  for (const raw of list) {
+    const term = String(raw == null ? '' : raw).trim();
+    if (!term) continue;
+    if (NON_LITERAL_CONSTRAINT.test(term)) continue;
+    if (/学期|学年/.test(term)) {
+      for (const year of term.match(/20\d{2}/g) || []) out.push(year);
+      continue;
+    }
+    out.push(term);
+  }
+  return [...new Set(out)];
+}
+
 export async function searchByLiteralTerms(DB, keywords, terms, limit = 50) {
   if (!Array.isArray(terms) || terms.length === 0) return null;
   const baseQuery = buildFtsMatchQuery(keywords);
@@ -1232,7 +1253,7 @@ export async function rerankResults(env, query, documents, topN = 20) {
       } finally {
         clearTimeout(timeoutId);
       }
-    }, 1, 500);
+    }, 0, 500);
   } catch (error) {
     console.error('重排请求失败（已重试）:', error);
     return null;
@@ -1240,7 +1261,7 @@ export async function rerankResults(env, query, documents, topN = 20) {
 }
 export async function rerankRows(env, query, rows, { topN = 30, minScore = 0.02 } = {}) {
   const passthrough = list => list.map(row => ({ ...row, relevance: row.relevance ?? 1 }));
-  if (!Array.isArray(rows) || rows.length <= 3) return passthrough(rows || []);
+  if (!Array.isArray(rows) || rows.length <= 5) return passthrough(rows || []);
   const documents = rows.map(row => [row.name, (row.key || '').replace(/\/+$/, ''), row.description]
     .filter(Boolean).join(' | '));
   const results = await rerankResults(env, query, documents, Math.min(rows.length, topN));
@@ -1349,6 +1370,11 @@ function collectAnchorDirs(baseResults) {
 function normalizeDirKey(key) {
   return (key || '').replace(/\/+$/, '');
 }
+// DB 里 parent_path 统一带尾斜杠，查询兄弟目录前必须补回来
+export function toParentLookupKey(key) {
+  const normalized = normalizeDirKey(key);
+  return normalized ? `${normalized}/` : '';
+}
 function shortDirPath(key) {
   const parts = normalizeDirKey(key).split('/').filter(Boolean);
   return parts.slice(-3).join('/');
@@ -1390,7 +1416,10 @@ async function loadComparableDirs(DB, anchorDirs) {
   const shallowest = [...anchorDirs].sort((a, b) => depthOf(a.key) - depthOf(b.key))[0];
   const children = await loadChildDirs(DB, [shallowest.key]);
   if (children.length > 1) return children.slice(0, SCOPE_PICK_MAX_CANDIDATES);
-  const parentSet = [...new Set(anchorDirs.map(d => normalizeDirKey(d.parent_path)))].filter(Boolean);
+  // DB 里 parent_path 统一带尾斜杠，normalizeDirKey 会去掉，查询前必须补回来，否则匹配不到兄弟目录
+  const parentSet = [...new Set(
+    anchorDirs.map(d => toParentLookupKey(d.parent_path)).filter(Boolean)
+  )];
   if (parentSet.length > 0) {
     const siblingRows = await DB.prepare(
       `SELECT id, key, name, parent_path FROM files
@@ -1421,9 +1450,17 @@ async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) 
   const anchorDirs = collectAnchorDirs(baseResults);
   if (anchorDirs.length === 0) return null;
   const candidates = await loadComparableDirs(DB, anchorDirs);
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0) {
+    console.log('[目录选择]', JSON.stringify({
+      candidates: [],
+      reason: 'no-comparable-dirs',
+      anchors: anchorDirs.map(dir => dir.key)
+    }));
+    return null;
+  }
   const parsed = parseTimeConstraint(constraint, query, now);
   let chosen = pickDirectoryByTime(candidates, parsed);
+  const autoPicked = chosen ? normalizeDirKey(chosen.key) : null;
   if (!chosen) {
     const numbered = candidates.map((d, i) => `${i + 1}. ${d.key}`).join('\n');
     const pickResponse = await fetchSiliconFlowChat(env, {
@@ -1435,8 +1472,23 @@ async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) 
     });
     const pickText = stripThinkTags(pickResponse.choices?.[0]?.message?.content);
     const picked = parseInt((pickText.match(/\d+/) || [])[0] || '0', 10);
+    console.log('[目录选择]', JSON.stringify({
+      candidates: candidates.map(d => normalizeDirKey(d.key)),
+      parsed,
+      autoPicked,
+      llmRaw: (pickText || '').slice(0, 40),
+      picked
+    }));
     if (!(picked > 0 && picked <= candidates.length)) return null;
     chosen = candidates[picked - 1];
+  } else {
+    console.log('[目录选择]', JSON.stringify({
+      candidates: candidates.map(d => normalizeDirKey(d.key)),
+      parsed,
+      autoPicked,
+      llmRaw: null,
+      picked: 0
+    }));
   }
   const scopeKey = normalizeDirKey(chosen.key);
   const scopeUpper = buildPrefixUpperBound(`${scopeKey}/`);
@@ -1581,6 +1633,16 @@ async function pickNameMatched(env, DB, query, constraint, baseResults, now) {
 }
 export async function resolveConstraintScope(env, DB, query, constraint, baseResults, now) {
   const hasSemesterHint = /学年|学期|\d{4}\s*[-~至到]\s*\d{4}/.test(`${constraint || ''} ${query || ''}`);
+  const parsed = parseTimeConstraint(constraint, query, now);
+  const anchors = collectAnchorDirs(baseResults);
+  console.log('[限定解析]', JSON.stringify({
+    constraint,
+    query: String(query || '').slice(0, 60),
+    hasSemesterHint,
+    parsed,
+    baseCount: Array.isArray(baseResults) ? baseResults.length : -1,
+    anchors: anchors.map(dir => dir.key)
+  }));
   let directoryScope = null;
   if (hasSemesterHint) {
     try {

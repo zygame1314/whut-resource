@@ -7,7 +7,9 @@ import {
   parseTimeConstraint,
   applyTimeConstraint,
   filterByRelevance,
-  mergeScopeFirst
+  mergeScopeFirst,
+  toParentLookupKey,
+  sanitizeConstraintTerms
 } from '../functions/utils.js';
 
 const NOW = '2026/10/25 05:00:00';
@@ -170,6 +172,22 @@ test('文件名级合并保留命中项的原始分数', () => {
   const merged = mergeScopeFirst(scope, base);
   assert.equal(merged.length, 1);
   assert.equal(merged[0].relevance, 0.5);
+});
+
+// ---------- 目录锚点 ----------
+test('兄弟目录查询补回尾斜杠', () => {
+  assert.equal(toParentLookupKey('0.课程资料/形势与政策'), '0.课程资料/形势与政策/');
+  assert.equal(toParentLookupKey('0.课程资料/形势与政策/'), '0.课程资料/形势与政策/');
+  assert.equal(toParentLookupKey(''), '');
+  assert.equal(toParentLookupKey(null), '');
+});
+
+// ---------- 限定词清洗 ----------
+test('描述性时间词不进入字面检索', () => {
+  assert.deepEqual(sanitizeConstraintTerms(['2026', '第二学期']), ['2026']);
+  assert.deepEqual(sanitizeConstraintTerms(['这学期']), []);
+  assert.deepEqual(sanitizeConstraintTerms(['2026第二学期']), ['2026']);
+  assert.deepEqual(sanitizeConstraintTerms(['张', '2024']), ['张', '2024']);
 });
 
 // ---------- 相关度过滤 ----------

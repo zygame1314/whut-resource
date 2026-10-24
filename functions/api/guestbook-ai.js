@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint, rerankRows } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint, rerankRows, sanitizeConstraintTerms } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'deepseek-v4.1-flash';
 const TOOLS = [
@@ -502,9 +502,7 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
         const seenIds = new Map();
         const perQueryTopK = queryList.length > 1 ? 10 : 15;
         const perQueryHits = {};
-        const terms = Array.isArray(constraints)
-            ? constraints.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim())
-            : [];
+        const terms = sanitizeConstraintTerms(constraints);
         let literalMatched = false;
         let literalPartial = false;
         const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
@@ -573,6 +571,19 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
         }
         const constraintPartial = terms.length > 0 && literalPartial && !scopeApplied;
         const filesWithScores = merged.slice(0, 20);
+        console.log('[handleSearch]', JSON.stringify({
+            queryList,
+            terms,
+            literalMatched,
+            literalPartial,
+            mergedCount: merged.length,
+            constraintText,
+            constraintResolved,
+            scopedPath,
+            scopedByName,
+            outCount: filesWithScores.length,
+            topKeys: filesWithScores.slice(0, 3).map(row => row.key)
+        }));
         if (filesWithScores.length === 0) {
             return {
                 success: true,
