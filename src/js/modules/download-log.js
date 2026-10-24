@@ -9,7 +9,7 @@
     let intentionalClose = false;
     let connectFailCount = 0;
     const MAX_RECONNECT_INTERVAL = 30000;
-    const MAX_RETRIES = 3;
+    const MAX_RETRIES = 20;
     const HEARTBEAT_INTERVAL = 30000;
     const VISIBILITY_DISCONNECT_DELAY = 60000;
     const IDLE_TIMEOUT = 5 * 60 * 1000;
