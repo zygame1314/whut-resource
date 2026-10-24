@@ -203,12 +203,47 @@ function refreshUploadTree(newDirKey) {
         }
     });
 }
+function prefersReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+function playCreateFolderFormEnter(form) {
+    if (prefersReducedMotion()) return;
+    form.style.setProperty('--create-folder-form-height', form.getBoundingClientRect().height + 'px');
+    form.classList.add('is-entering');
+    form.addEventListener('animationend', function onEnterEnd(e) {
+        if (e.target !== form || e.animationName !== 'createFolderFormIn') return;
+        form.removeEventListener('animationend', onEnterEnd);
+        form.classList.remove('is-entering');
+        form.style.removeProperty('--create-folder-form-height');
+    });
+}
+function collapseCreateFolderForm(form) {
+    if (!form || form.classList.contains('is-leaving')) return;
+    if (prefersReducedMotion()) {
+        form.remove();
+        return;
+    }
+    form.style.setProperty('--create-folder-form-height', form.getBoundingClientRect().height + 'px');
+    form.classList.remove('is-entering');
+    void form.offsetHeight;
+    form.classList.add('is-leaving');
+    let removed = false;
+    const finish = () => {
+        if (removed) return;
+        removed = true;
+        form.remove();
+    };
+    form.addEventListener('animationend', (e) => {
+        if (e.target === form && e.animationName === 'createFolderFormOut') finish();
+    });
+    setTimeout(finish, 400);
+}
 function showCreateFolderForm(parentPath) {
     const dropdown = uploadPathDropdown;
     if (!dropdown) return;
     let form = dropdown.querySelector('.create-folder-form');
     if (form) {
-        form.remove();
+        collapseCreateFolderForm(form);
         return;
     }
     form = document.createElement('div');
@@ -231,6 +266,7 @@ function showCreateFolderForm(parentPath) {
     } else {
         dropdown.insertBefore(form, dropdown.firstChild);
     }
+    playCreateFolderFormEnter(form);
     const input = form.querySelector('.create-folder-input');
     const confirmBtn = form.querySelector('.create-folder-confirm');
     const cancelBtn = form.querySelector('.create-folder-cancel');
@@ -256,20 +292,20 @@ function showCreateFolderForm(parentPath) {
             showNotification('该文件夹已存在', 'error');
             return;
         }
-        form.remove();
+        collapseCreateFolderForm(form);
         showNotification(`文件夹「${trimmedName}」已添加，上传后将正式创建`, 'success', 4000);
         refreshUploadTree(result.key);
     };
     const stopPropagation = (e) => e.stopPropagation();
     confirmBtn.addEventListener('click', function(e) { e.stopPropagation(); submit(); });
-    cancelBtn.addEventListener('click', function(e) { e.stopPropagation(); form.remove(); });
+    cancelBtn.addEventListener('click', function(e) { e.stopPropagation(); collapseCreateFolderForm(form); });
     input.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             submit();
         } else if (e.key === 'Escape') {
             e.stopPropagation();
-            form.remove();
+            collapseCreateFolderForm(form);
         }
     });
     input.addEventListener('click', stopPropagation);
