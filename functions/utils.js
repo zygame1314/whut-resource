@@ -1215,6 +1215,25 @@ export async function rerankResults(env, query, documents, topN = 20) {
     return null;
   }
 }
+export async function rerankRows(env, query, rows, { topN = 30, minScore = 0.02 } = {}) {
+  const passthrough = list => list.map(row => ({ ...row, relevance: row.relevance ?? 1 }));
+  if (!Array.isArray(rows) || rows.length <= 3) return passthrough(rows || []);
+  const documents = rows.map(row => [row.name, (row.key || '').replace(/\/+$/, ''), row.description]
+    .filter(Boolean).join(' | '));
+  const results = await rerankResults(env, query, documents, Math.min(rows.length, topN));
+  if (!results || results.length === 0) return passthrough(rows);
+  const scored = results
+    .map(item => ({ row: rows[item.index], score: Number(item.relevance_score) || 0 }))
+    .filter(item => item.row && item.score >= minScore)
+    .sort((a, b) => b.score - a.score);
+  if (scored.length === 0) return passthrough(rows);
+  const maxScore = Math.max(...scored.map(item => item.score), 0.0001);
+  return scored.map(item => ({
+    ...item.row,
+    relevance: item.score / maxScore,
+    rerank_score: item.score
+  }));
+}
 const SCOPE_PICK_MAX_CANDIDATES = 30;
 const SCOPE_CHILD_LIMIT = 150;
 // 硅基流动 L0 为 80k TPM：单批 120 条候选约 5k tokens，避免多批并发触发限流。

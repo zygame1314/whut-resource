@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint, rerankRows } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'deepseek-v4.1-flash';
 const TOOLS = [
@@ -514,7 +514,13 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
                 const literal = await searchByLiteralTerms(DB, q, terms, Math.max(perQueryTopK, 20));
                 const timeFiltered = applyTimeConstraint(literal, terms.join(' '), userContent || q, now);
                 if (timeFiltered) {
-                    filesWithScores = timeFiltered.map(row => ({ ...row, similarity_score: 1, relevance: 1, scoped: true }));
+                    const ranked = await rerankRows(env, userContent || q, timeFiltered, { topN: Math.max(perQueryTopK, 20) });
+                    filesWithScores = ranked.map(row => ({
+                        ...row,
+                        similarity_score: row.rerank_score ?? 1,
+                        relevance: row.relevance ?? 1,
+                        scoped: true
+                    }));
                     literalMatched = true;
                 } else {
                     literalPartial = true;

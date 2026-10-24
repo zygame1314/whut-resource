@@ -1,4 +1,4 @@
-import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint } from '../utils.js';
+import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint, rerankRows } from '../utils.js';
 const SEARCH_PROMPT = `把搜索语解析成检索计划，只输出一行 JSON：
 {"keywords":"...","constraint":"...","unrelated":false}
 
@@ -91,10 +91,12 @@ export async function onRequestGet({ request, env }) {
         }
         let filesWithScores;
         if (literalHit) {
-            filesWithScores = literalHit.map(row => ({
+            const ranked = await rerankRows(env, query, literalHit, { topN: topK });
+            const trimmed = filterByRelevance(ranked, { minRelevance: 0.15, relativeRatio: 0.3 });
+            filesWithScores = trimmed.map(row => ({
                 ...row,
-                similarity_score: 1,
-                relevance: 1,
+                similarity_score: row.rerank_score ?? 1,
+                relevance: row.relevance ?? 1,
                 scoped: true
             }));
         } else {
