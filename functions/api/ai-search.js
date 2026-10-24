@@ -1,38 +1,25 @@
-import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst, filterByRelevance } from '../utils.js';
+import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms } from '../utils.js';
 const SEARCH_PROMPT = `你是大学课程资源搜索助手，把用户【搜索词】解析成检索计划。
-    资源库按 "0.课程资料/<课程名>/<学年学期>/" 组织，学期目录写法只能在库里查到，不要猜。
+    资源库按 "0.课程资料/<课程名>/<学年学期>/" 组织。
 
     规则：
-    1. keywords：把课程/活动缩写扩展为全称后的语义搜索词，2-3 个，用空格分隔，保留课程后缀（A/B、(一)、1）。
-       - keywords 只描述"要找什么内容"，不要包含学期、年份、老师、章节等限定词
-       - 课程名必须整体保留，禁止拆成通用词。反例：用户问"形式与政策"时，
-         禁止输出"政策""资料""文件""答案"这类词——它们会召回转专业政策、保研政策等无关内容。
-         正确做法是输出课程全名"形势与政策"（注意用户可能把"形势"写成"形式"，统一用"形势与政策"）
-       - 缩写对照：
-         大物→大学物理、高数→高等数学、线代→线性代数
-         概统/概率→概率论与数理统计
-         数电→数字电子技术、模电→模拟电子技术
-         计组→计算机组成原理、计网→计算机网络
-         复变→复变函数
-         思修→思想道德与法治
-         史纲/近代史→中国近现代史纲要
-         马原→马克思主义基本原理
-         毛概→毛泽东思想和中国特色社会主义理论体系概论
-         习概→习近平新时代中国特色社会主义思想概论
-         数分→数学分析、高代→高等代数
-         材力→材料力学、理力→理论力学、工图→工程图学、电工→电工与电子技术基础
-       - 活动类：保研/推免→保研 推免 研究生、考研→考研 研究生、四级→英语 四级 CET4、六级→英语 六级 CET6、
-         竞赛/数模→竞赛 数学建模、实习/就业→实习 就业 招聘、毕设→毕业设计 论文、期末/复习→期末 复习 考试
-       - 校园平台：小雅→小雅平台 教学平台、学习通/超星→超星 学习通、学堂在线→学堂在线 MOOC、
-         雨课堂→雨课堂、优慕课→优慕课、智慧树→智慧树
-    2. constraint：能体现在【目录名】上的时间限定，原样描述（如"2026年第二学期""这学期""上学期"）。
-       不换算格式、不补全学年、不假设目录写法；没有则填 ""。
-    3. nameFilter：只能体现在【文件名】上的限定词，数组。典型是单个年份（"2024"）、老师名、章节号。
-       库里并非所有课程都按学期建子目录——很多课程（如高等数学）直接把文件放在课程目录下，年份只写在文件名里
-       （如 "2024-2025-2-高等数学A下期末.pdf"）。这类限定必须放进 nameFilter，否则永远匹配不到。
-       判定原则：如果限定词更可能出现在文件名而非目录名，就放 nameFilter。没有则填 []。
-    4. 只输出严格 JSON，无 markdown、无解释：{"keywords":"...","constraint":"...","nameFilter":[],"unrelated":false}
-    5. 明显与学习无关（纯聊天、脏话、娱乐八卦）输出 {"keywords":"","constraint":"","nameFilter":[],"unrelated":true}；不确定时按相关处理。`;
+    1. keywords：用户真正要找的内容，2-3 个词，用空格分隔。简称保持原样即可（高数、大物、毛概
+       都能直接搜到），保留课程后缀（A/B、一/二、1）。
+       - 只写"要找什么"，不含时间、年份、老师、章节等限定词
+       - 课程名必须整体保留，禁止拆成"政策""资料""答案""文件"这类通用词，
+         否则会召回转专业政策、保研政策等完全无关的内容
+    2. constraint：用户附加的限定，原样摘录。包括时间（"2024年""这学期""2026第二学期"）、
+       老师名、版本号、章节号等。没有则填 ""。
+    3. constraintTerms：把 constraint 换成【库里可能真实存在的字面词】，数组，后端拿去直接搜文件名/目录名。
+       - 去掉口语修饰："2024年"→["2024"]、"张老师的线代"→["张"]
+       - 已有格式原样保留："2025-2026-2"→["2025-2026-2"]
+       - 相对说法必须按【当前时间】自己换算成具体学年学期：
+         "这学期"→当前学期、"上学期"→上一学期、"去年"→上一学年两个学期都列
+       - 学期口径：9月~次年1月为第 1 学期，2月~8月为第 2 学期
+       - 拿不准就多给几个候选；实在无法字面表达才填 []
+    4. 只输出严格 JSON，无 markdown、无解释：
+       {"keywords":"...","constraint":"...","constraintTerms":[],"unrelated":false}
+    5. 与学习无关（纯聊天、脏话、娱乐八卦）输出 {"keywords":"","constraint":"","constraintTerms":[],"unrelated":true}；不确定时按相关处理。`;
 export async function onRequestGet({ request, env }) {
     const authHeader = request.headers.get('Authorization');
     let user = null;
@@ -75,7 +62,7 @@ export async function onRequestGet({ request, env }) {
         const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         let finalKeywords = query;
         let constraint = '';
-        let nameFilter = [];
+        let constraintTerms = [];
         try {
             const llmResponse = await fetchSiliconFlowChat(env, {
                 messages: [{ role: 'system', content: SEARCH_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: query }]
@@ -95,46 +82,69 @@ export async function onRequestGet({ request, env }) {
                 }
                 if (plan.keywords) finalKeywords = plan.keywords;
                 constraint = plan.constraint;
-                nameFilter = plan.nameFilter;
+                constraintTerms = plan.constraintTerms;
             }
         } catch (e) {
             console.error('LLM 解析检索计划失败，使用原始查询:', e);
         }
-        const searchResult = await hybridSearch(DB, VECTORIZE, env, finalKeywords, { topK: topK });
-        let filesWithScores = filterByRelevance(searchResult.results || []);
-        if (nameFilter.length > 0) {
-            filesWithScores = applyNameFilter(filesWithScores, nameFilter);
-        }
         let scopedPath = '';
         let constraintResolved = true;
-        if (constraint) {
-            try {
-                const scope = await resolveConstraintScope(env, DB, query, constraint, filesWithScores, now);
-                if (scope) {
-                    scopedPath = scope.path;
-                    filesWithScores = mergeScopeFirst(scope, filesWithScores);
-                } else {
+        let scopedByName = false;
+        let literalHit = null;
+        if (constraint && constraintTerms.length > 0) {
+            literalHit = await searchByLiteralTerms(DB, finalKeywords, constraintTerms, topK);
+            if (literalHit) scopedByName = true;
+        }
+        let filesWithScores;
+        if (literalHit) {
+            filesWithScores = literalHit.map(row => ({
+                ...row,
+                similarity_score: 1,
+                relevance: 1,
+                scoped: true
+            }));
+        } else {
+            const searchResult = await hybridSearch(DB, VECTORIZE, env, finalKeywords, { topK: topK });
+            filesWithScores = filterByRelevance(searchResult.results || []);
+            if (constraint) {
+                try {
+                    const scope = await resolveConstraintScope(env, DB, query, constraint, filesWithScores, now);
+                    if (scope) {
+                        scopedByName = scope.mode === 'name';
+                        scopedPath = scope.path || '';
+                        filesWithScores = mergeScopeFirst(scope, filesWithScores);
+                    } else {
+                        constraintResolved = false;
+                    }
+                } catch (e) {
                     constraintResolved = false;
+                    console.error('限定条件定位失败:', e);
                 }
-            } catch (e) {
-                constraintResolved = false;
-                console.error('限定条件目录定位失败:', e);
             }
         }
-        const constraintNote = constraint && !constraintResolved
-            ? `未能定位到符合「${constraint}」的目录，以下为其他学期/未限定的相关资源，仅供参考`
-            : (scopedPath ? `已限定到「${scopedPath}」` : '');
+        let constraintNote = '';
+        if (constraint) {
+            if (!constraintResolved) {
+                constraintNote = `未能定位到符合「${constraint}」的资源，以下为仅按关键词命中的内容，请自行核对`;
+            } else if (scopedByName) {
+                constraintNote = `已按「${constraint}」筛选`;
+            } else if (scopedPath) {
+                constraintNote = `已限定到「${scopedPath}」`;
+            }
+        }
         if (filesWithScores.length === 0) {
-            const emptyMessage = buildEmptyMessage(constraint, nameFilter, constraintNote);
             return new Response(JSON.stringify({
                 success: true,
                 files: [],
                 directories: [],
                 keywords: finalKeywords,
                 constraint,
-                nameFilter,
                 constraintResolved,
-                message: emptyMessage
+                scopedPath,
+                constraintNote: '',
+                message: buildEmptyMessage(constraint),
+                totalItems: 0,
+                isAISearch: true
             }), {
                 status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
@@ -147,7 +157,6 @@ export async function onRequestGet({ request, env }) {
             directories: directories,
             keywords: finalKeywords,
             constraint,
-            nameFilter,
             constraintResolved,
             constraintNote,
             scopedPath,
@@ -167,7 +176,7 @@ function parseSearchPlan(rawContent) {
     const cleaned = stripThink(rawContent);
     if (!cleaned) return null;
     if (cleaned.toUpperCase() === 'NULL') {
-        return { keywords: '', constraint: '', nameFilter: [], unrelated: true };
+        return { keywords: '', constraint: '', constraintTerms: [], unrelated: true };
     }
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (!match) return null;
@@ -177,31 +186,20 @@ function parseSearchPlan(rawContent) {
     } catch {
         return null;
     }
-    const nameFilter = Array.isArray(parsed.nameFilter)
-        ? parsed.nameFilter.filter(v => typeof v === 'string' && v.trim().length > 0).map(v => v.trim())
+    const constraintTerms = Array.isArray(parsed.constraintTerms)
+        ? parsed.constraintTerms
+            .filter(v => typeof v === 'string' && v.trim().length > 0)
+            .map(v => v.trim())
         : [];
     return {
         keywords: typeof parsed.keywords === 'string' ? parsed.keywords.trim() : '',
         constraint: typeof parsed.constraint === 'string' ? parsed.constraint.trim() : '',
-        nameFilter,
+        constraintTerms,
         unrelated: parsed.unrelated === true
     };
 }
-function applyNameFilter(results, nameFilter) {
-    if (!Array.isArray(results) || results.length === 0) return [];
-    if (!Array.isArray(nameFilter) || nameFilter.length === 0) return results;
-    const terms = nameFilter.map(t => t.toLowerCase());
-    return results.filter(f => {
-        const haystack = `${f.name || ''} ${f.key || ''}`.toLowerCase();
-        return terms.every(t => haystack.includes(t));
-    });
-}
-function buildEmptyMessage(constraint, nameFilter, constraintNote) {
-    if (Array.isArray(nameFilter) && nameFilter.length > 0) {
-        return `未找到符合「${nameFilter.join(' ')}」的资源`;
-    }
-    if (constraintNote) return constraintNote;
-    if (constraint) return `未找到符合「${constraint}」的相关资源`;
+function buildEmptyMessage(constraint) {
+    if (constraint) return `未找到符合「${constraint}」的资源`;
     return '未找到相关资源';
 }
 function stripThink(rawContent) {

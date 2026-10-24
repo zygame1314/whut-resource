@@ -848,6 +848,39 @@ export function buildFtsMatchQuery(input) {
   }
   return processedTerms.join(' ').trim();
 }
+export async function searchByLiteralTerms(DB, keywords, terms, limit = 50) {
+  if (!Array.isArray(terms) || terms.length === 0) return null;
+  const baseQuery = buildFtsMatchQuery(keywords);
+  if (!baseQuery) return null;
+  const termQueries = terms
+    .map(t => buildFtsMatchQuery(t))
+    .filter(Boolean);
+  if (termQueries.length === 0) return null;
+  const matchQuery = [baseQuery, ...termQueries.map(q => `AND (${q})`)].join(' ');
+  try {
+    const result = await DB.prepare(
+      `SELECT f.id, f.name, f.key, f.parent_path, f.is_directory, f.is_link, f.link_url,
+              f.description, f.contentType, f.size, f.downloads, f.likes, f.uploaded
+       FROM files f
+       JOIN files_fts ON f.id = files_fts.rowid
+       WHERE files_fts MATCH ?
+       ORDER BY rank
+       LIMIT ?`
+    ).bind(matchQuery, limit).all();
+    const rows = result.results || [];
+    if (rows.length === 0) return null;
+    const lowered = terms.map(t => String(t).toLowerCase()).filter(Boolean);
+    const verified = rows.filter(row => {
+      const haystack = `${row.name || ''} ${row.key || ''}`.toLowerCase();
+      return lowered.every(t => haystack.includes(t));
+    });
+    if (verified.length === 0) return null;
+    return verified;
+  } catch (e) {
+    console.error('字面限定搜索失败:', e);
+    return null;
+  }
+}
 export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
   const {
     topK = 50,
@@ -1103,6 +1136,19 @@ export async function rerankResults(env, query, documents, topN = 20) {
 }
 const SCOPE_PICK_MAX_CANDIDATES = 30;
 const SCOPE_CHILD_LIMIT = 60;
+const FILE_PICK_BATCH_SIZE = 120;
+const FILE_PICK_MAX_BATCHES = 2;
+const FILE_PICK_MAX_CANDIDATES = FILE_PICK_BATCH_SIZE * FILE_PICK_MAX_BATCHES;
+const FILE_PICK_MAX_DIRS = 3;
+const FILE_PICK_DIR_LIMIT = 150;
+const FILE_PICK_PROMPT = `你是资源筛选助手。根据用户给出的限定条件，从【候选资源】中挑出真正符合该限定的条目。
+    规则：
+    1. 只输出编号，多个用英文逗号分隔（如 1,4,7）；一条都不符合就输出 0。严禁输出解释。
+    2. 限定条件可能是时间（年份/学期/学年），也可能是老师名、版本号、章节号等。按你对该领域的常识判断语义是否符合。
+    3. 时间的常见写法是"学年-学期"（如 2024-2025-2：前段是学年起始年，末段 1/2 代表第几学期）。
+       一个学年横跨两个自然年，所以限定到某个年份时，学年区间覆盖该年份的都算符合。
+    4. "这学期""上学期""下学期""今年""去年"这类相对说法，按【当前时间】换算出具体学年学期后再判断。
+    5. 名称里完全没有相关信息的，一律不选。宁可少选，也不要把明显不符的算进来。`;
 const SCOPE_PICK_PROMPT = `你是学期目录筛选助手。根据用户的时间限定，从【候选目录】中选出唯一匹配项。
     规则：
     1. 只能返回编号数字，或 0。严禁输出解释、标点或其它文字。
@@ -1110,7 +1156,8 @@ const SCOPE_PICK_PROMPT = `你是学期目录筛选助手。根据用户的时�
     3. 相对说法按【当前时间】推算："这学期"=当前所在学期，"上学期"=前一个，"下学期"=后一个。
     4. 具体说法（如"2026第二学期"）按目录名中真实写着的学年学期匹配。
     5. 若相对说法与具体说法冲突，以具体说法为准。
-    6. 只要存在可解释的匹配就必须返回编号；仅当所有候选目录都与限定明显无关时才返回 0。`;
+    6. 只有当候选目录名本身能对应上用户的限定（含相对说法换算后的结果）时才返回该编号。
+    7. 如果所有候选目录名都对不上限定（例如候选全是课程目录，而限定是年份），必须返回 0，禁止勉强选一个。`;
 function stripThinkTags(rawContent) {
   if (typeof rawContent !== 'string') return '';
   let text = rawContent;
@@ -1162,8 +1209,8 @@ async function loadChildDirs(DB, dirKeys) {
   const rows = await DB.prepare(
     `SELECT id, key, name, parent_path FROM files
      WHERE is_directory = 1 AND parent_path IN (${lookups.map(() => '?').join(',')})
-     LIMIT 200`
-  ).bind(...lookups).all();
+     LIMIT ?`
+  ).bind(...lookups, SCOPE_PICK_MAX_CANDIDATES + 1).all();
   for (const row of rows.results || []) {
     if (!row.key || seen.has(row.key)) continue;
     if (anchorKeys.has(normalizeDirKey(row.key))) continue;
@@ -1183,18 +1230,19 @@ async function loadComparableDirs(DB, anchorDirs) {
     const siblingRows = await DB.prepare(
       `SELECT id, key, name, parent_path FROM files
        WHERE is_directory = 1 AND parent_path IN (${parentSet.map(() => '?').join(',')})
-       ORDER BY key LIMIT 200`
-    ).bind(...parentSet).all();
+       LIMIT ?`
+    ).bind(...parentSet, SCOPE_PICK_MAX_CANDIDATES + 1).all();
     const siblings = (siblingRows.results || []).filter(r => r.key && normalizeDirKey(r.key) !== normalizeDirKey(r.parent_path));
+    siblings.sort((a, b) => (a.key || '').localeCompare(b.key || ''));
     if (siblings.length > 1) return siblings.slice(0, SCOPE_PICK_MAX_CANDIDATES);
   }
   return children.slice(0, SCOPE_PICK_MAX_CANDIDATES);
 }
-export async function resolveConstraintScope(env, DB, query, constraint, baseResults, now) {
+async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) {
   const anchorDirs = collectAnchorDirs(baseResults);
   if (anchorDirs.length === 0) return null;
   const candidates = await loadComparableDirs(DB, anchorDirs);
-  if (candidates.length < 2) return null;
+  if (candidates.length === 0) return null;
   const numbered = candidates.map((d, i) => `${i + 1}. ${d.key}`).join('\n');
   const pickResponse = await fetchSiliconFlowChat(env, {
     messages: [
@@ -1213,7 +1261,6 @@ export async function resolveConstraintScope(env, DB, query, constraint, baseRes
     `SELECT id, name, key, parent_path, is_directory, is_link, link_url, description, contentType, size, downloads, likes, uploaded
      FROM files
      WHERE key >= ? AND key < ?
-     ORDER BY key
      LIMIT ?`
   ).bind(scopeKey, scopeUpper, SCOPE_CHILD_LIMIT + 1).all();
   const rows = fullRows.results || [];
@@ -1225,9 +1272,136 @@ export async function resolveConstraintScope(env, DB, query, constraint, baseRes
     children: rows.filter(r => normalizeDirKey(r.key) !== scopeKey)
   };
 }
+function interleaveByDir(groups, limit) {
+  const out = [];
+  let round = 0;
+  while (out.length < limit) {
+    let added = false;
+    for (const group of groups) {
+      if (round < group.length) {
+        out.push(group[round]);
+        added = true;
+        if (out.length >= limit) break;
+      }
+    }
+    if (!added) break;
+    round += 1;
+  }
+  return out;
+}
+async function loadAnchorFiles(DB, anchorDirs) {
+  const depthOf = key => key.split('/').filter(Boolean).length;
+  const unique = [...new Set(
+    (anchorDirs || []).map(d => normalizeDirKey(d.key)).filter(Boolean)
+  )].filter(k => depthOf(k) >= 2);
+  if (unique.length === 0) return [];
+  const ancestors = unique.filter(k => !unique.some(other => other !== k && k.startsWith(`${other}/`)));
+  const dirs = ancestors.slice(0, FILE_PICK_MAX_DIRS);
+  if (dirs.length === 0) return [];
+  const seenId = new Set();
+  const groups = [];
+  for (const dir of dirs) {
+    const lower = `${dir}/`;
+    const upper = buildPrefixUpperBound(lower);
+    const rows = await DB.prepare(
+      `SELECT id, name, key, parent_path, is_directory, is_link, link_url, description, contentType, size, downloads, likes, uploaded
+       FROM files
+       WHERE key >= ? AND key < ?
+       LIMIT ?`
+    ).bind(lower, upper, FILE_PICK_DIR_LIMIT).all();
+    const group = [];
+    for (const row of rows.results || []) {
+      if (!row || row.id == null || seenId.has(row.id)) continue;
+      if (row.is_directory) continue;
+      seenId.add(row.id);
+      group.push(row);
+    }
+    if (group.length > 0) groups.push(group);
+  }
+  return interleaveByDir(groups, FILE_PICK_MAX_CANDIDATES);
+}
+async function pickNameMatched(env, DB, constraint, baseResults, now) {
+  const anchorDirs = collectAnchorDirs(baseResults);
+  let pool = [];
+  if (anchorDirs.length > 0) {
+    try {
+      pool = await loadAnchorFiles(DB, anchorDirs);
+    } catch (e) {
+      console.error('加载锚定目录文件失败:', e);
+      pool = [];
+    }
+  }
+  if (pool.length === 0) {
+    pool = (baseResults || []).filter(row => row && row.name && !row.is_directory);
+  }
+  if (pool.length === 0) return null;
+  const hits = new Set();
+  const scopedPool = pool.slice(0, FILE_PICK_MAX_CANDIDATES);
+  for (let offset = 0; offset < scopedPool.length; offset += FILE_PICK_BATCH_SIZE) {
+    const chunk = scopedPool.slice(offset, offset + FILE_PICK_BATCH_SIZE);
+    const numbered = chunk.map((row, i) => `${i + 1}. ${row.name}`).join('\n');
+    let pickText;
+    try {
+      const pickResponse = await fetchSiliconFlowChat(env, {
+        messages: [
+          { role: 'system', content: FILE_PICK_PROMPT + `\n当前时间：${now}` },
+          { role: 'user', content: `用户的限定条件：${constraint}\n候选资源：\n${numbered}\n请返回命中的编号：` }
+        ]
+      });
+      pickText = stripThinkTags(pickResponse.choices?.[0]?.message?.content);
+    } catch (e) {
+      console.error('文件名级限定裁决失败:', e);
+      continue;
+    }
+    const trimmed = (pickText || '').trim();
+    if (!trimmed) continue;
+    const numberPattern = /\d+/g;
+    let matched;
+    while ((matched = numberPattern.exec(trimmed)) !== null) {
+      const index = parseInt(matched[0], 10);
+      if (index > 0 && index <= chunk.length) hits.add(chunk[index - 1].id);
+    }
+  }
+  if (hits.size === 0) return null;
+  return {
+    matchedIds: [...hits],
+    files: scopedPool.filter(row => hits.has(row.id))
+  };
+}
+export async function resolveConstraintScope(env, DB, query, constraint, baseResults, now) {
+  let directoryScope = null;
+  try {
+    directoryScope = await pickDirectoryScope(env, DB, query, constraint, baseResults, now);
+  } catch (e) {
+    console.error('目录级限定裁决失败:', e);
+  }
+  if (directoryScope) return { mode: 'directory', ...directoryScope };
+  const nameScope = await pickNameMatched(env, DB, constraint, baseResults, now);
+  if (!nameScope) return null;
+  return { mode: 'name', path: '', ...nameScope };
+}
 export function mergeScopeFirst(scope, baseResults) {
   const seen = new Set();
   const merged = [];
+  if (scope.mode === 'name') {
+    const matched = new Set(scope.matchedIds || []);
+    const hits = [];
+    for (const item of baseResults || []) {
+      if (!item || !matched.has(item.id) || seen.has(item.id)) continue;
+      seen.add(item.id);
+      hits.push(item);
+    }
+    for (const row of scope.files || []) {
+      if (!row || seen.has(row.id)) continue;
+      seen.add(row.id);
+      hits.push(row);
+    }
+    hits.sort((a, b) => (Number(b.relevance) || 0) - (Number(a.relevance) || 0));
+    hits.forEach(item => {
+      merged.push({ ...item, scoped: true });
+    });
+    return merged;
+  }
   const scopePrefix = normalizeDirKey(scope.path);
   const inScope = item => {
     const key = normalizeDirKey(item && item.key);
@@ -1249,7 +1423,7 @@ export function mergeScopeFirst(scope, baseResults) {
   return merged;
 }
 const SILICONFLOW_CHAT_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-const DEFAULT_CHAT_MODEL = 'Qwen/Qwen3-8B';
+const DEFAULT_CHAT_MODEL = 'Qwen/Qwen3.5-4B';
 export async function fetchSiliconFlowChat(env, { messages, tools = null, toolChoice = 'auto', temperature = 0.1, model = DEFAULT_CHAT_MODEL, maxTokens = null, enableThinking = false }) {
   if (!env.SILICONFLOW_API_KEY) {
     throw new Error('未配置 SILICONFLOW_API_KEY');

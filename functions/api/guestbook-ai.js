@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'deepseek-v4.1-flash';
 const TOOLS = [
@@ -57,7 +57,7 @@ const TOOLS = [
         type: 'function',
         function: {
             name: 'search_resources',
-            description: '搜索资源库。仅限礼貌的资源请求（含"请/求/谢谢/麻烦/帮忙/劳驾/您"等字眼）；纯名词短语（如"高数答案"）禁止搜索，改用 reject_message。每条留言只调用一次，多门课程分别放进 queries，时间/学期限定放进 constraints。',
+            description: '搜索资源库。仅限礼貌的资源请求（含"请/求/谢谢/麻烦/帮忙/劳驾/您"等字眼）；纯名词短语（如"高数答案"）禁止搜索，改用 reject_message。每条留言只调用一次，多门课程分别放进 queries，额外限定放进 constraints。',
             parameters: {
                 type: 'object',
                 properties: {
@@ -69,7 +69,12 @@ const TOOLS = [
                     constraints: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: '用户明确提出的时间/学期限定，原样摘录，例如"2026第二学期""这学期""上学期""2025-2026-2"。不要猜测、不要换算成别的格式、不要补全学年，用户怎么说就怎么抄。用户没有提到任何时间或学期限定时，传空数组 []。'
+                        description: '用户在课程名之外附加的限定，原样摘录用户的原话。可以是时间（"2024年""2026第二学期""这学期""上学期"），也可以是老师名、版本号、章节号等。不要猜测、不要改写。没有额外限定时传空数组 []。'
+                    },
+                    constraint_terms: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: '把 constraints 换成【库里可能真实存在的字面词】，后端拿去直接搜文件名/目录名。去掉口语修饰："2024年"→["2024"]、"张老师的高数"→["张"]；原样保留格式："2025-2026-2"→["2025-2026-2"]。相对说法必须自己按当前时间换算成具体学年学期，不要留空："这学期"→[如"2026-2027-1"]、"上学期"→[如"2025-2026-2"]、"去年"→上一学年两个学期都列。学期口径：9月~次年1月为第1学期，2月~8月为第2学期。拿不准就多给几个候选，实在无法字面表达才传 []。没有限定时也传 []。'
                     }
                 },
                 required: ['queries']
@@ -137,7 +142,7 @@ const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站（公益站，
 ban_user: 极其严重违规（反动/暴恐/违法/昵称违规），封禁并删留言
 delete_message: 严重违规（辱骂/色情/恶意诱导如藏头诗）
 reject_message: 驳回并告知原因。适用于无关内容、泄露联系方式、表述简陋、仅发课程名无请求语句、命令式、质疑抱怨
-search_resources: 仅限礼貌的资源请求。课程缩写展开（大物→大学物理、高数→高等数学、毛概→毛泽东思想、线代→线性代数、马原→马克思主义、近代史→中国近现代史、思修→思想道德），保留后缀(A/B/C、一/二)。多门课每门一个元素放进 queries，每条留言只调用一次。用户提到时间/学期（"这学期""2026第二学期""上学期""去年的"）必须把原话摘进 constraints，不改写不换算，没提就传 []
+search_resources: 仅限礼貌的资源请求。queries 放课程名，简称保持原样即可（高数、大物、毛概都能搜到），保留后缀(A/B/C、一/二)，课程名要整体写，禁止拆成"政策""资料""答案"这类通用词。多门课每门一个元素，每条留言只调用一次。课程名之外的限定（时间、老师名、版本号）把原话摘进 constraints；再把可字面检索的写法放进 constraint_terms，相对说法（这学期/上学期/去年）必须按当前时间换算成具体学年学期，没提就都传 []
 mark_resolved: 可直接解决的非资源类留言（感谢/祝福等）。必须填 reply（审计备注）和 note（用户可见）
 keep_pending: 合理请求但暂无法自动处理，等人工。category 以课程名为单位，优先精确匹配已有分类；无匹配用标准课程名（"高等数学"而非"高数"），不加"求""资料"等冗余词
 
@@ -310,7 +315,8 @@ export async function processWithAIAgent(guestbookEntry, env) {
                         perQueryHits: toolResult.perQueryHits,
                         constraint: toolResult.constraint,
                         constraintResolved: toolResult.constraintResolved,
-                        scopedPath: toolResult.scopedPath
+                        scopedPath: toolResult.scopedPath,
+                        scopedByName: toolResult.scopedByName
                     }
                 );
             }
@@ -388,7 +394,7 @@ async function executeToolCall(functionName, args, guestbookEntry, env) {
         case 'ban_user':
             return await handleBanUser(guestbookEntry, args.reason, env);
         case 'search_resources':
-            return await handleSearch(args.queries, env, args.constraints, guestbookEntry.content);
+            return await handleSearch(args.queries, env, args.constraints, guestbookEntry.content, args.constraint_terms);
         case 'mark_resolved':
             return await handleResolve(guestbookEntry, args.reply, null, null, env, args.note);
         case 'keep_pending':
@@ -482,7 +488,7 @@ function normalizeConstraints(constraints) {
         .map(c => c.trim())
         .join('；');
 }
-async function handleSearch(queries, env, constraints = [], userContent = '') {
+async function handleSearch(queries, env, constraints = [], userContent = '', constraintTerms = []) {
     const VECTORIZE = env.VECTORIZE;
     const DB = env.DB;
     if (!VECTORIZE || !DB || !env.SILICONFLOW_API_KEY) {
@@ -507,9 +513,23 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
         const seenIds = new Map();
         const perQueryTopK = queryList.length > 1 ? 10 : 15;
         const perQueryHits = {};
+        const terms = Array.isArray(constraintTerms)
+            ? constraintTerms.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim())
+            : [];
+        let literalMatched = false;
         for (const q of queryList) {
-            const searchResult = await hybridSearch(DB, VECTORIZE, env, q, { topK: perQueryTopK, vectorTopK: 20, ftsLimit: 20 });
-            const filesWithScores = searchResult.results || [];
+            let filesWithScores = null;
+            if (terms.length > 0) {
+                const literal = await searchByLiteralTerms(DB, q, terms, Math.max(perQueryTopK, 20));
+                if (literal) {
+                    filesWithScores = literal.map(row => ({ ...row, similarity_score: 1, relevance: 1 }));
+                    literalMatched = true;
+                }
+            }
+            if (!filesWithScores) {
+                const searchResult = await hybridSearch(DB, VECTORIZE, env, q, { topK: perQueryTopK, vectorTopK: 20, ftsLimit: 20 });
+                filesWithScores = searchResult.results || [];
+            }
             perQueryHits[q] = filesWithScores.length;
             for (const f of filesWithScores) {
                 if (f.id != null) {
@@ -531,33 +551,39 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
         const constraintText = normalizeConstraints(constraints);
         let constraintResolved = true;
         let scopedPath = '';
-        if (constraintText && merged.length > 0) {
+        let scopedByName = false;
+        if (constraintText && merged.length > 0 && !literalMatched) {
             const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
             try {
                 const scope = await resolveConstraintScope(env, DB, userContent || constraintText, constraintText, merged, now);
                 if (scope) {
-                    scopedPath = scope.path;
+                    scopedByName = scope.mode === 'name';
+                    scopedPath = scope.path || '';
                     merged = mergeScopeFirst(scope, merged);
                 } else {
                     constraintResolved = false;
                 }
             } catch (e) {
                 constraintResolved = false;
-                console.error('留言板学期限定定位失败:', e);
+                console.error('留言板限定定位失败:', e);
             }
+        } else if (literalMatched && constraintText) {
+            scopedByName = true;
         }
         const filesWithScores = merged.slice(0, 20);
         if (filesWithScores.length === 0) {
             return {
                 success: true,
                 action: 'search',
-                message: '未找到相关资源',
+                message: constraintResolved && constraintText
+                    ? `未找到符合「${constraintText}」的资源`
+                    : '未找到相关资源',
                 searchResults: [],
                 query: queryList.join('、'),
                 queryList,
                 perQueryHits,
                 constraint: constraintText,
-                constraintResolved: false
+                constraintResolved
             };
         }
         return {
@@ -570,7 +596,8 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
             perQueryHits,
             constraint: constraintText,
             constraintResolved,
-            scopedPath
+            scopedPath,
+            scopedByName
         };
     } catch (error) {
         console.error('搜索错误:', error);
@@ -583,7 +610,7 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
     }
 }
 async function handleSearchResults(guestbookEntry, searchResults, env, query = '', searchMeta = {}) {
-    const { queryList = [], perQueryHits = {}, constraint = '', constraintResolved = true, scopedPath = '' } = searchMeta;
+    const { queryList = [], perQueryHits = {}, constraint = '', constraintResolved = true, scopedPath = '', scopedByName = false } = searchMeta;
     if (!searchResults || searchResults.length === 0) {
         if (env && env.DB) {
             if (queryList.length > 0) {
@@ -651,8 +678,8 @@ async function handleSearchResults(guestbookEntry, searchResults, env, query = '
         : '';
     const constraintBlock = constraint
         ? (constraintResolved
-            ? `\n【学期限定】${constraint}（已定位到 ${scopedPath || '列表首位'}，优先推荐该项）`
-            : `\n【学期限定】${constraint}（库中未找到该学期目录。下列结果可能是其他学期，禁止当作该学期资源推荐，改填 pending_categories 并在 note 里说明已登记补充）`)
+            ? `\n【附加限定】${constraint}（已${scopedByName ? '按文件名筛选' : `定位到 ${scopedPath || '列表首位'}`}，下列结果均满足该限定，优先推荐）`
+            : `\n【附加限定】${constraint}（库中未找到符合该限定的资源。下列结果不符合该限定，禁止当作满足限定的资源推荐，改填 pending_categories 并在 note 里说明已登记补充）`)
         : '';
     const secondPrompt = `搜索结果：
 ${resourceList}
@@ -661,7 +688,7 @@ ${resourceList}
 ${hitSummary}${constraintBlock}
 
 【匹配规则】只认同名或高度相关的课程。不同课程严禁顶替（"金属工艺学B"≠"汽车制造工艺学"/"金属学及热处理"；"创业学"≠培养方案目录）。宁可判未命中也不硬凑。
-【学期规则】用户有学期限定时，只有学期一致的资源才算匹配。学期不符即使课程名完全命中也不得推荐，禁止用"仅供参考"把旧学期资料当替代品。
+【限定规则】用户有附加限定时，只有限定一致的资源才算匹配。限定不符即使课程名完全命中也不得推荐，禁止用"仅供参考"把不符资料当替代品。
 
 有满足需求的资源就用 mark_resolved：每门命中课程的资源序号填进 matched_file_indices；未命中的课程填进 pending_categories 自动建待办。全部未命中用 keep_pending。
 优先推荐目录（📁，代表资源合集），但学期不符的目录同样不得推荐。${todoHint}`;
