@@ -827,8 +827,9 @@ export function buildRichEmbeddingText(file) {
 }
 const FTS_RESERVED_OPERATORS = ['AND', 'OR', 'NOT'];
 const FTS_SPECIAL_CHARS = /[-*():^"'./\\?!,;=<>@#$%&|~{}\[\]`]/g;
-export function buildFtsMatchQuery(input) {
+export function buildFtsMatchQuery(input, operator = 'AND') {
   if (typeof input !== 'string') return '';
+  const joiner = operator === 'OR' ? ' OR ' : ' ';
   const terms = input.replace(/"/g, '').split(/\s+/).filter(t => t.length > 0);
   const processedTerms = [];
   for (const term of terms) {
@@ -841,12 +842,12 @@ export function buildFtsMatchQuery(input) {
     const chars = Array.from(stripped).filter(c => /\S/.test(c));
     if (chars.length === 0) continue;
     if (/[^\x00-\x7F]/.test(stripped)) {
-      processedTerms.push(chars.join(' '));
+      processedTerms.push(chars.join(joiner));
     } else {
       processedTerms.push(`"${chars.join(' ')}"`);
     }
   }
-  return processedTerms.join(' ').trim();
+  return processedTerms.join(joiner).trim();
 }
 const CN_SEMESTER_DIGIT = { 一: 1, 二: 2, 1: 1, 2: 2 };
 const TERM_TAG_SOURCE = '(20\\d{2})\\s*[-~至到]\\s*(20\\d{2})\\s*[-~至到]\\s*([12])(?!\\d)';
@@ -981,18 +982,28 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     }
   }
   let ftsResults = [];
+  const runFts = async matchQuery => {
+    const ftsResult = await DB.prepare(
+      `SELECT f.id, f.name, f.key, f.parent_path, f.is_directory, f.description, f.contentType, f.size, f.downloads, f.likes
+       FROM files f
+       JOIN files_fts ON f.id = files_fts.rowid
+       WHERE files_fts MATCH ?
+       ORDER BY rank
+       LIMIT ?`
+    ).bind(matchQuery, ftsLimit).all();
+    return ftsResult.results || [];
+  };
   const ftsTokenizedQuery = buildFtsMatchQuery(query);
   if (ftsTokenizedQuery) {
     try {
-      const ftsResult = await DB.prepare(
-        `SELECT f.id, f.name, f.key, f.parent_path, f.is_directory, f.description, f.contentType, f.size, f.downloads, f.likes
-         FROM files f
-         JOIN files_fts ON f.id = files_fts.rowid
-         WHERE files_fts MATCH ?
-         ORDER BY rank
-         LIMIT ?`
-      ).bind(ftsTokenizedQuery, ftsLimit).all();
-      ftsResults = ftsResult.results || [];
+      ftsResults = await runFts(ftsTokenizedQuery);
+      if (ftsResults.length === 0) {
+        // 全字 AND 一个都没命中时退化为 OR，避免 FTS 完全不出力
+        const orQuery = buildFtsMatchQuery(query, 'OR');
+        if (orQuery && orQuery !== ftsTokenizedQuery) {
+          ftsResults = await runFts(orQuery);
+        }
+      }
     } catch (e) {
       console.error('FTS搜索失败:', e);
     }
