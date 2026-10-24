@@ -4,7 +4,8 @@
     "description": "武理资源共享平台静态资源构建",
     "scripts": {
         "build": "node build.js",
-        "deploy": "npm run build && wrangler pages deploy",
+        "deploy": "npm run build && npm run deploy:workers && wrangler pages deploy",
+        "deploy:workers": "wrangler deploy -c worker-ai/wrangler.toml && wrangler deploy -c worker/wrangler.toml",
         "preview": "npx -y http-server dist",
         "clean": "node scripts/clean.js",
         "dev": "node scripts/dev.js",
