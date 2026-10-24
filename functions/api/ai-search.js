@@ -2,16 +2,12 @@ import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest,
 const SEARCH_PROMPT = `把搜索语解析成检索计划，只输出一行 JSON：
 {"keywords":"...","constraint":"...","unrelated":false}
 
-keywords：要找的内容，空格分隔。不含时间/老师/章节。
-  简称原样保留（高数、大物、毛概都能直接搜到）。课程名要整体写，
-  禁止拆成"政策""资料""答案"这类通用词，否则会召回保研政策等无关内容。
-constraint：附加限定，写成【库里可能出现的字面词】，多个用空格分隔。
-  相对时间先按当前时间换算成绝对年份/学年学期再输出。
-  没有限定就填 ""。
+keywords：核心课程名或连续词，空格分隔；简称原样保留，禁止拆成"资料""答案"等通用词。
+constraint：附加限定，写成库里可能连续出现的字面词。时间只写四位年份（如 2024），用户写明的学年学期原样保留；相对时间换算成四位年份，不要自己拼学年区间。老师只写姓名，不确定留空。
 
 示例（当前 2026 年）：
 给我2024年的高数 → {"keywords":"高数","constraint":"2024","unrelated":false}
-前年的毛概 → {"keywords":"毛概","constraint":"2024-2025-1 2024-2025-2","unrelated":false}
+前年的毛概 → {"keywords":"毛概","constraint":"2024","unrelated":false}
 张老师的线代课件 → {"keywords":"线代","constraint":"张","unrelated":false}
 今天好烦 → {"keywords":"","constraint":"","unrelated":true}`;
 export async function onRequestGet({ request, env }) {
@@ -39,7 +35,8 @@ export async function onRequestGet({ request, env }) {
     }
     const url = new URL(request.url);
     const query = url.searchParams.get('query');
-    const topK = parseInt(url.searchParams.get('topK') || '50');
+    const rawTopK = parseInt(url.searchParams.get('topK') || '50', 10);
+    const topK = Math.min(Math.max(Number.isFinite(rawTopK) ? rawTopK : 50, 1), 50);
     if (!query || query.trim().length === 0) {
         return new Response(JSON.stringify({ success: false, error: '缺少搜索关键词' }), {
             status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
@@ -58,7 +55,8 @@ export async function onRequestGet({ request, env }) {
         let constraint = '';
         try {
             const llmResponse = await fetchSiliconFlowChat(env, {
-                messages: [{ role: 'system', content: SEARCH_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: query }]
+                messages: [{ role: 'system', content: SEARCH_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: query }],
+                maxTokens: 120
             });
             const plan = parseSearchPlan(llmResponse.choices?.[0]?.message?.content);
             if (plan) {
@@ -100,10 +98,11 @@ export async function onRequestGet({ request, env }) {
             }));
         } else {
             const searchResult = await hybridSearch(DB, VECTORIZE, env, finalKeywords, { topK: topK });
-            filesWithScores = filterByRelevance(searchResult.results || []);
+            const allResults = searchResult.results || [];
+            filesWithScores = filterByRelevance(allResults);
             if (constraint) {
                 try {
-                    const scope = await resolveConstraintScope(env, DB, query, constraint, filesWithScores, now);
+                    const scope = await resolveConstraintScope(env, DB, query, constraint, allResults, now);
                     if (scope) {
                         scopedByName = scope.mode === 'name';
                         scopedPath = scope.path || '';

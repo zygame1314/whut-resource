@@ -64,12 +64,12 @@ const TOOLS = [
                     queries: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: '课程/资源关键词数组，每个元素是一个核心课程名或关键名词（如"遗传学"）。用户请求多门课程时，每门课程名作为一个数组元素。只填"要什么内容"，不要把学期限定混进来（学期放到 constraints）。'
+                        description: '课程/资源关键词数组，每个元素一个核心课程名或连续词；多门课程分别放一个元素。不要把年份/学期/老师写进来（放到 constraints）。'
                     },
                     constraints: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: '课程名之外的附加限定，写成【库里可能出现的字面词】，每个元素一个词，如 ["2024"]、["张"]、["2024-2025-1","2024-2025-2"]。相对时间按当前时间换算成绝对年份或学年学期再传。没有限定传 []。'
+                        description: '附加限定，每个元素一个库里可能连续出现的字面词，如 ["2024"]、["张"]。相对时间换算成四位年份，不要拼学年区间（后续会展开）；用户写明的学年学期原样保留。不确定传 []。'
                     }
                 },
                 required: ['queries']
@@ -303,6 +303,7 @@ export async function processWithAIAgent(guestbookEntry, env) {
                         perQueryHits: toolResult.perQueryHits,
                         constraint: toolResult.constraint,
                         constraintResolved: toolResult.constraintResolved,
+                        constraintPartial: toolResult.constraintPartial,
                         scopedPath: toolResult.scopedPath,
                         scopedByName: toolResult.scopedByName
                     }
@@ -505,13 +506,16 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
             ? constraints.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim())
             : [];
         let literalMatched = false;
+        let literalPartial = false;
         for (const q of queryList) {
             let filesWithScores = null;
             if (terms.length > 0) {
                 const literal = await searchByLiteralTerms(DB, q, terms, Math.max(perQueryTopK, 20));
                 if (literal) {
-                    filesWithScores = literal.map(row => ({ ...row, similarity_score: 1, relevance: 1 }));
+                    filesWithScores = literal.map(row => ({ ...row, similarity_score: 1, relevance: 1, scoped: true }));
                     literalMatched = true;
+                } else {
+                    literalPartial = true;
                 }
             }
             if (!filesWithScores) {
@@ -540,6 +544,7 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
         let constraintResolved = true;
         let scopedPath = '';
         let scopedByName = false;
+        let scopeApplied = false;
         if (constraintText && merged.length > 0 && !literalMatched) {
             const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
             try {
@@ -548,6 +553,7 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
                     scopedByName = scope.mode === 'name';
                     scopedPath = scope.path || '';
                     merged = mergeScopeFirst(scope, merged);
+                    scopeApplied = true;
                 } else {
                     constraintResolved = false;
                 }
@@ -558,6 +564,7 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
         } else if (literalMatched && constraintText) {
             scopedByName = true;
         }
+        const constraintPartial = terms.length > 0 && literalPartial && !scopeApplied;
         const filesWithScores = merged.slice(0, 20);
         if (filesWithScores.length === 0) {
             return {
@@ -571,7 +578,8 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
                 queryList,
                 perQueryHits,
                 constraint: constraintText,
-                constraintResolved
+                constraintResolved,
+                constraintPartial
             };
         }
         return {
@@ -584,6 +592,7 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
             perQueryHits,
             constraint: constraintText,
             constraintResolved,
+            constraintPartial,
             scopedPath,
             scopedByName
         };
@@ -598,7 +607,7 @@ async function handleSearch(queries, env, constraints = [], userContent = '') {
     }
 }
 async function handleSearchResults(guestbookEntry, searchResults, env, query = '', searchMeta = {}) {
-    const { queryList = [], perQueryHits = {}, constraint = '', constraintResolved = true, scopedPath = '', scopedByName = false } = searchMeta;
+    const { queryList = [], perQueryHits = {}, constraint = '', constraintResolved = true, constraintPartial = false, scopedPath = '', scopedByName = false } = searchMeta;
     if (!searchResults || searchResults.length === 0) {
         if (env && env.DB) {
             if (queryList.length > 0) {
@@ -620,13 +629,18 @@ async function handleSearchResults(guestbookEntry, searchResults, env, query = '
         };
     }
     const normalizePath = (p) => p ? p.replace(/\/+/g, '/').replace(/^\/|\/$/, '') : '';
-    const filteredResults = filterByRelevance(searchResults);
+    const filteredResults = filterByRelevance(searchResults, {
+        relativeRatio: queryList.length > 1 ? 0 : undefined
+    });
     const resourceList = filteredResults.slice(0, 20).map((f, i) => {
         const parentPath = normalizePath(f.parent_path);
         const path = parentPath ? `${parentPath}/${f.name}` : f.name;
         const typeTag = (f.is_directory === 1 || f.is_directory === true) ? '📁目录' : '📄文件';
         const mq = Array.isArray(f.matched_queries) && f.matched_queries.length > 0 ? ` [命中课程: ${f.matched_queries.join('、')}]` : '';
-        return `${i + 1}. [${typeTag}] ${f.name} (路径: ${path}, 相似度: ${(f.similarity_score * 100).toFixed(1)}%)${mq}`;
+        const scoreTag = f.scoped
+            ? '[限定命中]'
+            : `相似度: ${(((Number(f.similarity_score) || 0) * 100).toFixed(1))}%`;
+        return `${i + 1}. [${typeTag}] ${f.name} (路径: ${path}, ${scoreTag})${mq}`;
     }).join('\n');
     if (filteredResults.length === 0) {
         if (env && env.DB) {
@@ -666,7 +680,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, query = '
         : '';
     const constraintBlock = constraint
         ? (constraintResolved
-            ? `\n【附加限定】${constraint}（已${scopedByName ? '按文件名筛选' : `定位到 ${scopedPath || '列表首位'}`}，下列结果均满足该限定，优先推荐）`
+            ? `\n【附加限定】${constraint}（${scopedByName ? '已按文件名筛选' : scopedPath ? `已定位到 ${scopedPath}` : '已按限定筛选'}；标 [限定命中] 的条目已确认满足该限定${constraintPartial ? '。其余课程可能没有符合限定的资源，未标注条目必须按路径中的年份/学期逐条核对' : ''}）`
             : `\n【附加限定】${constraint}（库中未找到符合该限定的资源。下列结果不符合该限定，禁止当作满足限定的资源推荐，改填 pending_categories 并在 note 里说明已登记补充）`)
         : '';
     const secondPrompt = `搜索结果：
@@ -676,7 +690,7 @@ ${resourceList}
 ${hitSummary}${constraintBlock}
 
 【匹配规则】只认同名或高度相关的课程。不同课程严禁顶替（"金属工艺学B"≠"汽车制造工艺学"/"金属学及热处理"；"创业学"≠培养方案目录）。宁可判未命中也不硬凑。
-【限定规则】用户有附加限定时，只有限定一致的资源才算匹配。限定不符即使课程名完全命中也不得推荐，禁止用"仅供参考"把不符资料当替代品。
+【限定规则】用户有附加限定时，只有限定一致的资源才算匹配。标 [限定命中] 的条目已由检索确认满足限定；未标注的条目必须自己核对路径/文件名中的年份、学期是否一致，不一致即使课程名完全命中也不得推荐，禁止用"仅供参考"把不符资料当替代品。
 
 有满足需求的资源就用 mark_resolved：每门命中课程的资源序号填进 matched_file_indices；未命中的课程填进 pending_categories 自动建待办。全部未命中用 keep_pending。
 优先推荐目录（📁，代表资源合集），但学期不符的目录同样不得推荐。${todoHint}`;
@@ -743,7 +757,7 @@ ${hitSummary}${constraintBlock}
         searchTools,
         env,
         'auto',
-        0.7,
+        0.2,
         { maxRetries: 0, timeoutMs: 15000 }
     );
     const message = aiResponse.choices?.[0]?.message;

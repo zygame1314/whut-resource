@@ -1055,6 +1055,14 @@ const EMBEDDING_DIMENSIONS = 256;
 const SILICONFLOW_EMBEDDING_URL = 'https://api.siliconflow.cn/v1/embeddings';
 const RERANKER_MODEL = 'BAAI/bge-reranker-v2-m3';
 const SILICONFLOW_RERANK_URL = 'https://api.siliconflow.cn/v1/rerank';
+function buildSiliconFlowError(response, body, label) {
+  const error = new Error(`${label} API Error: ${response.status} - ${body}`);
+  const retryAfter = parseInt(response.headers.get('Retry-After') || '', 10);
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    error.retryAfterMs = retryAfter * 1000;
+  }
+  return error;
+}
 export async function generateEmbeddings(env, texts) {
   if (!texts || texts.length === 0) return [];
   const apiKey = env.SILICONFLOW_API_KEY;
@@ -1079,7 +1087,7 @@ export async function generateEmbeddings(env, texts) {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`SiliconFlow Embedding API Error: ${response.status} - ${errorText}`);
+        throw buildSiliconFlowError(response, errorText, 'SiliconFlow Embedding');
       }
       const result = await response.json();
       if (!result?.data || result.data.length !== texts.length) {
@@ -1121,7 +1129,7 @@ export async function rerankResults(env, query, documents, topN = 20) {
         });
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`Reranker API Error: ${response.status} - ${errorText}`);
+          throw buildSiliconFlowError(response, errorText, 'Reranker');
         }
         const result = await response.json();
         return result.results || null;
@@ -1136,46 +1144,40 @@ export async function rerankResults(env, query, documents, topN = 20) {
 }
 const SCOPE_PICK_MAX_CANDIDATES = 30;
 const SCOPE_CHILD_LIMIT = 60;
+// 硅基流动 L0 为 80k TPM：单批 120 条候选约 5k tokens，避免多批并发触发限流。
 const FILE_PICK_BATCH_SIZE = 120;
-const FILE_PICK_MAX_BATCHES = 2;
+const FILE_PICK_MAX_BATCHES = 1;
 const FILE_PICK_MAX_CANDIDATES = FILE_PICK_BATCH_SIZE * FILE_PICK_MAX_BATCHES;
 const FILE_PICK_MAX_DIRS = 3;
-const FILE_PICK_DIR_LIMIT = 150;
-const FILE_PICK_PROMPT = `从候选资源里挑出符合限定条件的条目。限定可能是年份、学期、老师名、版本号等。
-
-输出严格两行，不要多余文字：
-MATCH: 命中的编号，英文逗号分隔；一条都没有写 0
-TERMS: 你实际用来比对的字面词，英文逗号分隔
+const FILE_PICK_DIR_LIMIT = 120;
+const FILE_PICK_PROMPT = `从候选中挑出符合限定条件的条目，只输出两行：
+MATCH: 命中编号，英文逗号分隔；没有写 0
+TERMS: 实际用于比对的字面词，英文逗号分隔
 
 规则：
-- 先把限定翻译成能字面比对的词，再拿它去文件名里找。TERMS 必须是你真正用过的词，后端会拿它复核。
-- 相对时间先按【当前时间】换算成绝对时间，不要拿"去年""前年"本身去比对。
-- 时间常见写法是"学年-学期"（如 2024-2025-2）。一个学年横跨两个自然年，限定某年份时，学年区间覆盖该年份的都算符合。
-- 文件名里找不到 TERMS 中任何一个词的，不选。宁可少选，不要勉强凑。
+- 限定先转成字面词，再去文件名和路径里找。TERMS 只填限定词（年份/学年/老师/版本），不填"真题""资料"等通用词，后端会复核。
+- 四位年份要展开：年份本身 + 前后学年（2024 → 2024、2023-2024、2024-2025）。
+- 用户写了学期就核对学期；只写年份时，覆盖该年的任一学期都算。
+- 相对时间按【当前时间】换算成四位年份，不要拿"去年""前年"直接比对。
+- 找不到对应字面词的不要选，宁可少选。
 
 示例（当前 2026/10/24）：
-限定「前年」，候选：1.2023-2024-1 毛概复习题.docx  2.2024-2025-1 毛概主观题.pdf  3.毛概重点整理.docx
+用户需求「前年的毛概」，限定「2024」，候选：1.2023-2024-1 毛概复习题.docx（路径: 0.课程资料/毛概/2023-2024-1）  2.2024-2025-1 毛概主观题.pdf（路径: 0.课程资料/毛概/2024-2025-1）  3.毛概重点整理.docx（路径: 0.课程资料/毛概）
 MATCH: 1,2
-TERMS: 2024,2023-2024,2024-2025
-
-限定「张老师的」，候选：1.线代课件-张.pdf  2.线代课件-李.pdf
-MATCH: 1
-TERMS: 张`;
-const SCOPE_PICK_PROMPT = `从候选目录里找出符合时间限定的那一个。
-
-只输出一个编号数字，或 0（表示都对不上）。不要输出解释或其它文字。
+TERMS: 2024,2023-2024,2024-2025`;
+const SCOPE_PICK_PROMPT = `从候选目录中选出符合时间限定的一个，只输出编号或 0，不要解释。
 
 规则：
-- 先把限定换算成具体的年份或学年学期，再拿换算结果去比对目录名，不能拿"去年""前年"本身去匹配。
-- 学期口径：9月~次年1月为第 1 学期，2月~8月为第 2 学期。
-- 目录名里写着的具体格式优先；相对说法与具体说法冲突时，以具体说法为准。
-- 目录名本身对不上限定就返回 0，不要勉强挑一个。
+- 先把限定换算成具体年份/学年学期，不能直接用"去年""前年"比对。
+- 四位年份展开为覆盖该年的学年（2024 → 2023-2024、2024-2025）；多个匹配时优先学年起始年等于该年份，没有再选覆盖该年的。
+- 用户写明学期的先按学期缩小范围；学期口径：9月~次年1月为第 1 学期，2月~8月为第 2 学期。
+- 目录名对不上就返回 0，不要勉强选。
 
 示例（当前 2026/10/24）：
-限定「2026第二学期」，候选：1.形势与政策/2025-2026-1  2.形势与政策/2025-2026-2  3.形势与政策/2026-2027-1
+限定「2024」，候选：1.高等数学A/2023-2024-2  2.高等数学A/2024-2025-1  3.高等数学A/2025-2026-1
 2
 
-限定「2024年」，候选：1.高等数学A/1.高等数学A上期中真题  2.高等数学A/4.高等数学A下期末真题
+限定「2024」，候选：1.高等数学A/1.期中真题  2.高等数学A/4.期末真题
 0`;
 function stripThinkTags(rawContent) {
   if (typeof rawContent !== 'string') return '';
@@ -1202,10 +1204,29 @@ function collectAnchorDirs(baseResults) {
       parent_path: row.parent_path || ''
     });
   }
+  if (anchors.size === 0) {
+    for (const row of baseResults || []) {
+      if (!row || !row.parent_path) continue;
+      const key = normalizeDirKey(row.parent_path);
+      if (!key || anchors.has(key)) continue;
+      const segments = key.split('/').filter(Boolean);
+      anchors.set(key, {
+        id: null,
+        key,
+        name: segments[segments.length - 1] || key,
+        parent_path: segments.slice(0, -1).join('/')
+      });
+      if (anchors.size >= 5) break;
+    }
+  }
   return [...anchors.values()];
 }
 function normalizeDirKey(key) {
   return (key || '').replace(/\/+$/, '');
+}
+function shortDirPath(key) {
+  const parts = normalizeDirKey(key).split('/').filter(Boolean);
+  return parts.slice(-3).join('/');
 }
 function buildPrefixUpperBound(prefix) {
   const chars = Array.from(prefix);
@@ -1267,7 +1288,8 @@ async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) 
     messages: [
       { role: 'system', content: SCOPE_PICK_PROMPT + `\n当前时间：${now}` },
       { role: 'user', content: `用户需求：${query}\n限定条件：${constraint}\n候选目录：\n${numbered}\n请返回最符合限定条件的目录编号：` }
-    ]
+    ],
+    maxTokens: 32
   });
   const pickText = stripThinkTags(pickResponse.choices?.[0]?.message?.content);
   const picked = parseInt((pickText.match(/\d+/) || [])[0] || '0', 10);
@@ -1339,7 +1361,7 @@ async function loadAnchorFiles(DB, anchorDirs) {
   }
   return interleaveByDir(groups, FILE_PICK_MAX_CANDIDATES);
 }
-async function pickNameMatched(env, DB, constraint, baseResults, now) {
+async function pickNameMatched(env, DB, query, constraint, baseResults, now) {
   const anchorDirs = collectAnchorDirs(baseResults);
   if (anchorDirs.length === 0) return null;
   let pool = [];
@@ -1350,26 +1372,35 @@ async function pickNameMatched(env, DB, constraint, baseResults, now) {
     pool = [];
   }
   if (pool.length === 0) return null;
-  const hits = new Set();
-  let usedTerms = [];
   const scopedPool = pool.slice(0, FILE_PICK_MAX_CANDIDATES);
+  const chunks = [];
   for (let offset = 0; offset < scopedPool.length; offset += FILE_PICK_BATCH_SIZE) {
-    const chunk = scopedPool.slice(offset, offset + FILE_PICK_BATCH_SIZE);
-    const numbered = chunk.map((row, i) => `${i + 1}. ${row.name}`).join('\n');
-    let pickText;
+    chunks.push(scopedPool.slice(offset, offset + FILE_PICK_BATCH_SIZE));
+  }
+  const pickTexts = await Promise.all(chunks.map(async chunk => {
+    const numbered = chunk.map((row, i) => {
+      const parentPath = shortDirPath(row.parent_path);
+      return `${i + 1}. ${row.name}${parentPath ? `（路径: ${parentPath}）` : ''}`;
+    }).join('\n');
     try {
       const pickResponse = await fetchSiliconFlowChat(env, {
         messages: [
           { role: 'system', content: FILE_PICK_PROMPT + `\n当前时间：${now}` },
-          { role: 'user', content: `用户的限定条件：${constraint}\n候选资源：\n${numbered}\n请按格式返回：` }
-        ]
+          { role: 'user', content: `用户需求：${query || constraint}\n限定条件：${constraint}\n候选资源：\n${numbered}\n请按格式返回：` }
+        ],
+        maxTokens: 768
       });
-      pickText = stripThinkTags(pickResponse.choices?.[0]?.message?.content);
+      return stripThinkTags(pickResponse.choices?.[0]?.message?.content);
     } catch (e) {
       console.error('文件名级限定裁决失败:', e);
-      continue;
+      return '';
     }
-    const trimmed = (pickText || '').trim();
+  }));
+  const hits = new Set();
+  let usedTerms = [];
+  for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+    const chunk = chunks[chunkIndex];
+    const trimmed = (pickTexts[chunkIndex] || '').trim();
     if (!trimmed) continue;
     const matchLine = (trimmed.match(/MATCH\s*[:：]\s*(.+)/i) || [])[1] || '';
     const termsLine = (trimmed.match(/TERMS\s*[:：]\s*(.+)/i) || [])[1] || '';
@@ -1401,14 +1432,17 @@ async function pickNameMatched(env, DB, constraint, baseResults, now) {
   };
 }
 export async function resolveConstraintScope(env, DB, query, constraint, baseResults, now) {
+  const hasSemesterHint = /学年|学期|\d{4}-\d{4}/.test(constraint || '');
   let directoryScope = null;
-  try {
-    directoryScope = await pickDirectoryScope(env, DB, query, constraint, baseResults, now);
-  } catch (e) {
-    console.error('目录级限定裁决失败:', e);
+  if (hasSemesterHint) {
+    try {
+      directoryScope = await pickDirectoryScope(env, DB, query, constraint, baseResults, now);
+    } catch (e) {
+      console.error('目录级限定裁决失败:', e);
+    }
+    if (directoryScope) return { mode: 'directory', ...directoryScope };
   }
-  if (directoryScope) return { mode: 'directory', ...directoryScope };
-  const nameScope = await pickNameMatched(env, DB, constraint, baseResults, now);
+  const nameScope = await pickNameMatched(env, DB, query, constraint, baseResults, now);
   if (!nameScope) return null;
   return { mode: 'name', path: '', ...nameScope };
 }
@@ -1428,9 +1462,18 @@ export function mergeScopeFirst(scope, baseResults) {
       seen.add(row.id);
       hits.push(row);
     }
-    hits.sort((a, b) => (Number(b.relevance) || 0) - (Number(a.relevance) || 0));
+    hits.sort((a, b) => {
+      const ra = Number(a.relevance ?? a.similarity_score) || 0;
+      const rb = Number(b.relevance ?? b.similarity_score) || 0;
+      return rb - ra;
+    });
     hits.forEach(item => {
-      merged.push({ ...item, scoped: true });
+      merged.push({
+        ...item,
+        similarity_score: item.similarity_score ?? 1,
+        relevance: item.relevance ?? 1,
+        scoped: true
+      });
     });
     return merged;
   }
@@ -1442,7 +1485,12 @@ export function mergeScopeFirst(scope, baseResults) {
   const push = (item, score, scoped) => {
     if (!item || seen.has(item.id)) return;
     seen.add(item.id);
-    merged.push({ ...item, similarity_score: score, scoped });
+    merged.push({
+      ...item,
+      similarity_score: item.similarity_score ?? score,
+      relevance: item.relevance ?? (scoped ? 1 : score),
+      scoped
+    });
   };
   push(scope.directory, 1, true);
   for (const child of scope.children) {
@@ -1450,7 +1498,7 @@ export function mergeScopeFirst(scope, baseResults) {
   }
   for (const item of baseResults || []) {
     if (!inScope(item)) continue;
-    push(item, item.similarity_score ?? 0, false);
+    push(item, item.similarity_score ?? 0, true);
   }
   return merged;
 }
@@ -1489,7 +1537,7 @@ export async function fetchSiliconFlowChat(env, { messages, tools = null, toolCh
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`SiliconFlow API Error: ${response.status} - ${errorText}`);
+        throw buildSiliconFlowError(response, errorText, 'SiliconFlow');
       }
       const data = await response.json();
       return validateAIResponse(data, '[SiliconFlow] ');
@@ -1504,7 +1552,10 @@ export async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
       return await fn();
     } catch (error) {
       if (attempt === maxRetries) throw error;
-      const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 500;
+      const retryAfterMs = Number(error && error.retryAfterMs);
+      const delay = Number.isFinite(retryAfterMs) && retryAfterMs > 0
+        ? Math.min(retryAfterMs, 10000)
+        : baseDelay * Math.pow(2, attempt) + Math.random() * 500;
       console.warn(`操作失败，${Math.round(delay)}ms 后重试 (${attempt + 1}/${maxRetries}):`, error.message);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
