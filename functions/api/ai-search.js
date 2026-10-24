@@ -25,10 +25,14 @@ const SEARCH_PROMPT = `你是大学课程资源搜索助手，把用户【搜索
          竞赛/数模→竞赛 数学建模、实习/就业→实习 就业 招聘、毕设→毕业设计 论文、期末/复习→期末 复习 考试
        - 校园平台：小雅→小雅平台 教学平台、学习通/超星→超星 学习通、学堂在线→学堂在线 MOOC、
          雨课堂→雨课堂、优慕课→优慕课、智慧树→智慧树
-    2. constraint：用户明确提出的时间/范围限定，原样描述（如"2026年第二学期""这学期""上学期""最新的"）。
-       不换算格式、不补全学年、不假设目录写法；没有限定则填 ""。
-    3. 只输出严格 JSON，无 markdown、无解释：{"keywords":"...","constraint":"...","unrelated":false}
-    4. 明显与学习无关（纯聊天、脏话、娱乐八卦）输出 {"keywords":"","constraint":"","unrelated":true}；不确定时按相关处理。`;
+    2. constraint：能体现在【目录名】上的时间限定，原样描述（如"2026年第二学期""这学期""上学期"）。
+       不换算格式、不补全学年、不假设目录写法；没有则填 ""。
+    3. nameFilter：只能体现在【文件名】上的限定词，数组。典型是单个年份（"2024"）、老师名、章节号。
+       库里并非所有课程都按学期建子目录——很多课程（如高等数学）直接把文件放在课程目录下，年份只写在文件名里
+       （如 "2024-2025-2-高等数学A下期末.pdf"）。这类限定必须放进 nameFilter，否则永远匹配不到。
+       判定原则：如果限定词更可能出现在文件名而非目录名，就放 nameFilter。没有则填 []。
+    4. 只输出严格 JSON，无 markdown、无解释：{"keywords":"...","constraint":"...","nameFilter":[],"unrelated":false}
+    5. 明显与学习无关（纯聊天、脏话、娱乐八卦）输出 {"keywords":"","constraint":"","nameFilter":[],"unrelated":true}；不确定时按相关处理。`;
 export async function onRequestGet({ request, env }) {
     const authHeader = request.headers.get('Authorization');
     let user = null;
@@ -71,6 +75,7 @@ export async function onRequestGet({ request, env }) {
         const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         let finalKeywords = query;
         let constraint = '';
+        let nameFilter = [];
         try {
             const llmResponse = await fetchSiliconFlowChat(env, {
                 messages: [{ role: 'system', content: SEARCH_PROMPT + `\n当前时间：${now}` }, { role: 'user', content: query }]
@@ -90,12 +95,16 @@ export async function onRequestGet({ request, env }) {
                 }
                 if (plan.keywords) finalKeywords = plan.keywords;
                 constraint = plan.constraint;
+                nameFilter = plan.nameFilter;
             }
         } catch (e) {
             console.error('LLM 解析检索计划失败，使用原始查询:', e);
         }
         const searchResult = await hybridSearch(DB, VECTORIZE, env, finalKeywords, { topK: topK });
         let filesWithScores = filterByRelevance(searchResult.results || []);
+        if (nameFilter.length > 0) {
+            filesWithScores = applyNameFilter(filesWithScores, nameFilter);
+        }
         let scopedPath = '';
         let constraintResolved = true;
         if (constraint) {
@@ -114,18 +123,18 @@ export async function onRequestGet({ request, env }) {
         }
         const constraintNote = constraint && !constraintResolved
             ? `未能定位到符合「${constraint}」的目录，以下为其他学期/未限定的相关资源，仅供参考`
-            : '';
+            : (scopedPath ? `已限定到「${scopedPath}」` : '');
         if (filesWithScores.length === 0) {
+            const emptyMessage = buildEmptyMessage(constraint, nameFilter, constraintNote);
             return new Response(JSON.stringify({
                 success: true,
                 files: [],
                 directories: [],
                 keywords: finalKeywords,
                 constraint,
+                nameFilter,
                 constraintResolved,
-                message: constraintNote || (constraint
-                    ? `未找到符合「${constraint}」的相关资源`
-                    : '未找到相关资源')
+                message: emptyMessage
             }), {
                 status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' })
             });
@@ -138,6 +147,7 @@ export async function onRequestGet({ request, env }) {
             directories: directories,
             keywords: finalKeywords,
             constraint,
+            nameFilter,
             constraintResolved,
             constraintNote,
             scopedPath,
@@ -157,7 +167,7 @@ function parseSearchPlan(rawContent) {
     const cleaned = stripThink(rawContent);
     if (!cleaned) return null;
     if (cleaned.toUpperCase() === 'NULL') {
-        return { keywords: '', constraint: '', unrelated: true };
+        return { keywords: '', constraint: '', nameFilter: [], unrelated: true };
     }
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (!match) return null;
@@ -167,11 +177,32 @@ function parseSearchPlan(rawContent) {
     } catch {
         return null;
     }
+    const nameFilter = Array.isArray(parsed.nameFilter)
+        ? parsed.nameFilter.filter(v => typeof v === 'string' && v.trim().length > 0).map(v => v.trim())
+        : [];
     return {
         keywords: typeof parsed.keywords === 'string' ? parsed.keywords.trim() : '',
         constraint: typeof parsed.constraint === 'string' ? parsed.constraint.trim() : '',
+        nameFilter,
         unrelated: parsed.unrelated === true
     };
+}
+function applyNameFilter(results, nameFilter) {
+    if (!Array.isArray(results) || results.length === 0) return [];
+    if (!Array.isArray(nameFilter) || nameFilter.length === 0) return results;
+    const terms = nameFilter.map(t => t.toLowerCase());
+    return results.filter(f => {
+        const haystack = `${f.name || ''} ${f.key || ''}`.toLowerCase();
+        return terms.every(t => haystack.includes(t));
+    });
+}
+function buildEmptyMessage(constraint, nameFilter, constraintNote) {
+    if (Array.isArray(nameFilter) && nameFilter.length > 0) {
+        return `未找到符合「${nameFilter.join(' ')}」的资源`;
+    }
+    if (constraintNote) return constraintNote;
+    if (constraint) return `未找到符合「${constraint}」的相关资源`;
+    return '未找到相关资源';
 }
 function stripThink(rawContent) {
     if (typeof rawContent !== 'string') return '';

@@ -654,6 +654,12 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
     if (isGlobalSearch) {
         isShowingSearchResults = true;
         updateBreadcrumb('', true, localSearchTerm, isAISearch);
+        if (isAISearch && typeof aiConstraintNote !== 'undefined' && aiConstraintNote) {
+            const noteLi = document.createElement('li');
+            noteLi.className = 'ai-constraint-note';
+            noteLi.innerHTML = `<i class="fas fa-filter"></i><span>${escapeHtml(aiConstraintNote)}</span>`;
+            fileListElement.appendChild(noteLi);
+        }
     } else {
         isShowingSearchResults = false;
         updateBreadcrumb(prefix);

@@ -992,6 +992,34 @@ function renderLoadMoreButton(loading) {
         if (btn) btn.onclick = loadMoreFiles;
     }
 }
+function applyAISortDefault() {
+    const option = document.getElementById('sort-option-relevance');
+    if (option) option.style.display = '';
+    if (sortOptionBeforeAISearch === null) {
+        sortOptionBeforeAISearch = currentSortOption;
+        currentSortOption = 'relevance-desc';
+        const label = document.getElementById('sort-label');
+        if (label) label.textContent = '相关度优先';
+        document.querySelectorAll('#sort-options .dropdown-item').forEach(item => {
+            item.classList.toggle('selected', item.dataset.value === 'relevance-desc');
+        });
+    }
+}
+function restoreSortAfterAISearch() {
+    const option = document.getElementById('sort-option-relevance');
+    if (option) option.style.display = 'none';
+    if (!sortOptionBeforeAISearch) return;
+    currentSortOption = sortOptionBeforeAISearch;
+    sortOptionBeforeAISearch = null;
+    const label = document.getElementById('sort-label');
+    const items = document.querySelectorAll('#sort-options .dropdown-item');
+    let matchedText = '';
+    items.forEach(item => {
+        item.classList.toggle('selected', item.dataset.value === currentSortOption);
+        if (item.dataset.value === currentSortOption) matchedText = item.textContent;
+    });
+    if (label && matchedText) label.textContent = matchedText;
+}
 function applyLocalSortAndFilter() {
     if (!currentRawData) return;
     let processedData = sortData(currentRawData, currentSortOption);
@@ -1173,6 +1201,10 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
     }
     const aiSearchToggle = document.getElementById('ai-search-toggle');
     const useAISearch = aiSearchToggle && aiSearchToggle.checked && isGlobal;
+    if (!useAISearch) {
+        aiConstraintNote = '';
+        restoreSortAfterAISearch();
+    }
     const loadingMessage = useAISearch ? 'AI 正在分析语义' : '正在加载文件列表';
     const existingLoadMore = document.getElementById('load-more-container');
     if (existingLoadMore) existingLoadMore.remove();
@@ -1199,9 +1231,11 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
             let receivedData = { files: [], directories: [] };
             let paginationData = {};
             let result;
+            applyAISortDefault();
             if (searchCache.has(aiCacheKey)) {
                 console.log(`命中 AI 搜索缓存: "${searchTerm}"`);
                 const cachedResult = searchCache.get(aiCacheKey);
+                aiConstraintNote = cachedResult.constraintNote || '';
                 if (cachedResult.files.length === 0 && cachedResult.message) {
                     fileListElement.innerHTML = `
                         <li class="empty-state">
@@ -1238,6 +1272,7 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                 renderFileList('', receivedData, true, searchTerm.trim(), paginationData, true);
             } else {
                 console.log(`发起 AI 搜索(未缓存): "${searchTerm}"`);
+                aiConstraintNote = '';
                 const aiSearchUrl = `${API_ENDPOINTS.aiSearch}?query=${encodeURIComponent(searchTerm.trim())}&topK=50`;
                 const response = await fetch(aiSearchUrl, {
                     method: 'GET',
@@ -1254,8 +1289,10 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                     if (result.files?.length === 0 && result.message) {
                         searchCache.set(aiCacheKey, {
                             files: [],
+                            directories: [],
                             totalItems: 0,
                             message: result.message,
+                            constraintNote: result.constraintNote || '',
                             timestamp: Date.now()
                         });
                         fileListElement.innerHTML = `
@@ -1274,10 +1311,13 @@ async function fetchAndDisplayFiles(prefix = '', searchTerm = '', page = 1, shou
                     const allFiles = result.files || [];
                     const allDirectories = result.directories || [];
                     const totalFound = result.totalItems || allFiles.length;
+                    aiConstraintNote = result.constraintNote || '';
+                    applyAISortDefault();
                     searchCache.set(aiCacheKey, {
                         files: allFiles,
                         directories: allDirectories,
                         totalItems: totalFound,
+                        constraintNote: aiConstraintNote,
                         timestamp: Date.now()
                     });
                     console.log(`AI 搜索结果已缓存: "${searchTerm}", 共 ${totalFound} 条`);

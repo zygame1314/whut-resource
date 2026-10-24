@@ -763,6 +763,34 @@
     font-style: normal;
 }
 
+.ai-constraint-note {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 0.75rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    background: rgba(var(--primary-rgb), 0.08);
+    border: 1px solid rgba(var(--primary-rgb), 0.18);
+    cursor: default;
+}
+
+.ai-constraint-note:hover {
+    background: rgba(var(--primary-rgb), 0.08);
+}
+
+.ai-constraint-note i {
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.ai-constraint-note span {
+    flex: 1 1 auto;
+}
+
 .file-list li:hover {
     background: var(--background-alt);
     border-color: var(--primary-light);

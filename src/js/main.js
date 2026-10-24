@@ -227,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const value = item.dataset.value;
             const text = item.textContent;
             currentSortOption = value;
+            sortOptionBeforeAISearch = null;
             sortLabel.textContent = text;
             sortOptions.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
             item.classList.add('selected');

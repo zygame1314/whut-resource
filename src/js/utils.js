@@ -194,6 +194,10 @@ function sortData(data, sortOption) {
                 valA = a.likes || 0;
                 valB = b.likes || 0;
                 break;
+            case 'relevance':
+                valA = a.relevance ?? a.similarity_score ?? 0;
+                valB = b.relevance ?? b.similarity_score ?? 0;
+                break;
             default:
                 return 0;
         }
