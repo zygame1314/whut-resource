@@ -1,10 +1,13 @@
-import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst } from '../utils.js';
+import { addCorsHeaders, hybridSearch, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, resolveConstraintScope, mergeScopeFirst, filterByRelevance } from '../utils.js';
 const SEARCH_PROMPT = `你是大学课程资源搜索助手，把用户【搜索词】解析成检索计划。
     资源库按 "0.课程资料/<课程名>/<学年学期>/" 组织，学期目录写法只能在库里查到，不要猜。
 
     规则：
     1. keywords：把课程/活动缩写扩展为全称后的语义搜索词，2-3 个，用空格分隔，保留课程后缀（A/B、(一)、1）。
        - keywords 只描述"要找什么内容"，不要包含学期、年份、老师、章节等限定词
+       - 课程名必须整体保留，禁止拆成通用词。反例：用户问"形式与政策"时，
+         禁止输出"政策""资料""文件""答案"这类词——它们会召回转专业政策、保研政策等无关内容。
+         正确做法是输出课程全名"形势与政策"（注意用户可能把"形势"写成"形式"，统一用"形势与政策"）
        - 缩写对照：
          大物→大学物理、高数→高等数学、线代→线性代数
          概统/概率→概率论与数理统计
@@ -92,7 +95,7 @@ export async function onRequestGet({ request, env }) {
             console.error('LLM 解析检索计划失败，使用原始查询:', e);
         }
         const searchResult = await hybridSearch(DB, VECTORIZE, env, finalKeywords, { topK: topK });
-        let filesWithScores = searchResult.results || [];
+        let filesWithScores = filterByRelevance(searchResult.results || []);
         let scopedPath = '';
         let constraintResolved = true;
         if (constraint) {

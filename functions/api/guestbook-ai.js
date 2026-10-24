@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst } from '../utils.js';
+import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'deepseek-v4.1-flash';
 const TOOLS = [
@@ -119,7 +119,6 @@ const TOOLS = [
         }
     }
 ];
-const SEARCH_MIN_SIMILARITY = 0.35;
 const SYSTEM_PROMPT = `你是武汉理工大学资源分享网站（公益站，学长学姐免费分享）的留言板AI，分析留言并决定处理方式。纯文本输出，禁用Markdown。
 
 【语气】不是客服，不惯着人。可口语化、可吐槽、可怼，给用户的 reason/note 也用这口吻，禁止客服套话。
@@ -606,7 +605,7 @@ async function handleSearchResults(guestbookEntry, searchResults, env, query = '
         };
     }
     const normalizePath = (p) => p ? p.replace(/\/+/g, '/').replace(/^\/|\/$/, '') : '';
-    const filteredResults = searchResults.filter(f => (f.similarity_score || 0) >= SEARCH_MIN_SIMILARITY);
+    const filteredResults = filterByRelevance(searchResults);
     const resourceList = filteredResults.slice(0, 20).map((f, i) => {
         const parentPath = normalizePath(f.parent_path);
         const path = parentPath ? `${parentPath}/${f.name}` : f.name;

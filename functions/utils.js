@@ -929,7 +929,7 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     const scoreB = b.vector_score + (b.fts_hit ? 0.5 : 0) + b.name_match * 0.3;
     return scoreB - scoreA;
   });
-  const RERANK_MAX_DOCS = 20;
+  const RERANK_MAX_DOCS = Math.min(Math.max(topK, 20), 50);
   const rerankCandidates = results.slice(0, RERANK_MAX_DOCS);
   const rerankDocs = rerankCandidates.map(f => {
     const parts = [];
@@ -965,11 +965,26 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     }
     return {
       ...f,
-      similarity_score: combined
+      similarity_score: combined,
+      relevance: buildAbsoluteRelevance(f)
     };
   });
   results.sort((a, b) => b.similarity_score - a.similarity_score);
   return { results: results.slice(0, topK), keywords: query };
+}
+function buildAbsoluteRelevance(file) {
+  const rerank = Number(file.rerank_score) || 0;
+  const vector = Number(file.vector_score) || 0;
+  return rerank > 0 ? rerank : vector;
+}
+const MIN_RELEVANCE = 0.3;
+const RELATIVE_RELEVANCE_RATIO = 0.45;
+export function filterByRelevance(results, { minRelevance = MIN_RELEVANCE, relativeRatio = RELATIVE_RELEVANCE_RATIO } = {}) {
+  if (!Array.isArray(results) || results.length === 0) return [];
+  const topRelevance = Math.max(...results.map(f => Number(f.relevance) || 0));
+  if (topRelevance <= 0) return results;
+  const threshold = Math.max(minRelevance, topRelevance * relativeRatio);
+  return results.filter(f => (Number(f.relevance) || 0) >= threshold);
 }
 export function isSuperAdmin(user) {
   return user && user.role === 'super_admin';
