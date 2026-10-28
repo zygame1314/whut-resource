@@ -120,9 +120,13 @@
     .hero-links {
         display: inline-grid;
         grid-template-columns: auto auto;
-        align-items: start;
+        align-items: stretch;
         gap: 0 1.75rem;
         width: auto;
+    }
+
+    .hero-links-group {
+        justify-content: space-between;
     }
 
     .hero-links-group + .hero-links-group {
