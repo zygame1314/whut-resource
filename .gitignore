@@ -68,3 +68,8 @@ Thumbs.db
 Desktop.ini
 ehthumbs.db
 jwt_private_key.pem
+
+# ==========================================
+# AI 分析上下文包（由 npm run context 生成）
+# ==========================================
+/whut-resource-ai-context*.md

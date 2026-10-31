@@ -10,10 +10,15 @@
         "clean": "node scripts/clean.js",
         "dev": "node scripts/dev.js",
         "test:search": "node scripts/search-smoke.mjs",
+        "context": "node scripts/export-context.mjs",
+        "context:code": "node scripts/export-context.mjs --mode code",
+        "context:full": "node scripts/export-context.mjs --mode full",
         "postinstall": "node scripts/sync-deps.js"
     },
     "devDependencies": {
+        "acorn": "^8.15.0",
         "clean-css": "^5.3.3",
+        "gpt-tokenizer": "^4.1.0",
         "html-minifier-terser": "^7.2.0",
         "terser": "^5.37.0"
     },

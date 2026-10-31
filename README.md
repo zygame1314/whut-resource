@@ -278,6 +278,29 @@ npm run preview
 npm run clean
 ```
 
+### AI 分析上下文
+
+将仓库源码打包成单个 Markdown 文件，便于发给大模型做代码/架构分析（排除 `node_modules`、构建产物、图片/视频与私钥）：
+
+```bash
+# 平衡版：后端全文 + 前端核心，约 20 万 tokens
+npm run context
+
+# 代码全量 + CSS 摘要，约 45 万 tokens
+npm run context:code
+
+# 全量零丢失（含全部 CSS），约 59 万 tokens
+npm run context:full
+```
+
+输出到仓库根目录 `whut-resource-ai-context*.md`。也可直接调用脚本自定义模式、输出路径和 token 预算：
+
+```bash
+node scripts/export-context.mjs --mode balanced --out /tmp/context.md --budget 150000
+```
+
+> token 数使用 `o200k` 分词器统计；未安装 devDependencies 时会退化为字符估算。
+
 ### 部署
 
 ```bash
