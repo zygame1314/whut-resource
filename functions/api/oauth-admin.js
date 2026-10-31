@@ -22,6 +22,18 @@ async function generateClientSecret() {
     return Array.from(randomBytes, b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// 游标使用 (created_at, id) 复合值，避免同一秒创建多个客户端时分页漏项；兼容旧版纯时间游标
+function parseListCursor(raw) {
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.created_at === 'string' && Number.isInteger(parsed.id)) return parsed;
+    } catch {
+        // 旧版游标是纯 created_at 字符串
+    }
+    return { created_at: raw, id: null };
+}
+
 export async function onRequestGet(context) {
     const { request, env } = context;
     try {
@@ -36,19 +48,25 @@ export async function onRequestGet(context) {
         const action = url.searchParams.get('action');
         if (action === 'list') {
             const PAGE_SIZE = 20;
-            const cursor = url.searchParams.get('cursor');
+            const cursor = parseListCursor(url.searchParams.get('cursor'));
             let query, binds;
-            if (cursor) {
-                query = 'SELECT id, client_id, client_name, redirect_uris, description, logo_url, is_active, created_at, created_by FROM oauth_clients WHERE created_at < ? ORDER BY created_at DESC LIMIT ?';
-                binds = [cursor, PAGE_SIZE + 1];
+            if (cursor && cursor.id !== null) {
+                query = 'SELECT id, client_id, client_name, redirect_uris, description, logo_url, is_active, created_at, created_by FROM oauth_clients WHERE (created_at, id) < (?, ?) ORDER BY created_at DESC, id DESC LIMIT ?';
+                binds = [cursor.created_at, cursor.id, PAGE_SIZE + 1];
+            } else if (cursor) {
+                query = 'SELECT id, client_id, client_name, redirect_uris, description, logo_url, is_active, created_at, created_by FROM oauth_clients WHERE created_at < ? ORDER BY created_at DESC, id DESC LIMIT ?';
+                binds = [cursor.created_at, PAGE_SIZE + 1];
             } else {
-                query = 'SELECT id, client_id, client_name, redirect_uris, description, logo_url, is_active, created_at, created_by FROM oauth_clients ORDER BY created_at DESC LIMIT ?';
+                query = 'SELECT id, client_id, client_name, redirect_uris, description, logo_url, is_active, created_at, created_by FROM oauth_clients ORDER BY created_at DESC, id DESC LIMIT ?';
                 binds = [PAGE_SIZE + 1];
             }
             const clients = await env.DB.prepare(query).bind(...binds).all();
             let hasMore = (clients.results || []).length > PAGE_SIZE;
             const results = hasMore ? (clients.results || []).slice(0, PAGE_SIZE) : (clients.results || []);
-            const nextCursor = hasMore && results.length > 0 ? results[results.length - 1].created_at : null;
+            const lastClient = results[results.length - 1];
+            const nextCursor = hasMore && lastClient
+                ? JSON.stringify({ created_at: lastClient.created_at, id: lastClient.id })
+                : null;
             const enrichedClients = await Promise.all(results.map(async (c) => {
                 if (c.created_by) {
                     const creator = await env.DB.prepare('SELECT nickname, email FROM users WHERE id = ?').bind(c.created_by).first();

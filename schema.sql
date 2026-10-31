@@ -36,6 +36,7 @@ CREATE TABLE files (
     last_verified INTEGER DEFAULT 0,
     FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE SET NULL
 );
+CREATE INDEX IF NOT EXISTS idx_files_uploader ON files(uploader_id);
 
 DROP TABLE IF EXISTS files_fts;
 CREATE VIRTUAL TABLE files_fts USING fts5(name, tokenize='unicode61');
@@ -95,6 +96,7 @@ CREATE TABLE announcements (
     author_id INTEGER,
     FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL
 );
+CREATE INDEX IF NOT EXISTS idx_announcements_author ON announcements(author_id);
 
 DROP TABLE IF EXISTS guestbook;
 CREATE TABLE guestbook (
@@ -132,6 +134,7 @@ CREATE INDEX IF NOT EXISTS idx_guestbook_cursor_time ON guestbook(parent_id, is_
 CREATE INDEX IF NOT EXISTS idx_guestbook_cursor_likes ON guestbook(parent_id, is_pinned DESC, likes DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_guestbook_user_daily_limit ON guestbook(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_guestbook_cleanup ON guestbook(created_at);
+CREATE INDEX IF NOT EXISTS idx_guestbook_status_created ON guestbook(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(is_published, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_announcements_created ON announcements(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_files_recent_uploads ON files(is_directory, uploaded DESC);
@@ -312,6 +315,7 @@ CREATE TABLE admin_requests (
 CREATE INDEX idx_admin_requests_status_created ON admin_requests(status, created_at DESC);
 CREATE INDEX idx_admin_requests_requester ON admin_requests(requested_by, created_at DESC);
 CREATE INDEX idx_admin_requests_created_at ON admin_requests(created_at);
+CREATE INDEX IF NOT EXISTS idx_admin_requests_reviewer ON admin_requests(reviewed_by);
 
 DROP TABLE IF EXISTS login_attempts;
 CREATE TABLE login_attempts (
@@ -434,7 +438,8 @@ CREATE TABLE IF NOT EXISTS oauth_clients (
     created_by INTEGER,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_oauth_clients_created ON oauth_clients(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_oauth_clients_created_id ON oauth_clients(created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_oauth_clients_created_by ON oauth_clients(created_by);
 
 CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -452,6 +457,7 @@ CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
 );
 CREATE INDEX IF NOT EXISTS idx_oauth_codes_client ON oauth_authorization_codes(client_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_oauth_codes_expires ON oauth_authorization_codes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_codes_user ON oauth_authorization_codes(user_id);
 
 CREATE TABLE IF NOT EXISTS oauth_access_tokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -466,6 +472,7 @@ CREATE TABLE IF NOT EXISTS oauth_access_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_client ON oauth_access_tokens(client_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expires ON oauth_access_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_user ON oauth_access_tokens(user_id);
 
 CREATE TABLE IF NOT EXISTS pow_challenges (
     challenge TEXT PRIMARY KEY,
@@ -496,6 +503,7 @@ CREATE TABLE IF NOT EXISTS todos (
 );
 CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_todos_category ON todos(category, status);
+CREATE INDEX IF NOT EXISTS idx_todos_resolved_by ON todos(resolved_by);
 
 CREATE TABLE IF NOT EXISTS todo_guestbook (
     todo_id INTEGER NOT NULL,
