@@ -1392,6 +1392,7 @@ async function showOauthClientsModal() {
                         </div>
                         <div class="oauth-client-actions">
                             <button class="icon-btn oauth-action-btn" data-action="detail" data-id="${escapeHtml(c.client_id)}" data-name="${escapeHtml(c.client_name)}" title="查看详情"><i class="fas fa-info-circle"></i></button>
+                            <button class="icon-btn oauth-action-btn" data-action="edit" data-id="${escapeHtml(c.client_id)}" title="编辑信息"><i class="fas fa-pen"></i></button>
                             <button class="icon-btn oauth-action-btn" data-action="toggle" data-id="${escapeHtml(c.client_id)}" title="${c.is_active ? '禁用' : '启用'}"><i class="fas fa-${c.is_active ? 'pause' : 'play'}"></i></button>
                             <button class="icon-btn oauth-action-btn" data-action="secret" data-id="${escapeHtml(c.client_id)}" title="重置密钥"><i class="fas fa-key"></i></button>
                             <button class="icon-btn oauth-action-btn" data-action="revoke" data-id="${escapeHtml(c.client_id)}" title="撤销令牌"><i class="fas fa-ban"></i></button>
@@ -1411,6 +1412,102 @@ async function showOauthClientsModal() {
         fragment.innerHTML = html;
         bindActionButtons(fragment);
         return fragment;
+    }
+    async function openClientEditModal(clientId) {
+        const editModal = document.createElement('div');
+        editModal.className = 'auth-modal';
+        editModal.innerHTML = `
+            <div class="auth-box oauth-edit-box">
+                <button id="close-edit-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
+                <h2 class="auth-title"><i class="fas fa-pen"></i> 编辑客户端</h2>
+                <form id="oauth-edit-form">
+                    <div class="form-group">
+                        <label>Client ID</label>
+                        <div class="input-with-icon"><i class="fas fa-fingerprint"></i><input type="text" id="oauth-edit-client-id" class="form-control" readonly></div>
+                        <div class="oauth-form-hint"><i class="fas fa-lock"></i> Client ID 与密钥只能重置</div>
+                    </div>
+                    <div class="form-group"><label>客户端名称 <span style="color:var(--accent-color);">*</span></label><div class="input-with-icon"><i class="fas fa-tag"></i><input type="text" id="oauth-edit-name" class="form-control" placeholder="如：XX社区、XX助手" required></div></div>
+                    <div class="form-group"><label>回调地址 (Redirect URI) <span style="color:var(--accent-color);">*</span></label><textarea id="oauth-edit-uris" class="form-control" rows="3" placeholder="多个地址用英文逗号分隔&#10;如: https://example.com/callback, http://localhost:3000/auth" required></textarea><div class="oauth-form-hint"><i class="fas fa-info-circle"></i> 修改后旧授权请求将会失败</div></div>
+                    <div class="form-group"><label>描述</label><div class="input-with-icon"><i class="fas fa-align-left"></i><input type="text" id="oauth-edit-description" class="form-control" placeholder="应用简介（可选）"></div></div>
+                    <div class="form-group"><label>Logo URL</label><div class="input-with-icon"><i class="fas fa-image"></i><input type="url" id="oauth-edit-logo" class="form-control" placeholder="https://example.com/logo.png（可选）"></div></div>
+                    <button type="submit" id="oauth-edit-submit" class="primary-btn full-width" disabled><i class="fas fa-spinner fa-spin"></i> 加载中...</button>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(editModal);
+        editModal.querySelector('#close-edit-modal').onclick = () => closeAuthModal(editModal);
+        const form = editModal.querySelector('#oauth-edit-form');
+        const submitBtn = editModal.querySelector('#oauth-edit-submit');
+        const nameInput = editModal.querySelector('#oauth-edit-name');
+        const urisInput = editModal.querySelector('#oauth-edit-uris');
+        const descInput = editModal.querySelector('#oauth-edit-description');
+        const logoInput = editModal.querySelector('#oauth-edit-logo');
+        const original = { client_name: '', redirect_uris: '', description: '', logo_url: '' };
+        const resetSubmit = () => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> 保存修改';
+        };
+        try {
+            const res = await fetch(`${API_ENDPOINTS.oauthAdmin}?action=detail&client_id=${encodeURIComponent(clientId)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const d = await res.json();
+            if (!d.success) {
+                closeAuthModal(editModal);
+                showNotification(d.error, 'error');
+                return;
+            }
+            const c = d.client;
+            editModal.querySelector('#oauth-edit-client-id').value = c.client_id || clientId;
+            original.client_name = c.client_name || '';
+            original.redirect_uris = c.redirect_uris || '';
+            original.description = c.description || '';
+            original.logo_url = c.logo_url || '';
+            nameInput.value = original.client_name;
+            urisInput.value = original.redirect_uris;
+            descInput.value = original.description;
+            logoInput.value = original.logo_url;
+            resetSubmit();
+        } catch (e) {
+            closeAuthModal(editModal);
+            showNotification('加载客户端信息失败: ' + e.message, 'error');
+            return;
+        }
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const name = nameInput.value.trim();
+            const uris = urisInput.value.trim();
+            if (!name || !uris) { showNotification('请填写必填项', 'error'); return; }
+            const desc = descInput.value.trim();
+            const logo = logoInput.value.trim();
+            const payload = { action: 'update', client_id: clientId };
+            let changed = 0;
+            if (name !== original.client_name) { payload.client_name = name; changed++; }
+            if (uris !== original.redirect_uris) { payload.redirect_uris = uris; changed++; }
+            if (desc !== original.description) { payload.description = desc; changed++; }
+            if (logo !== original.logo_url) { payload.logo_url = logo; changed++; }
+            if (changed === 0) { showNotification('未做任何修改', 'info'); return; }
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+            try {
+                const res = await fetch(API_ENDPOINTS.oauthAdmin, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+                const d = await res.json();
+                if (d.success) {
+                    closeAuthModal(editModal);
+                    showNotification(d.message || '更新成功', 'success');
+                    loadClients();
+                } else {
+                    showNotification(d.error, 'error');
+                    resetSubmit();
+                }
+            } catch (err) {
+                showNotification('保存失败: ' + err.message, 'error');
+                resetSubmit();
+            }
+        };
     }
     function bindActionButtons(container) {
         container.querySelectorAll('.oauth-action-btn').forEach(btn => {
@@ -1486,6 +1583,9 @@ async function showOauthClientsModal() {
                             showNotification('加载详情失败: ' + e.message, 'error');
                         }
                         finally { btn.disabled = false; }
+                    } else if (action === 'edit') {
+                        await openClientEditModal(clientId);
+                        btn.disabled = false;
                     } else if (action === 'toggle') {
                         try {
                             const res = await fetch(API_ENDPOINTS.oauthAdmin, {
@@ -1605,7 +1705,7 @@ async function showOauthClientsModal() {
         const createModal = document.createElement('div');
         createModal.className = 'auth-modal';
         createModal.innerHTML = `
-            <div class="auth-box" style="max-width:520px;">
+            <div class="auth-box oauth-form-box">
                 <button id="close-create-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
                 <h2 class="auth-title"><i class="fas fa-plus"></i> 新建客户端</h2>
                 <form id="oauth-create-form">

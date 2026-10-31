@@ -10870,11 +10870,67 @@ input#prompt-input {
     margin-top: 0.4rem;
     display: flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.35rem;
+    line-height: 1.5;
 }
 
 .oauth-form-hint i {
     font-size: 0.72rem;
+    flex-shrink: 0;
+    margin-top: 0.28em;
+}
+
+.oauth-form-box,
+.oauth-edit-box {
+    width: 90%;
+    max-width: 520px;
+    max-height: 90vh;
+    padding: 1.75rem 1.5rem;
+    overflow-y: auto;
+}
+
+.oauth-form-box .form-group,
+.oauth-edit-box .form-group {
+    margin-bottom: 0.9rem;
+    gap: 0.35rem;
+}
+
+.oauth-form-box .form-group:last-of-type,
+.oauth-edit-box .form-group:last-of-type {
+    margin-bottom: 1rem;
+}
+
+.oauth-form-box .form-control,
+.oauth-edit-box .form-control {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9rem;
+    border-radius: 10px;
+}
+
+.oauth-form-box .form-control[readonly],
+.oauth-edit-box .form-control[readonly] {
+    cursor: default;
+    color: var(--text-secondary);
+    background: var(--background-alt);
+}
+
+.oauth-form-box textarea.form-control,
+.oauth-edit-box textarea.form-control {
+    resize: vertical;
+    min-height: 84px;
+    max-height: 180px;
+    line-height: 1.45;
+}
+
+.oauth-form-box .input-with-icon>i,
+.oauth-edit-box .input-with-icon>i {
+    left: 12px;
+    font-size: 0.9rem;
+}
+
+.oauth-form-box .input-with-icon input,
+.oauth-edit-box .input-with-icon input {
+    padding-left: 34px !important;
 }
 
 .oauth-detail-box {
@@ -11217,7 +11273,7 @@ input#prompt-input {
 @media (max-width: 480px) {
     .oauth-client-actions {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 0.35rem;
         width: 100%;
         align-self: stretch;
@@ -11227,6 +11283,17 @@ input#prompt-input {
         width: 100% !important;
         height: 36px !important;
         border-radius: 8px !important;
+    }
+
+    .oauth-form-box,
+    .oauth-edit-box {
+        width: 94%;
+        padding: 1.25rem;
+    }
+
+    .oauth-form-hint {
+        font-size: 0.72rem;
+        gap: 0.5rem;
     }
 
     .oauth-client-meta {

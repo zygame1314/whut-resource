@@ -168,29 +168,66 @@ export async function onRequestPost(context) {
             }
             const updates = [];
             const binds = [];
-            if (client_name !== undefined && client_name.trim()) {
-                updates.push('client_name = ?');
-                binds.push(client_name.trim());
+            const changedFields = [];
+            if (client_name !== undefined) {
+                const name = typeof client_name === 'string' ? client_name.trim() : '';
+                if (!name) {
+                    return new Response(JSON.stringify({ success: false, error: '客户端名称不能为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+                }
+                if (name !== client.client_name) {
+                    updates.push('client_name = ?');
+                    binds.push(name);
+                    changedFields.push('client_name');
+                }
             }
             if (redirect_uris !== undefined) {
-                const uriList = redirect_uris.split(',').map(u => u.trim()).filter(Boolean);
+                const uriList = (typeof redirect_uris === 'string' ? redirect_uris : '').split(',').map(u => u.trim()).filter(Boolean);
+                if (uriList.length === 0) {
+                    return new Response(JSON.stringify({ success: false, error: '回调地址不能为空' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+                }
                 for (const uri of uriList) {
                     try { new URL(uri); } catch {
                         return new Response(JSON.stringify({ success: false, error: `无效的回调地址: ${uri}` }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
                     }
                 }
-                updates.push('redirect_uris = ?');
-                binds.push(uriList.join(','));
+                const normalized = uriList.join(',');
+                if (normalized !== client.redirect_uris) {
+                    updates.push('redirect_uris = ?');
+                    binds.push(normalized);
+                    changedFields.push('redirect_uris');
+                }
             }
-            if (description !== undefined) { updates.push('description = ?'); binds.push(description); }
-            if (logo_url !== undefined) { updates.push('logo_url = ?'); binds.push(logo_url); }
+            if (description !== undefined) {
+                const desc = typeof description === 'string' ? description.trim() : '';
+                if (desc !== (client.description || '')) {
+                    updates.push('description = ?');
+                    binds.push(desc);
+                    changedFields.push('description');
+                }
+            }
+            if (logo_url !== undefined) {
+                const logo = typeof logo_url === 'string' ? logo_url.trim() : '';
+                if (logo) {
+                    try { new URL(logo); } catch {
+                        return new Response(JSON.stringify({ success: false, error: `无效的 Logo URL: ${logo}` }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+                    }
+                }
+                if (logo !== (client.logo_url || '')) {
+                    updates.push('logo_url = ?');
+                    binds.push(logo);
+                    changedFields.push('logo_url');
+                }
+            }
             if (updates.length === 0) {
                 return new Response(JSON.stringify({ success: false, error: '没有需要更新的字段' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
             }
             binds.push(client_id);
             await env.DB.prepare(`UPDATE oauth_clients SET ${updates.join(', ')} WHERE client_id = ?`).bind(...binds).run();
-            await logAdminAction(env, user.id, 'oauth_client_update', 'oauth_client', client_id, `更新OAuth客户端: ${client.client_name} (${client_id})`, JSON.stringify({ client_name: client.client_name, client_id }));
-            return new Response(JSON.stringify({ success: true, message: '更新成功' }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+            await logAdminAction(env, user.id, 'oauth_client_update', 'oauth_client', client_id, `更新OAuth客户端: ${client.client_name} (${client_id})`, JSON.stringify({ client_id, client_name: client.client_name, changed_fields: changedFields }));
+            const updated = await env.DB.prepare(
+                'SELECT client_id, client_name, redirect_uris, description, logo_url, is_active FROM oauth_clients WHERE client_id = ?'
+            ).bind(client_id).first();
+            return new Response(JSON.stringify({ success: true, message: '更新成功', client: updated, changed_fields: changedFields }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         if (action === 'delete') {
             const { client_id } = body;
