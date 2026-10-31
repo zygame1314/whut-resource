@@ -1303,3 +1303,63 @@
         opacity: 1;
     }
 }
+
+@keyframes powPenaltyPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 1px rgba(255, 152, 0, 0.2), 0 0 10px rgba(255, 152, 0, 0.08);
+    }
+
+    50% {
+        box-shadow: 0 0 0 1px rgba(255, 152, 0, 0.45), 0 0 20px rgba(255, 152, 0, 0.22);
+    }
+}
+
+@keyframes powPenaltyIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.96);
+    }
+
+    60% {
+        opacity: 1;
+        transform: translateY(1px) scale(1.02);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes powPenaltyBolt {
+
+    0%,
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+
+    40% {
+        transform: scale(1.18) rotate(-8deg);
+        opacity: 0.85;
+    }
+
+    70% {
+        transform: scale(1.05) rotate(5deg);
+        opacity: 1;
+    }
+}
+
+@keyframes powPenaltyStamp {
+    0% {
+        transform: translateY(calc(-50% + 9px)) rotate(-24deg) scale(1.8);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateY(calc(-50% + 9px)) rotate(-4deg) scale(1);
+        opacity: 1;
+    }
+}

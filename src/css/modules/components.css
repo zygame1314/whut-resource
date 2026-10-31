@@ -9485,6 +9485,136 @@ input#prompt-input {
     font-variant-numeric: tabular-nums;
 }
 
+/* ===== PoW 难度惩罚态 ===== */
+.pow-card.pow-penalty {
+    flex-wrap: wrap;
+    border-color: rgba(255, 152, 0, 0.55);
+    border-style: solid;
+    background-image:
+        repeating-linear-gradient(45deg, rgba(255, 152, 0, 0.08) 0 10px, rgba(255, 152, 0, 0) 10px 20px),
+        linear-gradient(180deg, rgba(255, 152, 0, 0.09), rgba(255, 152, 0, 0) 72%);
+    animation: powPenaltyPulse 2.4s ease-in-out infinite;
+}
+
+.pow-card.pow-penalty.pow-idle:hover {
+    border-color: #ff9800;
+    box-shadow: 0 0 0 1px #ff9800, 0 2px 10px rgba(255, 152, 0, 0.22);
+    animation: none;
+}
+
+.pow-card.pow-penalty::before {
+    content: 'difficulty penalty';
+    color: rgba(255, 152, 0, 0.55);
+}
+
+.pow-card.pow-penalty::after {
+    content: 'PENALTY';
+    color: rgba(255, 152, 0, 0.72);
+    letter-spacing: 2px;
+    animation: powPenaltyStamp 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.pow-card.pow-penalty .pow-icon {
+    color: #ff9800;
+}
+
+.pow-card.pow-penalty .pow-ring-progress {
+    stroke: #ff9800;
+}
+
+.pow-card.pow-penalty.pow-done {
+    border-color: var(--success-color);
+    background-image: none;
+    box-shadow: none;
+    animation: none;
+}
+
+.pow-card.pow-penalty.pow-done::before {
+    content: 'powered by';
+    color: rgba(39, 174, 96, 0.7);
+}
+
+.pow-card.pow-penalty.pow-done::after {
+    content: 'zygame1314';
+    color: rgba(39, 174, 96, 0.75);
+    letter-spacing: 1.5px;
+    animation: powStampIn 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.pow-penalty-banner {
+    display: none;
+    flex-basis: 100%;
+    width: 100%;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(255, 152, 0, 0.45);
+    line-height: 1;
+}
+
+.pow-card.pow-penalty .pow-penalty-banner {
+    display: flex;
+}
+
+.pow-penalty-banner.pow-penalty-in {
+    animation: powPenaltyIn 0.45s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+
+.pow-penalty-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ffc247, #ff7a00);
+    color: #241400;
+    font-size: 0.68rem;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 1px 6px rgba(255, 122, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.pow-penalty-tag i {
+    font-size: 0.62rem;
+    animation: powPenaltyBolt 1.4s ease-in-out infinite;
+}
+
+.pow-penalty-escalated .pow-penalty-tag {
+    background: linear-gradient(135deg, #ffd97a, #ffb020);
+}
+
+.pow-penalty-severe .pow-penalty-tag {
+    background: linear-gradient(135deg, #ffb066, #f4511e);
+    color: #2b0d00;
+}
+
+.pow-penalty-max .pow-penalty-tag {
+    background: linear-gradient(135deg, #ff8a8a, #e53935);
+    color: #2a0505;
+    box-shadow: 0 1px 8px rgba(229, 57, 53, 0.42);
+}
+
+.pow-penalty-reason {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: #b26a00;
+}
+
+[data-theme="dark"] .pow-penalty-reason {
+    color: #ffbc5c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .pow-card.pow-penalty,
+    .pow-penalty-banner.pow-penalty-in,
+    .pow-penalty-tag i {
+        animation: none;
+    }
+}
+
 .captcha-widget>iframe,
 .captcha-widget>div {
     transform-origin: center center;

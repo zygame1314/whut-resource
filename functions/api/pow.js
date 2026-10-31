@@ -207,18 +207,18 @@ async function ensurePowSchema(env) {
   _schemaEnsured = true;
 }
 
-async function ipPenaltyBits(env, ip) {
-  if (!ip || ip === 'unknown') return 0;
+async function ipPenaltyInfo(env, ip) {
+  if (!ip || ip === 'unknown') return { bits: 0, count: 0 };
   try {
     const since = new Date(Date.now() - IP_RATE_WINDOW_MS).toISOString();
     const row = await env.DB.prepare(
       'SELECT COUNT(*) AS cnt FROM pow_challenges WHERE ip = ? AND issued_at > ?'
     ).bind(ip, since).first();
     const count = (row && row.cnt) || 0;
-    if (count <= IP_RATE_BASE_COUNT) return 0;
-    return Math.min((count - IP_RATE_BASE_COUNT) * IP_RATE_BITS_STEP, MAX_BITS - MIN_BITS);
+    if (count <= IP_RATE_BASE_COUNT) return { bits: 0, count };
+    return { bits: Math.min((count - IP_RATE_BASE_COUNT) * IP_RATE_BITS_STEP, MAX_BITS - MIN_BITS), count };
   } catch (e) {
-    return 0;
+    return { bits: 0, count: 0 };
   }
 }
 
@@ -240,6 +240,19 @@ function botScorePenaltyBits(cf) {
     return BOT_SCORE_PENALTY_BITS;
   }
   return 0;
+}
+
+// 返回给前端的惩罚说明，只暴露粗略原因，不泄露具体评分/ASN 等信息
+function buildPenaltyPayload(reasons, rawBits, appliedBits, totalBits) {
+  if (!reasons.length) return undefined;
+  return {
+    rawBits,
+    appliedBits,
+    totalBits,
+    maxed: totalBits >= MAX_BITS,
+    level: totalBits >= MAX_BITS ? 'max' : (appliedBits >= 4 ? 'severe' : 'mild'),
+    reasons
+  };
 }
 
 function shouldCleanup() {
@@ -387,11 +400,19 @@ export async function onRequestPost({ request, env, waitUntil }) {
     await ensurePowSchema(env);
     const floor = isHighRisk ? HIGH_RISK_MIN_BITS : MIN_BITS;
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const penalty = await ipPenaltyBits(env, ip);
+    const ipPenalty = await ipPenaltyInfo(env, ip);
     const botPenalty = botScorePenaltyBits(cf);
     const deviceBits = bitsFromDevice(hashRate, floor);
     const escalateFloor = Number.isInteger(escalateBits) && escalateBits >= MIN_BITS && escalateBits <= MAX_BITS ? escalateBits : 0;
-    const bits = Math.min(Math.max(floor, deviceBits, escalateFloor, floor + penalty + asnPenalty + botPenalty), MAX_BITS);
+    const penaltyBits = ipPenalty.bits + asnPenalty + botPenalty;
+    const autoBits = Math.min(Math.max(floor, deviceBits, escalateFloor), MAX_BITS);
+    const bits = Math.min(Math.max(autoBits, floor + penaltyBits), MAX_BITS);
+    const appliedPenaltyBits = Math.max(bits - autoBits, 0);
+    const penaltyReasons = [];
+    if (ipPenalty.bits > 0) penaltyReasons.push('同 IP 短时间内反复申请');
+    if (asnPenalty > 0) penaltyReasons.push('机房 / 代理网络出口');
+    if (botPenalty > 0) penaltyReasons.push('自动化行为特征可疑');
+    const penaltyPayload = buildPenaltyPayload(penaltyReasons, penaltyBits, appliedPenaltyBits, bits);
     const challenge = crypto.randomUUID().replace(/-/g, '');
     const steps = Math.pow(2, bits);
     const interval = CHECKPOINT_INTERVAL;
@@ -412,7 +433,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
       interval,
       envNonce: envNonce || undefined,
       requiresBrowser: requireBrowser,
-      expiresIn: CHALLENGE_EXPIRES_MS / 1000
+      expiresIn: CHALLENGE_EXPIRES_MS / 1000,
+      penalty: penaltyPayload
     }), { status: 200, headers: { 'Content-Type': 'application/json', ...addCors() } });
   } catch (e) {
     return new Response(JSON.stringify({ success: false, error: e.message }), {

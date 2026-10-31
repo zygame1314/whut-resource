@@ -376,7 +376,25 @@ async function fetchPowChallenge(hashRate, escalateBits, action, bindHash) {
         interval: data.interval,
         envNonce: data.envNonce || '',
         requiresBrowser: !!data.requiresBrowser,
-        expiresIn: data.expiresIn
+        expiresIn: data.expiresIn,
+        penalty: normalizePowPenalty(data.penalty)
+    };
+}
+
+function normalizePowPenalty(penalty) {
+    if (!penalty || typeof penalty !== 'object') return null;
+    const reasons = Array.isArray(penalty.reasons)
+        ? penalty.reasons.filter(r => typeof r === 'string' && r.trim()).slice(0, 4)
+        : [];
+    if (!reasons.length) return null;
+    const appliedBits = Math.max(0, Number(penalty.appliedBits) || 0);
+    return {
+        rawBits: Math.max(0, Number(penalty.rawBits) || 0),
+        appliedBits,
+        totalBits: Math.max(0, Number(penalty.totalBits) || 0),
+        maxed: !!penalty.maxed,
+        level: penalty.level === 'max' || penalty.level === 'severe' ? penalty.level : 'mild',
+        reasons
     };
 }
 
@@ -386,14 +404,94 @@ async function solvePowChallenge(onProgress, escalateBits, action, bindFields) {
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'benchmark_done', challenge: '', hashRate });
     const bindHash = (bindFields && bindFields.length) ? await powBindHash(action, bindFields) : '';
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'fetching', challenge: '' });
-    const { challenge, bits, steps, interval, envNonce } = await fetchPowChallenge(hashRate, escalateBits, action, bindHash);
-    if (onProgress) onProgress({ step: 0, hash: '', phase: 'solving', challenge });
+    const { challenge, bits, steps, interval, envNonce, penalty } = await fetchPowChallenge(hashRate, escalateBits, action, bindHash);
+    if (onProgress) onProgress({ step: 0, hash: '', phase: 'solving', challenge, penalty });
     const solvePromise = solveChainInWorker(challenge, steps, interval, bindHash, (p) => {
         if (onProgress) onProgress({ step: p.step, hash: p.hash, phase: p.phase || 'computing', totalSteps: steps });
     });
     const envPromise = envNonce ? buildEnvProof(envNonce, hashRate) : Promise.resolve(null);
     const [{ checkpoints }, powEnv] = await Promise.all([solvePromise, envPromise]);
     return { powChallenge: challenge, powCheckpoints: checkpoints, powBits: bits, powBind: bindHash, powEnv: powEnv || undefined };
+}
+
+function ensurePowPenaltyBanner(powEl) {
+    if (!powEl) return null;
+    const existing = powEl.querySelector('.pow-penalty-banner');
+    if (existing) return existing;
+    const banner = document.createElement('div');
+    banner.className = 'pow-penalty-banner';
+    banner.innerHTML = '<span class="pow-penalty-tag"><i class="fas fa-triangle-exclamation"></i><span class="pow-penalty-bits"></span></span><span class="pow-penalty-reason"></span>';
+    banner.setAttribute('role', 'status');
+    banner.setAttribute('aria-live', 'polite');
+    powEl.appendChild(banner);
+    return banner;
+}
+
+function clearPowPenaltyUI(powEl) {
+    if (!powEl) return;
+    powEl._powPenalty = null;
+    powEl.classList.remove('pow-penalty', 'pow-penalty-severe', 'pow-penalty-max', 'pow-penalty-escalated');
+    const banner = powEl.querySelector('.pow-penalty-banner');
+    if (banner) banner.remove();
+    const iconEl = powEl.querySelector('.pow-icon');
+    if (iconEl) {
+        iconEl.classList.remove('fa-triangle-exclamation');
+        iconEl.classList.add('fa-shield-alt');
+    }
+}
+
+function renderPowPenalty(powEl, penalty) {
+    const banner = ensurePowPenaltyBanner(powEl);
+    if (!banner || !penalty) return;
+    const tagText = banner.querySelector('.pow-penalty-bits');
+    const reasonText = banner.querySelector('.pow-penalty-reason');
+    let tag;
+    if (penalty.appliedBits > 0) tag = `难度惩罚 +${penalty.appliedBits} bits`;
+    else if (penalty.totalBits > 0) tag = `难度提至 ${penalty.totalBits} bits`;
+    else tag = '难度提升';
+    if (tagText) tagText.textContent = tag;
+    if (reasonText) {
+        const shown = penalty.reasons.slice(0, 2);
+        const extra = penalty.reasons.length - shown.length;
+        reasonText.textContent = shown.join(' · ') + (extra > 0 ? ` · 等 ${extra + shown.length} 项` : '');
+    }
+    banner.title = penalty.reasons.join('\n');
+    powEl.classList.add('pow-penalty');
+    powEl.classList.toggle('pow-penalty-severe', penalty.level === 'severe');
+    powEl.classList.toggle('pow-penalty-max', penalty.maxed || penalty.level === 'max');
+    powEl.classList.toggle('pow-penalty-escalated', !penalty.appliedBits);
+    const iconEl = powEl.querySelector('.pow-icon');
+    if (iconEl) {
+        iconEl.classList.remove('fa-shield-alt');
+        iconEl.classList.add('fa-triangle-exclamation');
+    }
+    banner.classList.remove('pow-penalty-in');
+    void banner.offsetWidth;
+    banner.classList.add('pow-penalty-in');
+}
+
+function applyPowPenalty(powEl, penalty) {
+    if (!powEl) return;
+    if (!penalty) {
+        clearPowPenaltyUI(powEl);
+        return;
+    }
+    const prev = powEl._powPenalty;
+    const reasons = [];
+    const pushReason = (r) => { if (r && !reasons.includes(r)) reasons.push(r); };
+    if (prev) prev.reasons.forEach(pushReason);
+    penalty.reasons.forEach(pushReason);
+    const merged = {
+        rawBits: Math.max(prev ? prev.rawBits : 0, penalty.rawBits),
+        appliedBits: Math.max(prev ? prev.appliedBits : 0, penalty.appliedBits),
+        totalBits: penalty.totalBits || (prev ? prev.totalBits : 0),
+        maxed: !!(penalty.maxed || (prev && prev.maxed)),
+        level: penalty.level === 'max' || (prev && prev.level === 'max') ? 'max'
+            : (penalty.level === 'severe' || (prev && prev.level === 'severe') ? 'severe' : 'mild'),
+        reasons
+    };
+    powEl._powPenalty = merged;
+    renderPowPenalty(powEl, merged);
 }
 
 function updatePowUI(powEl, progress) {
@@ -409,6 +507,8 @@ function updatePowUI(powEl, progress) {
     const phase = progress.phase || 'computing';
     const step = progress.step || 0;
     const hash = progress.hash || '';
+
+    if (progress.penalty) applyPowPenalty(powEl, progress.penalty);
 
     powEl.classList.toggle('pow-idle', phase === 'idle');
     powEl.classList.toggle('pow-done', phase === 'done');
@@ -444,7 +544,9 @@ function updatePowUI(powEl, progress) {
     if (hashEl) hashEl.textContent = hash || '--------';
     if (labelEl) {
         const labels = { idle: '点击完成人机验证', benchmark: '正在评估设备性能...', benchmark_done: '正在评估设备性能...', fetching: '正在获取挑战...', solving: '正在计算人机验证...', computing: '正在计算...', done: '验证完成' };
-        labelEl.textContent = labels[phase] || '正在计算...';
+        let label = labels[phase] || '正在计算...';
+        if (phase === 'idle' && powEl.classList.contains('pow-penalty')) label = '难度已提升，点击继续验证';
+        labelEl.textContent = label;
     }
     if (iconEl) iconEl.style.display = phase === 'done' ? 'none' : '';
     if (checkEl) checkEl.style.display = phase === 'done' ? '' : 'none';
@@ -459,6 +561,23 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
     let action = riskAction || '';
     powEl.classList.add('pow-idle');
     powEl.style.cursor = 'pointer';
+
+    // 连续失败后服务端会抬高难度，这里提前把“为什么被加难”说清楚
+    const syncEscalatePenalty = () => {
+        if (escalateBits > 0) {
+            applyPowPenalty(powEl, {
+                rawBits: 0,
+                appliedBits: 0,
+                totalBits: escalateBits,
+                maxed: false,
+                level: 'mild',
+                reasons: ['连续失败次数过多']
+            });
+        } else {
+            clearPowPenaltyUI(powEl);
+        }
+        if (!solving && !solved) updatePowUI(powEl, { phase: 'idle', step: 0, hash: '' });
+    };
 
     powEl.onclick = async () => {
         if (solved || solving) return;
@@ -486,9 +605,9 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
         getResult: () => result,
         isSolved: () => solved,
         isSolving: () => solving,
-        setEscalateBits: (b) => { escalateBits = Math.max(0, Number(b) || 0); },
-        setMinBits: (b) => { escalateBits = Math.max(escalateBits, Number(b) || 0); },
-        reset: () => { solved = false; solving = false; result = null; powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', step: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
+        setEscalateBits: (b) => { escalateBits = Math.max(0, Number(b) || 0); syncEscalatePenalty(); },
+        setMinBits: (b) => { escalateBits = Math.max(escalateBits, Number(b) || 0); syncEscalatePenalty(); },
+        reset: () => { solved = false; solving = false; result = null; clearPowPenaltyUI(powEl); powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', step: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
         meetsRequired: () => solved && !!result && result.powBits >= escalateBits,
         requiredBits: () => escalateBits,
         el: powEl
