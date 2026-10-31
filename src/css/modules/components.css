@@ -7983,7 +7983,7 @@ input#prompt-input {
 }
 
 .load-more-button:active {
-    transform: scale(1.01);
+    transform: scale(0.98);
 }
 
 .load-more-button.loading {
@@ -9622,7 +9622,8 @@ input#prompt-input {
 .admin-logs-modal .auth-box,
 .banned-users-modal .auth-box,
 #admin-requests-modal .auth-box,
-#todos-modal .auth-box {
+#todos-modal .auth-box,
+.oauth-manage-modal .auth-box {
     width: 90%;
     max-width: 800px;
     max-height: 90vh;
@@ -10014,6 +10015,15 @@ input#prompt-input {
     background: var(--background);
 }
 
+.admin-tab-content .load-more-container {
+    margin-top: 0.75rem;
+    padding: 0;
+}
+
+.admin-tab-content .load-more-container:empty {
+    display: none;
+}
+
 .admin-tabs {
     display: flex;
     gap: 0;
@@ -10081,7 +10091,8 @@ input#prompt-input {
     .admin-logs-modal .auth-box,
     .banned-users-modal .auth-box,
     #admin-requests-modal .auth-box,
-    #todos-modal .auth-box {
+    #todos-modal .auth-box,
+    .oauth-manage-modal .auth-box {
         width: 95%;
         max-height: 85vh;
         padding: 1.5rem;
@@ -10217,7 +10228,8 @@ input#prompt-input {
     .admin-logs-modal .auth-box,
     .banned-users-modal .auth-box,
     #admin-requests-modal .auth-box,
-    #todos-modal .auth-box {
+    #todos-modal .auth-box,
+    .oauth-manage-modal .auth-box {
         width: 98%;
         padding: 1rem;
         border-radius: 16px;
@@ -10302,34 +10314,27 @@ input#prompt-input {
     color: #ff9800;
 }
 
-.oauth-manage-box {
-    width: 90%;
-    max-width: 800px;
-    max-height: 90vh;
-    padding: 2rem;
+.oauth-manage-toolbar {
     display: flex;
-    flex-direction: column;
-}
-
-.oauth-manage-desc {
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    margin-bottom: 1.2rem;
-    text-align: center;
-    line-height: 1.6;
-}
-
-.oauth-toolbar {
-    display: flex;
-    gap: 0.6rem;
-    margin-bottom: 1.2rem;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    margin-right: 8px;
 }
 
 .oauth-clients-list {
-    max-height: 420px;
-    overflow-y: auto;
-    flex: 1;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.oauth-clients-list::-webkit-scrollbar {
+    display: none;
+}
+
+.oauth-manage-footer {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
 }
 
 .oauth-client-card {
@@ -10372,7 +10377,7 @@ input#prompt-input {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     min-width: 0;
 }
 
@@ -10391,6 +10396,8 @@ input#prompt-input {
     font-weight: 600;
     letter-spacing: 0.3px;
     white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.5;
 }
 
 .oauth-status-active {
@@ -10450,21 +10457,12 @@ input#prompt-input {
 .oauth-code {
     font-family: var(--font-mono, monospace);
     font-size: 0.75rem;
-    background: var(--background-alt);
-    padding: 0.2rem 0.55rem;
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
     word-break: break-all;
     line-height: 1.5;
-    color: var(--text-primary);
 }
 
 .oauth-code-uri {
     font-size: 0.72rem;
-    background: transparent;
-    border: none;
-    padding: 0;
-    color: var(--text-secondary);
 }
 
 .oauth-client-actions {
@@ -10480,6 +10478,7 @@ input#prompt-input {
     height: 34px !important;
     border-radius: 10px !important;
     font-size: 0.85rem;
+    background: var(--background);
 }
 
 .oauth-loading-state {
@@ -10654,7 +10653,7 @@ input#prompt-input {
 .oauth-detail-box {
     width: 90%;
     max-width: 720px;
-    max-height: 90vh;
+    max-height: 85vh;
     padding: 2rem;
     display: flex;
     flex-direction: column;
@@ -10666,10 +10665,13 @@ input#prompt-input {
     gap: 0.6rem;
     flex-wrap: wrap;
     margin-bottom: 1rem;
+    padding-right: 1.75rem;
 }
 
 .oauth-detail-header .auth-title {
     margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .oauth-detail-loading {
@@ -10805,19 +10807,28 @@ input#prompt-input {
 }
 
 .oauth-load-more-btn {
-    display: block;
-    width: 100%;
+    width: auto;
 }
 
 @media (max-width: 768px) {
-    .oauth-manage-box {
-        width: 95%;
-        max-height: 85vh;
-        padding: 1.5rem;
+    .oauth-manage-toolbar {
+        order: 3;
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .oauth-manage-toolbar #oauth-create-btn {
+        margin-right: auto;
     }
 
     .oauth-client-card {
         flex-direction: column;
+        padding: 1rem;
+        border-radius: 12px;
     }
 
     .oauth-client-main {
@@ -10826,18 +10837,70 @@ input#prompt-input {
 
     .oauth-client-header {
         flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+        padding-bottom: 0.6rem;
+    }
+
+    .oauth-client-title {
+        width: 100%;
         align-items: flex-start;
+        gap: 0.4rem;
+    }
+
+    .oauth-client-name {
+        font-size: 1rem;
+        line-height: 1.5;
     }
 
     .oauth-client-actions {
         flex-direction: row;
         justify-content: flex-start;
         width: 100%;
+        align-self: stretch;
+    }
+
+    .oauth-client-meta {
+        margin-top: 0.6rem;
+        padding: 0.6rem 0.7rem;
+        gap: 0.35rem;
+    }
+
+    .oauth-meta-row {
+        align-items: flex-start;
+        font-size: 0.8rem;
+    }
+
+    .oauth-meta-row>i {
+        width: 14px;
+        margin-top: 0.2rem;
+    }
+
+    .oauth-code {
+        font-size: 0.7rem;
+    }
+
+    .oauth-code-uri {
+        font-size: 0.68rem;
     }
 
     .oauth-detail-box {
         width: 95%;
         padding: 1.25rem;
+    }
+
+    .oauth-detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+        padding-right: 2.5rem;
+    }
+
+    .oauth-detail-header .auth-title {
+        font-size: 1.05rem;
+        line-height: 1.45;
+        text-align: left;
+        letter-spacing: 0;
     }
 
     .oauth-detail-table-wrap {
@@ -10921,6 +10984,76 @@ input#prompt-input {
 
     .oauth-detail-table td.oauth-detail-empty::before {
         content: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .oauth-client-actions {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.35rem;
+        width: 100%;
+        align-self: stretch;
+    }
+
+    .oauth-action-btn {
+        width: 100% !important;
+        height: 36px !important;
+        border-radius: 8px !important;
+    }
+
+    .oauth-client-meta {
+        padding: 0.7rem 0.75rem;
+    }
+
+    .oauth-client-meta .oauth-meta-row,
+    .oauth-detail-info .oauth-meta-row {
+        display: grid;
+        grid-template-columns: 14px minmax(0, 1fr);
+        grid-template-areas:
+            "icon label"
+            "value value";
+        align-items: center;
+        column-gap: 0.6rem;
+        row-gap: 0.3rem;
+    }
+
+    .oauth-client-meta .oauth-meta-row>i,
+    .oauth-detail-info .oauth-meta-row>i {
+        grid-area: icon;
+        width: auto;
+        margin: 0;
+        font-size: 0.7rem;
+        line-height: 1;
+    }
+
+    .oauth-client-meta .oauth-meta-row::before {
+        content: attr(data-label);
+        grid-area: label;
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        line-height: 1.2;
+    }
+
+    .oauth-client-meta .oauth-meta-row>code,
+    .oauth-client-meta .oauth-meta-row>span {
+        grid-area: value;
+        justify-self: start;
+        min-width: 0;
+    }
+
+    .oauth-detail-info .oauth-detail-label {
+        grid-area: label;
+        min-width: 0;
+        font-size: 0.68rem;
+        line-height: 1.2;
+    }
+
+    .oauth-detail-info .oauth-meta-row>code,
+    .oauth-detail-info .oauth-meta-row>span:not(.oauth-detail-label) {
+        grid-area: value;
+        min-width: 0;
     }
 }
 

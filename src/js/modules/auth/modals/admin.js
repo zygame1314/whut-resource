@@ -538,34 +538,48 @@ async function showAdminManagementModal(initialTab = 'roles') {
                     <button id="user-search-btn" class="primary-btn"><i class="fas fa-search"></i> 搜索</button>
                 </div>
                 <div id="search-results" class="admin-search-results" style="display:none;"></div>
+                <div id="search-results-more" class="load-more-container" style="display:none;"></div>
             </div>
             <div class="admin-section">
                 <div class="admin-section-title"><i class="fas fa-users-cog"></i> 管理员列表</div>
                 <div id="admin-list-container" class="admin-list-container">
                     <div class="loading-spinner"></div>
                 </div>
+                <div id="admin-list-more" class="load-more-container"></div>
             </div>
         `;
         const searchInput = tabContent.querySelector('#user-search-input');
         const searchBtn = tabContent.querySelector('#user-search-btn');
         const searchResults = tabContent.querySelector('#search-results');
+        const searchResultsMore = tabContent.querySelector('#search-results-more');
         const adminListContainer = tabContent.querySelector('#admin-list-container');
+        const adminListMore = tabContent.querySelector('#admin-list-more');
 
         let adminCache = [];
         let adminCursor = null;
         let hasMoreAdmins = true;
         let isLoadingAdmins = false;
 
+        const hideSearchResults = () => {
+            searchResults.style.display = 'none';
+            searchResultsMore.style.display = 'none';
+            searchResultsMore.innerHTML = '';
+        };
+
         const renderAdminList = () => {
             renderUserList(adminListContainer, adminCache, true);
-            const existingMore = adminListContainer.querySelector('.load-more-admins');
-            if (existingMore) existingMore.remove();
+            adminListMore.innerHTML = '';
             if (hasMoreAdmins) {
-                const moreBtn = document.createElement('div');
-                moreBtn.className = 'load-more-admins load-more-container';
-                moreBtn.innerHTML = '<button class="load-more-button"><i class="fas fa-chevron-down"></i> 加载更多</button>';
-                moreBtn.querySelector('button').onclick = () => loadAdmins(false);
-                adminListContainer.appendChild(moreBtn);
+                const moreBtn = document.createElement('button');
+                moreBtn.className = 'load-more-button';
+                moreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多';
+                moreBtn.onclick = async () => {
+                    if (moreBtn.classList.contains('loading')) return;
+                    moreBtn.classList.add('loading');
+                    moreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+                    await loadAdmins(false);
+                };
+                adminListMore.appendChild(moreBtn);
             }
         };
 
@@ -576,6 +590,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
                 adminCursor = null;
                 hasMoreAdmins = true;
                 adminListContainer.innerHTML = '<div class="loading-spinner"></div>';
+                adminListMore.innerHTML = '';
             } else if (!hasMoreAdmins) {
                 return;
             }
@@ -594,6 +609,13 @@ async function showAdminManagementModal(initialTab = 'roles') {
                 renderAdminList();
             } catch (e) {
                 if (reset) adminListContainer.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
+                else {
+                    const loadMoreBtn = adminListMore.querySelector('.load-more-button');
+                    if (loadMoreBtn) {
+                        loadMoreBtn.classList.remove('loading');
+                        loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多';
+                    }
+                }
             }
             isLoadingAdmins = false;
         };
@@ -659,7 +681,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
                         if (result.success) {
                             showNotification('已提升为管理员', 'success');
                             loadAdmins();
-                            searchResults.style.display = 'none';
+                            hideSearchResults();
                             searchInput.value = '';
                         } else {
                             throw new Error(result.error || '操作失败');
@@ -694,7 +716,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
                         if (result.success) {
                             showNotification('已降为普通用户', 'success');
                             loadAdmins();
-                            searchResults.style.display = 'none';
+                            hideSearchResults();
                             searchInput.value = '';
                         } else {
                             throw new Error(result.error || '操作失败');
@@ -729,7 +751,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
                         if (result.success) {
                             showNotification('已封禁该用户', 'success');
                             loadAdmins();
-                            searchResults.style.display = 'none';
+                            hideSearchResults();
                             searchInput.value = '';
                         } else {
                             throw new Error(result.error || '操作失败');
@@ -764,7 +786,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
                         if (result.success) {
                             showNotification('已解封该用户', 'success');
                             loadAdmins();
-                            searchResults.style.display = 'none';
+                            hideSearchResults();
                             searchInput.value = '';
                         } else {
                             throw new Error(result.error || '操作失败');
@@ -784,18 +806,20 @@ async function showAdminManagementModal(initialTab = 'roles') {
         let searchKeyword = '';
         const renderSearchResults = () => {
             renderUserList(searchResults, searchCache, true);
+            searchResultsMore.innerHTML = '';
             if (searchHasMore) {
-                searchResults.insertAdjacentHTML('beforeend', `
-                    <div id="load-more-search" class="load-more-container">
-                        <button class="load-more-button"><i class="fas fa-chevron-down"></i> 加载更多</button>
-                    </div>
-                `);
-                const loadMoreBtn = searchResults.querySelector('#load-more-search .load-more-button');
+                searchResultsMore.style.display = '';
+                const loadMoreBtn = document.createElement('button');
+                loadMoreBtn.className = 'load-more-button';
+                loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多';
                 loadMoreBtn.addEventListener('click', async () => {
                     loadMoreBtn.classList.add('loading');
                     loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
                     await doSearch(true);
                 });
+                searchResultsMore.appendChild(loadMoreBtn);
+            } else {
+                searchResultsMore.style.display = 'none';
             }
         };
         const doSearch = async (append = false) => {
@@ -811,6 +835,8 @@ async function showAdminManagementModal(initialTab = 'roles') {
                 searchHasMore = false;
                 searchResults.style.display = 'block';
                 searchResults.innerHTML = '<div class="loading-spinner"></div>';
+                searchResultsMore.style.display = 'none';
+                searchResultsMore.innerHTML = '';
             }
             try {
                 let url = `${API_ENDPOINTS.userRole}?action=search&keyword=${encodeURIComponent(searchKeyword)}&limit=20`;
@@ -827,8 +853,10 @@ async function showAdminManagementModal(initialTab = 'roles') {
             } catch (e) {
                 if (!append) {
                     searchResults.innerHTML = `<div class="admin-error-state">搜索失败: ${e.message}</div>`;
+                    searchResultsMore.style.display = 'none';
+                    searchResultsMore.innerHTML = '';
                 } else {
-                    const loadMoreBtn = searchResults.querySelector('#load-more-search .load-more-button');
+                    const loadMoreBtn = searchResultsMore.querySelector('.load-more-button');
                     if (loadMoreBtn) {
                         loadMoreBtn.classList.remove('loading');
                         loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多';
@@ -844,8 +872,14 @@ async function showAdminManagementModal(initialTab = 'roles') {
         loadAdmins();
     }
     function loadBannedTab() {
-        tabContent.innerHTML = '<div class="admin-section"><div id="banned-users-container" class="admin-scrollable-container"><div class="loading-spinner"></div></div></div>';
+        tabContent.innerHTML = `
+            <div class="admin-section">
+                <div id="banned-users-container" class="admin-scrollable-container"><div class="loading-spinner"></div></div>
+                <div id="banned-users-more" class="load-more-container"></div>
+            </div>
+        `;
         const container = tabContent.querySelector('#banned-users-container');
+        const bannedMore = tabContent.querySelector('#banned-users-more');
         let bannedCursor = null;
         let bannedHasMore = false;
         let isLoadingBanned = false;
@@ -871,24 +905,21 @@ async function showAdminManagementModal(initialTab = 'roles') {
                 `;
             }).join('');
             if (append) {
-                const loadMoreEl = container.querySelector('#load-more-banned');
-                if (loadMoreEl) loadMoreEl.remove();
                 container.insertAdjacentHTML('beforeend', itemsHtml);
             } else {
                 container.innerHTML = itemsHtml;
             }
+            bannedMore.innerHTML = '';
             if (bannedHasMore) {
-                container.insertAdjacentHTML('beforeend', `
-                    <div id="load-more-banned" class="load-more-container">
-                        <button class="load-more-button"><i class="fas fa-chevron-down"></i> 加载更多</button>
-                    </div>
-                `);
-                const loadMoreBtn = container.querySelector('#load-more-banned .load-more-button');
+                const loadMoreBtn = document.createElement('button');
+                loadMoreBtn.className = 'load-more-button';
+                loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多';
                 loadMoreBtn.addEventListener('click', async () => {
                     loadMoreBtn.classList.add('loading');
                     loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
                     await loadBannedUsers(true);
                 });
+                bannedMore.appendChild(loadMoreBtn);
             }
             container.querySelectorAll('.unban-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
@@ -929,6 +960,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
             if (isLoadingBanned) return;
             if (!append) {
                 container.innerHTML = '<div class="loading-spinner"></div>';
+                bannedMore.innerHTML = '';
                 bannedCursor = null;
                 bannedHasMore = false;
             }
@@ -946,6 +978,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
                         container.innerHTML = '<div class="admin-empty-state-padded"><div class="admin-empty-state-icon"><i class="fas fa-check-circle"></i></div>暂无被封禁的用户</div>';
                     }
                     bannedHasMore = false;
+                    bannedMore.innerHTML = '';
                 } else {
                     bannedCursor = data.nextCursor || null;
                     bannedHasMore = !!data.hasMore && !!bannedCursor;
@@ -955,7 +988,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
                 if (!append) {
                     container.innerHTML = `<div class="admin-error-state">加载失败: ${e.message}</div>`;
                 } else {
-                    const loadMoreBtn = container.querySelector('#load-more-banned .load-more-button');
+                    const loadMoreBtn = bannedMore.querySelector('.load-more-button');
                     if (loadMoreBtn) {
                         loadMoreBtn.classList.remove('loading');
                         loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> 加载更多';
@@ -1325,21 +1358,22 @@ async function showAdminRequestsModal(mode = 'all') {
 
 async function showOauthClientsModal() {
     const modal = document.createElement('div');
-    modal.className = 'auth-modal';
+    modal.className = 'auth-modal oauth-manage-modal';
     modal.innerHTML = `
-        <div class="auth-box oauth-manage-box">
+        <div class="auth-box">
             <div class="admin-modal-header">
-                <h2 class="auth-title"><i class="fas fa-key"></i> SSO 客户端管理</h2>
+                <h2 class="auth-title"><i class="fas fa-key u-margin-right-small"></i>SSO 客户端管理</h2>
+                <div class="oauth-manage-toolbar">
+                    <button id="oauth-create-btn" class="primary-btn small"><i class="fas fa-plus"></i> 新建</button>
+                    <button id="oauth-refresh-btn" class="admin-log-refresh-btn" title="刷新"><i class="fas fa-sync-alt"></i></button>
+                    <button id="oauth-cleanup-btn" class="admin-log-cleanup-btn" title="清理过期数据"><i class="fas fa-broom"></i></button>
+                </div>
                 <button id="close-modal" class="close-modal-btn"><i class="fas fa-times"></i></button>
             </div>
-            <p class="oauth-manage-desc">管理第三方应用的 OAuth2 接入授权，支持授权码模式（Authorization Code + PKCE）实现 SSO</p>
-            <div class="oauth-toolbar">
-                <button id="oauth-create-btn" class="primary-btn small"><i class="fas fa-plus"></i> 新建</button>
-                <button id="oauth-refresh-btn" class="secondary-btn small"><i class="fas fa-sync"></i> 刷新</button>
-                <button id="oauth-cleanup-btn" class="secondary-btn small"><i class="fas fa-broom"></i> 清理过期数据</button>
+            <div id="oauth-clients-list" class="admin-scrollable-container oauth-clients-list"></div>
+            <div class="oauth-manage-footer">
+                <button id="oauth-load-more-btn" class="secondary-btn small oauth-load-more-btn" style="display:none;"><i class="fas fa-chevron-down"></i> 加载更多</button>
             </div>
-            <div id="oauth-clients-list" class="oauth-clients-list"></div>
-            <button id="oauth-load-more-btn" class="secondary-btn small oauth-load-more-btn" style="display:none;margin:0.8rem auto 0;"><i class="fas fa-chevron-down"></i> 加载更多</button>
         </div>
     `;
     document.body.appendChild(modal);
@@ -1365,10 +1399,10 @@ async function showOauthClientsModal() {
                         </div>
                     </div>
                     <div class="oauth-client-meta">
-                        <div class="oauth-meta-row"><i class="fas fa-fingerprint"></i><code class="oauth-code">${escapeHtml(c.client_id)}</code></div>
-                        <div class="oauth-meta-row"><i class="fas fa-link"></i><code class="oauth-code oauth-code-uri">${escapeHtml(c.redirect_uris)}</code></div>
-                        ${c.description ? `<div class="oauth-meta-row"><i class="fas fa-align-left"></i><span>${escapeHtml(c.description)}</span></div>` : ''}
-                        <div class="oauth-meta-row"><i class="fas fa-user-shield"></i><span>${escapeHtml(c.created_by_name || '未知')} · ${new Date(c.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>
+                        <div class="oauth-meta-row" data-label="Client ID"><i class="fas fa-fingerprint"></i><code class="oauth-code">${escapeHtml(c.client_id)}</code></div>
+                        <div class="oauth-meta-row" data-label="回调地址"><i class="fas fa-link"></i><code class="oauth-code oauth-code-uri">${escapeHtml(c.redirect_uris)}</code></div>
+                        ${c.description ? `<div class="oauth-meta-row" data-label="描述"><i class="fas fa-align-left"></i><span>${escapeHtml(c.description)}</span></div>` : ''}
+                        <div class="oauth-meta-row" data-label="创建者"><i class="fas fa-user-shield"></i><span>${escapeHtml(c.created_by_name || '未知')} · ${new Date(c.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>
                     </div>
                 </div>
             </div>
@@ -1523,7 +1557,7 @@ async function showOauthClientsModal() {
                 return;
             }
             if (!data.clients || data.clients.length === 0) {
-                listEl.innerHTML = '<div class="oauth-empty-state"><i class="fas fa-plug"></i><p>暂无 OAuth 客户端</p><span>点击"新建"创建第一个 OAuth2 应用</span></div>';
+                listEl.innerHTML = '<div class="oauth-empty-state"><i class="fas fa-plug"></i><p>暂无 OAuth 客户端</p><span>点击“新建”创建第一个 OAuth2 应用（支持 Authorization Code + PKCE）</span></div>';
                 return;
             }
             listEl.innerHTML = '';
