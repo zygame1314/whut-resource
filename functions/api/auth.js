@@ -1,6 +1,6 @@
 import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
-import { verifyPowSolution, computePowBind } from './pow.js';
+import { verifyPowSolution, computePowBind, MIN_BITS, MAX_BITS } from './pow.js';
 const HIGH_RISK_MIN_BITS = 18;
 const NICKNAME_MODERATION_PROMPT = `你是严格的昵称审核助手。逐条检查以下规则，命中任意一条即 REJECT。
 
@@ -65,6 +65,11 @@ async function recordLoginAttempt(db, identifier, type) {
       'INSERT INTO login_attempts (identifier, attempt_type, fail_count, last_attempt_at, expires_at) VALUES (?, ?, 1, ?, ?)'
     ).bind(identifier, type, now, expiresAt).run();
   }
+}
+// 3 次失败开始要人机验证，之后每 2 次失败 +1 bit；不低于 PoW 最小难度，避免下发无效难度
+function escalateBitsFor(failCount) {
+  if (!(failCount >= 3)) return 0;
+  return Math.min(Math.max(15 + Math.floor((failCount - 3) / 2), MIN_BITS), MAX_BITS);
 }
 export async function onRequestPost({ request, env, waitUntil }) {
   const ctx = { waitUntil };
@@ -375,7 +380,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const idFailCount = idAttempt?.fail_count || 0;
       const maxFailCount = Math.max(ipFailCount, idFailCount);
       const requireCaptcha = maxFailCount >= 3;
-      const requiredBits = requireCaptcha ? Math.min(15 + Math.floor((maxFailCount - 3) / 2), 21) : 0;
+      const requiredBits = escalateBitsFor(maxFailCount);
       const isSmsVerification = ssoSmsCode && ssoCookies;
       if (requireCaptcha && !isSmsVerification) {
         if (powChallenge && powCheckpoints) {
@@ -428,6 +433,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
           success: false,
           error: ssoResult.error || '无法同步学校资料，请确认为学号登录并稍后重试。',
           requireCaptcha: newMaxFail >= 3,
+          requiredBits: escalateBitsFor(newMaxFail),
           ssoCaptchaRequired: ssoResult.captchaRequired,
           ssoCaptchaImage: ssoResult.captchaImage,
           ssoCookies: ssoResult.cookies,
@@ -534,7 +540,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const emailFailCount = emailAttempt?.fail_count || 0;
       const maxFailCount = Math.max(ipFailCount, emailFailCount);
       const requireCaptcha = maxFailCount >= 3;
-      const requiredBits = requireCaptcha ? Math.min(15 + Math.floor((maxFailCount - 3) / 2), 21) : 0;
+      const requiredBits = escalateBitsFor(maxFailCount);
       if (requireCaptcha) {
         if (powChallenge && powCheckpoints) {
           const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: requiredBits, checkpoints: powCheckpoints, bind: '', action, envProof: powEnvProof }, env, ctx);
@@ -573,7 +579,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
         return new Response(JSON.stringify({
           success: false,
           error: '用户名或密码错误。',
-          requireCaptcha: newMaxFail >= 3
+          requireCaptcha: newMaxFail >= 3,
+          requiredBits: escalateBitsFor(newMaxFail)
         }), { status: 401, headers: addCorsHeaders() });
       }
       const isValid = await verifyPasswordHash(password, user.password_hash, env.SALT);
@@ -586,7 +593,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
         return new Response(JSON.stringify({
           success: false,
           error: '用户名或密码错误。',
-          requireCaptcha: newMaxFail >= 3
+          requireCaptcha: newMaxFail >= 3,
+          requiredBits: escalateBitsFor(newMaxFail)
         }), { status: 401, headers: addCorsHeaders() });
       }
       await Promise.all([

@@ -440,7 +440,7 @@
     flex-wrap: wrap;
 }
 
-#file-explorer > .filter-bar {
+#file-explorer>.filter-bar {
     margin: 1.5rem 2rem;
 }
 
@@ -464,7 +464,7 @@
         gap: 0.5rem;
     }
 
-    #file-explorer > .filter-bar {
+    #file-explorer>.filter-bar {
         margin: 1.5rem 1.5rem;
     }
 
@@ -3352,6 +3352,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .create-folder-form.is-entering,
     .create-folder-form.is-leaving {
         animation: none;
@@ -7299,6 +7300,7 @@ textarea.form-input {
     .file-list li.folder-add-desc-card .add-desc-hint {
         display: none;
     }
+
     .file-list li.folder-add-desc-card .add-desc-button {
         padding: 0.75rem 1rem;
     }
@@ -8216,7 +8218,7 @@ input#prompt-input {
     color: var(--text-secondary);
 }
 
-.upload-progress .progress-text > * {
+.upload-progress .progress-text>* {
     min-width: 0;
 }
 
@@ -8372,6 +8374,7 @@ input#prompt-input {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .upload-progress.stage-baking .progress-fill,
     .upload-progress.stage-baking .progress-stage i {
         animation: none;
@@ -9485,7 +9488,6 @@ input#prompt-input {
     font-variant-numeric: tabular-nums;
 }
 
-/* ===== PoW 难度惩罚态 ===== */
 .pow-card.pow-penalty {
     flex-wrap: wrap;
     border-color: rgba(255, 152, 0, 0.55);
@@ -9496,10 +9498,12 @@ input#prompt-input {
     animation: powPenaltyPulse 2.4s ease-in-out infinite;
 }
 
-.pow-card.pow-penalty.pow-idle:hover {
-    border-color: #ff9800;
-    box-shadow: 0 0 0 1px #ff9800, 0 2px 10px rgba(255, 152, 0, 0.22);
-    animation: none;
+@media (hover: hover) {
+    .pow-card.pow-penalty.pow-idle:hover {
+        border-color: #ff9800;
+        box-shadow: 0 0 0 1px #ff9800, 0 2px 10px rgba(255, 152, 0, 0.22);
+        animation: none;
+    }
 }
 
 .pow-card.pow-penalty::before {
@@ -9541,17 +9545,38 @@ input#prompt-input {
     animation: powStampIn 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
 
+.pow-card.pow-penalty.pow-done .pow-penalty-tag {
+    background: linear-gradient(135deg, #ffd97a, #ffb020);
+    color: #241400;
+    box-shadow: 0 1px 6px rgba(255, 152, 0, 0.22);
+}
+
+.pow-card.pow-penalty.pow-done .pow-penalty-banner {
+    border-top-color: rgba(39, 174, 96, 0.3);
+}
+
+.pow-card.pow-penalty.pow-done .pow-penalty-reason {
+    color: #1b7a43;
+}
+
+[data-theme="dark"] .pow-card.pow-penalty.pow-done .pow-penalty-reason,
+[data-theme="cyberpunk"] .pow-card.pow-penalty.pow-done .pow-penalty-reason,
+[data-theme="terminal"] .pow-card.pow-penalty.pow-done .pow-penalty-reason,
+[data-theme="volcano"] .pow-card.pow-penalty.pow-done .pow-penalty-reason {
+    color: #7fd8a2;
+}
+
 .pow-penalty-banner {
     display: none;
     flex-basis: 100%;
     width: 100%;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
     margin-top: 2px;
     padding-top: 10px;
     border-top: 1px dashed rgba(255, 152, 0, 0.45);
-    line-height: 1;
+    line-height: 1.2;
 }
 
 .pow-card.pow-penalty .pow-penalty-banner {
@@ -9597,13 +9622,85 @@ input#prompt-input {
 }
 
 .pow-penalty-reason {
+    display: block;
+    width: 100%;
+    min-width: 0;
     font-family: var(--font-mono);
-    font-size: 0.68rem;
-    color: #b26a00;
+    font-size: 0.7rem;
+    line-height: 1.45;
+    color: #8a5200;
+    overflow-wrap: anywhere;
 }
 
-[data-theme="dark"] .pow-penalty-reason {
+[data-theme="dark"] .pow-penalty-reason,
+[data-theme="cyberpunk"] .pow-penalty-reason,
+[data-theme="terminal"] .pow-penalty-reason,
+[data-theme="volcano"] .pow-penalty-reason {
     color: #ffbc5c;
+}
+
+@media (max-width: 480px) {
+    .pow-card {
+        gap: 10px;
+        padding: 12px;
+        border-radius: 10px;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .pow-card::before {
+        right: 12px;
+        font-size: 0.5rem;
+    }
+
+    .pow-card::after {
+        right: 12px;
+        font-size: 0.72rem;
+        letter-spacing: 1px;
+    }
+
+    .pow-rank {
+        flex-wrap: wrap;
+        row-gap: 2px;
+    }
+
+    .pow-hash-value {
+        max-width: 100%;
+    }
+
+    .pow-penalty-banner {
+        padding-top: 9px;
+        gap: 6px;
+    }
+}
+
+@media (max-width: 360px) {
+    .pow-card {
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .pow-visual,
+    .pow-ring-svg {
+        width: 38px;
+        height: 38px;
+    }
+
+    .pow-icon {
+        font-size: 14px;
+    }
+
+    .pow-check {
+        font-size: 16px;
+    }
+
+    .pow-label {
+        font-size: 0.8rem;
+    }
+
+    .pow-hash,
+    .pow-nonce-row {
+        font-size: 0.68rem;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -10396,7 +10493,7 @@ input#prompt-input {
         padding: 8px;
     }
 
-    #admin-list-container .banned-user-nickname > .status-badge {
+    #admin-list-container .banned-user-nickname>.status-badge {
         font-size: 0 !important;
         padding: 0;
         gap: 0;
@@ -10405,20 +10502,20 @@ input#prompt-input {
         box-shadow: none !important;
     }
 
-    #admin-list-container .banned-user-nickname > .status-badge i {
+    #admin-list-container .banned-user-nickname>.status-badge i {
         font-size: 0.7rem;
     }
 
-    #admin-list-container .banned-user-nickname > .status-badge.auditing i {
+    #admin-list-container .banned-user-nickname>.status-badge.auditing i {
         color: #ff9800;
     }
 
-    #admin-list-container .banned-user-nickname > .status-badge.rejected i {
+    #admin-list-container .banned-user-nickname>.status-badge.rejected i {
         color: #dc3545;
     }
 }
 
-#todos-content .admin-log-user-info > .status-badge {
+#todos-content .admin-log-user-info>.status-badge {
     font-size: 0 !important;
     padding: 0;
     gap: 0;
@@ -10427,20 +10524,20 @@ input#prompt-input {
     box-shadow: none !important;
 }
 
-#todos-content .admin-log-user-info > .status-badge i {
+#todos-content .admin-log-user-info>.status-badge i {
     font-size: 0.7rem;
     vertical-align: middle;
 }
 
-#todos-content .admin-log-user-info > .status-badge.resolved i {
+#todos-content .admin-log-user-info>.status-badge.resolved i {
     color: #28a745;
 }
 
-#todos-content .admin-log-user-info > .status-badge.rejected i {
+#todos-content .admin-log-user-info>.status-badge.rejected i {
     color: #dc3545;
 }
 
-#todos-content .admin-log-user-info > .status-badge.auditing i {
+#todos-content .admin-log-user-info>.status-badge.auditing i {
     color: #ff9800;
 }
 
@@ -13136,7 +13233,6 @@ input#prompt-input {
     }
 }
 
-/* 分享引导弹窗 */
 .share-popup-overlay {
     position: fixed;
     top: 0;
@@ -13308,7 +13404,9 @@ input#prompt-input {
     font-size: 1.4rem;
 }
 
-.share-popup-copy-btn i { color: var(--primary-color); }
+.share-popup-copy-btn i {
+    color: var(--primary-color);
+}
 
 .share-popup-actions button span {
     font-size: 0.8rem;
@@ -13366,10 +13464,21 @@ input#prompt-input {
     font-size: 1.4rem;
 }
 
-.share-popup-copy-btn i { color: var(--primary-color); }
-.share-popup-qq-btn i { color: #12B7F5; }
-.share-popup-qzone-btn i { color: #FBB711; }
-.share-popup-weibo-btn i { color: #E6162D; }
+.share-popup-copy-btn i {
+    color: var(--primary-color);
+}
+
+.share-popup-qq-btn i {
+    color: #12B7F5;
+}
+
+.share-popup-qzone-btn i {
+    color: #FBB711;
+}
+
+.share-popup-weibo-btn i {
+    color: #E6162D;
+}
 
 .share-popup-actions button span {
     font-size: 0.78rem;

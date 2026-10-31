@@ -1,3 +1,5 @@
+import { DATA_CENTER_ASNS } from './datacenter-asns.js';
+
 const CHALLENGE_EXPIRES_MS = 5 * 60 * 1000;
 const MIN_BITS = 16;
 const MAX_BITS = 21;
@@ -11,12 +13,6 @@ const VERIFY_RANDOM_WINDOWS = 2;
 const ASN_PENALTY_BITS = 6;
 const BOT_SCORE_PENALTY_BITS = 4;
 const BOT_SCORE_THRESHOLD = 30;
-
-const DATA_CENTER_ASN = new Set([
-  16509, 14618, 15169, 396982, 8075, 8068, 14061, 63949, 16276, 24940,
-  20473, 31898, 12876, 45102, 132203, 13335, 54113, 199524, 9009,
-  197540, 42652, 61159, 8107, 32934, 54113, 36459, 16509
-]);
 
 function bitsFromDevice(hashRate, floor) {
   const rate = Number(hashRate);
@@ -227,7 +223,7 @@ const ASN_HIGH_RISK_PENALTY_BITS = MAX_BITS - MIN_BITS;
 function asnPenaltyBits(cf, action) {
   const asn = cf && cf.asn;
   if (!asn) return 0;
-  if (DATA_CENTER_ASN.has(asn)) {
+  if (DATA_CENTER_ASNS.has(asn)) {
     if (['prepare-register', 'prepare-reset', 'prepare-change-email'].includes(action)) return ASN_HIGH_RISK_PENALTY_BITS;
     return ASN_PENALTY_BITS;
   }
@@ -362,7 +358,7 @@ export async function verifyPowSolution(params, env, ctx) {
   return { valid: true };
 }
 
-export { computePowBind };
+export { computePowBind, MIN_BITS, MAX_BITS };
 
 function addCors() {
   return {

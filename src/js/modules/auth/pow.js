@@ -1,4 +1,7 @@
 const POW_BENCHMARK_MS = 300;
+// 与后端 MIN_BITS 保持一致：低于此值的“难度要求”不会生效，显示时也不能低于它
+const POW_MIN_BITS = 16;
+const POW_MAX_BITS = 21;
 
 const DEVICE_RANKS = [
     { hz: 0, name: '电子垃圾', icon: 'fa-trash-can' },
@@ -381,6 +384,13 @@ async function fetchPowChallenge(hashRate, escalateBits, action, bindHash) {
     };
 }
 
+// 服务端不再下发低于 MIN_BITS 的难度；这里再兜一层，避免显示值低于实际要求
+function clampPowEscalateBits(bits) {
+    const n = Math.floor(Number(bits) || 0);
+    if (n <= 0) return 0;
+    return Math.min(Math.max(n, POW_MIN_BITS), POW_MAX_BITS);
+}
+
 function normalizePowPenalty(penalty) {
     if (!penalty || typeof penalty !== 'object') return null;
     const reasons = Array.isArray(penalty.reasons)
@@ -388,10 +398,12 @@ function normalizePowPenalty(penalty) {
         : [];
     if (!reasons.length) return null;
     const appliedBits = Math.max(0, Number(penalty.appliedBits) || 0);
+    const totalRaw = Math.max(0, Number(penalty.totalBits) || 0);
     return {
         rawBits: Math.max(0, Number(penalty.rawBits) || 0),
         appliedBits,
-        totalBits: Math.max(0, Number(penalty.totalBits) || 0),
+        totalBits: totalRaw > 0 ? Math.max(totalRaw, POW_MIN_BITS) : 0,
+        bitsKnown: true,
         maxed: !!penalty.maxed,
         level: penalty.level === 'max' || penalty.level === 'severe' ? penalty.level : 'mild',
         reasons
@@ -405,7 +417,7 @@ async function solvePowChallenge(onProgress, escalateBits, action, bindFields) {
     const bindHash = (bindFields && bindFields.length) ? await powBindHash(action, bindFields) : '';
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'fetching', challenge: '' });
     const { challenge, bits, steps, interval, envNonce, penalty } = await fetchPowChallenge(hashRate, escalateBits, action, bindHash);
-    if (onProgress) onProgress({ step: 0, hash: '', phase: 'solving', challenge, penalty });
+    if (onProgress) onProgress({ step: 0, hash: '', phase: 'solving', challenge, penalty, powBits: bits });
     const solvePromise = solveChainInWorker(challenge, steps, interval, bindHash, (p) => {
         if (onProgress) onProgress({ step: p.step, hash: p.hash, phase: p.phase || 'computing', totalSteps: steps });
     });
@@ -447,7 +459,7 @@ function renderPowPenalty(powEl, penalty) {
     const reasonText = banner.querySelector('.pow-penalty-reason');
     let tag;
     if (penalty.appliedBits > 0) tag = `难度惩罚 +${penalty.appliedBits} bits`;
-    else if (penalty.totalBits > 0) tag = `难度提至 ${penalty.totalBits} bits`;
+    else if (penalty.totalBits > 0) tag = penalty.bitsKnown ? `本局难度 ${penalty.totalBits} bits` : `难度 ≥ ${penalty.totalBits} bits`;
     else tag = '难度提升';
     if (tagText) tagText.textContent = tag;
     if (reasonText) {
@@ -455,7 +467,7 @@ function renderPowPenalty(powEl, penalty) {
         const extra = penalty.reasons.length - shown.length;
         reasonText.textContent = shown.join(' · ') + (extra > 0 ? ` · 等 ${extra + shown.length} 项` : '');
     }
-    banner.title = penalty.reasons.join('\n');
+    banner.title = penalty.reasons.join('\n') + (penalty.totalBits > 0 ? `\n${penalty.bitsKnown ? '本局难度' : '最低难度'}：${penalty.totalBits} bits` : '');
     powEl.classList.add('pow-penalty');
     powEl.classList.toggle('pow-penalty-severe', penalty.level === 'severe');
     powEl.classList.toggle('pow-penalty-max', penalty.maxed || penalty.level === 'max');
@@ -468,6 +480,17 @@ function renderPowPenalty(powEl, penalty) {
     banner.classList.remove('pow-penalty-in');
     void banner.offsetWidth;
     banner.classList.add('pow-penalty-in');
+}
+
+// 拿到真实挑战难度后（可能因设备性能/服务端惩罚高于失败次数对应的下限），以真实值为准
+function markPowPenaltyKnown(powEl, bits) {
+    const penalty = powEl && powEl._powPenalty;
+    const total = Number(bits);
+    if (!penalty || !Number.isFinite(total) || total <= 0) return;
+    if (penalty.bitsKnown && penalty.totalBits === total) return;
+    penalty.totalBits = total;
+    penalty.bitsKnown = true;
+    renderPowPenalty(powEl, penalty);
 }
 
 function applyPowPenalty(powEl, penalty) {
@@ -484,7 +507,8 @@ function applyPowPenalty(powEl, penalty) {
     const merged = {
         rawBits: Math.max(prev ? prev.rawBits : 0, penalty.rawBits),
         appliedBits: Math.max(prev ? prev.appliedBits : 0, penalty.appliedBits),
-        totalBits: penalty.totalBits || (prev ? prev.totalBits : 0),
+        totalBits: penalty.bitsKnown ? penalty.totalBits : (prev && prev.bitsKnown ? prev.totalBits : (penalty.totalBits || (prev ? prev.totalBits : 0))),
+        bitsKnown: !!(penalty.bitsKnown || (prev && prev.bitsKnown)),
         maxed: !!(penalty.maxed || (prev && prev.maxed)),
         level: penalty.level === 'max' || (prev && prev.level === 'max') ? 'max'
             : (penalty.level === 'severe' || (prev && prev.level === 'severe') ? 'severe' : 'mild'),
@@ -509,6 +533,7 @@ function updatePowUI(powEl, progress) {
     const hash = progress.hash || '';
 
     if (progress.penalty) applyPowPenalty(powEl, progress.penalty);
+    if (progress.powBits) markPowPenaltyKnown(powEl, progress.powBits);
 
     powEl.classList.toggle('pow-idle', phase === 'idle');
     powEl.classList.toggle('pow-done', phase === 'done');
@@ -569,6 +594,7 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
                 rawBits: 0,
                 appliedBits: 0,
                 totalBits: escalateBits,
+                bitsKnown: false,
                 maxed: false,
                 level: 'mild',
                 reasons: ['连续失败次数过多']
@@ -605,8 +631,8 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
         getResult: () => result,
         isSolved: () => solved,
         isSolving: () => solving,
-        setEscalateBits: (b) => { escalateBits = Math.max(0, Number(b) || 0); syncEscalatePenalty(); },
-        setMinBits: (b) => { escalateBits = Math.max(escalateBits, Number(b) || 0); syncEscalatePenalty(); },
+        setEscalateBits: (b) => { escalateBits = clampPowEscalateBits(b); syncEscalatePenalty(); },
+        setMinBits: (b) => { escalateBits = Math.max(escalateBits, clampPowEscalateBits(b)); syncEscalatePenalty(); },
         reset: () => { solved = false; solving = false; result = null; clearPowPenaltyUI(powEl); powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', step: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
         meetsRequired: () => solved && !!result && result.powBits >= escalateBits,
         requiredBits: () => escalateBits,
