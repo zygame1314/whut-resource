@@ -312,8 +312,8 @@ CREATE TABLE admin_requests (
     FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_admin_requests_status_created ON admin_requests(status, created_at DESC);
-CREATE INDEX idx_admin_requests_requester ON admin_requests(requested_by, created_at DESC);
+CREATE INDEX idx_admin_requests_status_created ON admin_requests(status, created_at DESC, id DESC);
+CREATE INDEX idx_admin_requests_requester ON admin_requests(requested_by, created_at DESC, id DESC);
 CREATE INDEX idx_admin_requests_created_at ON admin_requests(created_at);
 CREATE INDEX IF NOT EXISTS idx_admin_requests_reviewer ON admin_requests(reviewed_by);
 
@@ -501,7 +501,8 @@ CREATE TABLE IF NOT EXISTS todos (
     resolved_by INTEGER,
     FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_todos_created ON todos(created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_todos_category ON todos(category, status);
 CREATE INDEX IF NOT EXISTS idx_todos_resolved_by ON todos(resolved_by);
 
