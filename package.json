@@ -11,6 +11,7 @@
         "dev": "node scripts/dev.js",
         "test:search": "node scripts/search-smoke.mjs",
         "context": "node scripts/export-context.mjs",
+        "context:readable": "node scripts/export-context.mjs --compress none",
         "context:code": "node scripts/export-context.mjs --mode code",
         "context:full": "node scripts/export-context.mjs --mode full",
         "postinstall": "node scripts/sync-deps.js"

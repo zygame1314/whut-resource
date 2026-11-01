@@ -283,20 +283,31 @@ npm run clean
 将仓库源码打包成单个 Markdown 文件，便于发给大模型做代码/架构分析（排除 `node_modules`、构建产物、图片/视频与私钥）：
 
 ```bash
-# 平衡版：后端全文 + 前端核心，约 20 万 tokens
+# 平衡版：后端全文 + 前端核心（默认压缩）
 npm run context
 
-# 代码全量 + CSS 摘要，约 45 万 tokens
+# 代码全量 + CSS 摘要
 npm run context:code
 
-# 全量零丢失（含全部 CSS），约 59 万 tokens
+# 全量零丢失（含全部 CSS）
 npm run context:full
+
+# 不压缩，保留原始缩进与空行（token 约多 18%，便于人工阅读）
+npm run context:readable
 ```
 
-输出到仓库根目录 `whut-resource-ai-context*.md`。也可直接调用脚本自定义模式、输出路径和 token 预算：
+输出到仓库根目录 `whut-resource-ai-context*.md`。全文源码会按 `--compress` 级别压缩，**不混淆标识符、不改变语义**：
+
+| 级别 | 做法 | token |
+|---|---|---|
+| `min`（默认） | terser 去空白/注释压成单行、clean-css level 2、html-minifier 折叠空白 | -18% |
+| `flat` | 只去掉行首缩进与多余空行，行号不变 | -9% |
+| `none` | 原始源码 | 基准 |
+
+也可直接调用脚本自定义模式、压缩级别、输出路径和预算：
 
 ```bash
-node scripts/export-context.mjs --mode balanced --out /tmp/context.md --budget 150000
+node scripts/export-context.mjs --mode full --compress flat --out /tmp/context.md --budget 400000
 ```
 
 > token 数使用 `o200k` 分词器统计；未安装 devDependencies 时会退化为字符估算。

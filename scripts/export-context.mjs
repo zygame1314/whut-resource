@@ -7,6 +7,7 @@
  *   node scripts/export-context.mjs --mode balanced
  *   node scripts/export-context.mjs --mode code
  *   node scripts/export-context.mjs --mode full
+ *   node scripts/export-context.mjs --compress none
  *   node scripts/export-context.mjs --out path/to/file.md --budget 150000
  */
 import fs from 'node:fs';
@@ -20,9 +21,13 @@ const require = createRequire(import.meta.url);
 
 const argv = process.argv.slice(2);
 const getArg = (name, fallback) => {
+    const eq = argv.find(a => a.startsWith(`${name}=`));
+    if (eq) return eq.slice(name.length + 1);
     const i = argv.indexOf(name);
     return i >= 0 ? argv[i + 1] : fallback;
 };
+const flagValueIndexes = new Set(argv.map((a, i) => a.startsWith('--') && !a.includes('=') ? i + 1 : -1).filter(i => i > 0));
+const positional = argv.filter((a, i) => !flagValueIndexes.has(i) && !a.startsWith('-') && a.endsWith('.md'));
 
 if (argv.includes('--help') || argv.includes('-h')) {
     console.log(`生成 AI 分析上下文包
@@ -30,14 +35,20 @@ if (argv.includes('--help') || argv.includes('-h')) {
 用法: node scripts/export-context.mjs [options]
 
   --mode <balanced|code|full>  输出档位（默认 balanced）
+  --compress <none|flat|min>   压缩级别（默认 min）
   --out <path>                输出文件路径
   --budget <tokens>           预算，超出时输出警告
   -h, --help                  显示帮助
 
 档位:
-  balanced  后端全文 + 前端核心全文 + 其余结构摘要（约 20 万 tokens）
-  code      除 CSS 外的文本文件全文 + CSS 摘要（约 45 万 tokens）
-  full      全部文本文件全文（含 CSS，约 59 万 tokens）`);
+  balanced  后端全文 + 前端核心全文 + 其余结构摘要（约 17 万 tokens）
+  code      除 CSS 外的文本文件全文 + CSS 摘要（约 37 万 tokens）
+  full      全部文本文件全文（含 CSS，约 48 万 tokens）
+
+压缩级别:
+  none  原始源码，保留缩进、空行与注释（约 +18% tokens）
+  flat  去缩进与空行，保留行结构，行号不变（约 -9%）
+  min   terser / clean-css / html-minifier 压成单行，不混淆标识符（约 -18%）`);
     process.exit(0);
 }
 
@@ -53,7 +64,18 @@ if (!MODE_DESC[MODE]) {
     process.exit(1);
 }
 
-const OUT = path.resolve(getArg('--out', path.join(
+const COMPRESS = getArg('--compress', 'min');
+const COMPRESS_DESC = {
+    none: '原始源码（保留缩进、空行与注释）',
+    flat: '去缩进/空行（保留行结构，行号不变）',
+    min: '压缩为单行（terser / clean-css / html-minifier，不混淆标识符）'
+};
+if (!COMPRESS_DESC[COMPRESS]) {
+    console.error(`未知压缩级别: ${COMPRESS}（可选: ${Object.keys(COMPRESS_DESC).join(', ')}）`);
+    process.exit(1);
+}
+
+const OUT = path.resolve(getArg('--out', positional[0] ?? path.join(
     ROOT,
     MODE === 'balanced' ? 'whut-resource-ai-context.md' : `whut-resource-ai-context.${MODE}.md`
 )));
@@ -68,6 +90,25 @@ try {
     acorn = require('acorn');
 } catch {
     console.warn('[context] 未安装 acorn，JS 摘要将回退为正则提取（npm install 后可获得更好的摘要）');
+}
+
+let terser = null, CleanCSS = null, htmlMinifier = null;
+if (COMPRESS === 'min') {
+    try {
+        terser = require('terser');
+    } catch {
+        console.warn('[context] 未安装 terser，JS 将退化为 flat 压缩');
+    }
+    try {
+        CleanCSS = require('clean-css');
+    } catch {
+        console.warn('[context] 未安装 clean-css，CSS 将退化为 flat 压缩');
+    }
+    try {
+        htmlMinifier = require('html-minifier-terser');
+    } catch {
+        console.warn('[context] 未安装 html-minifier-terser，HTML 将退化为 flat 压缩');
+    }
 }
 
 let tokenizer = null;
@@ -105,14 +146,96 @@ const all = [];
 all.sort();
 
 const EXTRA_TEXT = new Set(['_headers']);
+const SELF_REL = path.relative(ROOT, fileURLToPath(import.meta.url)).replace(/\\/g, '/');
 const textFiles = all.filter(f =>
-    (TEXT_EXTS.has(path.extname(f).toLowerCase()) || EXTRA_TEXT.has(f)) && !SKIP_TEXT.has(path.basename(f))
+    (TEXT_EXTS.has(path.extname(f).toLowerCase()) || EXTRA_TEXT.has(f)) &&
+    !SKIP_TEXT.has(path.basename(f)) &&
+    f !== SELF_REL
 );
 const binaryFiles = all.filter(f => BINARY_EXTS.has(path.extname(f).toLowerCase()));
 const relSet = new Set(textFiles);
 
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
 const lineCount = s => s.split('\n').length;
+
+/* ---------- compression ---------- */
+const tidyText = s => s.replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '').replace(/\s+$/, '');
+const flatText = s => tidyText(s).split('\n').map(l => l.replace(/^[ \t]+/, '')).join('\n');
+const isMarkdown = rel => rel.endsWith('.md');
+const renderCache = new Map();
+const cssWarnings = [];
+
+async function minifyJs(text) {
+    if (!terser) return null;
+    for (const module of [true, false]) {
+        try {
+            const out = await terser.minify(text, {
+                module,
+                compress: false,
+                mangle: false,
+                format: { comments: false, beautify: false }
+            });
+            if (out.code) return out.code;
+        } catch { /* try next mode */ }
+    }
+    return null;
+}
+
+async function minifyByType(rel, text) {
+    const ext = path.extname(rel).toLowerCase();
+    if (ext === '.js' || ext === '.mjs') {
+        const out = await minifyJs(text);
+        return out ? { text: out, kind: 'min' } : { text: flatText(text), kind: 'flat' };
+    }
+    if (ext === '.css' && CleanCSS) {
+        try {
+            const out = new CleanCSS({ level: 2 }).minify(text);
+            if (out.styles) {
+                if (out.warnings?.length) cssWarnings.push({ rel, warnings: out.warnings.slice(0, 3) });
+                if (out.errors?.length) return { text: flatText(text), kind: 'flat' };
+                return { text: out.styles, kind: 'min' };
+            }
+        } catch { /* fall through */ }
+        return { text: flatText(text), kind: 'flat' };
+    }
+    if (ext === '.html' && htmlMinifier) {
+        try {
+            const out = await htmlMinifier.minify(text, {
+                collapseWhitespace: true,
+                removeComments: true,
+                minifyCSS: false,
+                minifyJS: false,
+                removeAttributeQuotes: false,
+                keepClosingSlash: true
+            });
+            if (out) return { text: out, kind: 'min' };
+        } catch { /* fall through */ }
+        return { text: flatText(text), kind: 'flat' };
+    }
+    if (ext === '.json') {
+        try {
+            return { text: JSON.stringify(JSON.parse(text)), kind: 'min' };
+        } catch { /* fall through */ }
+    }
+    return { text: isMarkdown(rel) ? tidyText(text) : flatText(text), kind: 'flat' };
+}
+
+async function renderFull(rel) {
+    if (renderCache.has(rel)) return renderCache.get(rel);
+    const raw = read(rel);
+    let entry = { text: raw, kind: 'none', rawTokens: tok(raw), tokens: tok(raw) };
+    if (COMPRESS === 'flat') {
+        const text = isMarkdown(rel) ? tidyText(raw) : flatText(raw);
+        entry = { text, kind: 'flat', rawTokens: entry.rawTokens, tokens: tok(text) };
+    } else if (COMPRESS === 'min') {
+        const { text, kind } = await minifyByType(rel, raw);
+        entry = { text, kind, rawTokens: entry.rawTokens, tokens: tok(text) };
+    }
+    renderCache.set(rel, entry);
+    return entry;
+}
+
+const compressTag = () => COMPRESS === 'none' ? '全文' : '全文·压缩';
 
 const CONFIG_FULL = new Set([
     'package.json', 'build.js', 'wrangler.toml', 'sw.js', 'manifest.json', 'robots.txt', '_headers', 'sitemap.xml',
@@ -402,10 +525,10 @@ function add(s) {
     body.push(s);
 }
 
-function section(name, fn) {
+async function section(name, fn) {
     currentSection = name;
     const before = body.length;
-    fn();
+    await fn();
     sectionTokens[name] = tok(body.slice(before).join('\n'));
 }
 
@@ -430,20 +553,26 @@ const modeRange = (() => {
     return '- 全文: `functions/**`（静态 ASN 列表除外）、`worker/**`、构建/配置/schema、`src/js/{config,globals,theme-init,main,core}.js`。\n- 摘要: 其余 `src/js/**`（含 actions/utils/modules）、全部 CSS 规则体、全部 HTML 页面、README 与 SSO 文档正文。';
 })();
 
-section('overview', () => {
+await section('overview', () => {
     add(`# WHUT Resource — AI 分析上下文包
 
 > 武理资源共享平台（Cloudflare Pages + D1 + R2 + Vectorize + Queues + Durable Objects）
 > 生成时间: ${new Date().toISOString()}  
 > Git: ${git}  
 > 模式: \`${MODE}\` — ${MODE_DESC[MODE]}  
+> 压缩: \`${COMPRESS}\` — ${COMPRESS_DESC[COMPRESS]}  
 > 本文件约 {{TOKENS}} tokens（${TOKEN_LABEL}）
 
 ## 0. 包说明
 
 - 覆盖仓库内全部手写源码：${textFiles.length} 个文本文件；另附 ${binaryFiles.length} 个二进制资源的清单（不包含内容）。
-- 已排除: \`node_modules/\`、\`package-lock.json\`、\`.git/\`、\`.wrangler/\`、\`dist/\`、\`lib/\`、图片/视频/字体、\`jwt_private_key.pem\`（私钥，未包含）。
-- 标记: **[全文]** = 完整源码（已包含原始空行/缩进，未改写逻辑）；**[摘要]** = 行数 + 导入/导出/函数签名/类/API/事件/DOM 等结构信息（为控制 token 未展开函数体）。
+- 已排除: \`node_modules/\`、\`package-lock.json\`、\`.git/\`、\`.wrangler/\`、\`dist/\`、\`lib/\`、图片/视频/字体、\`jwt_private_key.pem\`（私钥，未包含）、生成脚本 \`${SELF_REL}\`（不参与分析，仅出现在目录树中）。
+- 标记: **[${compressTag()}]** = 完整源码（按 \`--compress ${COMPRESS}\` 处理，未改写逻辑）；**[摘要]** = 行数 + 导入/导出/函数签名/类/API/事件/DOM 等结构信息（为控制 token 未展开函数体）。
+${COMPRESS === 'none'
+            ? '- 全文源码保留原始缩进、空行与注释。'
+            : COMPRESS === 'flat'
+                ? '- 全文源码已去掉行首缩进与多余空行，行号与原始文件一致。'
+                : '- 全文源码已压缩为单行（terser 仅去空白/注释、不混淆标识符；CSS 使用 clean-css level 2；HTML 折叠空白）。正文行号以原始文件为准，[摘要] 中的 Lx-y 均指原始行。'}
 - 本包按“${MODE_DESC[MODE]}”生成。
 ${modeRange}
 - 前端根目录的 \`script.js\`、\`auth.js\`、\`css/*.css\` 等是构建产物，已被 \`.gitignore\` 排除，本包只包含 \`src/\` 源文件。
@@ -467,7 +596,7 @@ ${modeRange}
     add(`- API 文件（由 \`functions/api/*.js\` 路径推导，共 ${routes.length} 个；其中 \`_middleware\`、\`sso-utils\` 为中间件/工具而非独立路由）: ${routes.join(', ')}\n`);
 });
 
-section('tree', () => {
+await section('tree', () => {
     add(`${heading('目录树（源文件 + 二进制资源）')}
 
 \`\`\`text
@@ -476,12 +605,12 @@ ${tree()}
 `);
 });
 
-section('config', () => {
+await section('config', async () => {
     add(`${heading('项目说明、构建与配置')}\n`);
     if (relSet.has('README.md')) {
         const code = read('README.md');
         if (isFull('README.md')) {
-            add(`### \`README.md\` [全文]\n\n${fence(code, 'markdown')}\n`);
+            add(`### \`README.md\` [${compressTag()}]\n\n${fence((await renderFull('README.md')).text, 'markdown')}\n`);
         } else {
             add(`### \`README.md\` [摘要] ${lineCount(code)} 行\n\n${mdOutline(code)}\n`);
             add(`- 关键环境变量（来自 README）: SILICONFLOW_API_KEY, JWT_SECRET, JWT_PRIVATE_KEY, BOT_EMAIL, GOOGLE_SAFE_BROWSING_API_KEY, AI_API_KEY\n`);
@@ -492,16 +621,16 @@ section('config', () => {
         'scripts/build/config.js', 'scripts/build/tasks.js', 'scripts/build/utils.js'
     ]) {
         if (!relSet.has(rel) || !isFull(rel)) continue;
-        add(`### \`${rel}\` [全文]\n\n${fence(read(rel), langFor(rel))}\n`);
+        add(`### \`${rel}\` [${compressTag()}]\n\n${fence((await renderFull(rel)).text, langFor(rel))}\n`);
     }
 });
 
-section('schema', () => {
+await section('schema', async () => {
     if (!relSet.has('schema.sql')) return;
-    add(`${heading('数据模型（schema.sql）')}\n\n### \`schema.sql\` [全文]\n\n${fence(read('schema.sql'), 'sql')}\n`);
+    add(`${heading('数据模型（schema.sql）')}\n\n### \`schema.sql\` [${compressTag()}]\n\n${fence((await renderFull('schema.sql')).text, 'sql')}\n`);
 });
 
-section('backend', () => {
+await section('backend', async () => {
     add(`${heading('后端 Cloudflare Pages Functions')}\n`);
     const files = textFiles.filter(f => f.startsWith('functions/') && f.endsWith('.js'));
     const order = ['functions/utils.js', 'functions/whut-email.js'];
@@ -513,28 +642,28 @@ section('backend', () => {
             add(`### \`${rel}\` [摘要：静态 ASN 数据列表，${lineCount(code)} 行，约 ${nums} 个数字]\n\n- 用途：区分数据中心/云厂商/VPN 出口 ASN，用于 URL/访问来源风控；完整列表已省略以节省 token。\n- 导出: \`DATA_CENTER_ASNS\`（Set<number>）。\n`);
             continue;
         }
-        add(`### \`${rel}\` [全文]\n\n${fence(read(rel), 'js')}\n`);
+        add(`### \`${rel}\` [${compressTag()}]\n\n${fence((await renderFull(rel)).text, 'js')}\n`);
     }
 });
 
-section('workers', () => {
+await section('workers', async () => {
     add(`${heading('独立 Workers')}\n`);
     for (const rel of ['worker/download_logger.js', 'worker/wrangler.toml', 'worker-ai/index.js', 'worker-ai/wrangler.toml']) {
         if (!relSet.has(rel)) continue;
-        add(`### \`${rel}\` [全文]\n\n${fence(read(rel), langFor(rel))}\n`);
+        add(`### \`${rel}\` [${compressTag()}]\n\n${fence((await renderFull(rel)).text, langFor(rel))}\n`);
     }
 });
 
-section('frontend-full', () => {
+await section('frontend-full', async () => {
     const files = textFiles.filter(f => f.startsWith('src/js/') && isFull(f));
     if (!files.length) return;
     add(`${heading('前端源码（全文）')}\n`);
     for (const rel of files) {
-        add(`### \`${rel}\` [全文]\n\n${fence(read(rel), 'js')}\n`);
+        add(`### \`${rel}\` [${compressTag()}]\n\n${fence((await renderFull(rel)).text, 'js')}\n`);
     }
 });
 
-section('frontend-outline', () => {
+await section('frontend-outline', () => {
     const files = textFiles.filter(f => f.startsWith('src/js/') && !isFull(f));
     if (!files.length) return;
     add(`${heading('前端模块结构摘要')}\n\n> 以下文件未展开函数体；每项含导入/导出、函数签名（含行号）、类方法、调用的 API、DOM 选择器与事件。\n`);
@@ -544,7 +673,7 @@ section('frontend-outline', () => {
     }
 });
 
-section('html', () => {
+await section('html', async () => {
     const files = textFiles.filter(f => f.endsWith('.html'));
     if (!files.length) return;
     add(`${heading('页面')}\n`);
@@ -552,56 +681,56 @@ section('html', () => {
     for (const rel of files) {
         const code = read(rel);
         if (isFull(rel)) {
-            add(`### \`${rel}\` [全文]\n\n${fence(code, 'html')}\n`);
+            add(`### \`${rel}\` [${compressTag()}]\n\n${fence((await renderFull(rel)).text, 'html')}\n`);
         } else {
             add(`### \`${rel}\` [摘要] ${lineCount(code)} 行\n\n${htmlOutline(code)}\n`);
         }
     }
 });
 
-section('css', () => {
+await section('css', async () => {
     const files = textFiles.filter(f => f.endsWith('.css'));
     if (!files.length) return;
     if (MODE === 'full') {
         add(`${heading('样式系统（全文）')}\n`);
         for (const rel of files) {
-            add(`### \`${rel}\` [全文]\n\n${fence(read(rel), 'css')}\n`);
+            add(`### \`${rel}\` [${compressTag()}]\n\n${fence((await renderFull(rel)).text, 'css')}\n`);
         }
     } else {
         add(`${heading('样式系统摘要')}\n\n> 为控制 token，未包含 ${files.length} 个 CSS 文件的规则体；以下为设计令牌、主题、断点、动画与按文件的类名前缀分布。\n\n${cssSummary(files)}\n`);
     }
 });
 
-section('other', () => {
-    const files = ['scripts/clean.js', 'scripts/dev.js', 'scripts/search-smoke.mjs', 'scripts/sync-deps.js', 'scripts/export-context.mjs']
+await section('other', async () => {
+    const files = ['scripts/clean.js', 'scripts/dev.js', 'scripts/search-smoke.mjs', 'scripts/sync-deps.js']
         .filter(f => relSet.has(f));
     if (!files.length) return;
     add(`${heading('其他脚本')}\n`);
     for (const rel of files) {
         const code = read(rel);
         if (isFull(rel)) {
-            add(`### \`${rel}\` [全文]\n\n${fence(code, 'js')}\n`);
+            add(`### \`${rel}\` [${compressTag()}]\n\n${fence((await renderFull(rel)).text, 'js')}\n`);
         } else {
             add(`### \`${rel}\` [摘要] ${lineCount(code)} 行\n\n${jsOutline(code)}\n`);
         }
     }
 });
 
-section('docs', () => {
+await section('docs', async () => {
     const files = textFiles.filter(f => f.endsWith('.md') && f !== 'README.md');
     if (!files.length) return;
     add(`${heading('文档')}\n`);
     for (const rel of files) {
         const code = read(rel);
         if (isFull(rel)) {
-            add(`### \`${rel}\` [全文]\n\n${fence(code, 'markdown')}\n`);
+            add(`### \`${rel}\` [${compressTag()}]\n\n${fence((await renderFull(rel)).text, 'markdown')}\n`);
         } else {
             add(`### \`${rel}\` [摘要] ${lineCount(code)} 行\n\n${mdOutline(code)}\n`);
         }
     }
 });
 
-section('binary', () => {
+await section('binary', () => {
     add(`${heading('二进制资源（未包含内容）')}\n\n`);
     for (const rel of binaryFiles) {
         const size = fs.statSync(path.join(ROOT, rel)).size;
@@ -611,6 +740,14 @@ section('binary', () => {
     add('');
 });
 
+const fullRels = textFiles.filter(isFull);
+const renderedStats = { raw: 0, out: 0 };
+for (const rel of fullRels) {
+    const r = await renderFull(rel);
+    renderedStats.raw += r.rawTokens;
+    renderedStats.out += r.tokens;
+}
+
 const bodyText = body.join('\n');
 const bodyTokens = tok(bodyText);
 const finalText = bodyText.replace('{{TOKENS}}', `~${(bodyTokens / 1000).toFixed(1)}k`).replace('本文件约 ~', '本文件约 ');
@@ -619,19 +756,28 @@ const finalTokens = tok(finalText);
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, finalText, 'utf8');
 
-const fullCount = textFiles.filter(isFull).length;
+const fullCount = fullRels.length;
 const summaryCount = textFiles.length - fullCount;
 const kb = (fs.statSync(OUT).size / 1024).toFixed(0);
-console.log(`[context] mode=${MODE} files=${textFiles.length} (full=${fullCount}, summary=${summaryCount})`);
+const savedPct = renderedStats.raw ? (1 - renderedStats.out / renderedStats.raw) * 100 : 0;
+console.log(`[context] mode=${MODE} compress=${COMPRESS} files=${textFiles.length} (full=${fullCount}, summary=${summaryCount})`);
+console.log(`[context] full-text tokens: raw=${renderedStats.raw} -> out=${renderedStats.out} (saved ${savedPct.toFixed(1)}%)`);
 console.log(`[context] wrote ${path.relative(ROOT, OUT)} (${kb} KB, ${finalTokens} tokens, budget=${BUDGET} ${finalTokens > BUDGET ? 'OVER' : 'OK'})`);
 console.log(`[context] sections: ${Object.entries(sectionTokens).map(([k, v]) => `${k}=${v}`).join(' ')}`);
+if (cssWarnings.length) {
+    console.warn(`[context] clean-css 警告 ${cssWarnings.length} 个文件: ${cssWarnings.map(w => w.rel).join(', ')}`);
+    for (const w of cssWarnings.slice(0, 3)) console.warn(`  ${w.rel}: ${w.warnings[0]}`);
+}
 if (finalTokens > BUDGET) {
-    const largest = textFiles.filter(isFull)
-        .map(rel => ({ rel, t: tok(read(rel)) }))
+    const largest = fullRels
+        .map(rel => ({ rel, t: renderCache.get(rel)?.tokens ?? tok(read(rel)) }))
         .sort((a, b) => b.t - a.t)
         .slice(0, 8);
     const nextMode = MODE === 'full' ? 'code' : MODE === 'code' ? 'balanced' : null;
-    const suggestion = nextMode ? `可改用 --mode ${nextMode}` : '当前已是最小档位，可提高 --budget 或自行裁剪';
+    const hints = [];
+    if (COMPRESS !== 'min') hints.push('改用 --compress min');
+    if (nextMode) hints.push(`改用 --mode ${nextMode}`);
+    const suggestion = hints.length ? `可${hints.join(' 或 ')}` : '当前已是最小档位，可提高 --budget 或自行裁剪';
     console.warn(`[context] 超出预算 ${finalTokens - BUDGET} tokens；${suggestion}。`);
     console.warn(`[context] 最大的全文文件: ${largest.map(x => `${x.rel}(${x.t})`).join(', ')}`);
 }
