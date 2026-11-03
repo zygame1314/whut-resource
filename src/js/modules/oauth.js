@@ -110,7 +110,7 @@ function showConsentPage(clientInfo, user, scopeStr) {
                         <div class="oauth-bridge-dot"></div>
                         <div class="oauth-bridge-line" style="background:linear-gradient(90deg,transparent,var(--primary-color))"></div>
                     </div>
-                    <img src="${escapeHtml(clientInfo.logo_url)}" alt="${escapeHtml(clientInfo.client_name)}" class="oauth-icon" style="object-fit:contain;padding:8px;background:var(--background-alt);border:1px solid var(--border-color);" onerror="this.style.display='none'">
+                    <img src="${escapeHtml(clientInfo.logo_url)}" alt="${escapeHtml(clientInfo.client_name)}" class="oauth-icon oauth-icon-client" referrerpolicy="no-referrer" onerror="this.style.display='none'">
                 ` : ''}
             </div>
             <h2>授权确认</h2>

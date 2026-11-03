@@ -1,4 +1,4 @@
-import { verifyToken, isAdmin, addCorsHeaders } from '../utils.js';
+import { verifyToken, isAdmin, addCorsHeaders, runMaintenanceSweep } from '../utils.js';
 const MAINTENANCE_CACHE_TTL = 60000;
 let maintenanceCache = { status: null, lastChecked: 0 };
 export async function onRequest(context) {
@@ -7,6 +7,7 @@ export async function onRequest(context) {
     if (request.method === 'OPTIONS') {
         return next();
     }
+    if (context.waitUntil) context.waitUntil(runMaintenanceSweep(env));
     if (url.pathname.startsWith('/api/maintenance') || url.pathname.startsWith('/api/auth') || url.pathname.startsWith('/api/pow') || url.pathname.startsWith('/api/site-stats') || url.pathname.startsWith('/api/oauth')) {
         return next();
     }

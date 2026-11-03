@@ -1167,6 +1167,39 @@ export async function cleanupAdminLogs(env) {
     console.error('清理管理员日志失败:', e);
   }
 }
+const MAINTENANCE_SWEEP_CACHE_ID = 300;
+const MAINTENANCE_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+export async function runMaintenanceSweep(env) {
+  if (!env?.DB) return false;
+  try {
+    const row = await env.DB.prepare('SELECT updated_at FROM system_cache WHERE id = ?').bind(MAINTENANCE_SWEEP_CACHE_ID).first();
+    const now = Date.now();
+    const last = row?.updated_at ? Date.parse(String(row.updated_at).replace(' ', 'T') + 'Z') : 0;
+    if (now - last < MAINTENANCE_SWEEP_INTERVAL_MS) return false;
+    const nowISO = new Date(now).toISOString();
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM oauth_authorization_codes WHERE expires_at < ?').bind(nowISO),
+      env.DB.prepare('DELETE FROM oauth_access_tokens WHERE expires_at < ?').bind(nowISO),
+      env.DB.prepare('DELETE FROM pending_registrations WHERE expires_at < ?').bind(nowISO),
+      env.DB.prepare('DELETE FROM pending_resets WHERE expires_at < ?').bind(nowISO),
+      env.DB.prepare('DELETE FROM pending_email_changes WHERE expires_at < ?').bind(nowISO),
+      env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(nowISO),
+      env.DB.prepare('DELETE FROM pow_challenges WHERE expires_at < ?').bind(nowISO),
+      env.DB.prepare("DELETE FROM downloads WHERE downloaded_at < datetime('now', '-30 days')"),
+      env.DB.prepare("DELETE FROM admin_requests WHERE created_at < datetime('now', '-7 days')"),
+      env.DB.prepare("DELETE FROM maintenance_jobs WHERE status IN ('completed', 'failed') AND created_at < datetime('now', '-7 days')"),
+      env.DB.prepare("DELETE FROM vector_sync_failures WHERE resolved = TRUE AND created_at < datetime('now', '-7 days')"),
+      env.DB.prepare("DELETE FROM file_task_failures WHERE resolved = TRUE AND created_at < datetime('now', '-7 days')")
+    ]);
+    await env.DB.prepare(
+      'INSERT INTO system_cache (id, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP'
+    ).bind(MAINTENANCE_SWEEP_CACHE_ID, '{}').run();
+    return true;
+  } catch (e) {
+    console.error('定期清理失败:', e?.message || e);
+    return false;
+  }
+}
 const EMBEDDING_MODEL = 'Qwen/Qwen3-Embedding-0.6B';
 const EMBEDDING_DIMENSIONS = 256;
 const SILICONFLOW_EMBEDDING_URL = 'https://api.siliconflow.cn/v1/embeddings';

@@ -71,8 +71,7 @@ function escalateBitsFor(failCount) {
   if (!(failCount >= 3)) return 0;
   return Math.min(Math.max(15 + Math.floor((failCount - 3) / 2), MIN_BITS), MAX_BITS);
 }
-export async function onRequestPost({ request, env, waitUntil }) {
-  const ctx = { waitUntil };
+export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
     const { action, email, password } = body;
@@ -83,7 +82,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     if (action === 'prepare-register') {
       const { powChallenge, powCheckpoints, nickname } = body;
       if (powChallenge && powCheckpoints) {
-        const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: HIGH_RISK_MIN_BITS, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action, envProof: powEnvProof }, env, ctx);
+        const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: HIGH_RISK_MIN_BITS, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action, envProof: powEnvProof }, env);
         if (!powResult.valid) {
           return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
@@ -175,7 +174,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     if (action === 'prepare-reset') {
       const { powChallenge, powCheckpoints, newPassword } = body;
       if (powChallenge && powCheckpoints) {
-        const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: HIGH_RISK_MIN_BITS, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action, envProof: powEnvProof }, env, ctx);
+        const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: HIGH_RISK_MIN_BITS, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action, envProof: powEnvProof }, env);
         if (!powResult.valid) {
           return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
@@ -246,7 +245,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
       }
       if (powChallenge && powCheckpoints) {
-        const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: HIGH_RISK_MIN_BITS, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action, envProof: powEnvProof }, env, ctx);
+        const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: HIGH_RISK_MIN_BITS, checkpoints: powCheckpoints, bind: await computePowBind(action, body), action, envProof: powEnvProof }, env);
         if (!powResult.valid) {
           return new Response(JSON.stringify({ success: false, error: powResult.error || 'PoW 验证失败' }), { status: 403, headers: addCorsHeaders() });
         }
@@ -369,7 +368,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
       }
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const now = new Date().toISOString();
-      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => { });
       const ipAttempt = await env.DB.prepare(
         'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
       ).bind(ip, 'ip', now).first();
@@ -384,7 +382,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const isSmsVerification = ssoSmsCode && ssoCookies;
       if (requireCaptcha && !isSmsVerification) {
         if (powChallenge && powCheckpoints) {
-          const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: requiredBits, checkpoints: powCheckpoints, bind: '', action, envProof: powEnvProof }, env, ctx);
+          const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: requiredBits, checkpoints: powCheckpoints, bind: '', action, envProof: powEnvProof }, env);
           if (!powResult.valid) {
             return new Response(JSON.stringify({
               success: false,
@@ -529,7 +527,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const { powChallenge, powCheckpoints } = body;
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const now = new Date().toISOString();
-      if (Math.random() < 0.02) env.DB.prepare('DELETE FROM login_attempts WHERE expires_at < ?').bind(now).run().catch(() => { });
       const ipAttempt = await env.DB.prepare(
         'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
       ).bind(ip, 'ip', now).first();
@@ -543,7 +540,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const requiredBits = escalateBitsFor(maxFailCount);
       if (requireCaptcha) {
         if (powChallenge && powCheckpoints) {
-          const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: requiredBits, checkpoints: powCheckpoints, bind: '', action, envProof: powEnvProof }, env, ctx);
+          const powResult = await verifyPowSolution({ challenge: powChallenge, minBits: requiredBits, checkpoints: powCheckpoints, bind: '', action, envProof: powEnvProof }, env);
           if (!powResult.valid) {
             return new Response(JSON.stringify({
               success: false,

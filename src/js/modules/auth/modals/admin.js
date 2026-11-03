@@ -1692,6 +1692,16 @@ async function showOauthClientsModal() {
     loadMoreBtn.onclick = loadMoreClients;
     modal.querySelector('#oauth-refresh-btn').onclick = loadClients;
     modal.querySelector('#oauth-cleanup-btn').onclick = async () => {
+        const cleanupBtn = modal.querySelector('#oauth-cleanup-btn');
+        if (cleanupBtn.disabled) return;
+        const confirmed = await showConfirmation({
+            title: '清理过期数据',
+            message: '确定清理所有已过期的授权码和令牌吗？<br><br>此操作不可撤销，但不会影响有效数据。',
+            confirmText: '确认清理',
+            confirmClass: 'danger'
+        });
+        if (!confirmed) return;
+        cleanupBtn.disabled = true;
         try {
             const res = await fetch(API_ENDPOINTS.oauthAdmin, {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1700,6 +1710,7 @@ async function showOauthClientsModal() {
             const d = await res.json();
             showNotification(d.message || '清理完成', d.success ? 'success' : 'error');
         } catch (e) { showNotification('清理失败: ' + e.message, 'error'); }
+        finally { cleanupBtn.disabled = false; }
     };
     modal.querySelector('#oauth-create-btn').onclick = () => {
         const createModal = document.createElement('div');

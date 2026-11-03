@@ -251,29 +251,7 @@ function buildPenaltyPayload(reasons, rawBits, appliedBits, totalBits) {
   };
 }
 
-function shouldCleanup() {
-  return Math.random() < 0.02;
-}
-
-async function lazyCleanup(db) {
-  try {
-    await db.prepare('DELETE FROM pow_challenges WHERE expires_at < ?').bind(new Date().toISOString()).run();
-  } catch (e) {
-    console.error('pow cleanup failed:', e && e.message ? e.message : e);
-  }
-}
-
-function maybeCleanup(db, ctx) {
-  if (!shouldCleanup()) return null;
-  const p = lazyCleanup(db);
-  if (ctx && typeof ctx.waitUntil === 'function') {
-    ctx.waitUntil(p);
-    return null;
-  }
-  return p;
-}
-
-export async function verifyPowSolution(params, env, ctx) {
+export async function verifyPowSolution(params, env) {
   const { challenge, checkpoints, bind, action, envProof, minBits } = params || {};
   if (!challenge || !checkpoints || typeof checkpoints !== 'string') {
     return { valid: false, error: '缺少 PoW 参数' };
@@ -293,13 +271,11 @@ export async function verifyPowSolution(params, env, ctx) {
     'SELECT bits, issued_at, expires_at, attempts, bind_hash, steps, interval, env_nonce, env_flags, req_action FROM pow_challenges WHERE challenge = ? AND expires_at > ?'
   ).bind(challenge, new Date().toISOString()).first();
   if (!record) {
-    maybeCleanup(env.DB, ctx);
     return { valid: false, error: '挑战不存在或已过期' };
   }
   const maxAttempts = 5;
   if ((record.attempts || 0) >= maxAttempts) {
     await env.DB.prepare('DELETE FROM pow_challenges WHERE challenge = ?').bind(challenge).run();
-    maybeCleanup(env.DB, ctx);
     return { valid: false, error: '尝试次数过多，请重新获取挑战' };
   }
   if (record.req_action && normAction !== record.req_action) {
@@ -312,7 +288,6 @@ export async function verifyPowSolution(params, env, ctx) {
     const envResult = await verifyEnvProof(envProof, record, env);
     if (!envResult.ok) {
       await env.DB.prepare('UPDATE pow_challenges SET attempts = COALESCE(attempts, 0) + 1 WHERE challenge = ?').bind(challenge).run();
-      maybeCleanup(env.DB, ctx);
       return { valid: false, error: envResult.error };
     }
   }
@@ -369,8 +344,7 @@ function addCors() {
   };
 }
 
-export async function onRequestPost({ request, env, waitUntil }) {
-  const ctx = { waitUntil };
+export async function onRequestPost({ request, env }) {
   try {
     if (!env.DB) {
       return new Response(JSON.stringify({ success: false, error: '数据库未配置' }), {
@@ -420,7 +394,6 @@ export async function onRequestPost({ request, env, waitUntil }) {
     await env.DB.prepare(
       'INSERT INTO pow_challenges (challenge, bits, ip, steps, interval, bind_hash, issued_at, expires_at, env_nonce, env_flags, req_action) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(challenge, bits, ip, steps, interval, bindHash, nowISO, expiresAt, envNonce, requireBrowser ? ENV_REQUIRED_FLAGS : 0, action).run();
-    maybeCleanup(env.DB, ctx);
     return new Response(JSON.stringify({
       success: true,
       challenge,

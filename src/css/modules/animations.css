@@ -1207,6 +1207,27 @@
     }
 }
 
+@keyframes oauthLoaderSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes oauthLoadingDot {
+
+    0%,
+    70%,
+    100% {
+        opacity: 0.25;
+        transform: translateY(0);
+    }
+
+    35% {
+        opacity: 1;
+        transform: translateY(-3px);
+    }
+}
+
 @keyframes powFadeIn {
     from {
         opacity: 0;
