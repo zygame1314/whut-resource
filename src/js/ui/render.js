@@ -37,7 +37,7 @@ function updateBreadcrumb(prefix, isSearch = false, searchTerm = '', isAISearch 
         searchItem.className = 'breadcrumb-item';
         searchItem.setAttribute('aria-current', 'page');
         const aiBadge = isAISearch ? '<span class="ai-search-badge"><i class="fas fa-magic"></i> AI</span>' : '';
-        searchItem.innerHTML = `<i class="fas fa-search" style="margin-right: 0.5rem;"></i>搜索结果: "${searchTerm}"${aiBadge}`;
+        searchItem.innerHTML = `<i class="fas fa-search" style="margin-right: 0.5rem;"></i>搜索结果: "${escapeHtml(searchTerm)}"${aiBadge}`;
         breadcrumbListElement.appendChild(searchItem);
         return;
     }

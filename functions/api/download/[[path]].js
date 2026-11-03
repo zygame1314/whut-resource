@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders } from '../../utils.js';
+import { verifyToken, addCorsHeaders, getSignedUrlSecret, computeDownloadSignature, timingSafeEqualString, parseSignedUrlExpiry } from '../../utils.js';
 const INLINE_CONTENT_TYPES = {
   pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp', svg: 'image/svg+xml',
@@ -52,7 +52,15 @@ export async function onRequest(context) {
     }
   }
   if (isSignedUrl) {
-    const secret = env.PREVIEW_SECRET || 'default-secret';
+    const secret = getSignedUrlSecret(env);
+    if (!secret) {
+      return new Response(JSON.stringify({ success: false, error: '服务端未配置下载签名密钥。' }), { status: 500, headers: addCorsHeaders() });
+    }
+    const expiresNum = parseSignedUrlExpiry(expires);
+    if (expiresNum === null) {
+      return new Response(JSON.stringify({ success: false, error: '链接参数无效。' }), { status: 400, headers: addCorsHeaders() });
+    }
+    expires = expiresNum;
     const userId = url.searchParams.get('user');
     let tokenPayload;
     if (userId) {
@@ -60,15 +68,8 @@ export async function onRequest(context) {
     } else {
       tokenPayload = `${key}:${expires}`;
     }
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(secret);
-    const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-    const signatureData = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(tokenPayload));
-    const expectedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureData)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-    if (signature !== expectedSignature) {
+    const expectedSignature = await computeDownloadSignature(secret, tokenPayload);
+    if (!timingSafeEqualString(signature, expectedSignature)) {
       return new Response(JSON.stringify({ success: false, error: '签名无效。' }), { status: 403, headers: addCorsHeaders() });
     }
     if (Date.now() > expires) {

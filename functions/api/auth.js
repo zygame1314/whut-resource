@@ -1,4 +1,4 @@
-import { hashPassword, verifyPasswordHash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey } from '../utils.js';
+import { hashPassword, verifyPasswordHash, passwordNeedsRehash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
 import { verifyPowSolution, computePowBind, MIN_BITS, MAX_BITS } from './pow.js';
 const HIGH_RISK_MIN_BITS = 18;
@@ -491,6 +491,9 @@ export async function onRequestPost({ request, env }) {
             await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...binds).run();
           }
         }
+        if (user.is_banned) {
+          return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法登录。' }), { status: 403, headers: addCorsHeaders() });
+        }
         const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
         const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
         if (user.last_download_date !== today) {
@@ -594,10 +597,22 @@ export async function onRequestPost({ request, env }) {
           requiredBits: escalateBitsFor(newMaxFail)
         }), { status: 401, headers: addCorsHeaders() });
       }
+      if (passwordNeedsRehash(user.password_hash)) {
+        try {
+          const upgradedHash = await hashPassword(password, env.SALT);
+          await env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(upgradedHash, user.id).run();
+          user.password_hash = upgradedHash;
+        } catch (e) {
+          console.error('升级密码哈希失败:', e);
+        }
+      }
       await Promise.all([
         env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(ip, 'ip').run(),
         env.DB.prepare('DELETE FROM login_attempts WHERE identifier = ? AND attempt_type = ?').bind(email, 'email').run()
       ]);
+      if (user.is_banned) {
+        return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法登录。' }), { status: 403, headers: addCorsHeaders() });
+      }
       const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
       const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
       if (user.last_download_date !== today) {
@@ -622,7 +637,7 @@ export async function onRequestGet({ request, env }) {
   if (!payload) {
     return new Response(JSON.stringify({ success: false, error: '令牌无效' }), { status: 401, headers: addCorsHeaders() });
   }
-  const user = await env.DB.prepare('SELECT id, email, nickname, role, quota_limit, quota_used, last_download_date FROM users WHERE id = ?').bind(payload.id).first();
+  const user = await env.DB.prepare('SELECT id, email, nickname, role, quota_limit, quota_used, last_download_date, is_banned FROM users WHERE id = ?').bind(payload.id).first();
   if (user) {
     const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
     if (user.last_download_date !== today) {

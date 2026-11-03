@@ -63,22 +63,25 @@ export async function onRequestPost(context) {
                 { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
-        if (redirect_uri && authCode.redirect_uri !== redirect_uri) {
+        if (authCode.redirect_uri !== redirect_uri) {
             return new Response(JSON.stringify({ error: 'invalid_grant', error_description: 'redirect_uri 不匹配' }),
                 { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
         if (client_id && authCode.client_id !== client_id) {
             return new Response(JSON.stringify({ error: 'invalid_client', error_description: 'client_id 不匹配' }),
-                { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+                { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
-        if (client_secret) {
-            const secretValid = await verifyPasswordHash(client_secret, client.client_secret_hash, env.SALT);
-            if (!secretValid) {
-                return new Response(JSON.stringify({ error: 'invalid_client', error_description: 'client_secret 验证失败' }),
-                    { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
-            }
+        if (!client_secret) {
+            return new Response(JSON.stringify({ error: 'invalid_client', error_description: '缺少 client_secret' }),
+                { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json', 'WWW-Authenticate': 'Basic realm="oauth"' }) });
+        }
+
+        const secretValid = await verifyPasswordHash(client_secret, client.client_secret_hash, env.SALT);
+        if (!secretValid) {
+            return new Response(JSON.stringify({ error: 'invalid_client', error_description: 'client_secret 验证失败' }),
+                { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
         if (authCode.code_challenge) {

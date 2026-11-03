@@ -6,7 +6,8 @@ const {
     buildScripts,
     buildCss,
     processHtmlAndOthers,
-    processServiceWorker
+    processServiceWorker,
+    assertNoSensitiveFiles
 } = require('./scripts/build/tasks');
 async function build() {
     console.log('开始构建...');
@@ -20,6 +21,7 @@ async function build() {
         copyDir(path.join(srcDir, 'lib'), path.join(distDir, 'lib'));
         await processHtmlAndOthers(srcDir, fileHashMap);
         await processServiceWorker(fileHashMap);
+        assertNoSensitiveFiles(distDir);
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`构建完成，耗时 ${duration}s！输出目录：./dist`);
         console.log('Hash Map (Sample):', Object.keys(fileHashMap).slice(0, 5));

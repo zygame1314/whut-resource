@@ -1,4 +1,4 @@
-import { getUserFromRequest, checkRateLimit, getUserRateLimitKey } from '../utils.js';
+import { getUserFromRequest, checkRateLimit, getUserRateLimitKey, getSignedUrlSecret, computeDownloadSignature, clampSignedUrlTtl } from '../utils.js';
 const addCorsHeaders = (headers = {}) => {
   return {
     ...headers,
@@ -152,15 +152,17 @@ export async function onRequest(context) {
         }),
       });
     }
-    const expiresIn = url.searchParams.get('expiresIn') ? parseInt(url.searchParams.get('expiresIn')) : 300;
+    const secret = getSignedUrlSecret(env);
+    if (!secret) {
+      return new Response(JSON.stringify({ success: false, error: '服务端未配置下载签名密钥。' }), {
+        status: 500,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
+    }
+    const expiresIn = clampSignedUrlTtl(url.searchParams.get('expiresIn'), 300);
     const expires = Date.now() + expiresIn * 1000;
     const tokenPayload = `${key}:${expires}:${user.id}`;
-    const secret = env.PREVIEW_SECRET || 'default-secret';
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(secret);
-    const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-    const signatureData = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(tokenPayload));
-    const signature = btoa(String.fromCharCode(...new Uint8Array(signatureData))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    const signature = await computeDownloadSignature(secret, tokenPayload);
     const customDomain = env.CDN_DOMAIN;
     const baseUrl = customDomain ? `https://${customDomain}` : new URL(request.url).origin;
     let previewUrl;

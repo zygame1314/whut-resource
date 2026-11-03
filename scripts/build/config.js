@@ -118,9 +118,21 @@ const excludeFiles = [
     'LICENSE',
     '.DS_Store',
     'Thumbs.db',
+    'schema.sql',
     ...Object.keys(jsBundles),
     ...Object.keys(cssBundles)
 ];
+// 任何私钥、环境变量文件或导出的 AI 上下文包都不得进入构建产物
+const sensitiveFilePatterns = [
+    /\.pem$/i,
+    /\.key$/i,
+    /^\.env(\..*)?$/i,
+    /^\.dev\.vars$/i,
+    /^whut-resource-ai-context.*\.md$/i
+];
+function isSensitiveFile(name) {
+    return sensitiveFilePatterns.some(re => re.test(name));
+}
 const copyFiles = [
     'manifest.json',
     'robots.txt',
@@ -135,6 +147,7 @@ module.exports = {
     cssSrcDir,
     excludeDirs,
     excludeFiles,
+    isSensitiveFile,
     jsBundles,
     cssBundles,
     copyFiles

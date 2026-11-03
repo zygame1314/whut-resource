@@ -125,9 +125,26 @@ function extractHeaders(rawEmail) {
     const m = rawEmail.match(/^([\s\S]*?)\r?\n\r?\n/);
     return m ? m[1] : '';
 }
+// Cloudflare Email Routing 在调用 Worker 前已完成 DMARC 校验，并会前置
+// Authentication-Results: mx.cloudflare.net; spf=...; dkim=...; dmarc=...
+// 只有 authserv-id 为 mx.cloudflare.net 的那一条才可信，发件人自带的同名头可被伪造。
+function isTrustedSenderAuthentication(headers) {
+    try {
+        const first = headers.get('Authentication-Results');
+        if (!first || typeof first !== 'string') return false;
+        if (!/^\s*mx\.cloudflare\.net\b/i.test(first)) return false;
+        return /(?:^|[;\s])dmarc\s*=\s*pass\b/i.test(first);
+    } catch (e) {
+        return false;
+    }
+}
 export default {
     async email(message, env, ctx) {
         try {
+            if (!isTrustedSenderAuthentication(message.headers)) {
+                console.log('[Email Worker] 邮件未通过 DMARC 认证，拒绝处理');
+                return;
+            }
             const from = message.from;
             console.log(`[Email Worker] 收到邮件，发件人: ${from}`);
             const whutEmailRegex = /^([a-zA-Z0-9._-]+)@whut\.edu\.cn$/i;
@@ -153,7 +170,7 @@ export default {
             }
             console.log(`[Email Worker] 原始主题: "${rawSubject}"`);
             console.log(`[Email Worker] 解码主题: "${subject}"`);
-            console.log(`[Email Worker] 纯文本正文(${plainBody.length}): "${plainBody.slice(0, 200)}"`);
+            console.log(`[Email Worker] 纯文本正文长度: ${plainBody.length}`);
             const verifyCodeRegex = /Verify-([A-Za-z0-9]{6})/i;
             const resetCodeRegex = /Reset-([A-Za-z0-9]{6})/i;
             const changeCodeRegex = /Change-([A-Za-z0-9]{6})/i;
@@ -168,11 +185,11 @@ export default {
             for (const { name, value: target } of searchTargets) {
                 if (!target) continue;
                 let codeMatch = target.match(verifyCodeRegex);
-                if (codeMatch) { codeType = 'verify'; codeValue = codeMatch[1].toUpperCase(); console.log(`[Email Worker] 从 ${name} 匹配到 verify: ${codeValue}`); break; }
+                if (codeMatch) { codeType = 'verify'; codeValue = codeMatch[1].toUpperCase(); console.log(`[Email Worker] 从 ${name} 匹配到 verify 验证码`); break; }
                 codeMatch = target.match(resetCodeRegex);
-                if (codeMatch) { codeType = 'reset'; codeValue = codeMatch[1].toUpperCase(); console.log(`[Email Worker] 从 ${name} 匹配到 reset: ${codeValue}`); break; }
+                if (codeMatch) { codeType = 'reset'; codeValue = codeMatch[1].toUpperCase(); console.log(`[Email Worker] 从 ${name} 匹配到 reset 验证码`); break; }
                 codeMatch = target.match(changeCodeRegex);
-                if (codeMatch) { codeType = 'change'; codeValue = codeMatch[1].toUpperCase(); console.log(`[Email Worker] 从 ${name} 匹配到 change: ${codeValue}`); break; }
+                if (codeMatch) { codeType = 'change'; codeValue = codeMatch[1].toUpperCase(); console.log(`[Email Worker] 从 ${name} 匹配到 change 验证码`); break; }
             }
             if (!codeType) {
                 const bareTargets = [subject, plainBody];
@@ -185,7 +202,7 @@ export default {
                         candidates.add(m[1].toUpperCase());
                     }
                 }
-                console.log(`[Email Worker] 裸验证码候选: ${[...candidates].join(', ') || '(无)'}`);
+                console.log(`[Email Worker] 裸验证码候选数量: ${candidates.size}`);
                 const now = new Date().toISOString();
                 for (const code of candidates) {
                     if (codeType) break;
@@ -228,7 +245,7 @@ export default {
                 console.log('[Email Worker] 未找到有效的验证码');
                 return;
             }
-            console.log(`[Email Worker] 最终匹配: 类型=${codeType}, 验证码=${codeValue}`);
+            console.log(`[Email Worker] 最终匹配: 类型=${codeType}`);
             if (codeType === 'verify') {
                 await this.handleRegistration(env, senderEmail, emailPrefix, codeValue);
             } else if (codeType === 'reset') {
@@ -261,7 +278,7 @@ export default {
                 ).bind(senderEmail, codeOnlyPending.id).run();
                 console.log(`[Email Worker] 验证码匹配但邮箱不匹配，已记录 wrong_sender: ${senderEmail}, 期望: ${codeOnlyPending.email_prefix}@whut.edu.cn`);
             }
-            console.log(`[Email Worker] 未找到匹配的待激活注册，验证码: ${fullCode}, 前缀: ${emailPrefix}`);
+            console.log(`[Email Worker] 未找到匹配的待激活注册，前缀: ${emailPrefix}`);
             return;
         }
         console.log(`[Email Worker] 找到待激活注册，ID: ${pending.id}`);
@@ -302,7 +319,7 @@ export default {
                 ).bind(senderEmail, codeOnlyPending.id).run();
                 console.log(`[Email Worker] 重置验证码匹配但邮箱不匹配，已记录 wrong_sender: ${senderEmail}, 期望: ${codeOnlyPending.email}`);
             }
-            console.log(`[Email Worker] 未找到匹配的密码重置请求，验证码: ${fullCode}, 邮箱: ${senderEmail}`);
+            console.log(`[Email Worker] 未找到匹配的密码重置请求，邮箱: ${senderEmail}`);
             return;
         }
         console.log(`[Email Worker] 找到待处理的密码重置请求，ID: ${pending.id}`);
@@ -334,7 +351,7 @@ export default {
                 ).bind(senderEmail, codeOnlyPending.id).run();
                 console.log(`[Email Worker] 换绑验证码匹配但邮箱不匹配，已记录 wrong_sender: ${senderEmail}, 期望: ${codeOnlyPending.new_email}`);
             }
-            console.log(`[Email Worker] 未找到匹配的换绑请求，验证码: ${fullCode}, 新邮箱: ${senderEmail}`);
+            console.log(`[Email Worker] 未找到匹配的换绑请求，新邮箱: ${senderEmail}`);
             return;
         }
         const existingUser = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(senderEmail).first();

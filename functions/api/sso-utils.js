@@ -254,7 +254,7 @@ export async function verifyWHUTCredentials(username, password, captchaCode = ""
         const eventIdMatch = html.match(EVENT_ID_REGEX);
         eventId = eventIdMatch ? eventIdMatch[1] : "submit";
         console.log(`[SSO] LT: ${lt}, EXECUTION: ${execution}`);
-        console.log(`[SSO] Cookies: ${cookieStr}`);
+        console.log(`[SSO] Cookies 长度: ${cookieStr ? cookieStr.length : 0}`);
         const cleanHtmlForCaptcha = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmi, "");
         const needsCaptcha = cleanHtmlForCaptcha.includes('id="codeImage"') || cleanHtmlForCaptcha.includes('/tpass/code');
         if (needsCaptcha && !captchaCode) {
@@ -423,9 +423,15 @@ export async function verifySsoSmsCode(smsCode, initialCookies, smsHtml) {
         if (formMatch) {
             const actionMatch = formMatch[0].match(/action=["']([^"']+)["']/i);
             if (actionMatch) {
-                formAction = actionMatch[1];
-                if (formAction.startsWith('/')) {
-                    formAction = `https://zhlgd.whut.edu.cn${formAction}`;
+                try {
+                    const resolved = new URL(actionMatch[1].trim(), loginUrl);
+                    if (resolved.protocol === 'https:' && resolved.host === 'zhlgd.whut.edu.cn') {
+                        formAction = resolved.toString();
+                    } else {
+                        console.warn(`[SSO] 表单 action 指向非受信主机，已忽略: ${resolved.host}`);
+                    }
+                } catch (e) {
+                    console.warn('[SSO] 表单 action 无法解析，已回退到登录地址');
                 }
             }
         }

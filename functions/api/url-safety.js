@@ -43,6 +43,33 @@ const SPA_PRESETS = [
     { pattern: /alipan\.com/, title: '阿里云盘', description: '阿里云盘是一款速度快、不打扰、够安全、易于分享的网盘。', domain: 'alipan.com' },
     { pattern: /xiaohongshu\.com/, title: '小红书', description: '小红书 - 你的生活兴趣社区。', domain: 'xiaohongshu.com' }
 ];
+function isBlockedHostname(hostname) {
+    const h = String(hostname || '').toLowerCase();
+    return h === 'localhost' || h === '0.0.0.0' || h.endsWith('.local') ||
+        /^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(h) ||
+        /^\[?(::1|fe80:|fc00:|fd00:)/i.test(h);
+}
+async function safeFetch(url, options = {}, maxRedirects = 3) {
+    let current = url;
+    for (let i = 0; i <= maxRedirects; i++) {
+        const target = new URL(current);
+        if (target.protocol !== 'http:' && target.protocol !== 'https:') {
+            throw new Error(`不支持的协议: ${target.protocol}`);
+        }
+        if (isBlockedHostname(target.hostname)) {
+            throw new Error('目标地址指向内网或本地地址');
+        }
+        const response = await fetch(current, { ...options, redirect: 'manual' });
+        if (response.status >= 300 && response.status < 400) {
+            const location = response.headers.get('location');
+            if (!location) return response;
+            current = new URL(location, current).toString();
+            continue;
+        }
+        return response;
+    }
+    throw new Error('重定向次数过多');
+}
 async function fetchFaviconAsDataUrl(faviconUrl, externalSignal = null) {
     try {
         const controller = new AbortController();
@@ -54,10 +81,9 @@ async function fetchFaviconAsDataUrl(faviconUrl, externalSignal = null) {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Referer': 'https://www.baidu.com/'
         };
-        const response = await fetch(faviconUrl, {
+        const response = await safeFetch(faviconUrl, {
             headers,
             signal: controller.signal,
-            redirect: 'follow',
         });
         clearTimeout(timeoutId);
         if (!response.ok) return null;
@@ -86,10 +112,9 @@ async function fetchFaviconFromServices(origin, externalSignal = null) {
             externalSignal.addEventListener('abort', () => controller.abort());
         }
         try {
-            const response = await fetch(target, {
+            const response = await safeFetch(target, {
                 headers,
                 signal: controller.signal,
-                redirect: 'follow',
             });
             clearTimeout(timeoutId);
             if (!response.ok) throw new Error(`status ${response.status}`);
@@ -140,7 +165,7 @@ async function fetchPageInfo(url, externalSignal = null) {
         if (externalSignal) {
             externalSignal.addEventListener('abort', () => controller.abort());
         }
-        const response = await fetch(url, {
+        const response = await safeFetch(url, {
             method: 'GET',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

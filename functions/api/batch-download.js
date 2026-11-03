@@ -1,4 +1,4 @@
-import { getUserFromRequest, checkRateLimit, getUserRateLimitKey, checkContentLength } from '../utils.js';
+import { getUserFromRequest, checkRateLimit, getUserRateLimitKey, checkContentLength, getSignedUrlSecret, computeDownloadSignature } from '../utils.js';
 const addCorsHeaders = (headers = {}) => {
   const allowedOrigin = '*';
   return {
@@ -13,11 +13,7 @@ const MAX_BODY_BYTES = 65536;
 async function generateToken(key, secret, userId, expiration = 86400) {
   const expires = Date.now() + expiration * 1000;
   const tokenPayload = `${key}:${expires}:${userId}`;
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const signatureData = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(tokenPayload));
-  const token = btoa(String.fromCharCode(...new Uint8Array(signatureData))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const token = await computeDownloadSignature(secret, tokenPayload);
   return { token, expires };
 }
 export async function onRequestPost({ request, env }) {
@@ -101,7 +97,13 @@ export async function onRequestPost({ request, env }) {
     });
   }
   try {
-    const secret = env.PREVIEW_SECRET || 'default-secret';
+    const secret = getSignedUrlSecret(env);
+    if (!secret) {
+      return new Response(JSON.stringify({ success: false, error: '服务端未配置下载签名密钥。' }), {
+        status: 500,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
+    }
     const signedUrls = [];
     for (const fileKey of allFileKeysToProcess) {
       const { token, expires } = await generateToken(fileKey, secret, user.id);

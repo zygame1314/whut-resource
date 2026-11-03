@@ -152,10 +152,17 @@ export async function onRequestPost({ request, env }) {
             if (clientData.type !== 'webauthn.create' || clientData.challenge !== cPayload.challenge) {
                 return new Response(JSON.stringify({ success: false, error: '挑战验证失败' }), { status: 400, headers: addCorsHeaders() });
             }
+            if (clientData.origin !== `https://${rpId}`) {
+                return new Response(JSON.stringify({ success: false, error: '来源不匹配' }), { status: 400, headers: addCorsHeaders() });
+            }
             const attObj = decodeCBOR(base64urlToBuffer(credential.response.attestationObject));
             const authData = parseAuthData(attObj.authData);
             if (!authData.credentialId || !authData.publicKeyObj) {
                 return new Response(JSON.stringify({ success: false, error: '无效的认证数据' }), { status: 400, headers: addCorsHeaders() });
+            }
+            const registerRpIdHash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rpId)));
+            if (!authData.rpIdHash.every((v, i) => v === registerRpIdHash[i])) {
+                return new Response(JSON.stringify({ success: false, error: 'RP ID 不匹配' }), { status: 400, headers: addCorsHeaders() });
             }
             const credIdB64 = bufferToBase64url(authData.credentialId.buffer);
             const x = new Uint8Array(authData.publicKeyObj[-2]);
@@ -190,10 +197,16 @@ export async function onRequestPost({ request, env }) {
             if (clientData.type !== 'webauthn.get' || clientData.challenge !== cPayload.challenge) {
                 return new Response(JSON.stringify({ success: false, error: '挑战验证失败' }), { status: 400, headers: addCorsHeaders() });
             }
+            if (clientData.origin !== `https://${rpId}`) {
+                return new Response(JSON.stringify({ success: false, error: '来源不匹配' }), { status: 400, headers: addCorsHeaders() });
+            }
             const passkey = await env.DB.prepare(
-                'SELECT p.*, u.id as uid, u.email, u.nickname, u.role, u.school_id, u.quota_limit, u.quota_used, u.last_download_date FROM user_passkeys p JOIN users u ON p.user_id = u.id WHERE p.credential_id = ?'
+                'SELECT p.*, u.id as uid, u.email, u.nickname, u.role, u.school_id, u.quota_limit, u.quota_used, u.last_download_date, u.is_banned FROM user_passkeys p JOIN users u ON p.user_id = u.id WHERE p.credential_id = ?'
             ).bind(credential.id).first();
             if (!passkey) return new Response(JSON.stringify({ success: false, error: '未找到该通行密钥' }), { status: 404, headers: addCorsHeaders() });
+            if (passkey.is_banned) {
+                return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法登录。' }), { status: 403, headers: addCorsHeaders() });
+            }
             const authDataBytes = new Uint8Array(base64urlToBuffer(credential.response.authenticatorData));
             const authData = parseAuthData(credential.response.authenticatorData);
             const expectedRpIdHash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rpId)));

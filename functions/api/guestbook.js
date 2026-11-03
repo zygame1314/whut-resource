@@ -522,6 +522,9 @@ async function handlePut(request, env, context) {
     if (!user) {
         return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
     }
+    if (user.is_banned) {
+        return new Response(JSON.stringify({ error: '你的账号已被封禁，无法操作。' }), { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
+    }
     const contentLength = request.headers.get('Content-Length');
     if (contentLength && parseInt(contentLength) > 10240) {
         return new Response(JSON.stringify({ error: '请求体过大' }), { status: 413, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });

@@ -7,6 +7,13 @@ export async function onRequest(context) {
     if (request.method === 'OPTIONS') {
         return next();
     }
+    if (!env.JWT_SECRET || env.JWT_SECRET === 'secret') {
+        console.error('关键配置缺失: JWT_SECRET 未设置或不安全');
+        return new Response(JSON.stringify({ success: false, error: '服务端配置错误' }), {
+            status: 500,
+            headers: addCorsHeaders({ 'Content-Type': 'application/json' })
+        });
+    }
     if (context.waitUntil) context.waitUntil(runMaintenanceSweep(env));
     if (url.pathname.startsWith('/api/maintenance') || url.pathname.startsWith('/api/auth') || url.pathname.startsWith('/api/pow') || url.pathname.startsWith('/api/site-stats') || url.pathname.startsWith('/api/oauth')) {
         return next();

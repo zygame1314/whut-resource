@@ -3,15 +3,18 @@ const path = require('path');
 const { minify: minifyHtml } = require('html-minifier-terser');
 const CleanCSS = require('clean-css');
 const { minify: minifyJs } = require('terser');
-const { srcDir, distDir, jsSrcDir, cssSrcDir, excludeDirs, excludeFiles, jsBundles, cssBundles } = require('./config');
+const { srcDir, distDir, jsSrcDir, cssSrcDir, excludeDirs, excludeFiles, isSensitiveFile, jsBundles, cssBundles } = require('./config');
 const { calculateHash, copyFile } = require('./utils');
+function isExcludedEntry(currentDir, name) {
+    if (currentDir !== srcDir) return false;
+    return excludeDirs.includes(name) || excludeFiles.includes(name) || isSensitiveFile(name);
+}
 async function processAssetsAndBuildMap(currentDir, fileHashMap) {
     const entries = fs.readdirSync(currentDir, { withFileTypes: true });
     for (const entry of entries) {
         const srcPath = path.join(currentDir, entry.name);
         const relPath = path.relative(srcDir, srcPath);
-        if (currentDir === srcDir && excludeDirs.includes(entry.name)) continue;
-        if (currentDir === srcDir && excludeFiles.includes(entry.name)) continue;
+        if (isExcludedEntry(currentDir, entry.name)) continue;
         if (entry.isDirectory()) {
             await processAssetsAndBuildMap(srcPath, fileHashMap);
         } else {
@@ -118,8 +121,7 @@ async function processHtmlAndOthers(currentDir, fileHashMap) {
     for (const entry of entries) {
         const srcPath = path.join(currentDir, entry.name);
         const relPath = path.relative(srcDir, srcPath);
-        if (currentDir === srcDir && excludeDirs.includes(entry.name)) continue;
-        if (currentDir === srcDir && excludeFiles.includes(entry.name)) continue;
+        if (isExcludedEntry(currentDir, entry.name)) continue;
         const ext = path.extname(entry.name).toLowerCase();
         if ((ext === '.css' || (ext === '.js' && entry.name !== 'sw.js'))) continue;
         const destPath = path.join(distDir, relPath);
@@ -190,10 +192,28 @@ async function processServiceWorker(fileHashMap) {
         fs.copyFileSync(swPath, path.join(distDir, 'sw.js'));
     }
 }
+function assertNoSensitiveFiles(dir) {
+    const offenders = [];
+    const walk = (current) => {
+        for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+            const full = path.join(current, entry.name);
+            if (entry.isDirectory()) {
+                walk(full);
+            } else if (isSensitiveFile(entry.name)) {
+                offenders.push(path.relative(dir, full));
+            }
+        }
+    };
+    if (fs.existsSync(dir)) walk(dir);
+    if (offenders.length > 0) {
+        throw new Error(`构建产物中包含敏感文件，已中止部署: ${offenders.join(', ')}`);
+    }
+}
 module.exports = {
     processAssetsAndBuildMap,
     buildScripts,
     buildCss,
     processHtmlAndOthers,
-    processServiceWorker
+    processServiceWorker,
+    assertNoSensitiveFiles
 };

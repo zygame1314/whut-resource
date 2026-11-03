@@ -10,11 +10,25 @@ console.log(`%c${[
     ' 愿代码与你同在！',
     ''
 ].join('\n')}`, "font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace; color: #007BFF;");
+function resolveOAuthRedirect(value) {
+    if (!value || typeof value !== 'string') return null;
+    let target;
+    try {
+        target = new URL(value, window.location.origin);
+    } catch (e) {
+        return null;
+    }
+    if (target.origin !== window.location.origin) return null;
+    if (target.protocol !== 'http:' && target.protocol !== 'https:') return null;
+    if (target.pathname !== '/authorize.html') return null;
+    return target.pathname + target.search + target.hash;
+}
+
 document.addEventListener('authSuccess', async () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const oauthRedirect = urlParams.get('oauth_redirect');
+    const oauthRedirect = resolveOAuthRedirect(urlParams.get('oauth_redirect'));
     if (oauthRedirect) {
-        window.location.href = decodeURIComponent(oauthRedirect);
+        window.location.href = oauthRedirect;
         return;
     }
     console.log("验证成功，开始加载根目录文件列表...");

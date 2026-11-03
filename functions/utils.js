@@ -665,17 +665,72 @@ export function checkContentLength(request, maxBytes) {
   if (cl && parseInt(cl, 10) > maxBytes) return false;
   return true;
 }
+const PBKDF2_ITERATIONS = 210000;
+const PBKDF2_HASH_PREFIX = 'pbkdf2';
+
+function legacySha256Hex(password, salt) {
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(password + salt))
+    .then(buffer => Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join(''));
+}
+
 export async function hashPassword(password, salt) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + (salt || "default-salt"));
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const pepper = salt || "default-salt";
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password) + pepper), 'PBKDF2', false, ['deriveBits']);
+  const bits = new Uint8Array(await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: saltBytes, iterations: PBKDF2_ITERATIONS },
+    key,
+    256
+  ));
+  return `${PBKDF2_HASH_PREFIX}$${PBKDF2_ITERATIONS}$${toBase64Url(saltBytes)}$${toBase64Url(bits)}`;
 }
+
+export function passwordNeedsRehash(hash) {
+  return typeof hash !== 'string' || !hash.startsWith(`${PBKDF2_HASH_PREFIX}$`);
+}
+
 export async function verifyPasswordHash(password, hash, salt) {
-  const computedHash = await hashPassword(password, salt);
-  return computedHash === hash;
+  if (typeof hash !== 'string' || hash.length === 0) return false;
+  const pepper = salt || "default-salt";
+  const parts = hash.split('$');
+  if (parts.length === 4 && parts[0] === PBKDF2_HASH_PREFIX) {
+    const iterations = Number.parseInt(parts[1], 10);
+    if (!Number.isFinite(iterations) || iterations < 10000 || iterations > 2000000) return false;
+    try {
+      const saltBytes = base64UrlToBytes(parts[2]);
+      const expected = base64UrlToBytes(parts[3]);
+      const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password) + pepper), 'PBKDF2', false, ['deriveBits']);
+      const actual = new Uint8Array(await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', hash: 'SHA-256', salt: saltBytes, iterations },
+        key,
+        expected.length * 8
+      ));
+      return timingSafeEqualBytes(actual, expected);
+    } catch (e) {
+      return false;
+    }
+  }
+  const legacy = await legacySha256Hex(String(password), pepper);
+  return timingSafeEqualString(legacy, hash);
 }
+
+export function base64UrlToBytes(value) {
+  if (typeof value !== 'string') return new Uint8Array(0);
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+export function timingSafeEqualBytes(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
 export function toBase64Url(data) {
   const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
   let binary = '';
@@ -1139,13 +1194,50 @@ export function filterByRelevance(results, { minRelevance = MIN_RELEVANCE, relat
 export function isSuperAdmin(user) {
   return user && user.role === 'super_admin';
 }
-export async function getUserFromRequest(request, env) {
+const SIGNED_URL_MIN_TTL_SECONDS = 60;
+const SIGNED_URL_MAX_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+export function getSignedUrlSecret(env) {
+  const secret = env && env.PREVIEW_SECRET;
+  if (typeof secret !== 'string' || secret.length < 16) return null;
+  return secret;
+}
+
+export async function computeDownloadSignature(secret, payload) {
+  const encoder = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signatureData = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(payload));
+  return toBase64Url(new Uint8Array(signatureData));
+}
+
+export function timingSafeEqualString(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+export function clampSignedUrlTtl(rawSeconds, defaultSeconds = 300) {
+  const parsed = Number.parseInt(rawSeconds, 10);
+  if (!Number.isFinite(parsed)) return defaultSeconds;
+  return Math.min(Math.max(parsed, SIGNED_URL_MIN_TTL_SECONDS), SIGNED_URL_MAX_TTL_SECONDS);
+}
+
+export function parseSignedUrlExpiry(raw) {
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+export async function getUserFromRequest(request, env, options = {}) {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   const token = authHeader.split(' ')[1];
   const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
   if (!payload) return null;
   const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
+  if (user && user.is_banned && !options.allowBanned) return null;
   return user;
 }
 export async function logAdminAction(env, operatorId, action, targetType, targetId, reason, details, skipCleanup = false) {
