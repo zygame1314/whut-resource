@@ -36,7 +36,7 @@ export async function onRequestPost({ request, env }) {
         }
     } catch (e) {
         console.error('Sync error:', e);
-        return new Response(JSON.stringify({ success: false, error: e.message, stack: e.stack }), { status: 500, headers: addCorsHeaders() });
+        return new Response(JSON.stringify({ success: false, error: '服务器内部错误，请稍后重试。' }), { status: 500, headers: addCorsHeaders() });
     }
 }
 async function handleStartSync(DB, env, user, body) {

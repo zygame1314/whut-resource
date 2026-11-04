@@ -665,28 +665,68 @@ export function checkContentLength(request, maxBytes) {
   if (cl && parseInt(cl, 10) > maxBytes) return false;
   return true;
 }
-const PBKDF2_ITERATIONS = 210000;
 const PBKDF2_HASH_PREFIX = 'pbkdf2';
+// 生产 Workers 运行时的 WebCrypto 对 PBKDF2 迭代次数有硬上限（100000），
+// 超过会抛 NotSupportedError；本地 workerd 不强制，因此不能只靠本地验证。
+const PBKDF2_ITERATIONS = 100000;
+const PBKDF2_MIN_ACCEPTED_ITERATIONS = 10000;
+const PBKDF2_MAX_PARSED_ITERATIONS = 2000000;
+// 记录当前运行时实际可用（或已降级到）的迭代次数，避免每次登录都重复重哈希。
+let effectivePbkdf2Iterations = PBKDF2_ITERATIONS;
 
 function legacySha256Hex(password, salt) {
   return crypto.subtle.digest('SHA-256', new TextEncoder().encode(password + salt))
     .then(buffer => Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join(''));
 }
 
+async function derivePbkdf2Bits(passwordWithPepper, saltBytes, iterations) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(passwordWithPepper), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: saltBytes, iterations },
+    key,
+    256
+  );
+  return new Uint8Array(bits);
+}
+
+function nextIterationsAfterFailure(iterations, error) {
+  const message = String((error && error.message) || '');
+  const cap = message.match(/above\s+(\d+)/i);
+  if (cap) {
+    const parsed = Number.parseInt(cap[1], 10);
+    if (Number.isFinite(parsed) && parsed >= PBKDF2_MIN_ACCEPTED_ITERATIONS && parsed < iterations) {
+      return parsed;
+    }
+  }
+  const halved = Math.floor(iterations / 2);
+  return halved >= PBKDF2_MIN_ACCEPTED_ITERATIONS ? halved : null;
+}
+
 export async function hashPassword(password, salt) {
   const pepper = salt || "default-salt";
   const saltBytes = crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password) + pepper), 'PBKDF2', false, ['deriveBits']);
-  const bits = new Uint8Array(await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', hash: 'SHA-256', salt: saltBytes, iterations: PBKDF2_ITERATIONS },
-    key,
-    256
-  ));
-  return `${PBKDF2_HASH_PREFIX}$${PBKDF2_ITERATIONS}$${toBase64Url(saltBytes)}$${toBase64Url(bits)}`;
+  const passwordWithPepper = String(password) + pepper;
+  let iterations = PBKDF2_ITERATIONS;
+  let bits;
+  for (;;) {
+    try {
+      bits = await derivePbkdf2Bits(passwordWithPepper, saltBytes, iterations);
+      effectivePbkdf2Iterations = iterations;
+      break;
+    } catch (e) {
+      const next = nextIterationsAfterFailure(iterations, e);
+      if (next === null) throw e;
+      console.error(`PBKDF2 迭代次数 ${iterations} 不被运行时支持，降级为 ${next} 后重试:`, e.message);
+      iterations = next;
+    }
+  }
+  return `${PBKDF2_HASH_PREFIX}$${iterations}$${toBase64Url(saltBytes)}$${toBase64Url(bits)}`;
 }
 
 export function passwordNeedsRehash(hash) {
-  return typeof hash !== 'string' || !hash.startsWith(`${PBKDF2_HASH_PREFIX}$`);
+  if (typeof hash !== 'string' || !hash.startsWith(`${PBKDF2_HASH_PREFIX}$`)) return true;
+  const iterations = Number.parseInt(hash.split('$')[1], 10);
+  return !Number.isFinite(iterations) || iterations < effectivePbkdf2Iterations;
 }
 
 export async function verifyPasswordHash(password, hash, salt) {
@@ -695,10 +735,11 @@ export async function verifyPasswordHash(password, hash, salt) {
   const parts = hash.split('$');
   if (parts.length === 4 && parts[0] === PBKDF2_HASH_PREFIX) {
     const iterations = Number.parseInt(parts[1], 10);
-    if (!Number.isFinite(iterations) || iterations < 10000 || iterations > 2000000) return false;
+    if (!Number.isFinite(iterations) || iterations < PBKDF2_MIN_ACCEPTED_ITERATIONS || iterations > PBKDF2_MAX_PARSED_ITERATIONS) return false;
     try {
       const saltBytes = base64UrlToBytes(parts[2]);
       const expected = base64UrlToBytes(parts[3]);
+      if (expected.length === 0) return false;
       const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password) + pepper), 'PBKDF2', false, ['deriveBits']);
       const actual = new Uint8Array(await crypto.subtle.deriveBits(
         { name: 'PBKDF2', hash: 'SHA-256', salt: saltBytes, iterations },

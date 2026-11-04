@@ -624,7 +624,7 @@ export async function onRequestPost({ request, env }) {
     return new Response(JSON.stringify({ success: false, error: '无效操作' }), { status: 400, headers: addCorsHeaders() });
   } catch (e) {
     console.error("认证错误:", e);
-    return new Response(JSON.stringify({ success: false, error: e.message, stack: e.stack }), { status: 500, headers: addCorsHeaders() });
+    return new Response(JSON.stringify({ success: false, error: '服务器内部错误，请稍后重试。' }), { status: 500, headers: addCorsHeaders() });
   }
 }
 export async function onRequestGet({ request, env }) {
