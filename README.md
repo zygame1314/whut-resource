@@ -234,14 +234,19 @@
 ├── docs/
 │   └── SSO集成教程.md          # OAuth2/OIDC 接入文档
 ├── dist/                      # 生产构建产物（npm run build 输出）
-├── schema.sql                 # D1 数据库 Schema（29 张表 + files_fts 虚拟表）
+├── schema.sql                 # D1 数据库 Schema（30 张表 + files_fts 虚拟表）
 ├── wrangler.toml              # Cloudflare Pages 配置
 └── build.js                   # 构建入口
 ```
 
 ### 数据库表（schema.sql）
 
-`users` `files` `files_fts`(FTS5 虚拟表) `downloads` `announcements` `guestbook` `guestbook_likes` `file_reactions` `pending_registrations` `pending_resets` `pending_email_changes` `system_stats` `admin_logs` `system_cache` `admin_requests` `login_attempts` `file_boosts` `vector_sync_failures` `file_task_failures` `maintenance_jobs` `user_passkeys` `oauth_clients` `oauth_authorization_codes` `oauth_access_tokens` `pow_challenges` `todos` `todo_guestbook` `favorites` `folder_subscriptions` `notifications`
+`users` `files` `files_fts`(FTS5 虚拟表) `downloads` `announcements` `guestbook` `guestbook_likes` `file_reactions` `pending_registrations` `pending_resets` `pending_email_changes` `system_stats` `admin_logs` `system_cache` `admin_requests` `login_attempts` `file_boosts` `vector_sync_failures` `file_task_failures` `maintenance_jobs` `user_passkeys` `oauth_clients` `oauth_authorization_codes` `oauth_access_tokens` `oauth_authorizations` `pow_challenges` `todos` `todo_guestbook` `favorites` `folder_subscriptions` `notifications`
+
+> **时间约定**：D1 中的所有时间统一为 UTC。字符串存在两种来源——SQLite 默认 `CURRENT_TIMESTAMP` 写入 `YYYY-MM-DD HH:MM:SS`（无时区标记），业务代码写入 `toISOString()` 得到 `...T...Z`。
+> - 后端统一用 `parseUtcTimestamp`（[functions/utils.js](functions/utils.js)）解析，数据库内比较保持同格式或用 `julianday()`/`datetime()`，不要让两种格式直接比较。
+> - 前端统一用 `parseServerTime` / `formatServerDateTime` / `formatServerRelativeTime`（[src/js/modules/time.js](src/js/modules/time.js)）解析与格式化，按用户系统时区展示，不再硬编码 `Asia/Shanghai`。
+> - 相对时间（刚刚/N 分钟前）由同一组函数生成，避免各模块各写一套。
 
 ---
 
@@ -335,7 +340,7 @@ wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 
 > **失败兜底**：队列消费失败会记录到 `file_task_failures` 表（写入时自动清理 7 天前已解决记录），可通过 `/api/reindex` 的 `action=retryFileTasks` 重试、`action=fileTaskFailures` 查询、`action=clearFileTaskFailures` 清理；向量同步失败记录在 `vector_sync_failures`，通过 `action=retryFailed` / `action=clearFailures` 处理。
 
-> **数据库初始化**：调用 `/api/sync`（`action=init`）会执行 `ensureSchema`，自动创建缺失的表并将 `maintenance_jobs` 索引迁移为 `(created_at DESC)`、删除废弃索引 `idx_vector_sync_file_id`。
+> **数据库初始化**：调用 `/api/sync`（`action=init`）会执行 `ensureSchema`，自动创建缺失的表（含 `oauth_authorizations` 授权流水表及其索引）并将 `maintenance_jobs` 索引迁移为 `(created_at DESC)`、删除废弃索引 `idx_vector_sync_file_id`。
 
 ### 环境变量 / Secret
 

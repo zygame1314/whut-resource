@@ -1,4 +1,4 @@
-import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchMoveWithVector, dispatchDeleteWithVector, enqueueDeleteKeysJob, getMaintenanceJob, buildFtsMatchQuery } from '../utils.js';
+import { addCorsHeaders, isAdmin, logAdminAction, getUserFromRequest, folderKeyUpperBound, isFolderSubscribable, checkRateLimit, getUserRateLimitKey, DIR_LIST_CACHE_ID, invalidateDirListCache, dispatchFileTask, dispatchMoveWithVector, dispatchDeleteWithVector, enqueueDeleteKeysJob, getMaintenanceJob, buildFtsMatchQuery, parseUtcTimestamp } from '../utils.js';
 const MAX_SAFE_BATCH_SIZE = 500;
 const MAX_BATCH_DELETE_KEYS = 2000;
 function sanitizeSegment(name) {
@@ -185,7 +185,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
             try {
                 const cacheRecord = await DB.prepare('SELECT data, updated_at FROM system_cache WHERE id = ?').bind(DIR_LIST_CACHE_ID).first();
                 if (cacheRecord && cacheRecord.data) {
-                    const updatedAt = new Date(cacheRecord.updated_at + 'Z').getTime();
+                    const updatedAt = parseUtcTimestamp(cacheRecord.updated_at)?.getTime() || 0;
                     const now = Date.now();
                     if ((now - updatedAt) < CACHE_TTL_MS) {
                         directories = JSON.parse(cacheRecord.data);
@@ -201,7 +201,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 directories = results.map(row => row.key);
                 try {
                     await DB.prepare(`
-                        INSERT OR REPLACE INTO system_cache (id, data, updated_at) 
+                        INSERT OR REPLACE INTO system_cache (id, data, updated_at)
                         VALUES (?, ?, CURRENT_TIMESTAMP)
                     `).bind(DIR_LIST_CACHE_ID, JSON.stringify(directories)).run();
                 } catch (e) {
@@ -244,7 +244,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
                         };
                     });
                     if (cacheData.updated_at) {
-                        const updatedAt = new Date(cacheData.updated_at + 'Z').getTime();
+                        const updatedAt = parseUtcTimestamp(cacheData.updated_at)?.getTime() || 0;
                         const now = Date.now();
                         needsBackgroundRefresh = (now - updatedAt) > 86400000;
                     }

@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, hashPassword, isSuperAdmin, logAdminAction } from '../utils.js';
+import { verifyToken, addCorsHeaders, hashPassword, isSuperAdmin, logAdminAction, expireStaleOAuthAuthorizations } from '../utils.js';
 
 async function getUser(request, env) {
     const authHeader = request.headers.get('Authorization');
@@ -22,14 +22,12 @@ async function generateClientSecret() {
     return Array.from(randomBytes, b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 游标使用 (created_at, id) 复合值，避免同一秒创建多个客户端时分页漏项；兼容旧版纯时间游标
 function parseListCursor(raw) {
     if (!raw) return null;
     try {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed.created_at === 'string' && Number.isInteger(parsed.id)) return parsed;
     } catch {
-        // 旧版游标是纯 created_at 字符串
     }
     return { created_at: raw, id: null };
 }
@@ -88,13 +86,19 @@ export async function onRequestGet(context) {
             if (!client) {
                 return new Response(JSON.stringify({ success: false, error: '客户端不存在' }), { status: 404, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
             }
-            const recentAuthCodes = await env.DB.prepare(
-                'SELECT ac.code, ac.scope, ac.created_at, ac.expires_at, u.nickname, u.email FROM oauth_authorization_codes ac LEFT JOIN users u ON ac.user_id = u.id WHERE ac.client_id = ? ORDER BY ac.created_at DESC LIMIT 20'
+            const recentAuthorizations = await env.DB.prepare(
+                `SELECT a.id, a.scope, a.status, a.error_code, a.ip, a.created_at, a.updated_at,
+                        u.nickname, u.email
+                   FROM oauth_authorizations a
+                   LEFT JOIN users u ON a.user_id = u.id
+                  WHERE a.client_id = ?
+                  ORDER BY a.created_at DESC, a.id DESC
+                  LIMIT 20`
             ).bind(client.client_id).all();
             return new Response(JSON.stringify({
                 success: true,
                 client,
-                recentAuthorizations: recentAuthCodes.results || []
+                recentAuthorizations: recentAuthorizations.results || []
             }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
         return new Response(JSON.stringify({ success: false, error: '未知操作' }), { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -258,6 +262,7 @@ export async function onRequestPost(context) {
             }
             await env.DB.prepare('DELETE FROM oauth_access_tokens WHERE client_id = ?').bind(client_id).run();
             await env.DB.prepare('DELETE FROM oauth_authorization_codes WHERE client_id = ?').bind(client_id).run();
+            await env.DB.prepare('DELETE FROM oauth_authorizations WHERE client_id = ?').bind(client_id).run();
             await env.DB.prepare('DELETE FROM oauth_clients WHERE client_id = ?').bind(client_id).run();
             await logAdminAction(env, user.id, 'oauth_client_delete', 'oauth_client', client_id, `删除OAuth客户端: ${client.client_name} (${client_id})`, JSON.stringify({ client_name: client.client_name, client_id }));
             return new Response(JSON.stringify({ success: true, message: '客户端已删除' }), { status: 200, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
@@ -275,6 +280,7 @@ export async function onRequestPost(context) {
             const now = new Date().toISOString();
             const expiredCodes = await env.DB.prepare('DELETE FROM oauth_authorization_codes WHERE expires_at < ?').bind(now).run();
             const expiredTokens = await env.DB.prepare('DELETE FROM oauth_access_tokens WHERE expires_at < ?').bind(now).run();
+            await expireStaleOAuthAuthorizations(env);
             return new Response(JSON.stringify({
                 success: true,
                 message: `清理完成：删除 ${expiredCodes.meta?.changes || 0} 条过期授权码，${expiredTokens.meta?.changes || 0} 条过期令牌`

@@ -169,8 +169,7 @@ function buildTodoHtml(todo, index) {
     const countBadge = msgCount > 0
         ? `<span class="admin-log-action" data-category="info" style="margin-left:6px;">${msgCount} 条留言</span>`
         : '';
-    const utcDate = todo.created_at && (todo.created_at.endsWith('Z') ? todo.created_at : todo.created_at + 'Z');
-    const dateStr = utcDate ? new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '';
+    const dateStr = formatServerDateTime(todo.created_at);
     const msgsHtml = (todo.messages && todo.messages.length > 0)
         ? todo.messages.map(m => {
             const nick = escapeHtml(m.nickname || '匿名用户');
@@ -185,7 +184,7 @@ function buildTodoHtml(todo, index) {
         : '';
     const descHtml = todo.description ? `<div class="admin-log-details"><strong>备注：</strong>${escapeHtml(todo.description)}</div>` : '';
     const resolvedHtml = isResolved && todo.resolved_at
-        ? `<div class="admin-log-user-info"><i class="fas fa-user-check" style="color:var(--success, #52c41a);"></i> 解决于 ${formatDateLocal(todo.resolved_at)}</div>`
+        ? `<div class="admin-log-user-info"><i class="fas fa-user-check" style="color:var(--success, #52c41a);"></i> 解决于 ${formatServerDateTime(todo.resolved_at)}</div>`
         : '';
     const actionBtns = isResolved
         ? `<div class="request-actions">

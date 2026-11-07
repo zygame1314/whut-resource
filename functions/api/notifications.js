@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, checkRateLimit, getUserRateLimitKey } from '../utils.js';
+import { verifyToken, addCorsHeaders, checkRateLimit, getUserRateLimitKey, parseUtcTimestamp } from '../utils.js';
 
 const RETENTION_DAYS = 60;
 const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -33,7 +33,7 @@ async function maybeCleanupOldNotifications(env) {
     try {
         const row = await env.DB.prepare('SELECT updated_at FROM system_cache WHERE id = ?').bind(CLEANUP_CACHE_ID).first();
         const now = Date.now();
-        const last = row?.updated_at ? Date.parse(String(row.updated_at).replace(' ', 'T') + 'Z') : 0;
+        const last = row?.updated_at ? (parseUtcTimestamp(row.updated_at)?.getTime() || 0) : 0;
         if (now - last < CLEANUP_INTERVAL_MS) return;
         await env.DB.prepare(
             'INSERT INTO system_cache (id, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP'

@@ -1,5 +1,4 @@
 const POW_BENCHMARK_MS = 300;
-// 与后端 MIN_BITS 保持一致：低于此值的“难度要求”不会生效，显示时也不能低于它
 const POW_MIN_BITS = 16;
 const POW_MAX_BITS = 21;
 
@@ -384,7 +383,6 @@ async function fetchPowChallenge(hashRate, escalateBits, action, bindHash) {
     };
 }
 
-// 服务端不再下发低于 MIN_BITS 的难度；这里再兜一层，避免显示值低于实际要求
 function clampPowEscalateBits(bits) {
     const n = Math.floor(Number(bits) || 0);
     if (n <= 0) return 0;
@@ -482,7 +480,6 @@ function renderPowPenalty(powEl, penalty) {
     banner.classList.add('pow-penalty-in');
 }
 
-// 拿到真实挑战难度后（可能因设备性能/服务端惩罚高于失败次数对应的下限），以真实值为准
 function markPowPenaltyKnown(powEl, bits) {
     const penalty = powEl && powEl._powPenalty;
     const total = Number(bits);
@@ -587,7 +584,6 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
     powEl.classList.add('pow-idle');
     powEl.style.cursor = 'pointer';
 
-    // 连续失败后服务端会抬高难度，这里提前把“为什么被加难”说清楚
     const syncEscalatePenalty = () => {
         if (escalateBits > 0) {
             applyPowPenalty(powEl, {

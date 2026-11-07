@@ -209,7 +209,7 @@ window.showNotification = function (message, type = 'info', duration = 3000) {
         <div class="notification-progress"></div>
     `;
     container.appendChild(notification);
-    // 强制重排以应用基础态，再用双 RAF 触发进入动画
+
     void notification.offsetWidth;
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -217,9 +217,9 @@ window.showNotification = function (message, type = 'info', duration = 3000) {
         });
     });
     const progressBar = notification.querySelector('.notification-progress');
-    let lastPct = 1;          // 当前进度比例（1 = 满）
-    let pauseAt = 0;           // 本段计时起点时间戳
-    let elapsedInSlice = 0;    // 本段已用时长
+    let lastPct = 1;
+    let pauseAt = 0;
+    let elapsedInSlice = 0;
     let rafId = null;
     let timeoutId = null;
     let isRemoved = false;
@@ -255,19 +255,19 @@ window.showNotification = function (message, type = 'info', duration = 3000) {
         notification.addEventListener('transitionend', onEnd, { once: true });
         setTimeout(onEnd, 400);
     };
-    // 从当前进度继续计时
+
     const startTimer = () => {
         if (lastPct <= 0) return;
         elapsedInSlice = (1 - lastPct) * duration;
         pauseAt = performance.now();
         rafId = requestAnimationFrame(tick);
-        // 仅用 timeout 兜底，进度条由 RAF 驱动
+
         timeoutId = setTimeout(removeNotification, lastPct * duration);
     };
     const pauseTimer = () => {
         if (timeoutId) clearTimeout(timeoutId);
         if (rafId) cancelAnimationFrame(rafId);
-        // 累计本段已用时长，并同步当前进度
+
         elapsedInSlice += (performance.now() - pauseAt);
         updateProgress(Math.max(0, 1 - elapsedInSlice / duration));
     };

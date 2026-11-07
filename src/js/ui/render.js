@@ -684,7 +684,7 @@ function renderFileList(prefix, data, isGlobalSearch = false, localSearchTerm = 
                     };
                 }
             } else {
-                // Render description card below with edit button in header
+
             }
         }
         if (currentFolder && currentFolder.description) {
@@ -1173,15 +1173,5 @@ async function handleDeleteBoost(e, bubbleEl, item, boostBtn) {
 }
 function formatBoostTime(dateStr) {
     if (!dateStr) return '';
-    const date = new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z'));
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return '刚刚';
-    if (diffMin < 60) return `${diffMin}分钟前`;
-    const diffHour = Math.floor(diffMin / 60);
-    if (diffHour < 24) return `${diffHour}小时前`;
-    const diffDay = Math.floor(diffHour / 24);
-    if (diffDay < 30) return `${diffDay}天前`;
-    return date.toLocaleDateString('zh-CN');
+    return formatServerRelativeTime(dateStr, { dateOnly: true });
 }

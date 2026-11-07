@@ -11075,6 +11075,24 @@ input#prompt-input {
     color: #27AE60;
 }
 
+.oauth-detail-pending {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #F39C12;
+}
+
+.oauth-detail-denied {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #E67E22;
+}
+
+.oauth-detail-failed {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #E74C3C;
+}
+
 .oauth-detail-expired {
     font-size: 0.72rem;
     font-weight: 600;

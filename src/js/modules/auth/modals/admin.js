@@ -425,8 +425,7 @@ async function showAdminLogsModal() {
                 oauth_client_reset_secret: 'warning', oauth_revoke_tokens: 'warning',
             };
             const category = ACTION_CATEGORIES[log.action] || 'neutral';
-            const utcDate = log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z';
-            const date = new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+            const date = formatServerDateTime(log.created_at);
             const operatorHtml = log.operator
                 ? `<span class="admin-log-operator"><i class="fas fa-user-circle"></i> ${escapeHtml(log.operator.nickname)}</span>`
                 : `<span class="admin-log-operator operator-ai"><i class="fas fa-robot"></i> 系统自动</span>`;
@@ -887,8 +886,7 @@ async function showAdminManagementModal(initialTab = 'roles') {
             const itemsHtml = users.map(user => {
                 const nickname = user.nickname || '未设置昵称';
                 const email = escapeHtml(user.email);
-                const utcDate = user.created_at && (user.created_at.endsWith('Z') ? user.created_at : user.created_at + 'Z');
-                const createdAt = utcDate ? new Date(utcDate).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '未知';
+                const createdAt = user.created_at ? formatServerDateTime(user.created_at) : '未知';
                 return `
                     <div class="banned-user-item">
                         <div class="banned-user-info">
@@ -1403,7 +1401,7 @@ async function showOauthClientsModal() {
                         <div class="oauth-meta-row" data-label="Client ID"><i class="fas fa-fingerprint"></i><code class="oauth-code">${escapeHtml(c.client_id)}</code></div>
                         <div class="oauth-meta-row" data-label="回调地址"><i class="fas fa-link"></i><code class="oauth-code oauth-code-uri">${escapeHtml(c.redirect_uris)}</code></div>
                         ${c.description ? `<div class="oauth-meta-row" data-label="描述"><i class="fas fa-align-left"></i><span>${escapeHtml(c.description)}</span></div>` : ''}
-                        <div class="oauth-meta-row" data-label="创建者"><i class="fas fa-user-shield"></i><span>${escapeHtml(c.created_by_name || '未知')} · ${new Date(c.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>
+                        <div class="oauth-meta-row" data-label="创建者"><i class="fas fa-user-shield"></i><span>${escapeHtml(c.created_by_name || '未知')} · ${formatServerDateTime(c.created_at, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>
                     </div>
                 </div>
             </div>
@@ -1545,16 +1543,38 @@ async function showOauthClientsModal() {
                                 showNotification(d.error, 'error');
                                 return;
                             }
+                            const authzStatusMap = {
+                                success: { text: '已授权', cls: 'oauth-detail-active' },
+                                pending: { text: '待兑换', cls: 'oauth-detail-pending' },
+                                denied: { text: '已拒绝', cls: 'oauth-detail-denied' },
+                                expired: { text: '已过期', cls: 'oauth-detail-expired' },
+                                failed: { text: '失败', cls: 'oauth-detail-failed' }
+                            };
+                            const authzErrorMap = {
+                                access_denied: '用户拒绝授权',
+                                code_expired: '授权码过期',
+                                invalid_client: '客户端校验失败',
+                                redirect_uri_mismatch: '回调地址不匹配',
+                                pkce_required: '缺少 code_verifier',
+                                pkce_failed: 'PKCE 校验失败',
+                                user_not_found: '用户不存在'
+                            };
                             const authRows = (d.recentAuthorizations && d.recentAuthorizations.length > 0)
-                                ? d.recentAuthorizations.map(a => `
+                                ? d.recentAuthorizations.map(a => {
+                                    const st = authzStatusMap[a.status] || { text: a.status || '-', cls: 'oauth-detail-expired' };
+                                    const note = a.error_code
+                                        ? `<span title="${escapeHtml(a.error_code)}">${escapeHtml(authzErrorMap[a.error_code] || a.error_code)}</span>`
+                                        : (a.ip ? `<code class="oauth-detail-code" title="IP">${escapeHtml(a.ip)}</code>` : '-');
+                                    return `
                                     <tr>
-                                        <td data-label="授权码" title="${escapeHtml(a.code)}"><code class="oauth-detail-code">${escapeHtml(a.code ? a.code.substring(0, 12) + '...' : '')}</code></td>
                                         <td data-label="用户">${escapeHtml(a.nickname || a.email || '-')}</td>
                                         <td data-label="Scope"><span class="oauth-detail-scope">${escapeHtml(a.scope || '-')}</span></td>
-                                        <td data-label="时间" class="oauth-detail-time">${new Date(a.created_at).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
-                                        <td data-label="状态">${new Date(a.expires_at) > new Date() ? '<span class="oauth-detail-active">有效</span>' : '<span class="oauth-detail-expired">已过期</span>'}</td>
+                                        <td data-label="状态"><span class="${st.cls}">${st.text}</span></td>
+                                        <td data-label="时间" class="oauth-detail-time">${formatServerDateTime(a.created_at, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+                                        <td data-label="备注">${note}</td>
                                     </tr>
-                                `).join('')
+                                `;
+                                }).join('')
                                 : '<tr class="oauth-detail-empty-row"><td colspan="5" class="oauth-detail-empty">暂无授权记录</td></tr>';
                             const c = d.client;
                             const statusEl = detailModal.querySelector('#oauth-detail-status');
@@ -1573,7 +1593,7 @@ async function showOauthClientsModal() {
                                 <h3 class="oauth-detail-section-title"><i class="fas fa-history"></i> 最近授权记录 <span class="oauth-detail-badge">20</span></h3>
                                 <div class="oauth-detail-table-wrap">
                                     <table class="oauth-detail-table">
-                                        <thead><tr><th>授权码</th><th>用户</th><th>Scope</th><th>时间</th><th>状态</th></tr></thead>
+                                        <thead><tr><th>用户</th><th>Scope</th><th>状态</th><th>时间</th><th>备注</th></tr></thead>
                                         <tbody>${authRows}</tbody>
                                     </table>
                                 </div>

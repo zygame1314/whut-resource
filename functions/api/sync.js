@@ -202,6 +202,37 @@ async function ensureSchema(DB) {
             console.error('Failed to create maintenance_jobs:', createError);
         }
     }
+    try {
+        await DB.prepare('SELECT 1 FROM oauth_authorizations LIMIT 1').run();
+    } catch (e) {
+        console.log('Creating oauth_authorizations table...');
+        try {
+            await DB.prepare(`CREATE TABLE IF NOT EXISTS oauth_authorizations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                scope TEXT DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'pending',
+                error_code TEXT,
+                code_hash TEXT,
+                ip TEXT,
+                user_agent TEXT,
+                created_at DATETIME DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                updated_at DATETIME DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE
+            )`).run();
+            await DB.batch([
+                DB.prepare('CREATE INDEX IF NOT EXISTS idx_oauth_authz_client_created ON oauth_authorizations(client_id, created_at DESC, id DESC)'),
+                DB.prepare('CREATE INDEX IF NOT EXISTS idx_oauth_authz_user_created ON oauth_authorizations(user_id, created_at DESC)'),
+                DB.prepare('CREATE INDEX IF NOT EXISTS idx_oauth_authz_status_created ON oauth_authorizations(status, created_at)'),
+                DB.prepare('CREATE INDEX IF NOT EXISTS idx_oauth_authz_created ON oauth_authorizations(created_at)'),
+                DB.prepare('CREATE INDEX IF NOT EXISTS idx_oauth_authz_code_hash ON oauth_authorizations(code_hash)')
+            ]);
+        } catch (createError) {
+            console.error('Failed to create oauth_authorizations:', createError);
+        }
+    }
     await migrateIndexes(DB);
 }
 async function migrateIndexes(DB) {
@@ -316,9 +347,9 @@ async function handleCleanup(DB, body, VECTORIZE, env, user) {
         throw new Error('缺少 sessionId');
     }
     const filesToDeleteResult = await DB.prepare(`
-        SELECT id, key FROM files 
-        WHERE (last_verified IS NULL OR last_verified != ?) 
-          AND is_link = FALSE 
+        SELECT id, key FROM files
+        WHERE (last_verified IS NULL OR last_verified != ?)
+          AND is_link = FALSE
           AND is_directory = FALSE
     `).bind(sessionId).all();
     const filesToDelete = filesToDeleteResult.results || [];
@@ -331,13 +362,13 @@ async function handleCleanup(DB, body, VECTORIZE, env, user) {
         }
     }
     const dirsToDeleteResult = await DB.prepare(`
-        SELECT id, key FROM files 
-        WHERE is_directory = TRUE 
+        SELECT id, key FROM files
+        WHERE is_directory = TRUE
           AND (last_verified IS NULL OR last_verified != ?)
           AND key NOT IN (
-              SELECT DISTINCT parent_path 
-              FROM files 
-              WHERE parent_path IS NOT NULL 
+              SELECT DISTINCT parent_path
+              FROM files
+              WHERE parent_path IS NOT NULL
                 AND (last_verified = ? OR is_link = TRUE)
           )
     `).bind(sessionId, sessionId).all();

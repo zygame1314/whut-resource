@@ -1,4 +1,4 @@
-import { addCorsHeaders, signIdToken, verifyPasswordHash } from '../../utils.js';
+import { addCorsHeaders, signIdToken, verifyPasswordHash, markOAuthAuthorization, parseUtcTimestamp } from '../../utils.js';
 
 const ACCESS_TOKEN_EXPIRY = 24 * 60 * 60 * 1000;
 
@@ -51,46 +51,54 @@ export async function onRequestPost(context) {
                 { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
-        if (new Date(authCode.expires_at) < new Date()) {
+        if ((parseUtcTimestamp(authCode.expires_at)?.getTime() || 0) < Date.now()) {
             await env.DB.prepare('DELETE FROM oauth_authorization_codes WHERE code = ?').bind(code).run();
+            await markOAuthAuthorization(env, code, 'expired', 'code_expired');
             return new Response(JSON.stringify({ error: 'invalid_grant', error_description: '授权码已过期' }),
                 { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
         const client = await env.DB.prepare('SELECT * FROM oauth_clients WHERE client_id = ?').bind(authCode.client_id).first();
         if (!client || !client.is_active) {
+            await markOAuthAuthorization(env, code, 'failed', 'invalid_client');
             return new Response(JSON.stringify({ error: 'invalid_client', error_description: '客户端无效或已禁用' }),
                 { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
         if (authCode.redirect_uri !== redirect_uri) {
+            await markOAuthAuthorization(env, code, 'failed', 'redirect_uri_mismatch');
             return new Response(JSON.stringify({ error: 'invalid_grant', error_description: 'redirect_uri 不匹配' }),
                 { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
         if (client_id && authCode.client_id !== client_id) {
+            await markOAuthAuthorization(env, code, 'failed', 'invalid_client');
             return new Response(JSON.stringify({ error: 'invalid_client', error_description: 'client_id 不匹配' }),
                 { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
         if (!client_secret) {
+            await markOAuthAuthorization(env, code, 'failed', 'invalid_client');
             return new Response(JSON.stringify({ error: 'invalid_client', error_description: '缺少 client_secret' }),
                 { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json', 'WWW-Authenticate': 'Basic realm="oauth"' }) });
         }
 
         const secretValid = await verifyPasswordHash(client_secret, client.client_secret_hash, env.SALT);
         if (!secretValid) {
+            await markOAuthAuthorization(env, code, 'failed', 'invalid_client');
             return new Response(JSON.stringify({ error: 'invalid_client', error_description: 'client_secret 验证失败' }),
                 { status: 401, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
         if (authCode.code_challenge) {
             if (!code_verifier) {
+                await markOAuthAuthorization(env, code, 'failed', 'pkce_required');
                 return new Response(JSON.stringify({ error: 'invalid_request', error_description: '需要 code_verifier (PKCE)' }),
                     { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
             }
             const pkceValid = await verifyPkce(code_verifier, authCode.code_challenge, authCode.code_challenge_method || 'S256');
             if (!pkceValid) {
+                await markOAuthAuthorization(env, code, 'failed', 'pkce_failed');
                 return new Response(JSON.stringify({ error: 'invalid_grant', error_description: 'PKCE 验证失败' }),
                     { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
             }
@@ -98,18 +106,13 @@ export async function onRequestPost(context) {
 
         const user = await env.DB.prepare('SELECT id, email, nickname, role, school_id FROM users WHERE id = ?').bind(authCode.user_id).first();
         if (!user) {
+            await markOAuthAuthorization(env, code, 'failed', 'user_not_found');
             return new Response(JSON.stringify({ error: 'invalid_grant', error_description: '用户不存在' }),
                 { status: 400, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
 
         const accessToken = await generateToken(48);
         const tokenExpiresAt = new Date(Date.now() + ACCESS_TOKEN_EXPIRY).toISOString();
-
-        await env.DB.prepare(
-            'INSERT INTO oauth_access_tokens (access_token, client_id, user_id, scope, expires_at) VALUES (?, ?, ?, ?, ?)'
-        ).bind(accessToken, authCode.client_id, user.id, authCode.scope, tokenExpiresAt).run();
-
-        await env.DB.prepare('DELETE FROM oauth_authorization_codes WHERE code = ?').bind(code).run();
 
         const idToken = await signIdToken({
             sub: String(user.id),
@@ -123,6 +126,13 @@ export async function onRequestPost(context) {
             iat: Math.floor(Date.now() / 1000),
             exp: Math.floor((Date.now() + ACCESS_TOKEN_EXPIRY) / 1000)
         }, env);
+
+        await env.DB.prepare(
+            'INSERT INTO oauth_access_tokens (access_token, client_id, user_id, scope, expires_at) VALUES (?, ?, ?, ?, ?)'
+        ).bind(accessToken, authCode.client_id, user.id, authCode.scope, tokenExpiresAt).run();
+
+        await env.DB.prepare('DELETE FROM oauth_authorization_codes WHERE code = ?').bind(code).run();
+        await markOAuthAuthorization(env, code, 'success');
 
         return new Response(JSON.stringify({
             access_token: accessToken,

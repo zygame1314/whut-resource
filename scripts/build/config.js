@@ -18,6 +18,7 @@ const excludeDirs = [
 const scriptModules = [
     'modules/lazy-loader.js',
     'modules/particles.js',
+    'modules/time.js',
     'globals.js',
     'utils.js',
     'ui/modals.js',
@@ -36,6 +37,7 @@ const scriptModules = [
 const uploadModules = [
     'modules/lazy-loader.js',
     'modules/particles.js',
+    'modules/time.js',
     'utils.js',
     'ui/folder-tree-lazy.js',
     'modules/upload/ui.js',
@@ -46,6 +48,7 @@ const uploadModules = [
 ];
 const authModules = [
     'modules/particles.js',
+    'modules/time.js',
     'modules/auth/pow.js',
     'modules/auth/state.js',
     'modules/auth/utils.js',
@@ -60,6 +63,7 @@ const authModules = [
 const guestbookModules = [
     'modules/lazy-loader.js',
     'modules/particles.js',
+    'modules/time.js',
     'modules/guestbook/state.js',
     'modules/guestbook/utils.js',
     'ui/folder-tree-lazy.js',
@@ -78,13 +82,13 @@ const jsBundles = {
     'guestbook.js': guestbookModules,
     'config.js': ['config.js'],
     'oauth.js': ['modules/oauth.js'],
-    'announcements.js': ['modules/lazy-loader.js', 'modules/popup-queue.js', 'modules/announcements.js', 'utils.js'],
+    'announcements.js': ['modules/lazy-loader.js', 'modules/popup-queue.js', 'modules/time.js', 'modules/announcements.js', 'utils.js'],
     'graph.js': ['modules/graph.js'],
     'tutorial.js': ['modules/lazy-loader.js', 'modules/tutorial.js'],
     'download-manager.js': ['modules/lazy-loader.js', 'modules/download-manager.js'],
     'download-manager-ui.js': ['modules/download-manager-ui.js'],
     'download-log.js': ['modules/download-log.js'],
-    'site-stats.js': ['modules/site-stats.js'],
+    'site-stats.js': ['modules/time.js', 'modules/site-stats.js'],
     'browser-guide.js': ['modules/browser-guide.js'],
     'page-viewer.js': ['modules/page-viewer.js'],
     'donation-popup.js': ['modules/popup-queue.js', 'modules/donation-popup.js'],
@@ -122,7 +126,7 @@ const excludeFiles = [
     ...Object.keys(jsBundles),
     ...Object.keys(cssBundles)
 ];
-// 任何私钥、环境变量文件或导出的 AI 上下文包都不得进入构建产物
+
 const sensitiveFilePatterns = [
     /\.pem$/i,
     /\.key$/i,

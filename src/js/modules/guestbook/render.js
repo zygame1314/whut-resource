@@ -144,7 +144,7 @@ function renderGuestbookReply(reply, ctx) {
                                 <span class="nickname" title="${replySafeNickname}">${replySafeNickname}</span>
                                 <span class="reply-indicator"><i class="fas fa-reply"></i></span>
                             </div>
-                            <span class="timestamp">${formatDateLocal(reply.created_at)}</span>
+                            <span class="timestamp">${formatServerDateTime(reply.created_at)}</span>
                         </div>
                     </div>
                     ${replyAdminControls}${replyAuthorControls}
@@ -291,7 +291,7 @@ function renderGuestbookItem(msg) {
                                     <span class="nickname" title="${safeNickname}">${safeNickname}</span>
                                     ${msg.isAdmin ? `<span class="admin-badge${msg.isSuperAdmin ? ' super' : ''}"><i class="fas fa-${msg.isSuperAdmin ? 'crown' : 'shield-alt'}"></i> ${msg.isSuperAdmin ? '超级管理员' : '管理员'}</span>` : ''}
                                 </div>
-                                <span class="timestamp">${formatDateLocal(msg.created_at)}</span>
+                                <span class="timestamp">${formatServerDateTime(msg.created_at)}</span>
                             </div>
                             <div class="user-badges">
                                 ${pinnedBadge}

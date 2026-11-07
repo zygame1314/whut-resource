@@ -125,9 +125,9 @@ function extractHeaders(rawEmail) {
     const m = rawEmail.match(/^([\s\S]*?)\r?\n\r?\n/);
     return m ? m[1] : '';
 }
-// Cloudflare Email Routing 在调用 Worker 前已完成 DMARC 校验，并会前置
-// Authentication-Results: mx.cloudflare.net; spf=...; dkim=...; dmarc=...
-// 只有 authserv-id 为 mx.cloudflare.net 的那一条才可信，发件人自带的同名头可被伪造。
+
+
+
 function isTrustedSenderAuthentication(headers) {
     try {
         const first = headers.get('Authentication-Results');

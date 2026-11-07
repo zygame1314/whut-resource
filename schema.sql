@@ -474,6 +474,27 @@ CREATE INDEX IF NOT EXISTS idx_oauth_tokens_client ON oauth_access_tokens(client
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expires ON oauth_access_tokens(expires_at);
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_user ON oauth_access_tokens(user_id);
 
+CREATE TABLE IF NOT EXISTS oauth_authorizations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    scope TEXT DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    error_code TEXT,
+    code_hash TEXT,
+    ip TEXT,
+    user_agent TEXT,
+    created_at DATETIME DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at DATETIME DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_oauth_authz_client_created ON oauth_authorizations(client_id, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_oauth_authz_user_created ON oauth_authorizations(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_oauth_authz_status_created ON oauth_authorizations(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_authz_created ON oauth_authorizations(created_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_authz_code_hash ON oauth_authorizations(code_hash);
+
 CREATE TABLE IF NOT EXISTS pow_challenges (
     challenge TEXT PRIMARY KEY,
     bits INTEGER NOT NULL,

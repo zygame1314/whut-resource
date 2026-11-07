@@ -1,15 +1,5 @@
-#!/usr/bin/env node
-/**
- * 生成单文件 AI 分析上下文包。
- *
- * 用法:
- *   node scripts/export-context.mjs
- *   node scripts/export-context.mjs --mode balanced
- *   node scripts/export-context.mjs --mode code
- *   node scripts/export-context.mjs --mode full
- *   node scripts/export-context.mjs --compress none
- *   node scripts/export-context.mjs --out path/to/file.md --budget 150000
- */
+
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -158,7 +148,7 @@ const relSet = new Set(textFiles);
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
 const lineCount = s => s.split('\n').length;
 
-/* ---------- compression ---------- */
+
 const tidyText = s => s.replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '').replace(/\s+$/, '');
 const flatText = s => tidyText(s).split('\n').map(l => l.replace(/^[ \t]+/, '')).join('\n');
 const isMarkdown = rel => rel.endsWith('.md');
@@ -176,7 +166,7 @@ async function minifyJs(text) {
                 format: { comments: false, beautify: false }
             });
             if (out.code) return out.code;
-        } catch { /* try next mode */ }
+        } catch {  }
     }
     return null;
 }
@@ -195,7 +185,7 @@ async function minifyByType(rel, text) {
                 if (out.errors?.length) return { text: flatText(text), kind: 'flat' };
                 return { text: out.styles, kind: 'min' };
             }
-        } catch { /* fall through */ }
+        } catch {  }
         return { text: flatText(text), kind: 'flat' };
     }
     if (ext === '.html' && htmlMinifier) {
@@ -209,13 +199,13 @@ async function minifyByType(rel, text) {
                 keepClosingSlash: true
             });
             if (out) return { text: out, kind: 'min' };
-        } catch { /* fall through */ }
+        } catch {  }
         return { text: flatText(text), kind: 'flat' };
     }
     if (ext === '.json') {
         try {
             return { text: JSON.stringify(JSON.parse(text)), kind: 'min' };
-        } catch { /* fall through */ }
+        } catch {  }
     }
     return { text: isMarkdown(rel) ? tidyText(text) : flatText(text), kind: 'flat' };
 }
@@ -254,7 +244,7 @@ function isFull(rel) {
     return CONFIG_FULL.has(rel) || CORE_JS.has(rel);
 }
 
-/* ---------- formatting helpers ---------- */
+
 function fence(content, lang = '') {
     const runs = content.match(/`{3,}/g) || [];
     const size = Math.max(3, ...runs.map(r => r.length + 1));
@@ -516,7 +506,7 @@ function tree() {
     return out.join('\n');
 }
 
-/* ---------- assemble ---------- */
+
 const body = [];
 const sectionTokens = {};
 let currentSection = '';

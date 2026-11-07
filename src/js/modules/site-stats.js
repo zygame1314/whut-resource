@@ -32,19 +32,7 @@
 
     function formatRelativeTime(dateStr) {
         if (!dateStr) return '--';
-        var now = new Date();
-        var then = new Date(dateStr);
-        var diffSec = Math.floor((now - then) / 1000);
-
-        if (diffSec < 60) return '刚刚';
-        if (diffSec < 3600) return Math.floor(diffSec / 60) + ' 分钟前';
-        if (diffSec < 86400) return Math.floor(diffSec / 3600) + ' 小时前';
-        if (diffSec < 2592000) return Math.floor(diffSec / 86400) + ' 天前';
-
-        var y = then.getFullYear();
-        var m = String(then.getMonth() + 1).padStart(2, '0');
-        var d = String(then.getDate()).padStart(2, '0');
-        return y + '-' + m + '-' + d;
+        return formatServerRelativeTime(dateStr, { dateOnly: true, fallback: '--' });
     }
 
     function updateLastCommitTime(dateStr) {
@@ -52,7 +40,7 @@
         if (el) {
             el.textContent = formatRelativeTime(dateStr);
             if (dateStr) {
-                el.title = new Date(dateStr).toLocaleString('zh-CN');
+                el.title = formatServerDateTime(dateStr);
             }
         }
     }

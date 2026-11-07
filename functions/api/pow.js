@@ -1,4 +1,5 @@
 import { DATA_CENTER_ASNS } from './datacenter-asns.js';
+import { parseUtcTimestamp } from '../utils.js';
 
 const CHALLENGE_EXPIRES_MS = 5 * 60 * 1000;
 const MIN_BITS = 16;
@@ -238,7 +239,6 @@ function botScorePenaltyBits(cf) {
   return 0;
 }
 
-// 返回给前端的惩罚说明，只暴露粗略原因，不泄露具体评分/ASN 等信息
 function buildPenaltyPayload(reasons, rawBits, appliedBits, totalBits) {
   if (!reasons.length) return undefined;
   return {
@@ -296,7 +296,7 @@ export async function verifyPowSolution(params, env) {
   if (!steps || !interval || steps % interval !== 0 || steps !== Math.pow(2, record.bits)) {
     return { valid: false, error: '挑战数据无效，请重新获取' };
   }
-  const elapsedMs = Date.now() - new Date(record.issued_at).getTime();
+  const elapsedMs = Date.now() - (parseUtcTimestamp(record.issued_at)?.getTime() || NaN);
   if (!Number.isFinite(elapsedMs) || elapsedMs < 0) {
     return { valid: false, error: '挑战数据无效，请重新获取' };
   }

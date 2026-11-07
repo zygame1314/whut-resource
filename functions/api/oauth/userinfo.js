@@ -1,4 +1,4 @@
-import { addCorsHeaders } from '../../utils.js';
+import { addCorsHeaders, parseUtcTimestamp } from '../../utils.js';
 
 export async function onRequestGet(context) {
     const { request, env } = context;
@@ -16,7 +16,7 @@ export async function onRequestGet(context) {
                 { status: 401, headers: addCorsHeaders({ 'WWW-Authenticate': 'Bearer error="invalid_token"', 'Content-Type': 'application/json' }) });
         }
 
-        if (new Date(tokenRecord.expires_at) < new Date()) {
+        if ((parseUtcTimestamp(tokenRecord.expires_at)?.getTime() || 0) < Date.now()) {
             await env.DB.prepare('DELETE FROM oauth_access_tokens WHERE access_token = ?').bind(accessToken).run();
             return new Response(JSON.stringify({ error: 'invalid_token', error_description: 'Access Token 已过期' }),
                 { status: 401, headers: addCorsHeaders({ 'WWW-Authenticate': 'Bearer error="invalid_token"', 'Content-Type': 'application/json' }) });

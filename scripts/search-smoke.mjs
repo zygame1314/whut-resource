@@ -1,6 +1,6 @@
-#!/usr/bin/env node
-// 检索链路冒烟测试：只测确定性逻辑，不依赖网络 / D1 / 模型。
-// 数据取自线上真实文件快照，用于防止针对单条 query 的过拟合。
+
+
+
 import assert from 'node:assert/strict';
 import {
   buildFtsMatchQuery,
@@ -29,7 +29,7 @@ let seq = 0;
 const file = (name, key) => ({ id: ++seq, name, key, is_directory: 0 });
 const dir = (key, name) => ({ id: ++seq, name: name || key.split('/').filter(Boolean).pop(), key: `${key}/`, is_directory: 1 });
 
-// 线上真实快照：0.课程资料/形势与政策/
+
 const XS = {
   '2025-2026-1': [
     file('2025-2026-1 形策PPT.pdf', '0.课程资料/形势与政策/2025-2026-1/2025-2026-1 形策PPT.pdf'),
@@ -45,7 +45,7 @@ const XS = {
 };
 const xsAll = Object.values(XS).flat();
 
-// 线上真实快照：0.课程资料/高等数学A/2.高等数学A上期末真题/（目录名无年份）
+
 const GS_FINAL = [
   '2019-2020-1-高等数学A上（A卷）试题及解析【CWA】.pdf',
   '2023-2024-1-高等数学A上（A卷）试题及解析【CWA】.pdf',
@@ -54,7 +54,7 @@ const GS_FINAL = [
   '2025-2026-1-高等数学A上（A卷）试题及解析【CWA】.pdf'
 ].map(name => file(name, `0.课程资料/高等数学A/2.高等数学A上期末真题/${name}`));
 
-// ---------- 时间约束解析 ----------
+
 test('解析「2026第二学期」为自然年第二学期', () => {
   const parsed = parseTimeConstraint('2026', '请问有这学期的形式与政策资料吗，2026第二学期的', NOW);
   assert.equal(parsed.semester, 2);
@@ -73,7 +73,7 @@ test('无年份无学期返回 null', () => {
   assert.equal(parseTimeConstraint('张', '张老师的线代课件', NOW), null);
 });
 
-// ---------- 时间过滤 ----------
+
 test('2026 第二学期只留 2025-2026-2', () => {
   const kept = applyTimeConstraint(xsAll, '2026', '2026第二学期', NOW);
   assert.deepEqual(kept.map(row => row.name).sort(), [
@@ -112,7 +112,7 @@ test('无学年标记的文件在指定学期时被排除', () => {
   assert.equal(applyTimeConstraint(rows, '2026', '2026第二学期', NOW), null);
 });
 
-// ---------- 无年份目录的子项过滤 ----------
+
 test('目录名无年份时按子项筛年份', () => {
   const kept = applyTimeConstraint(GS_FINAL, '2024', '2024年的高数上期末试卷', NOW);
   assert.deepEqual(kept.map(row => row.name).sort(), [
@@ -126,7 +126,7 @@ test('目录名无年份 + 第二学期且全是 -1 时筛空', () => {
   assert.equal(applyTimeConstraint(GS_FINAL, '2024', '2024第二学期', NOW), null);
 });
 
-// ---------- FTS 查询构造 ----------
+
 test('中文 AND 用空格连接', () => {
   assert.equal(buildFtsMatchQuery('高数'), '高 数');
   assert.equal(buildFtsMatchQuery('小雅答答答脚本'), '小 雅 答 答 答 脚 本');
@@ -141,7 +141,7 @@ test('ASCII 词保持 phrase，OR 模式不重复', () => {
   assert.equal(buildFtsMatchQuery('2024', 'OR'), buildFtsMatchQuery('2024'));
 });
 
-// ---------- 结果合并 ----------
+
 test('目录级合并补齐 relevance，避免二次过滤被清空', () => {
   const scope = {
     mode: 'directory',
@@ -174,7 +174,7 @@ test('文件名级合并保留命中项的原始分数', () => {
   assert.equal(merged[0].relevance, 0.5);
 });
 
-// ---------- 目录锚点 ----------
+
 test('兄弟目录查询补回尾斜杠', () => {
   assert.equal(toParentLookupKey('0.课程资料/形势与政策'), '0.课程资料/形势与政策/');
   assert.equal(toParentLookupKey('0.课程资料/形势与政策/'), '0.课程资料/形势与政策/');
@@ -182,7 +182,7 @@ test('兄弟目录查询补回尾斜杠', () => {
   assert.equal(toParentLookupKey(null), '');
 });
 
-// ---------- 限定词清洗 ----------
+
 test('描述性时间词不进入字面检索', () => {
   assert.deepEqual(sanitizeConstraintTerms(['2026', '第二学期']), ['2026']);
   assert.deepEqual(sanitizeConstraintTerms(['这学期']), []);
@@ -190,14 +190,14 @@ test('描述性时间词不进入字面检索', () => {
   assert.deepEqual(sanitizeConstraintTerms(['张', '2024']), ['张', '2024']);
 });
 
-// ---------- 相关度过滤 ----------
+
 test('多课程场景关闭相对阈值', () => {
   const rows = [{ relevance: 0.9 }, { relevance: 0.35 }];
   assert.equal(filterByRelevance(rows).length, 1);
   assert.equal(filterByRelevance(rows, { relativeRatio: 0 }).length, 2);
 });
 
-// ---------- 输出 ----------
+
 if (failures.length > 0) {
   console.error(`\n✗ ${failures.length} 项失败 / ${passed + failures.length} 项`);
   for (const item of failures) {

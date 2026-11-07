@@ -1,5 +1,3 @@
-// --- Module: search-history.js ---
-// 搜索历史：localStorage 存储，搜索框聚焦时下拉展示，支持重搜、单条删除与清空全部。
 (function () {
     const STORAGE_KEY = 'searchHistory';
     const MAX_HISTORY = 15;
@@ -26,7 +24,7 @@
     function saveHistory(arr) {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
-        } catch (e) { /* ignore quota errors */ }
+        } catch (e) {  }
     }
 
     function addSearchHistory(term) {

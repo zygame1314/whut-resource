@@ -19,30 +19,7 @@ function validateItemName(name, { allowSlash = false, maxLength = 255 } = {}) {
 }
 function formatDate(dateString) {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now - date) / 1000);
-    let interval = seconds / 31536000;
-    if (interval > 1) {
-        return Math.floor(interval) + " 年前";
-    }
-    interval = seconds / 2592000;
-    if (interval > 1) {
-        return Math.floor(interval) + " 个月前";
-    }
-    interval = seconds / 86400;
-    if (interval > 1) {
-        return Math.floor(interval) + " 天前";
-    }
-    interval = seconds / 3600;
-    if (interval > 1) {
-        return Math.floor(interval) + " 小时前";
-    }
-    interval = seconds / 60;
-    if (interval > 1) {
-        return Math.floor(interval) + " 分钟前";
-    }
-    return "刚刚";
+    return formatServerRelativeTime(dateString, { space: true, showMonthsYears: true });
 }
 function getFileIcon(fileName, isDirectory = false) {
     if (isDirectory) return 'fas fa-folder';
@@ -179,8 +156,8 @@ function sortData(data, sortOption) {
                 valB = (b.name || '').toLowerCase();
                 return valA.localeCompare(valB, 'zh-CN') * dirMultiplier;
             case 'date':
-                valA = new Date(a.uploaded || 0).getTime();
-                valB = new Date(b.uploaded || 0).getTime();
+                valA = (parseServerTime(a.uploaded) || new Date(0)).getTime();
+                valB = (parseServerTime(b.uploaded) || new Date(0)).getTime();
                 break;
             case 'size':
                 valA = a.size || 0;

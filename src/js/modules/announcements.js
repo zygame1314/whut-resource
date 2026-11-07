@@ -713,8 +713,8 @@ function renderAdminAnnouncementList() {
                     <i class="fas fa-chevron-left"></i> <span class="pagination-btn-text">上一页</span>
                 </button>
                 <div style="display:flex; align-items:center;">
-                    <input type="number" min="1" max="${totalAnnouncementPages}" value="${currentAnnouncementPage}" 
-                        class="pagination-jump-input" 
+                    <input type="number" min="1" max="${totalAnnouncementPages}" value="${currentAnnouncementPage}"
+                        class="pagination-jump-input"
                         onchange="let val = parseInt(this.value); if(val >= 1 && val <= ${totalAnnouncementPages}) changeAnnouncementPage(val); else this.value = ${currentAnnouncementPage}"
                         onkeydown="if(event.key === 'Enter') this.blur()"
                     >
@@ -835,8 +835,7 @@ function formatAnnouncementDateLocal(dateString) {
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: false,
-        timeZone: 'Asia/Shanghai'
+        hour12: false
     });
     const parts = formatter.formatToParts(date).reduce((accumulator, part) => {
         if (part.type !== 'literal') {
@@ -847,9 +846,6 @@ function formatAnnouncementDateLocal(dateString) {
     return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
 function parseAnnouncementDate(dateString) {
-    if (!dateString) return new Date();
-    if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+')) {
-        return new Date(dateString.replace(' ', 'T') + 'Z');
-    }
-    return new Date(dateString);
+    const parsed = parseServerTime(dateString);
+    return parsed || new Date();
 }

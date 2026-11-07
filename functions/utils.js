@@ -666,12 +666,12 @@ export function checkContentLength(request, maxBytes) {
   return true;
 }
 const PBKDF2_HASH_PREFIX = 'pbkdf2';
-// 生产 Workers 运行时的 WebCrypto 对 PBKDF2 迭代次数有硬上限（100000），
-// 超过会抛 NotSupportedError；本地 workerd 不强制，因此不能只靠本地验证。
+
+
 const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_MIN_ACCEPTED_ITERATIONS = 10000;
 const PBKDF2_MAX_PARSED_ITERATIONS = 2000000;
-// 记录当前运行时实际可用（或已降级到）的迭代次数，避免每次登录都重复重哈希。
+
 let effectivePbkdf2Iterations = PBKDF2_ITERATIONS;
 
 function legacySha256Hex(password, salt) {
@@ -1015,7 +1015,7 @@ function matchesTimeConstraint(row, parsed, loose = false) {
   }));
 }
 
-// 先按自然年精确匹配；一个都没有时退回"学年区间覆盖该年"的宽松口径
+
 function filterByTime(rows, parsed) {
   if (!parsed) return rows;
   const strict = rows.filter(row => matchesTimeConstraint(row, parsed));
@@ -1032,9 +1032,9 @@ export function applyTimeConstraint(rows, constraint, query, now) {
 }
 const NON_LITERAL_CONSTRAINT = /^(?:第?[一二三四1-4]学期|上学期|下学期|这学期|本学期|学年|今年|明年|去年|前年)$/;
 
-// 模型偶尔会把"第二学期""这学期"这类描述性时间词塞进限定；
-// 它们永远不可能出现在文件名里，留着会让字面检索的 AND 必然落空。
-// 学期/学年信息由 parseTimeConstraint 从原文解析，这里只需要保留年份之类的字面词。
+
+
+
 export function sanitizeConstraintTerms(terms) {
   const list = Array.isArray(terms) ? terms : (terms == null ? [] : [terms]);
   const out = [];
@@ -1127,7 +1127,7 @@ export async function hybridSearch(DB, VECTORIZE, env, query, options = {}) {
     try {
       ftsResults = await runFts(ftsTokenizedQuery);
       if (ftsResults.length === 0) {
-        // 全字 AND 一个都没命中时退化为 OR，避免 FTS 完全不出力
+
         const orQuery = buildFtsMatchQuery(query, 'OR');
         if (orQuery && orQuery !== ftsTokenizedQuery) {
           ftsResults = await runFts(orQuery);
@@ -1281,6 +1281,27 @@ export async function getUserFromRequest(request, env, options = {}) {
   if (user && user.is_banned && !options.allowBanned) return null;
   return user;
 }
+
+export function parseUtcTimestamp(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value === 'number') {
+    const numeric = new Date(value);
+    return Number.isNaN(numeric.getTime()) ? null : numeric;
+  }
+  const raw = String(value).trim();
+  if (!raw) return null;
+  let iso = raw;
+  if (iso.includes(' ')) {
+    iso = iso.replace(' ', 'T');
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    iso += 'T00:00:00';
+  }
+  const hasZone = /[zZ]$/.test(iso) || /[+-]\d{2}:?\d{2}$/.test(iso);
+  if (!hasZone) iso += 'Z';
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 export async function logAdminAction(env, operatorId, action, targetType, targetId, reason, details, skipCleanup = false) {
   try {
     await env.DB.prepare(
@@ -1300,6 +1321,68 @@ export async function cleanupAdminLogs(env) {
     console.error('清理管理员日志失败:', e);
   }
 }
+const OAUTH_AUTHZ_RETENTION_DAYS = 90;
+const OAUTH_CODE_PENDING_TIMEOUT_MINUTES = 15;
+async function hashOAuthCode(code) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+}
+function getClientIp(request) {
+  return request?.headers?.get('CF-Connecting-IP') || null;
+}
+
+export async function logOAuthAuthorization(env, request, { clientId, userId, scope, status, errorCode = null, code = null }) {
+  try {
+    await env.DB.prepare(
+      `INSERT INTO oauth_authorizations (client_id, user_id, scope, status, error_code, code_hash, ip, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      clientId,
+      userId,
+      scope || '',
+      status,
+      errorCode,
+      code ? await hashOAuthCode(code) : null,
+      getClientIp(request),
+      (request?.headers?.get('User-Agent') || '').slice(0, 255) || null
+    ).run();
+  } catch (e) {
+    console.error('记录OAuth授权流水失败:', e?.message || e);
+  }
+}
+
+export async function markOAuthAuthorization(env, code, status, errorCode = null) {
+  if (!code) return;
+  try {
+    await env.DB.prepare(
+      `UPDATE oauth_authorizations
+          SET status = ?, error_code = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE code_hash = ? AND status = 'pending'`
+    ).bind(status, errorCode, await hashOAuthCode(code)).run();
+  } catch (e) {
+    console.error('更新OAuth授权流水失败:', e?.message || e);
+  }
+}
+export async function expireStaleOAuthAuthorizations(env) {
+  try {
+
+    await env.DB.prepare(
+      `UPDATE oauth_authorizations
+          SET status = 'expired', error_code = 'code_expired', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE status = 'pending' AND julianday(created_at) < julianday('now', ?)`
+    ).bind(`-${OAUTH_CODE_PENDING_TIMEOUT_MINUTES} minutes`).run();
+  } catch (e) {
+    console.error('标记过期OAuth授权失败:', e?.message || e);
+  }
+}
+export async function cleanupOAuthAuthorizations(env) {
+  try {
+    await env.DB.prepare("DELETE FROM oauth_authorizations WHERE created_at < datetime('now', ?)")
+      .bind(`-${OAUTH_AUTHZ_RETENTION_DAYS} days`).run();
+  } catch (e) {
+    console.error('清理OAuth授权流水失败:', e?.message || e);
+  }
+}
 const MAINTENANCE_SWEEP_CACHE_ID = 300;
 const MAINTENANCE_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 export async function runMaintenanceSweep(env) {
@@ -1307,7 +1390,7 @@ export async function runMaintenanceSweep(env) {
   try {
     const row = await env.DB.prepare('SELECT updated_at FROM system_cache WHERE id = ?').bind(MAINTENANCE_SWEEP_CACHE_ID).first();
     const now = Date.now();
-    const last = row?.updated_at ? Date.parse(String(row.updated_at).replace(' ', 'T') + 'Z') : 0;
+    const last = row?.updated_at ? (parseUtcTimestamp(row.updated_at)?.getTime() || 0) : 0;
     if (now - last < MAINTENANCE_SWEEP_INTERVAL_MS) return false;
     const nowISO = new Date(now).toISOString();
     await env.DB.batch([
@@ -1324,6 +1407,9 @@ export async function runMaintenanceSweep(env) {
       env.DB.prepare("DELETE FROM vector_sync_failures WHERE resolved = TRUE AND created_at < datetime('now', '-7 days')"),
       env.DB.prepare("DELETE FROM file_task_failures WHERE resolved = TRUE AND created_at < datetime('now', '-7 days')")
     ]);
+
+    await expireStaleOAuthAuthorizations(env);
+    await cleanupOAuthAuthorizations(env);
     await env.DB.prepare(
       'INSERT INTO system_cache (id, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP'
     ).bind(MAINTENANCE_SWEEP_CACHE_ID, '{}').run();
@@ -1446,7 +1532,7 @@ export async function rerankRows(env, query, rows, { topN = 30, minScore = 0.02 
 }
 const SCOPE_PICK_MAX_CANDIDATES = 30;
 const SCOPE_CHILD_LIMIT = 150;
-// 硅基流动 L0 为 80k TPM：单批 120 条约 5k tokens，超过 1 批时串行请求，避免并发撞限流
+
 const FILE_PICK_BATCH_SIZE = 120;
 const FILE_PICK_MAX_BATCHES = 2;
 const FILE_PICK_MAX_CANDIDATES = FILE_PICK_BATCH_SIZE * FILE_PICK_MAX_BATCHES;
@@ -1536,7 +1622,7 @@ function collectAnchorDirs(baseResults) {
 function normalizeDirKey(key) {
   return (key || '').replace(/\/+$/, '');
 }
-// DB 里 parent_path 统一带尾斜杠，查询兄弟目录前必须补回来
+
 export function toParentLookupKey(key) {
   const normalized = normalizeDirKey(key);
   return normalized ? `${normalized}/` : '';
@@ -1582,7 +1668,7 @@ async function loadComparableDirs(DB, anchorDirs) {
   const shallowest = [...anchorDirs].sort((a, b) => depthOf(a.key) - depthOf(b.key))[0];
   const children = await loadChildDirs(DB, [shallowest.key]);
   if (children.length > 1) return children.slice(0, SCOPE_PICK_MAX_CANDIDATES);
-  // DB 里 parent_path 统一带尾斜杠，normalizeDirKey 会去掉，查询前必须补回来，否则匹配不到兄弟目录
+
   const parentSet = [...new Set(
     anchorDirs.map(d => toParentLookupKey(d.parent_path)).filter(Boolean)
   )];
@@ -1648,7 +1734,7 @@ async function pickDirectoryScope(env, DB, query, constraint, baseResults, now) 
   if (!parsed || matchesTimeConstraint(directory, parsed, true)) {
     return { path: scopeKey, directory, children };
   }
-  // 目录名本身不带时间（如"期末试卷"），时间限定落在具体试卷上，按子项再筛一遍
+
   const timedChildren = filterByTime(children, parsed);
   if (timedChildren.length === 0) return null;
   return { path: scopeKey, directory: null, children: timedChildren };
@@ -1839,7 +1925,7 @@ export function mergeScopeFirst(scope, baseResults) {
   for (const child of scope.children) {
     push(child, 0.95, true);
   }
-  // 目录名不带时间（directory 为 null）时只信任已按子项筛过的结果，不再回捞原始列表
+
   if (scope.directory) {
     for (const item of baseResults || []) {
       if (!inScope(item)) continue;

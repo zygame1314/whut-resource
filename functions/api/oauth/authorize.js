@@ -1,4 +1,4 @@
-import { addCorsHeaders, getUserFromRequest } from '../../utils.js';
+import { addCorsHeaders, getUserFromRequest, logOAuthAuthorization } from '../../utils.js';
 
 const VALID_SCOPES = ['openid', 'profile', 'email'];
 const AUTH_CODE_EXPIRY = 10 * 60 * 1000;
@@ -84,6 +84,13 @@ export async function onRequestPost(context) {
         }
 
         if (decision === 'deny') {
+            await logOAuthAuthorization(env, request, {
+                clientId: client_id,
+                userId: user.id,
+                scope: validatedScopes.join(' '),
+                status: 'denied',
+                errorCode: 'access_denied'
+            });
             return new Response(JSON.stringify({ success: false, error: '用户拒绝授权', error_code: 'access_denied' }),
                 { status: 403, headers: addCorsHeaders({ 'Content-Type': 'application/json' }) });
         }
@@ -94,6 +101,14 @@ export async function onRequestPost(context) {
         await env.DB.prepare(
             'INSERT INTO oauth_authorization_codes (code, client_id, user_id, redirect_uri, scope, code_challenge, code_challenge_method, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         ).bind(authCode, client_id, user.id, redirect_uri, validatedScopes.join(' '), code_challenge || null, code_challenge_method || null, expiresAt).run();
+
+        await logOAuthAuthorization(env, request, {
+            clientId: client_id,
+            userId: user.id,
+            scope: validatedScopes.join(' '),
+            status: 'pending',
+            code: authCode
+        });
 
         return new Response(JSON.stringify({
             success: true,

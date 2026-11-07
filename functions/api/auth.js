@@ -1,4 +1,4 @@
-import { hashPassword, verifyPasswordHash, passwordNeedsRehash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey } from '../utils.js';
+import { hashPassword, verifyPasswordHash, passwordNeedsRehash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, parseUtcTimestamp } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
 import { verifyPowSolution, computePowBind, MIN_BITS, MAX_BITS } from './pow.js';
 const HIGH_RISK_MIN_BITS = 18;
@@ -66,7 +66,7 @@ async function recordLoginAttempt(db, identifier, type) {
     ).bind(identifier, type, now, expiresAt).run();
   }
 }
-// 3 次失败开始要人机验证，之后每 2 次失败 +1 bit；不低于 PoW 最小难度，避免下发无效难度
+
 function escalateBitsFor(failCount) {
   if (!(failCount >= 3)) return 0;
   return Math.min(Math.max(15 + Math.floor((failCount - 3) / 2), MIN_BITS), MAX_BITS);
@@ -103,7 +103,7 @@ export async function onRequestPost({ request, env }) {
       }
       const lastPending = await env.DB.prepare('SELECT created_at FROM pending_registrations WHERE email_prefix = ? ORDER BY created_at DESC LIMIT 1').bind(emailPrefix).first();
       if (lastPending) {
-        const lastTime = new Date(lastPending.created_at).getTime();
+        const lastTime = parseUtcTimestamp(lastPending.created_at)?.getTime() || 0;
         const now = Date.now();
         if (now - lastTime < 60 * 1000) {
           return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请 60 秒后再试。' }), { status: 429, headers: addCorsHeaders() });
@@ -111,10 +111,10 @@ export async function onRequestPost({ request, env }) {
       }
       const now = Date.now();
       const nowISO = new Date(now).toISOString();
-      const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
       await Promise.all([
         env.DB.prepare('DELETE FROM pending_registrations WHERE expires_at < ?').bind(nowISO).run(),
-        env.DB.prepare('DELETE FROM downloads WHERE downloaded_at < ?').bind(thirtyDaysAgo).run()
+
+        env.DB.prepare("DELETE FROM downloads WHERE downloaded_at < datetime('now', '-30 days')").run()
       ]);
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let randomCode = '';
@@ -194,7 +194,7 @@ export async function onRequestPost({ request, env }) {
       }
       const lastPending = await env.DB.prepare('SELECT created_at FROM pending_resets WHERE email = ? ORDER BY created_at DESC LIMIT 1').bind(email).first();
       if (lastPending) {
-        const lastTime = new Date(lastPending.created_at).getTime();
+        const lastTime = parseUtcTimestamp(lastPending.created_at)?.getTime() || 0;
         const now = Date.now();
         if (now - lastTime < 60 * 1000) {
           return new Response(JSON.stringify({ success: false, error: '请求过于频繁，请 60 秒后再试。' }), { status: 429, headers: addCorsHeaders() });
