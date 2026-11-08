@@ -1,3 +1,14 @@
+function shortenIpForDisplay(ip) {
+    if (!ip) return '';
+    const raw = String(ip).trim();
+    const mapped = raw.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i);
+    if (mapped) return mapped[1];
+    if (raw.indexOf(':') === -1) return raw;
+    const parts = raw.split(':').filter(Boolean);
+    if (parts.length < 6) return raw;
+    return parts.slice(0, 2).join(':') + '…' + parts.slice(-2).join(':');
+}
+
 async function showMaintenanceModal() {
     const modal = document.createElement('div');
     modal.className = 'auth-modal';
@@ -1564,7 +1575,7 @@ async function showOauthClientsModal() {
                                     const st = authzStatusMap[a.status] || { text: a.status || '-', cls: 'oauth-detail-expired' };
                                     const note = a.error_code
                                         ? `<span title="${escapeHtml(a.error_code)}">${escapeHtml(authzErrorMap[a.error_code] || a.error_code)}</span>`
-                                        : (a.ip ? `<code class="oauth-detail-code" title="IP">${escapeHtml(a.ip)}</code>` : '-');
+                                        : (a.ip ? `<code class="oauth-detail-code oauth-detail-note-ip" title="${escapeHtml(a.ip)}">${escapeHtml(shortenIpForDisplay(a.ip))}</code>` : '-');
                                     return `
                                     <tr>
                                         <td data-label="用户">${escapeHtml(a.nickname || a.email || '-')}</td>

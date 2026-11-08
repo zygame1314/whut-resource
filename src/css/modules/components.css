@@ -11055,6 +11055,15 @@ input#prompt-input {
     border: 1px solid var(--border-color);
 }
 
+.oauth-detail-note-ip {
+    display: inline-block;
+    max-width: 9.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
 .oauth-detail-scope {
     font-size: 0.72rem;
     background: rgba(var(--primary-rgb), 0.08);
@@ -11262,7 +11271,8 @@ input#prompt-input {
     }
 
     .oauth-detail-code,
-    .oauth-detail-scope {
+    .oauth-detail-scope,
+    .oauth-detail-note-ip {
         max-width: 60%;
         overflow: hidden;
         text-overflow: ellipsis;
