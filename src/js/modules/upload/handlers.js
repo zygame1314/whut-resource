@@ -145,8 +145,15 @@ async function addWatermarkToPDF(file, onProgress) {
         ctx.font = `normal ${subFontSize}px ${fontStack}`;
         ctx.fillStyle = '#666666';
         ctx.fillText(subText, currentX, centerY + (2 * scale));
-        const imageUrl = canvas.toDataURL('image/png');
-        const imageBytes = await fetch(imageUrl).then(res => res.arrayBuffer());
+        const imageBytes = await new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error('水印图片生成失败'));
+                    return;
+                }
+                blob.arrayBuffer().then(resolve, reject);
+            }, 'image/png');
+        });
         const watermarkImage = await pdfDoc.embedPng(imageBytes);
         const watermarkDims = watermarkImage.scale(1 / scale);
         const tileW = watermarkDims.width;
