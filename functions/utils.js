@@ -778,6 +778,21 @@ export function toBase64Url(data) {
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
+const WEAK_JWT_SECRETS = new Set(['secret', 'dev', 'jwt', 'whut', 'password', 'changeme', 'test']);
+const MIN_JWT_SECRET_LENGTH = 32;
+let weakJwtSecretWarned = false;
+export function requireJwtSecret(env) {
+  const secret = typeof env?.JWT_SECRET === 'string' ? env.JWT_SECRET : '';
+  if (!secret || WEAK_JWT_SECRETS.has(secret.toLowerCase())) {
+    throw new Error('JWT_SECRET 未配置或使用了不安全的默认值');
+  }
+  if (secret.length < MIN_JWT_SECRET_LENGTH && !weakJwtSecretWarned) {
+    weakJwtSecretWarned = true;
+    console.error(`安全警告: JWT_SECRET 长度不足 ${MIN_JWT_SECRET_LENGTH} 字符，建议尽快更换为高强度随机密钥`);
+  }
+  return secret;
+}
+
 export async function signToken(payload, secret) {
   const header = { alg: "HS256", typ: "JWT" };
   const encodedHeader = toBase64Url(JSON.stringify(header));
@@ -1275,7 +1290,7 @@ export async function getUserFromRequest(request, env, options = {}) {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   const token = authHeader.split(' ')[1];
-  const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+  const payload = await verifyToken(token, requireJwtSecret(env));
   if (!payload) return null;
   const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
   if (user && user.is_banned && !options.allowBanned) return null;

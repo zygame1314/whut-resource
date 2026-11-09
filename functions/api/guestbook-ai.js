@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint, rerankRows, sanitizeConstraintTerms } from '../utils.js';
+import { verifyToken, requireJwtSecret, addCorsHeaders, isAdmin, hybridSearch, retryWithBackoff, fetchSiliconFlowChat, validateAIResponse, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, resolveConstraintScope, mergeScopeFirst, filterByRelevance, searchByLiteralTerms, applyTimeConstraint, rerankRows, sanitizeConstraintTerms } from '../utils.js';
 const AI_API_URL = 'https://cpa.zygame1314-666.top/v1/chat/completions';
 const AI_MODEL = 'deepseek-v4.1-flash';
 const TOOLS = [
@@ -232,7 +232,7 @@ async function getUser(request, env) {
         return null;
     }
     const token = authHeader.split(' ')[1];
-    const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+    const payload = await verifyToken(token, requireJwtSecret(env));
     if (!payload) return null;
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }

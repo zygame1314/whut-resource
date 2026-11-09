@@ -357,7 +357,7 @@ function solveChainInWorker(challenge, steps, interval, bindHash, onProgress) {
     });
 }
 
-async function fetchPowChallenge(hashRate, escalateBits, action, bindHash) {
+async function fetchPowChallenge(hashRate, escalateBits, action, bindHash, envFallback) {
     const powApiUrl = (typeof API_ENDPOINTS !== 'undefined' && API_ENDPOINTS.pow) ? API_ENDPOINTS.pow : '/api/pow';
     const res = await fetch(powApiUrl, {
         method: 'POST',
@@ -366,7 +366,8 @@ async function fetchPowChallenge(hashRate, escalateBits, action, bindHash) {
             action: action || 'challenge',
             hashRate: Math.max(0, Math.round(hashRate) || 0),
             escalateBits: escalateBits || 0,
-            bind: bindHash || ''
+            bind: bindHash || '',
+            envFallback: !!envFallback
         })
     });
     const data = await res.json();
@@ -408,20 +409,47 @@ function normalizePowPenalty(penalty) {
     };
 }
 
-async function solvePowChallenge(onProgress, escalateBits, action, bindFields) {
+async function solvePowChallenge(onProgress, escalateBits, action, bindFields, options = {}) {
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'benchmark', challenge: '' });
     const hashRate = await powBenchmarkInWorker(POW_BENCHMARK_MS);
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'benchmark_done', challenge: '', hashRate });
     const bindHash = (bindFields && bindFields.length) ? await powBindHash(action, bindFields) : '';
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'fetching', challenge: '' });
-    const { challenge, bits, steps, interval, envNonce, penalty } = await fetchPowChallenge(hashRate, escalateBits, action, bindHash);
+    const { challenge, bits, steps, interval, envNonce, penalty, envFallback } = await fetchPowChallenge(hashRate, escalateBits, action, bindHash, options.envFallback);
     if (onProgress) onProgress({ step: 0, hash: '', phase: 'solving', challenge, penalty, powBits: bits });
     const solvePromise = solveChainInWorker(challenge, steps, interval, bindHash, (p) => {
         if (onProgress) onProgress({ step: p.step, hash: p.hash, phase: p.phase || 'computing', totalSteps: steps });
     });
     const envPromise = envNonce ? buildEnvProof(envNonce, hashRate) : Promise.resolve(null);
     const [{ checkpoints }, powEnv] = await Promise.all([solvePromise, envPromise]);
-    return { powChallenge: challenge, powCheckpoints: checkpoints, powBits: bits, powBind: bindHash, powEnv: powEnv || undefined };
+    return { powChallenge: challenge, powCheckpoints: checkpoints, powBits: bits, powBind: bindHash, powEnv: powEnv || undefined, envFallback: !!envFallback };
+}
+
+async function solveLoginPowSilently(envFallback) {
+    const result = await solvePowChallenge(() => {}, 0, 'login', null, { envFallback: !!envFallback });
+    return {
+        powChallenge: result.powChallenge,
+        powCheckpoints: result.powCheckpoints,
+        powBind: result.powBind,
+        powEnv: result.powEnv
+    };
+}
+
+async function silentLoginWithPow(email, password) {
+    const postLogin = async (envFallback) => {
+        const powPayload = await solveLoginPowSilently(envFallback);
+        const res = await fetch(AUTH_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'login', email, password, ...powPayload })
+        });
+        return res.json();
+    };
+    let data = await postLogin(false);
+    if (!data.success && Array.isArray(data.envMissing) && data.envMissing.length) {
+        data = await postLogin(true);
+    }
+    return data;
 }
 
 function ensurePowPenaltyBanner(powEl) {
@@ -580,6 +608,7 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
     let solving = false;
     let result = null;
     let escalateBits = 0;
+    let envFallback = false;
     let action = riskAction || '';
     powEl.classList.add('pow-idle');
     powEl.style.cursor = 'pointer';
@@ -607,7 +636,7 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
         powEl.style.cursor = 'default';
         try {
             const bindFields = typeof getBindFields === 'function' ? getBindFields() : [];
-            result = await solvePowChallenge((p) => updatePowUI(powEl, p), escalateBits, action, bindFields);
+            result = await solvePowChallenge((p) => updatePowUI(powEl, p), escalateBits, action, bindFields, { envFallback });
             solved = true;
             setTimeout(() => { if (onSolved) onSolved(result); }, 600);
         } catch (e) {
@@ -629,6 +658,7 @@ function initPowCard(powEl, onSolved, riskAction, getBindFields) {
         isSolving: () => solving,
         setEscalateBits: (b) => { escalateBits = clampPowEscalateBits(b); syncEscalatePenalty(); },
         setMinBits: (b) => { escalateBits = Math.max(escalateBits, clampPowEscalateBits(b)); syncEscalatePenalty(); },
+        setEnvFallback: (v) => { envFallback = !!v; },
         reset: () => { solved = false; solving = false; result = null; clearPowPenaltyUI(powEl); powEl.classList.add('pow-idle'); powEl.classList.remove('pow-done', 'pow-working'); powEl.style.cursor = 'pointer'; updatePowUI(powEl, { phase: 'idle', step: 0, hash: '' }); const rankEl = powEl.querySelector('.pow-rank'); if (rankEl) { rankEl.style.display = 'none'; rankEl.innerHTML = ''; } },
         meetsRequired: () => solved && !!result && result.powBits >= escalateBits,
         requiredBits: () => escalateBits,

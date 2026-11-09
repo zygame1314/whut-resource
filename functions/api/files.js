@@ -201,8 +201,12 @@ export async function onRequestGet({ request, env, waitUntil }) {
                 directories = results.map(row => row.key);
                 try {
                     await DB.prepare(`
-                        INSERT OR REPLACE INTO system_cache (id, data, updated_at)
+                        INSERT INTO system_cache (id, data, updated_at)
                         VALUES (?, ?, CURRENT_TIMESTAMP)
+                        ON CONFLICT(id) DO UPDATE SET
+                            data = excluded.data,
+                            updated_at = excluded.updated_at
+                        WHERE system_cache.updated_at < datetime('now', '-1 hour')
                     `).bind(DIR_LIST_CACHE_ID, JSON.stringify(directories)).run();
                 } catch (e) {
                     console.error('更新目录缓存失败:', e);

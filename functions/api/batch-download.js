@@ -74,6 +74,12 @@ export async function onRequestPost({ request, env }) {
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
+  if (!keys.every(k => typeof k === 'string' && k.length > 0 && k.length <= 1024)) {
+    return new Response(JSON.stringify({ success: false, error: 'keys 中包含无效的文件路径。' }), {
+      status: 400,
+      headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+    });
+  }
   const DB = env.DB;
   if (!DB) {
     return new Response(JSON.stringify({ success: false, error: '服务器配置错误（D1绑定）。' }), {
@@ -89,14 +95,27 @@ export async function onRequestPost({ request, env }) {
       });
     }
   }
-  const allFileKeysToProcess = new Set(keys);
-  if (allFileKeysToProcess.size === 0 && keys.length > 0) {
+  const allFileKeysToProcess = Array.from(new Set(keys));
+  if (allFileKeysToProcess.length === 0) {
     return new Response(JSON.stringify({ success: false, error: '选择的项目中没有可下载的文件。' }), {
       status: 404,
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   }
   try {
+    const placeholders = allFileKeysToProcess.map(() => '?').join(',');
+    const { results } = await DB.prepare(
+      `SELECT key FROM files WHERE key IN (${placeholders}) AND is_directory = FALSE AND is_link = FALSE`
+    ).bind(...allFileKeysToProcess).all();
+    const existingKeys = new Set((results || []).map(row => row.key));
+    const validKeys = allFileKeysToProcess.filter(key => existingKeys.has(key));
+    const missing = allFileKeysToProcess.filter(key => !existingKeys.has(key));
+    if (validKeys.length === 0) {
+      return new Response(JSON.stringify({ success: false, error: '文件不存在或不可下载。', missing }), {
+        status: 404,
+        headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
+      });
+    }
     const secret = getSignedUrlSecret(env);
     if (!secret) {
       return new Response(JSON.stringify({ success: false, error: '服务端未配置下载签名密钥。' }), {
@@ -105,7 +124,7 @@ export async function onRequestPost({ request, env }) {
       });
     }
     const signedUrls = [];
-    for (const fileKey of allFileKeysToProcess) {
+    for (const fileKey of validKeys) {
       const { token, expires } = await generateToken(fileKey, secret, user.id);
       const urlPath = `/api/download/${encodeURIComponent(fileKey)}?token=${token}&expires=${expires}&user=${user.id}`;
       signedUrls.push({
@@ -120,7 +139,7 @@ export async function onRequestPost({ request, env }) {
         headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
       });
     }
-    return new Response(JSON.stringify({ success: true, files: signedUrls }), {
+    return new Response(JSON.stringify({ success: true, files: signedUrls, missing: missing.length ? missing : undefined }), {
       headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
     });
   } catch (error) {

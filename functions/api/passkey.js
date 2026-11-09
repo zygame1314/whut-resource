@@ -1,4 +1,4 @@
-import { signToken, verifyToken, addCorsHeaders } from '../utils.js';
+import { signToken, verifyToken, requireJwtSecret, addCorsHeaders } from '../utils.js';
 function bufferToBase64url(buffer) {
     const bytes = new Uint8Array(buffer);
     let binary = '';
@@ -108,7 +108,7 @@ export async function onRequestPost({ request, env }) {
         }
         const rpId = env.WEBAUTHN_RP_ID || 'resource.haoli.site';
         const rpName = env.WEBAUTHN_RP_NAME || 'WHUT Resource';
-        const secret = env.JWT_SECRET || 'secret';
+        const secret = requireJwtSecret(env);
         const authRequired = ['register-options', 'register-verify', 'list', 'delete', 'rename'];
         let userId = null;
         if (authRequired.includes(action)) {

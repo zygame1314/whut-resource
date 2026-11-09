@@ -1,4 +1,4 @@
-import { verifyToken, checkRateLimit, getRequestRateLimitKey, checkContentLength } from '../utils.js';
+import { verifyToken, requireJwtSecret, checkRateLimit, getRequestRateLimitKey, checkContentLength } from '../utils.js';
 const addCorsHeaders = (headers = {}) => {
     return {
         ...headers,
@@ -43,11 +43,66 @@ const SPA_PRESETS = [
     { pattern: /alipan\.com/, title: '阿里云盘', description: '阿里云盘是一款速度快、不打扰、够安全、易于分享的网盘。', domain: 'alipan.com' },
     { pattern: /xiaohongshu\.com/, title: '小红书', description: '小红书 - 你的生活兴趣社区。', domain: 'xiaohongshu.com' }
 ];
+function parseIpv4(host) {
+    const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+    if (!m) return null;
+    const parts = m.slice(1).map(Number);
+    if (parts.some(p => p > 255)) return null;
+    return parts;
+}
+
+function isBlockedIpv4([a, b, c]) {
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 192 && b === 0 && (c === 0 || c === 2)) return true;
+    if (a === 198 && (b === 18 || b === 19)) return true;
+    if (a === 198 && b === 51 && c === 100) return true;
+    if (a === 203 && b === 0 && c === 113) return true;
+    return a >= 224;
+}
+
+function hexPairToIpv4(hi, lo) {
+    const h = Number.parseInt(hi, 16);
+    const l = Number.parseInt(lo, 16);
+    return `${h >> 8}.${h & 255}.${l >> 8}.${l & 255}`;
+}
+
+function isBlockedIpv6(ip) {
+    if (ip === '::' || ip === '::1') return true;
+    if (/^f[cd][0-9a-f]{0,2}:/.test(ip)) return true;
+    if (/^fe[89ab][0-9a-f]?:/.test(ip)) return true;
+    if (/^ff[0-9a-f]{0,2}:/.test(ip)) return true;
+    if (/^64:ff9b::/.test(ip)) return true;
+    return false;
+}
+
 function isBlockedHostname(hostname) {
-    const h = String(hostname || '').toLowerCase();
-    return h === 'localhost' || h === '0.0.0.0' || h.endsWith('.local') ||
-        /^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(h) ||
-        /^\[?(::1|fe80:|fc00:|fd00:)/i.test(h);
+    const h = String(hostname || '').toLowerCase().replace(/\.+$/, '');
+    if (!h) return true;
+    if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') ||
+        h === 'metadata' || h === 'metadata.google.internal' || h === 'instance-data' ||
+        h.endsWith('.internal')) {
+        return true;
+    }
+    let ip = h;
+    if (ip.startsWith('[') && ip.endsWith(']')) ip = ip.slice(1, -1);
+    const mappedHex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(ip);
+    if (mappedHex) ip = hexPairToIpv4(mappedHex[1], mappedHex[2]);
+    const compatibleHex = /^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(ip);
+    if (compatibleHex) ip = hexPairToIpv4(compatibleHex[1], compatibleHex[2]);
+    const mappedDotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(ip);
+    if (mappedDotted) ip = mappedDotted[1];
+    const compatibleDotted = /^::(\d{1,3}(?:\.\d{1,3}){3})$/.exec(ip);
+    if (compatibleDotted) ip = compatibleDotted[1];
+    const nat64 = /^64:ff9b::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(ip);
+    if (nat64) ip = hexPairToIpv4(nat64[1], nat64[2]);
+    const v4 = parseIpv4(ip);
+    if (v4) return isBlockedIpv4(v4);
+    if (ip.includes(':')) return isBlockedIpv6(ip);
+    return false;
 }
 async function safeFetch(url, options = {}, maxRedirects = 3) {
     let current = url;
@@ -184,7 +239,6 @@ async function fetchPageInfo(url, externalSignal = null) {
                 'sec-ch-ua-platform': '"Windows"'
             },
             signal: controller.signal,
-            redirect: 'follow',
         });
         clearTimeout(timeoutId);
         if (!response.ok) {
@@ -309,7 +363,7 @@ export async function onRequest(context) {
         });
     }
     const token = authHeader.substring(7);
-    const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+    const payload = await verifyToken(token, requireJwtSecret(env));
     if (!payload) {
         return new Response(JSON.stringify({
             success: false,

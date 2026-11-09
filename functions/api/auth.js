@@ -1,4 +1,4 @@
-import { hashPassword, verifyPasswordHash, passwordNeedsRehash, signToken, verifyToken, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, parseUtcTimestamp } from '../utils.js';
+import { hashPassword, verifyPasswordHash, passwordNeedsRehash, signToken, verifyToken, requireJwtSecret, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, parseUtcTimestamp } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
 import { verifyPowSolution, computePowBind, MIN_BITS, MAX_BITS } from './pow.js';
 const HIGH_RISK_MIN_BITS = 18;
@@ -68,13 +68,24 @@ async function recordLoginAttempt(db, identifier, type) {
 }
 
 function escalateBitsFor(failCount) {
-  if (!(failCount >= 3)) return 0;
+  if (!(failCount >= 3)) return MIN_BITS;
   return Math.min(Math.max(15 + Math.floor((failCount - 3) / 2), MIN_BITS), MAX_BITS);
 }
 export async function onRequestPost({ request, env }) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      return new Response(JSON.stringify({ success: false, error: '请求体格式无效' }), { status: 400, headers: addCorsHeaders() });
+    }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return new Response(JSON.stringify({ success: false, error: '请求体格式无效' }), { status: 400, headers: addCorsHeaders() });
+    }
     const { action, email, password } = body;
+    if (typeof action !== 'string' || !action) {
+      return new Response(JSON.stringify({ success: false, error: '缺少 action' }), { status: 400, headers: addCorsHeaders() });
+    }
     const powEnvProof = body.powEnv && typeof body.powEnv === 'object' ? body.powEnv : null;
     if (!env.DB) {
       return new Response(JSON.stringify({ success: false, error: '数据库未配置' }), { status: 500, headers: addCorsHeaders() });
@@ -336,7 +347,7 @@ export async function onRequestPost({ request, env }) {
       if (authHeader && authHeader.startsWith('Bearer ')) {
         try {
           const token = authHeader.split(' ')[1];
-          const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+          const payload = await verifyToken(token, requireJwtSecret(env));
           if (payload && payload.id !== user.id) {
             return new Response(JSON.stringify({ success: false, error: '操作被拒绝：无法修改其他用户的密码' }), { status: 403, headers: addCorsHeaders() });
           }
@@ -494,7 +505,7 @@ export async function onRequestPost({ request, env }) {
         if (user.is_banned) {
           return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法登录。' }), { status: 403, headers: addCorsHeaders() });
         }
-        const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
+        const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, requireJwtSecret(env));
         const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
         if (user.last_download_date !== today) {
           user.quota_used = 0;
@@ -528,6 +539,9 @@ export async function onRequestPost({ request, env }) {
     }
     if (action === 'login') {
       const { powChallenge, powCheckpoints } = body;
+      if (typeof email !== 'string' || !email.trim() || typeof password !== 'string' || !password) {
+        return new Response(JSON.stringify({ success: false, error: '账号和密码不能为空' }), { status: 400, headers: addCorsHeaders() });
+      }
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const now = new Date().toISOString();
       const ipAttempt = await env.DB.prepare(
@@ -539,7 +553,7 @@ export async function onRequestPost({ request, env }) {
       const ipFailCount = ipAttempt?.fail_count || 0;
       const emailFailCount = emailAttempt?.fail_count || 0;
       const maxFailCount = Math.max(ipFailCount, emailFailCount);
-      const requireCaptcha = maxFailCount >= 3;
+      const requireCaptcha = true;
       const requiredBits = escalateBitsFor(maxFailCount);
       if (requireCaptcha) {
         if (powChallenge && powCheckpoints) {
@@ -549,13 +563,14 @@ export async function onRequestPost({ request, env }) {
               success: false,
               error: powResult.error || 'PoW 验证失败',
               requireCaptcha: true,
-              requiredBits
+              requiredBits,
+              envMissing: powResult.envMissing || undefined
             }), { status: 403, headers: addCorsHeaders() });
           }
         } else {
           return new Response(JSON.stringify({
             success: false,
-            error: '登录失败次数过多，请完成人机验证',
+            error: maxFailCount >= 3 ? '登录失败次数过多，请完成人机验证' : '请先完成人机验证后再登录',
             requireCaptcha: true,
             requiredBits
           }), { status: 403, headers: addCorsHeaders() });
@@ -579,7 +594,7 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({
           success: false,
           error: '用户名或密码错误。',
-          requireCaptcha: newMaxFail >= 3,
+          requireCaptcha: true,
           requiredBits: escalateBitsFor(newMaxFail)
         }), { status: 401, headers: addCorsHeaders() });
       }
@@ -593,7 +608,7 @@ export async function onRequestPost({ request, env }) {
         return new Response(JSON.stringify({
           success: false,
           error: '用户名或密码错误。',
-          requireCaptcha: newMaxFail >= 3,
+          requireCaptcha: true,
           requiredBits: escalateBitsFor(newMaxFail)
         }), { status: 401, headers: addCorsHeaders() });
       }
@@ -613,7 +628,7 @@ export async function onRequestPost({ request, env }) {
       if (user.is_banned) {
         return new Response(JSON.stringify({ success: false, error: '你的账号已被封禁，无法登录。' }), { status: 403, headers: addCorsHeaders() });
       }
-      const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, env.JWT_SECRET || 'secret');
+      const token = await signToken({ id: user.id, email: user.email, role: user.role, exp: Date.now() + 86400000 * 7 }, requireJwtSecret(env));
       const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
       if (user.last_download_date !== today) {
         user.quota_used = 0;
@@ -633,7 +648,7 @@ export async function onRequestGet({ request, env }) {
     return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: addCorsHeaders() });
   }
   const token = authHeader.substring(7);
-  const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+  const payload = await verifyToken(token, requireJwtSecret(env));
   if (!payload) {
     return new Response(JSON.stringify({ success: false, error: '令牌无效' }), { status: 401, headers: addCorsHeaders() });
   }

@@ -1,4 +1,4 @@
-import { verifyToken, isAdmin, addCorsHeaders, runMaintenanceSweep } from '../utils.js';
+import { verifyToken, requireJwtSecret, isAdmin, addCorsHeaders, runMaintenanceSweep } from '../utils.js';
 const MAINTENANCE_CACHE_TTL = 60000;
 let maintenanceCache = { status: null, lastChecked: 0 };
 export async function onRequest(context) {
@@ -7,8 +7,10 @@ export async function onRequest(context) {
     if (request.method === 'OPTIONS') {
         return next();
     }
-    if (!env.JWT_SECRET || env.JWT_SECRET === 'secret') {
-        console.error('关键配置缺失: JWT_SECRET 未设置或不安全');
+    try {
+        requireJwtSecret(env);
+    } catch (e) {
+        console.error('关键配置错误:', e.message);
         return new Response(JSON.stringify({ success: false, error: '服务端配置错误' }), {
             status: 500,
             headers: addCorsHeaders({ 'Content-Type': 'application/json' })
@@ -42,7 +44,7 @@ export async function onRequest(context) {
             }
             if (token) {
                 try {
-                    const user = await verifyToken(token, env.JWT_SECRET || 'secret');
+                    const user = await verifyToken(token, requireJwtSecret(env));
                     if (isAdmin(user)) {
                         return next();
                     }

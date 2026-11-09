@@ -343,8 +343,7 @@ function showForgotPasswordModal(prefillEmail = '') {
                             step3Div.style.display = 'block';
                             showNotification('密码重置成功！', 'success');
                             try {
-                                const loginRes = await fetch(AUTH_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', email: currentEmail, password: currentNewPassword }) });
-                                const loginData = await loginRes.json();
+                                const loginData = await silentLoginWithPow(currentEmail, currentNewPassword);
                                 if (loginData.success) {
                                     token = loginData.token;
                                     localStorage.setItem('authToken', token);

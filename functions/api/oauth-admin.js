@@ -1,10 +1,10 @@
-import { verifyToken, addCorsHeaders, hashPassword, isSuperAdmin, logAdminAction, expireStaleOAuthAuthorizations } from '../utils.js';
+import { verifyToken, requireJwtSecret, addCorsHeaders, hashPassword, isSuperAdmin, logAdminAction, expireStaleOAuthAuthorizations } from '../utils.js';
 
 async function getUser(request, env) {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
     const token = authHeader.split(' ')[1];
-    const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+    const payload = await verifyToken(token, requireJwtSecret(env));
     if (!payload) return null;
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }

@@ -50,7 +50,8 @@
 - 仅限 `@whut.edu.cn` 邮箱注册 + 邮箱验证
 - 武汉理工统一认证 (CAS/SSO) 登录
 - **Passkey / WebAuthn** 无密码登录
-- **工作量证明 (PoW)** 注册/重置防刷
+- **工作量证明 (PoW)** 注册/重置防刷；密码登录首次提交即需完成 PoW，失败后自动提升难度
+- 隐私浏览器 / 无 GPU 环境可通过“加强人机验证”（更高难度 PoW）替代浏览器环境证明
 - JWT 认证 + 角色权限（user / admin / super_admin）
 
 ### 🔑 OAuth2 提供方
@@ -346,7 +347,7 @@ wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 
 在 Cloudflare Pages 控制台配置：
 - `SILICONFLOW_API_KEY` — AI 模型服务密钥
-- `JWT_SECRET` — JWT 签名密钥（内部 access_token 验证用，HS256）
+- `JWT_SECRET` — JWT 签名密钥（内部 access_token 验证用，HS256）。**必须配置且不能使用 `secret` 等弱默认值**，否则所有 `/api/*` 请求会直接返回 500；建议使用 ≥32 字符的随机值（如 `openssl rand -hex 32`）
 - `JWT_PRIVATE_KEY` — OpenID Connect ID Token 签名用 RSA 私钥（PKCS#8 PEM 格式，RS256），JWKS 公钥由其动态推导
 - `BOT_EMAIL` — 发件邮箱
 - `GOOGLE_SAFE_BROWSING_API_KEY` — 链接安全检测密钥

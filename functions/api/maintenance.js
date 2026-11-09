@@ -1,10 +1,10 @@
-import { verifyToken, addCorsHeaders, isAdmin, logAdminAction } from '../utils.js';
+import { verifyToken, requireJwtSecret, addCorsHeaders, isAdmin, logAdminAction } from '../utils.js';
 export async function onRequestGet({ request, env }) {
     const authHeader = request.headers.get('Authorization');
     let user = null;
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
+        user = await verifyToken(token, requireJwtSecret(env));
     }
     if (!user) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), {
@@ -70,7 +70,7 @@ export async function onRequestPost({ request, env }) {
     let user = null;
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        user = await verifyToken(token, env.JWT_SECRET || 'secret');
+        user = await verifyToken(token, requireJwtSecret(env));
     }
     if (!user) {
         return new Response(JSON.stringify({ success: false, error: '未授权' }), {

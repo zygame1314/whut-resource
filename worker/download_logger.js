@@ -39,7 +39,10 @@ export class DownloadLogger {
             if (!token) {
                 return new Response('未授权：缺少认证令牌', { status: 401 });
             }
-            const jwtSecret = this.env.JWT_SECRET || 'secret';
+            const jwtSecret = this.env.JWT_SECRET;
+            if (!jwtSecret || jwtSecret === 'secret') {
+                return new Response('服务端配置错误', { status: 500 });
+            }
             const user = await verifyToken(token, jwtSecret);
             if (!user) {
                 return new Response('未授权：无效或过期的令牌', { status: 401 });

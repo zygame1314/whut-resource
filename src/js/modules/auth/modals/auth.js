@@ -360,6 +360,9 @@ function showAuthModal(mode = 'login') {
         }
         const captchaContainer = modal.querySelector('#login-captcha-container');
         const loginPowEl = modal.querySelector('#pow-login-status');
+        if (isLogin && captchaContainer) {
+            captchaContainer.style.display = 'block';
+        }
         if (captchaContainer && captchaContainer.style.display !== 'none' && loginPowEl) {
             loginPowCtrl = initPowCard(loginPowEl, undefined, isSso ? 'whut-login' : 'login');
         }
@@ -544,6 +547,18 @@ function showAuthModal(mode = 'login') {
                             modal.querySelector('#sso-sms-code').value = '';
                             modal.querySelector('#sso-sms-code').focus();
                             showNotification(data.error || '请输入短信验证码', 'info');
+                            return;
+                        }
+                    }
+                    if (data.envMissing && data.envMissing.length) {
+                        captchaContainer.style.display = 'block';
+                        if (!loginPowCtrl && loginPowEl) {
+                            loginPowCtrl = initPowCard(loginPowEl, undefined, isSso ? 'whut-login' : 'login');
+                        }
+                        if (loginPowCtrl) {
+                            loginPowCtrl.reset();
+                            loginPowCtrl.setEnvFallback(true);
+                            showNotification(`${data.error}。已切换为加强人机验证，请重新点击验证`, 'error', 6000);
                             return;
                         }
                     }
@@ -776,8 +791,7 @@ function showAuthModal(mode = 'login') {
                                 step3Div.style.display = 'block';
                                 showNotification('账户激活成功！', 'success');
                                 try {
-                                    const loginRes = await fetch(AUTH_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', email: `${currentEmailPrefix}@whut.edu.cn`, password }) });
-                                    const loginData = await loginRes.json();
+                                    const loginData = await silentLoginWithPow(`${currentEmailPrefix}@whut.edu.cn`, password);
                                     if (loginData.success) {
                                         token = loginData.token;
                                         localStorage.setItem('authToken', token);

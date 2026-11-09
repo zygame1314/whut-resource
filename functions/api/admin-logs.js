@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, logAdminAction } from '../utils.js';
+import { verifyToken, requireJwtSecret, addCorsHeaders, isAdmin, logAdminAction } from '../utils.js';
 
 const ACTION_LABELS = {
     create_announcement: '创建公告',
@@ -85,7 +85,7 @@ async function getUser(request, env) {
         return null;
     }
     const token = authHeader.split(' ')[1];
-    const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+    const payload = await verifyToken(token, requireJwtSecret(env));
     if (!payload) return null;
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }

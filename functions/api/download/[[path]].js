@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, getSignedUrlSecret, computeDownloadSignature, timingSafeEqualString, parseSignedUrlExpiry } from '../../utils.js';
+import { verifyToken, requireJwtSecret, addCorsHeaders, getSignedUrlSecret, computeDownloadSignature, timingSafeEqualString, parseSignedUrlExpiry } from '../../utils.js';
 const INLINE_CONTENT_TYPES = {
   pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp', svg: 'image/svg+xml',
@@ -150,7 +150,7 @@ export async function onRequest(context) {
     if (!token) {
       return new Response(JSON.stringify({ success: false, error: '未授权：缺少令牌。' }), { status: 401, headers: addCorsHeaders() });
     }
-    const userPayload = await verifyToken(token, env.JWT_SECRET || 'secret');
+    const userPayload = await verifyToken(token, requireJwtSecret(env));
     if (!userPayload) {
       return new Response(JSON.stringify({ success: false, error: '未授权：令牌无效。' }), { status: 401, headers: addCorsHeaders() });
     }

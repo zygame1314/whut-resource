@@ -76,6 +76,20 @@ const ENV_FLAG_FONTS = 8;
 const ENV_FLAG_HARDWARE = 16;
 const ENV_FLAG_TIMING = 32;
 const ENV_REQUIRED_FLAGS = ENV_FLAG_CANVAS | ENV_FLAG_WEBGL | ENV_FLAG_AUDIO | ENV_FLAG_FONTS | ENV_FLAG_HARDWARE | ENV_FLAG_TIMING;
+const ENV_FLAG_LABELS = [
+  [ENV_FLAG_CANVAS, 'canvas'],
+  [ENV_FLAG_WEBGL, 'webgl'],
+  [ENV_FLAG_AUDIO, 'audio'],
+  [ENV_FLAG_FONTS, 'fonts'],
+  [ENV_FLAG_HARDWARE, 'hardware'],
+  [ENV_FLAG_TIMING, 'timing']
+];
+const ENV_FALLBACK_ACTIONS = ['login', 'whut-login'];
+const ENV_FALLBACK_BITS = 4;
+
+function missingEnvFlags(flagsOk, required) {
+  return ENV_FLAG_LABELS.filter(([bit]) => (required & bit) && !(flagsOk & bit)).map(([, name]) => name);
+}
 
 function canonicalJson(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
@@ -165,7 +179,9 @@ async function verifyEnvProof(envProof, record, env) {
   }
   const required = record.env_flags ? record.env_flags : ENV_REQUIRED_FLAGS;
   if ((evaluated.ok & required) !== required) {
-    return { ok: false, error: '浏览器环境不完整，请使用标准浏览器访问' };
+    const missing = missingEnvFlags(evaluated.ok, required);
+    const detail = missing.length ? `缺少：${missing.join('、')}` : '请使用标准浏览器访问';
+    return { ok: false, error: `浏览器环境不完整（${detail}），可改用加强人机验证`, missing };
   }
   return { ok: true, flags: evaluated.ok };
 }
@@ -288,7 +304,7 @@ export async function verifyPowSolution(params, env) {
     const envResult = await verifyEnvProof(envProof, record, env);
     if (!envResult.ok) {
       await env.DB.prepare('UPDATE pow_challenges SET attempts = COALESCE(attempts, 0) + 1 WHERE challenge = ?').bind(challenge).run();
-      return { valid: false, error: envResult.error };
+      return { valid: false, error: envResult.error, envMissing: envResult.missing || [] };
     }
   }
   const steps = record.steps;
@@ -366,9 +382,10 @@ export async function onRequestPost({ request, env }) {
 
     const cf = request.cf || {};
     const asnPenalty = asnPenaltyBits(cf, action);
+    const envFallback = body.envFallback === true && ENV_FALLBACK_ACTIONS.includes(action);
 
     await ensurePowSchema(env);
-    const floor = isHighRisk ? HIGH_RISK_MIN_BITS : MIN_BITS;
+    const floor = (isHighRisk ? HIGH_RISK_MIN_BITS : MIN_BITS) + (envFallback ? ENV_FALLBACK_BITS : 0);
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const ipPenalty = await ipPenaltyInfo(env, ip);
     const botPenalty = botScorePenaltyBits(cf);
@@ -389,7 +406,7 @@ export async function onRequestPost({ request, env }) {
     const nowISO = new Date().toISOString();
     const expiresAt = new Date(Date.now() + CHALLENGE_EXPIRES_MS).toISOString();
     const bindHash = BIND_FIELDS[action] ? await bindHashHex(action, bind, env) : '';
-    const requireBrowser = shouldRequireBrowser(action);
+    const requireBrowser = shouldRequireBrowser(action) && !envFallback;
     const envNonce = requireBrowser ? randomEnvNonce() : '';
     await env.DB.prepare(
       'INSERT INTO pow_challenges (challenge, bits, ip, steps, interval, bind_hash, issued_at, expires_at, env_nonce, env_flags, req_action) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
@@ -402,6 +419,7 @@ export async function onRequestPost({ request, env }) {
       interval,
       envNonce: envNonce || undefined,
       requiresBrowser: requireBrowser,
+      envFallback,
       expiresIn: CHALLENGE_EXPIRES_MS / 1000,
       penalty: penaltyPayload
     }), { status: 200, headers: { 'Content-Type': 'application/json', ...addCors() } });

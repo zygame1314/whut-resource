@@ -1,4 +1,4 @@
-import { verifyToken, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, checkRateLimit, getUserRateLimitKey } from '../utils.js';
+import { verifyToken, requireJwtSecret, addCorsHeaders, isAdmin, isSuperAdmin, logAdminAction, cleanupOrphanTodos, deleteGuestbookWithChildren, createNotification, broadcastGuestbookUpdate, checkRateLimit, getUserRateLimitKey } from '../utils.js';
 import { processWithAIAgent, processReplyWithAI, createOrMergeTodo } from './guestbook-ai.js';
 const REPLIES_PER_PARENT = 5;
 export async function onRequest(context) {
@@ -28,7 +28,7 @@ async function getUser(request, env) {
         return null;
     }
     const token = authHeader.split(' ')[1];
-    const payload = await verifyToken(token, env.JWT_SECRET || 'secret');
+    const payload = await verifyToken(token, requireJwtSecret(env));
     if (!payload) return null;
     return await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(payload.id).first();
 }
