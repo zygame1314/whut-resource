@@ -1,0 +1,307 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户协议 | 武理资源共享平台</title>
+    <meta name="description" content="武理资源共享平台用户协议：账号规则、行为规范、内容授权、免责声明与违约处理。">
+    <link rel="icon" href="favicon.webp" type="image/webp">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="lib/fontawesome/css/all.min.css">
+    <script src="theme-init.js"></script>
+</head>
+
+<body>
+    <div id="particles-background"></div>
+
+    <nav class="top-nav">
+        <div class="nav-container">
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <img src="logo.webp" alt="武理资源共享平台 Logo">
+                </div>
+                <div class="logo-text">
+                    <span class="main-title">武理资源共享平台</span>
+                    <span class="sub-title">使用须知</span>
+                </div>
+            </div>
+            <div class="nav-actions-container">
+                <div class="nav-actions">
+                    <div class="nav-icon-buttons">
+                        <div class="theme-switcher">
+                            <button id="theme-toggle" class="icon-btn" title="切换主题" aria-label="切换主题">
+                                <i class="fas fa-moon"></i>
+                                <span class="theme-toggle-label">主题</span>
+                            </button>
+                            <div id="theme-menu" class="theme-menu"></div>
+                        </div>
+                        <a href="index.html" class="primary-btn">
+                            <i class="fas fa-arrow-left"></i>
+                            <span>返回首页</span>
+                        </a>
+                    </div>
+                    <div id="auth-section"></div>
+                </div>
+                <button id="mobile-menu-toggle" class="icon-btn">
+                    <i class="fas fa-ellipsis-v"></i>
+                    <span id="mobile-menu-badge" class="mobile-menu-badge u-hidden"></span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content container" style="padding-top: 100px;">
+        <section class="page-content">
+            <h1 class="section-title text-gradient">用户协议</h1>
+            <div class="content-box">
+                <p class="text-secondary">
+                    本协议是你与武理资源共享平台（<a href="index.html">resource.haoli.site</a>，以下简称“本站”）之间关于使用本站服务的约定。
+                    本站是个人非商业运营的公益项目，规则尽量简单：<strong>好好学习、友善交流、别倒卖、别添乱</strong>。
+                </p>
+                <p class="text-secondary" style="font-size: 0.9em;">
+                    <i class="fas fa-clock"></i> 最后更新：2026 年 11 月 10 日 · 生效日期：2026 年 11 月 10 日
+                </p>
+
+                <div class="rule-item">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-list-ul"></i>快速导航</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li><a href="#accept">一、协议范围与接受</a></li>
+                            <li><a href="#account">二、账号注册与安全</a></li>
+                            <li><a href="#service">三、服务内容与变更</a></li>
+                            <li><a href="#conduct">四、用户行为规范</a></li>
+                            <li><a href="#content">五、内容与知识产权</a></li>
+                            <li><a href="#ai">六、AI 功能特别说明</a></li>
+                            <li><a href="#free">七、免费声明与防诈骗</a></li>
+                            <li><a href="#disclaimer">八、免责声明</a></li>
+                            <li><a href="#breach">九、违约处理</a></li>
+                            <li><a href="#termination">十、服务终止</a></li>
+                            <li><a href="#minor">十一、未成年人</a></li>
+                            <li><a href="#update">十二、协议更新</a></li>
+                            <li><a href="#law">十三、法律适用与争议解决</a></li>
+                            <li><a href="#contact">十四、联系我们</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="accept">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-file-signature"></i>一、协议范围与接受</h3>
+                        <p>本站由个人（站长“毫厘”）以非商业目的运营，提供学习资料的上传、检索、预览与下载服务。你注册、登录、上传、下载、留言或使用本站任何功能，即表示你已完整阅读并同意本协议及 <a href="privacy.html">《隐私政策》</a>。若不同意，请停止使用本站。</p>
+                        <p style="margin-top: 0.5rem;">本协议与 <a href="privacy.html">隐私政策</a>、<a href="sharing_rules.html">分享规范</a>、<a href="guestbook_rules.html">留言规范</a>、<a
+                                href="https://github.com/zygame1314/whut-resource/blob/main/LICENSE-CONTENT.md" target="_blank" rel="noopener noreferrer">内容许可协议</a>、<a
+                                href="https://github.com/zygame1314/whut-resource/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">源代码许可协议</a> 共同构成本站的使用约定。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="account">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-user-check"></i>二、账号注册与安全</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li>本站仅面向武汉理工大学师生，注册需使用 <code>@whut.edu.cn</code> 学校邮箱验证，或通过学校统一身份认证（智慧理工大）登录。</li>
+                            <li><strong>一人一号</strong>：请勿批量注册、买卖、出借或共享账号；账号行为由注册者负责。</li>
+                            <li>请妥善保管密码，建议启用通行密钥（Passkey）。发现账号异常请立即修改密码并联系站长。</li>
+                            <li>你可以在个人设置中修改昵称、邮箱、密码与通行密钥；注销账号请按《隐私政策》第六节的方式申请。</li>
+                            <li>对存在违规行为的账号，管理员有权视情节采取警告、限制功能、扣减额度或封禁等措施。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="service">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-cubes"></i>三、服务内容与变更</h3>
+                        <p>本站提供但不限于：文件浏览、全文与 AI 语义搜索、上传与外链分享、单文件与批量下载、在线预览、知识图谱、留言板与资源请愿、站内通知、OAuth2 统一认证等。</p>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.4rem;">
+                            <li>服务<strong>完全免费</strong>，不设会员、付费下载或充值入口。</li>
+                            <li>为保障稳定与公平，设有每日下载额度、频率限制、人机验证与反爬机制，请勿绕过。</li>
+                            <li>本站依赖 Cloudflare 等第三方基础设施，可能因维护、升级、故障、策略调整或不可抗力而临时中断；我们尽力恢复，但不承诺服务永不中断或数据永不丢失。</li>
+                            <li>本站有权根据运营情况新增、调整或下线部分功能，重大变更会在首页公告。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="conduct">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-gavel"></i>四、用户行为规范</h3>
+                        <p>你承诺<strong>不利用本站从事以下行为</strong>：</p>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.4rem;">
+                            <li>上传或发布违反法律法规的内容，包括危害国家安全、色情低俗、暴力恐怖、赌博毒品、诈骗谣言等；</li>
+                            <li>上传侵权内容，如出版社电子书原件、付费课程、未授权转载的讲义、破解软件或注册机；</li>
+                            <li>泄露他人隐私，如身份证号、手机号、住址、成绩单、聊天记录等个人信息；</li>
+                            <li>使用爬虫、扫描器、爆破、DDoS、批量注册、刷量、伪造请求等手段攻击或干扰本站；</li>
+                            <li>绕过下载额度、频率限制、人机验证，或批量抓取、镜像、搬运本站内容；</li>
+                            <li>将本站资料用于商业目的，包括倒卖、付费社群、引流变现、打包出售等；</li>
+                            <li>冒充他人、站长或管理员，发布虚假信息或进行诈骗；</li>
+                            <li>上传含病毒、木马、勒索软件的文件，或发布钓鱼、恶意跳转链接；</li>
+                            <li>在留言板刷屏、辱骂、引战、发布广告或与学习无关的内容。</li>
+                        </ul>
+                        <p style="margin-top: 0.6rem;">外链内容由第三方提供，本站会进行安全检测，但不对其可用性、合法性作任何保证；点击前请自行判断。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="content">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-copyright"></i>五、内容与知识产权</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li>你上传内容的著作权仍归你或原权利人所有。上传即表示你授予本站<strong>非独占、免费、仅为运营本站所必需</strong>的存储、展示与分发许可。</li>
+                            <li>你保证对所上传内容拥有合法权利或已获得授权；因侵权产生的责任由上传者自行承担。</li>
+                            <li>权利人认为内容侵权时，可通过<a href="#contact">文末联系方式</a>提交权属证明，我们核实后会及时删除或断开链接。</li>
+                            <li>站内原创学习资料与图文按 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a> 授权；平台源代码按 <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener noreferrer">AGPL-3.0</a> 授权；第三方库遵循各自协议。</li>
+                            <li>转载或演绎站内内容时，请保留署名与原文链接，不得移除版权标识、水印或来源说明。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="ai">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-robot"></i>六、AI 功能特别说明</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li>AI 搜索、留言审核与自动回复依赖第三方模型服务（SiliconFlow），输出可能不准确、不完整或存在误判。</li>
+                            <li>AI 生成的内容<strong>不构成学习建议、专业意见或法律意见</strong>，请自行核实后使用。</li>
+                            <li>AI 审核结果会由管理员复核或按规则自动处理，但不保证百分之百识别违规内容。</li>
+                            <li>请勿在搜索词或留言中输入身份证号、手机号、住址等敏感个人信息。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="free">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-hand-holding-heart"></i>七、免费声明与防诈骗</h3>
+                        <p>本站<strong>永久免费</strong>，从未授权任何付费渠道、代下服务或“内部资料群”。页脚的打赏完全自愿，不影响任何功能。如有人以本站名义向你收费，请立即停止交易并向我们举报。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="disclaimer">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-shield-halved"></i>八、免责声明</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li>站内资料由用户上传或网络整理，我们<strong>不保证其准确性、完整性、时效性与合法性</strong>，仅供学习参考。</li>
+                            <li>本站服务按“现状”提供。在法律允许的范围内，我们不对因使用或无法使用本站而产生的间接损失、数据丢失或学业后果承担责任。</li>
+                            <li>第三方链接、外部资源及第三方服务的行为不由本站控制，相关风险由你自行承担。</li>
+                            <li>因不可抗力、第三方服务故障、网络攻击等导致的中断或数据损坏，本站不承担赔偿责任。</li>
+                            <li>依法不能免除或限制的责任，不受本条影响。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="breach">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-triangle-exclamation"></i>九、违约处理</h3>
+                        <p>若你违反本协议或相关规范，本站可视情节采取以下一项或多项措施：删除内容、警告、限制上传/留言/下载、扣减额度、暂停或永久封禁账号、公示违规记录，必要时向主管部门报告或移交司法机关。</p>
+                        <p style="margin-top: 0.5rem;">因你的违约行为导致本站遭受投诉、索赔或损失（包括合理的维权费用），你应当予以赔偿。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="termination">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-power-off"></i>十、服务终止</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li>你可以随时停止使用本站，并按《隐私政策》申请注销账号。</li>
+                            <li>本站可因运营调整、合规要求或不可抗力，暂停或终止全部/部分服务。</li>
+                            <li>协议终止后，关于知识产权、免责声明、违约处理与争议解决的条款继续有效。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="minor">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-child"></i>十一、未成年人</h3>
+                        <p>本站面向高校师生。未满 18 周岁的用户应在监护人指导下使用，并由监护人代为同意本协议；未满 14 周岁的儿童不建议使用本站。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="update">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-rotate"></i>十二、协议更新</h3>
+                        <p>我们可能根据功能或法规变化修订本协议，并在本页更新“最后更新”日期；涉及重大权利义务变化的，会在首页公告。更新后继续使用本站即视为接受修订后的协议。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="law">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-scale-balanced"></i>十三、法律适用与争议解决</h3>
+                        <p>本协议适用中华人民共和国法律（不含港澳台地区法律）。因本协议产生的争议，双方应先友好协商；协商不成的，任何一方可向站长所在地有管辖权的人民法院提起诉讼。</p>
+                        <p style="margin-top: 0.5rem;">若本协议部分条款被认定无效或不可执行，其余条款仍然有效；本协议与《隐私政策》共同构成你就本站服务达成的完整约定。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="contact">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-envelope-open-text"></i>十四、联系我们</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li>站长邮箱：<a href="mailto:Proudly_embers@qq.com">Proudly_embers@qq.com</a></li>
+                            <li>项目仓库：<a href="https://github.com/zygame1314/whut-resource/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></li>
+                            <li>站内反馈：<a href="index.html#guestbook-section">留言板</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <a href="index.html" class="primary-btn" style="margin-top: 2rem;">
+                    <i class="fas fa-home"></i> 我已了解，返回首页
+                </a>
+                <a href="privacy.html" class="secondary-btn" style="margin-top: 2rem; margin-left: 0.5rem;">
+                    <i class="fas fa-user-shield"></i> 查看隐私政策
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>关于武理资源共享平台</h3>
+                <p>一个无偿分享学习资源的社区，人会各奔东西，但知识永恒传承。</p>
+            </div>
+            <div class="footer-section">
+                <h3>使用指南</h3>
+                <ul>
+                    <li><a href="how_to_upload.html">上传指南</a></li>
+                    <li><a href="download_help.html">下载预览</a></li>
+                    <li><a href="search_tips.html">搜索技巧</a></li>
+                    <li><a href="sharing_rules.html">分享规范</a></li>
+                    <li><a href="guestbook_rules.html">留言规范</a></li>
+                    <li><a href="about.html">关于小站</a></li>
+                    <li><a href="privacy.html">隐私政策</a></li>
+                    <li><a href="terms.html">用户协议</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>联系站长</h3>
+                <div class="social-links">
+                    <a href="https://home.haoli.site" class="social-link" title="访问毫厘主页"><i class="fas fa-home"></i></a>
+                    <a href="mailto:Proudly_embers@qq.com" class="social-link" title="发送邮件给毫厘"><i
+                            class="fas fa-envelope"></i></a>
+                </div>
+            </div>
+            <div class="footer-section">
+                <h3>联系开发者</h3>
+                <div class="social-links">
+                    <a href="https://github.com/zygame1314/whut-resource" class="social-link" title="查看项目源码"
+                        target="_blank" rel="noopener noreferrer"><i class="fab fa-github"></i></a>
+                    <a href="https://blog.zygame1314.site" class="social-link" title="访问zygame1314博客"><i
+                            class="fas fa-blog"></i></a>
+                    <a href="mailto:zygame1314@gmail.com" class="social-link" title="发送邮件给zygame1314"><i
+                            class="fas fa-envelope"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-section support-us-section">
+            <h3>支持我们</h3>
+            <p>本站所有文件均托管于 Cloudflare R2 存储，目前所有成本由站长独自承担。如果“武理资源共享平台”曾带给你帮助或温暖，欢迎访问<a href="https://home.haoli.site"
+                    target="_blank" rel="noopener noreferrer">站长主页</a>进行打赏，你的小小支持是项目长久运营的莫大动力！</p>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 武理资源共享平台 | 以一灯传诸灯，终至灯火通明。</p>
+            <p>Powered by <a href="https://blog.zygame1314.site" target="_blank" style="color: inherit;">zygame1314</a></p>
+        </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script src="page-viewer.js"></script>
+</body>
+
+</html>

@@ -7,7 +7,9 @@
         { href: 'search_tips.html', title: '搜索技巧', icon: 'fa-search' },
         { href: 'sharing_rules.html', title: '分享规范', icon: 'fa-book' },
         { href: 'guestbook_rules.html', title: '留言规范', icon: 'fa-comments' },
-        { href: 'about.html', title: '关于小站', icon: 'fa-info-circle' }
+        { href: 'about.html', title: '关于小站', icon: 'fa-info-circle' },
+        { href: 'privacy.html', title: '隐私政策', icon: 'fa-user-shield' },
+        { href: 'terms.html', title: '用户协议', icon: 'fa-file-signature' }
     ];
 
     const PAGE_HREFS = new Set(PAGE_LIST.map(p => p.href));

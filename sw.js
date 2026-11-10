@@ -12,8 +12,10 @@ const ASSETS_TO_CACHE = [
     'download_help.html',
     'guestbook_rules.html',
     'how_to_upload.html',
+    'privacy.html',
     'search_tips.html',
     'sharing_rules.html',
+    'terms.html',
     'upload.html'
 ];
 const SHELL_PAGE_EXTENSIONS = /\.(html|htm|webmanifest)$/i;

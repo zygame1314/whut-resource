@@ -146,6 +146,8 @@
 ├── how_to_upload.html          # 帮助页：上传指南
 ├── search_tips.html            # 帮助页：搜索技巧
 ├── sharing_rules.html          # 帮助页：分享规范
+├── privacy.html                # 隐私政策（个人信息保护）
+├── terms.html                  # 用户协议（使用条款）
 ├── *.js / css/                  # 构建产物（见 src/ 源文件）
 ├── sw.js                        # Service Worker
 ├── theme-init.js                # 主题初始化
@@ -391,6 +393,26 @@ wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 
 ---
 
+## 隐私与数据
+
+线上文档：[`privacy.html`](./privacy.html)（隐私政策）与 [`terms.html`](./terms.html)（用户协议）。隐私政策实现层面的对应关系：
+
+| 数据 | 存放位置 | 保留策略 |
+|---|---|---|
+| 账号（邮箱前缀/邮箱、昵称、密码哈希、学号、角色、配额） | D1 `users` | 账号存续期间 |
+| 待验证注册/重置/改绑记录 | D1 `pending_*` | 30 分钟（`expires_at` 过期清理） |
+| 登录失败计数 | D1 `login_attempts` | 15 分钟窗口 |
+| 下载/预览记录（账号、文件、IP、大小、时间） | D1 `downloads` | 30 天 |
+| 管理员操作日志 | D1 `admin_logs` | 3 天 |
+| OAuth 授权流水（含 IP、User-Agent） | D1 `oauth_authorizations` | 90 天 |
+| 站内通知 | D1 `notifications` | 60 天 |
+| 上传文件 | R2 `resource` 桶 | 直至删除 |
+| 登录令牌与偏好 | 浏览器 localStorage | 令牌 7 天，其余手动清除 |
+
+第三方处理者：Cloudflare（托管/存储/队列/向量）、SiliconFlow（AI 搜索与审核）、Google Safe Browsing（外链检测）、学校统一身份认证（SSO）。页面文案与保留期变更时，请同步更新 `privacy.html` 与本节。
+
+---
+
 ## 致谢
 
 - 所有上传和分享资源的同学们
@@ -399,10 +421,13 @@ wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 
 ---
 
-## 许可证
+## 📜 许可证声明 (License)
 
-本项目采用 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) 许可协议。
+**平台源代码（Source Code）**：采用 [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html) 开源协议。任何基于本项目的修改、部署及网络服务均须开放完整源代码，严禁闭源商用。
 
-- ✅ 允许：分享、修改、演绎
-- ❌ 禁止：商业用途
-- 📌 要求：署名注明原作者
+**站内学习资料与图文内容（Content & Assets）**：采用 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 许可协议。仅限非商业性学习交流，演绎作品须以相同方式免费共享，严禁任何形式的倒卖。
+
+- 源代码协议全文：[LICENSE](./LICENSE)
+- 内容许可范围与条款说明：[LICENSE-CONTENT.md](./LICENSE-CONTENT.md)
+
+> 注意区分：`LICENSE` 只覆盖平台源代码，站内资料与图文内容以 `LICENSE-CONTENT.md` 为准；两者均非“可自由商用”。

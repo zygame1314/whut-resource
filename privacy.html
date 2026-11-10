@@ -1,0 +1,307 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>隐私政策 | 武理资源共享平台</title>
+    <meta name="description" content="武理资源共享平台隐私政策：说明我们收集哪些信息、如何使用与保存、与谁共享，以及你可以行使的权利。">
+    <link rel="icon" href="favicon.webp" type="image/webp">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="lib/fontawesome/css/all.min.css">
+    <script src="theme-init.js"></script>
+</head>
+
+<body>
+    <div id="particles-background"></div>
+
+    <nav class="top-nav">
+        <div class="nav-container">
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <img src="logo.webp" alt="武理资源共享平台 Logo">
+                </div>
+                <div class="logo-text">
+                    <span class="main-title">武理资源共享平台</span>
+                    <span class="sub-title">使用须知</span>
+                </div>
+            </div>
+            <div class="nav-actions-container">
+                <div class="nav-actions">
+                    <div class="nav-icon-buttons">
+                        <div class="theme-switcher">
+                            <button id="theme-toggle" class="icon-btn" title="切换主题" aria-label="切换主题">
+                                <i class="fas fa-moon"></i>
+                                <span class="theme-toggle-label">主题</span>
+                            </button>
+                            <div id="theme-menu" class="theme-menu"></div>
+                        </div>
+                        <a href="index.html" class="primary-btn">
+                            <i class="fas fa-arrow-left"></i>
+                            <span>返回首页</span>
+                        </a>
+                    </div>
+                    <div id="auth-section"></div>
+                </div>
+                <button id="mobile-menu-toggle" class="icon-btn">
+                    <i class="fas fa-ellipsis-v"></i>
+                    <span id="mobile-menu-badge" class="mobile-menu-badge u-hidden"></span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content container" style="padding-top: 100px;">
+        <section class="page-content">
+            <h1 class="section-title text-gradient">隐私政策</h1>
+            <div class="content-box">
+                <p class="text-secondary">
+                    武理资源共享平台（<a href="index.html">resource.haoli.site</a>，以下简称“本站”）由个人非商业运营。
+                    我们只想安心分享学习资料，不想也不需要拿你的个人信息做别的事。本政策用大白话说明：我们收集什么、为什么收集、保存多久、会给谁看，以及你能怎么管。
+                </p>
+                <p class="text-secondary" style="font-size: 0.9em;">
+                    <i class="fas fa-clock"></i> 最后更新：2026 年 11 月 10 日 · 生效日期：2026 年 11 月 10 日
+                </p>
+
+                <div class="rule-item">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-list-ul"></i>快速导航</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li><a href="#collect">一、我们收集哪些信息</a></li>
+                            <li><a href="#purpose">二、信息的使用目的</a></li>
+                            <li><a href="#share">三、第三方服务与数据共享</a></li>
+                            <li><a href="#retention">四、保存期限</a></li>
+                            <li><a href="#security">五、我们如何保护信息</a></li>
+                            <li><a href="#rights">六、你的权利</a></li>
+                            <li><a href="#storage">七、Cookie 与本地存储</a></li>
+                            <li><a href="#minor">八、未成年人保护</a></li>
+                            <li><a href="#update">九、政策更新</a></li>
+                            <li><a href="#contact">十、联系我们</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="collect">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-user-shield"></i>一、我们收集哪些信息</h3>
+                        <p><strong>1. 你主动提供的信息</strong></p>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.4rem;">
+                            <li><strong>账号信息</strong>：<code>@whut.edu.cn</code> 学校邮箱（含前缀）、昵称、密码，以及你可选填的学号/卡号。</li>
+                            <li><strong>密码</strong>：只保存加盐的 PBKDF2-SHA256 哈希（10 万次迭代），<strong>不保存明文</strong>，管理员也无法查看你的原始密码。</li>
+                            <li><strong>邮箱验证记录</strong>：你从学校邮箱发送到 <code>email-bot@haoli.site</code> 的验证邮件，包含发件地址与主题中的验证码；验证记录 30 分钟内有效，过期记录会被清理。</li>
+                            <li><strong>上传与分享内容</strong>：文件本体、文件名、大小、类型、所在目录、描述、外链地址、上传时间与上传者账号。文件存放于 Cloudflare R2 对象存储。</li>
+                            <li><strong>互动内容</strong>：留言与回复、点赞、资源表态（如催更、感谢）、资源请愿、通知已读状态。</li>
+                        </ul>
+                        <p style="margin-top: 0.8rem;"><strong>2. 使用过程中自动产生的信息</strong></p>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.4rem;">
+                            <li><strong>下载与预览记录</strong>：账号、文件标识、时间、文件大小、IP 地址。用于每日下载额度、反爬与下载量统计，30 天后自动清理。</li>
+                            <li><strong>登录与安全记录</strong>：IP 地址、登录失败次数（15 分钟窗口）、人机验证（PoW/验证码）结果、OAuth 授权流水（含 IP 与浏览器 User-Agent，保留 90 天）、管理员操作日志（操作人、对象与原因，保留 3 天）。</li>
+                            <li><strong>通行密钥（Passkey）</strong>：公钥、凭据 ID、设备名称、创建与使用时间。<strong>本站不会接触指纹、面容等生物特征原始数据</strong>，这些数据始终留在你的设备上。</li>
+                            <li><strong>服务器与平台日志</strong>：作为基础设施提供商的 Cloudflare 可能记录访问 IP、时间、User-Agent 与错误信息，用于安全防护与故障排查。</li>
+                        </ul>
+                        <p style="margin-top: 0.8rem;"><strong>3. 我们不会收集的信息</strong></p>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.4rem;">
+                            <li>手机号、身份证号、精确位置、通讯录、相册、麦克风与摄像头（全站已通过 <code>Permissions-Policy</code> 禁用后两者）。</li>
+                            <li>除“智慧理工大”登录时你主动提交、且仅用于当次转发给学校认证系统的短信验证码外，我们不收集任何短信内容。</li>
+                            <li>我们<strong>不接入广告联盟、不做跨站行为追踪、不购买或出售个人信息</strong>。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="purpose">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-bullseye"></i>二、信息的使用目的</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li>验证武理在校身份，创建与保护你的账号；</li>
+                            <li>提供上传、下载、在线预览、搜索、留言、订阅通知等核心功能；</li>
+                            <li>计算每日下载额度，识别并拦截爬虫、批量盗链、恶意刷量与滥用行为；</li>
+                            <li>AI 智能搜索（解析搜索意图、生成向量、结果重排）与留言自动审核；</li>
+                            <li>生成匿名聚合统计（如文件总数、下载总量、在线人数），<strong>不会用于对你个人的画像或精准推荐</strong>；</li>
+                            <li>排查故障、保障服务稳定，以及履行法律法规要求的义务。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="share">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-share-nodes"></i>三、第三方服务与数据共享</h3>
+                        <p>本站不运营自己的服务器，所有功能依赖下列第三方服务。我们只按“实现功能的最小必要范围”向其提供数据：</p>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.5rem;">
+                            <li><strong>Cloudflare</strong>（Pages / Workers / D1 / R2 / Queues / Vectorize / Durable Objects / Email Routing）：站点托管、数据库、文件存储、队列、向量检索与验证邮件路由，处理本站全部业务数据与访问日志。</li>
+                            <li><strong>SiliconFlow</strong>（api.siliconflow.cn）：AI 搜索的关键词解析、文本向量化与结果重排，以及留言/链接内容的违规审核。向其发送的仅为你的<strong>搜索词、留言文本、文件名与描述</strong>，不包含密码、邮箱验证码。</li>
+                            <li><strong>Google Safe Browsing</strong>：对你提交或点击的外链进行恶意网址检测，仅发送待检测的 URL。</li>
+                            <li><strong>学校统一身份认证系统</strong>（智慧理工大）：SSO 登录时，学号与密码仅用于向学校系统转发验证，<strong>本站不保存该密码</strong>。</li>
+                            <li><strong>站长邮箱 / GitHub Issues</strong>：当你主动联系我们时，我们会收到你自行提供的内容。</li>
+                        </ul>
+                        <p style="margin-top: 0.8rem;">
+                            <i class="fas fa-globe"></i> 上述服务商可能位于中华人民共和国境外，使用本站即表示你知悉并同意为实现上述功能所必需的跨境传输。
+                            除法律法规要求或你另行授权外，我们不会向任何第三方出售、出租或交换你的个人信息。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="retention">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-hourglass-half"></i>四、保存期限</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li><strong>账号信息</strong>：账号存续期间保存，注销后按第六节处理；</li>
+                            <li><strong>待验证的注册 / 改密 / 改邮箱记录</strong>：30 分钟，过期记录会被清理；</li>
+                            <li><strong>登录失败计数</strong>：15 分钟；</li>
+                            <li><strong>下载与预览记录</strong>：30 天；</li>
+                            <li><strong>管理员操作日志</strong>：3 天；</li>
+                            <li><strong>OAuth 授权流水</strong>：90 天；</li>
+                            <li><strong>站内通知</strong>：60 天；</li>
+                            <li><strong>上传的文件与留言</strong>：直至你或管理员删除、或账号注销；</li>
+                            <li><strong>Cloudflare 平台侧日志</strong>：由 Cloudflare 按其自身策略保留，本站无法单独控制。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="security">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-lock"></i>五、我们如何保护信息</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li>全站强制 HTTPS 并启用 HSTS，配置内容安全策略（CSP）与防嵌入限制；</li>
+                            <li>密码采用加盐 PBKDF2-SHA256 哈希存储；登录状态使用 7 天有效的 JWT 令牌；</li>
+                            <li>提供通行密钥（Passkey）登录，减少密码泄露风险；</li>
+                            <li>接口限流、人机验证（PoW / 验证码）、下载额度与封禁机制；</li>
+                            <li>管理员权限最小化，关键操作留痕审计。</li>
+                        </ul>
+                        <p style="margin-top: 0.6rem;">
+                            <i class="fas fa-triangle-exclamation"></i> 但请理解：没有绝对安全的系统。请使用独立且足够复杂的密码，不要与其他网站复用。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="rights">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-scale-balanced"></i>六、你的权利</h3>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary);">
+                            <li><strong>查询与更正</strong>：登录后可在个人设置中修改昵称、邮箱、密码，管理或删除通行密钥。</li>
+                            <li><strong>删除与注销</strong>：可通过下方联系方式申请注销账号。注销后，你的账号、留言、点赞、下载记录等将被删除；<strong>已上传的文件会保留以供他人学习，但上传者关联信息将被置空</strong>。</li>
+                            <li><strong>撤回同意</strong>：你可以停止使用本站并申请注销；清除浏览器本地存储即可移除登录令牌与偏好设置。</li>
+                            <li><strong>拒绝特定处理</strong>：不使用 AI 搜索、不发布留言、不上传文件，即可避免相应的数据处理。</li>
+                            <li><strong>响应时限</strong>：我们会在收到请求后 <strong>15 个工作日</strong>内答复；如对处理结果不满，可向网信、市场监管等主管部门投诉。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="storage">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-cookie-bite"></i>七、Cookie 与本地存储</h3>
+                        <p>本站<strong>不设置广告或跨站追踪 Cookie</strong>，仅在浏览器本地保存必要的状态信息。站点可能启用 Cloudflare Web Analytics 做匿名访问统计，它不写入 Cookie、不跨站追踪、不识别个人身份：</p>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.4rem;">
+                            <li><code>authToken</code>：登录令牌，有效期 7 天，用于识别登录状态；</li>
+                            <li><code>theme</code>、<code>autoTheme</code>：主题偏好；</li>
+                            <li><code>hasSeenTutorial</code>：是否已看过新手教程；</li>
+                            <li><code>hideDownloadLog</code>：是否隐藏下载动态浮层；</li>
+                            <li><code>donationFirstVisit</code>、<code>donationVisitCount</code>、<code>donationHideUntil</code>：打赏弹窗的展示频率控制；</li>
+                            <li><code>browser_guide_dismissed</code>：浏览器使用提示的关闭状态；</li>
+                            <li><code>fac_*</code>（sessionStorage）：当前标签页的接口缓存，关闭标签页即失效。</li>
+                        </ul>
+                        <p style="margin-top: 0.6rem;">你可以在浏览器设置中随时清除这些数据；清除后登录状态与偏好会丢失，但不影响浏览公开内容。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="minor">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-child"></i>八、未成年人保护</h3>
+                        <p>本站面向高校师生，不以未满 14 周岁的儿童为服务对象。若你未满 18 周岁，请在监护人指导下使用本站，并在上传、留言前征得监护人同意。若我们发现误收集了儿童个人信息，会尽快删除。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="update">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-rotate"></i>九、政策更新</h3>
+                        <p>功能或法规变化时，我们可能更新本政策，并在本页顶部修改“最后更新”日期；涉及重大权利变化的，会在首页公告中提示。继续使用本站即视为接受更新后的政策。</p>
+                    </div>
+                </div>
+
+                <div class="rule-item" id="contact">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-envelope-open-text"></i>十、联系我们</h3>
+                        <p>与个人信息相关的查询、更正、删除、注销或投诉，可通过以下方式联系：</p>
+                        <ul style="margin-left: 1.2rem; padding-left: 0; list-style-type: disc; color: var(--text-secondary); margin-top: 0.4rem;">
+                            <li>站长邮箱：<a href="mailto:Proudly_embers@qq.com">Proudly_embers@qq.com</a></li>
+                            <li>项目仓库：<a href="https://github.com/zygame1314/whut-resource/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></li>
+                            <li>站内反馈：<a href="index.html#guestbook-section">留言板</a>（仅处理一般问题，账号注销请走邮箱）</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-item">
+                    <div class="rule-content">
+                        <h3><i class="fas fa-link"></i>与其他规范的关系</h3>
+                        <p>本政策与 <a href="terms.html">用户协议</a>、<a href="sharing_rules.html">分享规范</a>、<a href="guestbook_rules.html">留言规范</a>、<a
+                            href="https://github.com/zygame1314/whut-resource/blob/main/LICENSE-CONTENT.md"
+                            target="_blank" rel="noopener noreferrer">内容许可协议（CC BY-NC-SA 4.0）</a>、<a
+                            href="https://github.com/zygame1314/whut-resource/blob/main/LICENSE" target="_blank"
+                            rel="noopener noreferrer">源代码许可（AGPL-3.0）</a> 共同构成本站的使用约定；如有冲突，就个人信息保护事项以本政策为准。</p>
+                    </div>
+                </div>
+
+                <a href="index.html" class="primary-btn" style="margin-top: 2rem;">
+                    <i class="fas fa-home"></i> 我已了解，返回首页
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>关于武理资源共享平台</h3>
+                <p>一个无偿分享学习资源的社区，人会各奔东西，但知识永恒传承。</p>
+            </div>
+            <div class="footer-section">
+                <h3>使用指南</h3>
+                <ul>
+                    <li><a href="how_to_upload.html">上传指南</a></li>
+                    <li><a href="download_help.html">下载预览</a></li>
+                    <li><a href="search_tips.html">搜索技巧</a></li>
+                    <li><a href="sharing_rules.html">分享规范</a></li>
+                    <li><a href="guestbook_rules.html">留言规范</a></li>
+                    <li><a href="about.html">关于小站</a></li>
+                    <li><a href="privacy.html">隐私政策</a></li>
+                    <li><a href="terms.html">用户协议</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>联系站长</h3>
+                <div class="social-links">
+                    <a href="https://home.haoli.site" class="social-link" title="访问毫厘主页"><i class="fas fa-home"></i></a>
+                    <a href="mailto:Proudly_embers@qq.com" class="social-link" title="发送邮件给毫厘"><i
+                            class="fas fa-envelope"></i></a>
+                </div>
+            </div>
+            <div class="footer-section">
+                <h3>联系开发者</h3>
+                <div class="social-links">
+                    <a href="https://github.com/zygame1314/whut-resource" class="social-link" title="查看项目源码"
+                        target="_blank" rel="noopener noreferrer"><i class="fab fa-github"></i></a>
+                    <a href="https://blog.zygame1314.site" class="social-link" title="访问zygame1314博客"><i
+                            class="fas fa-blog"></i></a>
+                    <a href="mailto:zygame1314@gmail.com" class="social-link" title="发送邮件给zygame1314"><i
+                            class="fas fa-envelope"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-section support-us-section">
+            <h3>支持我们</h3>
+            <p>本站所有文件均托管于 Cloudflare R2 存储，目前所有成本由站长独自承担。如果“武理资源共享平台”曾带给你帮助或温暖，欢迎访问<a href="https://home.haoli.site"
+                    target="_blank" rel="noopener noreferrer">站长主页</a>进行打赏，你的小小支持是项目长久运营的莫大动力！</p>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 武理资源共享平台 | 以一灯传诸灯，终至灯火通明。</p>
+            <p>Powered by <a href="https://blog.zygame1314.site" target="_blank" style="color: inherit;">zygame1314</a></p>
+        </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script src="page-viewer.js"></script>
+</body>
+
+</html>

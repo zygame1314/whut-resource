@@ -2,6 +2,7 @@
     "name": "whut-resource",
     "version": "1.0.0",
     "description": "武理资源共享平台静态资源构建",
+    "license": "AGPL-3.0-or-later",
     "scripts": {
         "build": "node build.js",
         "deploy": "npm run deploy:workers",

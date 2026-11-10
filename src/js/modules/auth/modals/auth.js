@@ -132,6 +132,10 @@ function showAuthModal(mode = 'login') {
             <div class="free-notice">
                 <span>本平台完全免费，<strong>从未授权任何付费渠道</strong>。如有人向你收费，请自觉抵制。</span>
             </div>
+            <p class="policy-notice">
+                登录即表示你同意 <a href="terms.html" target="_blank" rel="noopener">《用户协议》</a> 与
+                <a href="privacy.html" target="_blank" rel="noopener">《隐私政策》</a>
+            </p>
         </div>
         `;
     } else {
@@ -212,6 +216,10 @@ function showAuthModal(mode = 'login') {
                             </div>
                         </div>
                         <button type="submit" id="get-code-btn" class="primary-btn full-width">获取验证码</button>
+                        <p class="policy-notice">
+                            注册即表示你已阅读并同意 <a href="terms.html" target="_blank" rel="noopener">《用户协议》</a> 与
+                            <a href="privacy.html" target="_blank" rel="noopener">《隐私政策》</a>
+                        </p>
                     </form>
                     <div style="margin-top: 15px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
                         <button type="button" id="switch-sso" class="secondary-btn full-width sso-entry-btn">

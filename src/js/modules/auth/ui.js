@@ -59,6 +59,8 @@ function updateAuthUI() {
                     <button id="change-pwd-btn" class="dropdown-item"><i class="fas fa-key"></i> 修改密码</button>
                     <button id="change-email-btn" class="dropdown-item"><i class="fas fa-envelope"></i> 修改邮箱</button>
                     <button id="manage-passkeys-btn" class="dropdown-item"><i class="fas fa-fingerprint"></i> 通行密钥管理</button>
+                    <a href="terms.html" class="dropdown-item" target="_blank" rel="noopener"><i class="fas fa-file-signature"></i> 用户协议</a>
+                    <a href="privacy.html" class="dropdown-item" target="_blank" rel="noopener"><i class="fas fa-user-shield"></i> 隐私政策</a>
             `;
             let dropdownHtml = '';
             if (isMainPage) {

@@ -120,6 +120,7 @@ const excludeFiles = [
     '.gitignore',
     'README.md',
     'LICENSE',
+    'LICENSE-CONTENT.md',
     '.DS_Store',
     'Thumbs.db',
     'schema.sql',

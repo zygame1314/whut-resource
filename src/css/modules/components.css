@@ -4674,6 +4674,19 @@
     font-size: 0.85rem;
 }
 
+.policy-notice {
+    margin: 0.6rem 0 0;
+    text-align: center;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.policy-notice a {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
 .full-width {
     width: 100%;
     justify-content: center;
