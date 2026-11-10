@@ -108,9 +108,15 @@
     }
 
     async function openPage(href) {
+        var hash = '';
+        var hashIndex = href.indexOf('#');
+        if (hashIndex >= 0) {
+            hash = href.slice(hashIndex);
+            href = href.slice(0, hashIndex);
+        }
         var config = getPageConfig(href);
         if (!config) {
-            window.location.href = href;
+            window.location.href = href + hash;
             return;
         }
 
@@ -188,6 +194,13 @@
             var content = extractContent(html);
             bodyEl.replaceChildren(content);
             interceptLinksInViewer(bodyEl);
+            if (hash) {
+                requestAnimationFrame(function () {
+                    scrollViewerToAnchor(hash, bodyEl);
+                });
+            } else {
+                bodyEl.scrollTop = 0;
+            }
         } catch (err) {
             bodyEl.innerHTML =
                 '<div class="page-viewer-error">' +
@@ -231,24 +244,54 @@
         return fragment;
     }
 
+    function hrefWithHash(cleanHref, href) {
+        var parts = href.split('#');
+        return parts.length > 1 ? cleanHref + '#' + parts.slice(1).join('#') : cleanHref;
+    }
+
     function interceptLinksInViewer(container) {
         var links = container.querySelectorAll('a[href]');
         links.forEach(function (link) {
             var href = link.getAttribute('href');
             if (!href) return;
+            if (href.charAt(0) === '#') {
+                link.addEventListener('click', function (e) {
+                    if (scrollViewerToAnchor(href, container)) {
+                        e.preventDefault();
+                    }
+                });
+                return;
+            }
             var cleanHref = href.split('#')[0].split('?')[0];
             if (PAGE_HREFS.has(cleanHref)) {
                 link.addEventListener('click', function (e) {
                     e.preventDefault();
-                    openPage(cleanHref);
+                    openPage(hrefWithHash(cleanHref, href));
                 });
-            } else if (cleanHref === 'index.html' || cleanHref === '') {
+            } else if (cleanHref === 'index.html') {
                 link.addEventListener('click', function (e) {
                     e.preventDefault();
                     closeViewerAndGoHome();
                 });
             }
         });
+    }
+
+    function scrollViewerToAnchor(href, container) {
+        var id = decodeURIComponent(href.slice(1));
+        if (!id) return false;
+        var target = null;
+        try {
+            target = container.querySelector('#' + CSS.escape(id));
+        } catch (e) {
+            target = document.getElementById(id);
+        }
+        if (!target) {
+            target = document.getElementById(id);
+        }
+        if (!target || !container.contains(target)) return false;
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return true;
     }
 
     function closeViewerAndGoHome() {
@@ -316,7 +359,7 @@
             if (PAGE_HREFS.has(cleanHref)) {
                 link.addEventListener('click', function (e) {
                     e.preventDefault();
-                    openPage(cleanHref);
+                    openPage(hrefWithHash(cleanHref, href));
                 });
             }
         });

@@ -1164,6 +1164,33 @@
     color: var(--accent-color);
 }
 
+/* 协议类页面正文链接，沿用全站 --primary-color 规范 */
+.policy-page a:not(.primary-btn):not(.secondary-btn) {
+    color: var(--primary-color);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color var(--transition-fast);
+}
+
+.policy-page a:not(.primary-btn):not(.secondary-btn):hover {
+    color: var(--primary-dark);
+    text-decoration-thickness: 2px;
+}
+
+[data-theme="dark"] .policy-page a:not(.primary-btn):not(.secondary-btn) {
+    color: var(--primary-light);
+}
+
+[data-theme="dark"] .policy-page a:not(.primary-btn):not(.secondary-btn):hover {
+    color: var(--primary-light);
+}
+
+.policy-page a:not(.primary-btn):not(.secondary-btn) code {
+    color: inherit;
+    background: transparent;
+    padding: 0;
+}
+
 .list-actions {
     display: flex;
     gap: 0.8rem;

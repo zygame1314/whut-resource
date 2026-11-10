@@ -135,6 +135,11 @@
     overflow-x: hidden;
     padding: 2rem 1.5rem;
     scroll-behavior: smooth;
+    scroll-padding-top: 1rem;
+}
+
+.page-viewer-body [id] {
+    scroll-margin-top: 1.25rem;
 }
 
 .page-viewer-body .content-box {

@@ -86,6 +86,21 @@
 
 ---
 
+## 归属与分工
+
+本站为个人非商业公益项目，**运营方与代码作者是两方**，请勿混淆：
+
+| 角色 | 主体 | 权责范围 |
+|---|---|---|
+| 站点运营方 | **毫厘**（[home.haoli.site](https://home.haoli.site)） | 出资与运维（域名、Cloudflare 资源）、内容审核、账号与社区管理、对外联络与投诉处理；站名、Logo、站内原创图文与运营数据归其所有 |
+| 平台代码作者 | **zygame1314**（[blog.zygame1314.site](https://blog.zygame1314.site)） | 前端与后端源代码的设计、开发与维护，**代码著作权归其所有**，以 AGPL-3.0 开源；不参与站点运营分成 |
+| 站内资料作者 | 各上传者 / 原作者 | 上传内容的著作权归其所有，按 CC BY-NC-SA 4.0 在站内共享 |
+| 第三方组件 | 各自作者 | KaTeX、PDF.js、DOMPurify、marked、Highlight.js、JSZip 等遵循各自协议 |
+
+> 任何一方均无权以“本站官方”名义收费、招商或承诺服务。开源使用与二次开发请遵守 [AGPL-3.0](./LICENSE)，商业授权请联系代码作者。
+
+---
+
 ## 技术栈
 
 ### 前端
@@ -423,9 +438,9 @@ wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 
 ## 📜 许可证声明 (License)
 
-**平台源代码（Source Code）**：采用 [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html) 开源协议。任何基于本项目的修改、部署及网络服务均须开放完整源代码，严禁闭源商用。
+**平台源代码（Source Code）**：采用 [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html) 开源协议，著作权归开发者 **zygame1314** 所有。任何基于本项目的修改、部署及网络服务均须开放完整源代码，严禁闭源商用。
 
-**站内学习资料与图文内容（Content & Assets）**：采用 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 许可协议。仅限非商业性学习交流，演绎作品须以相同方式免费共享，严禁任何形式的倒卖。
+**站内学习资料与图文内容（Content & Assets）**：采用 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 许可协议，著作权归各上传者或原作者所有。仅限非商业性学习交流，演绎作品须以相同方式免费共享，严禁任何形式的倒卖。
 
 - 源代码协议全文：[LICENSE](./LICENSE)
 - 内容许可范围与条款说明：[LICENSE-CONTENT.md](./LICENSE-CONTENT.md)

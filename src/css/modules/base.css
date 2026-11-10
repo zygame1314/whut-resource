@@ -1,4 +1,5 @@
 :root {
+    --site-nav-height: 70px;
     --primary-color: #007BFF;
     --primary-light: #4DA3FF;
     --primary-dark: #0056b3;
@@ -611,6 +612,7 @@
 
 html {
     scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--site-nav-height, 70px) + 1rem);
 }
 
 body {

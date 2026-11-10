@@ -8,6 +8,15 @@ Content & Assets License — CC BY-NC-SA 4.0
 - 协议全文（英文，权威版本）：<https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode>
 - 协议摘要（通俗版）：<https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans>
 
+## 权属
+
+- **站点运营方**：毫厘（站长），负责站点出资、运营、内容审核与对外联络；站名、Logo、站内原创图文与运营数据归其所有。
+- **平台源代码**：著作权归开发者 **zygame1314** 所有，以 AGPL-3.0 开源，详见 [LICENSE](./LICENSE)。
+- **站内资料**：著作权归各上传者或原作者所有，按本协议（CC BY-NC-SA 4.0）授权站内共享。
+- **第三方组件**：见下文“第三方资源”。
+
+任何一方均无权以“本站官方”名义对外收费或招商。
+
 ## 适用范围
 
 本协议适用于本站原创的站内学习资料与图文内容，包括但不限于：

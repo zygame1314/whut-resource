@@ -271,6 +271,10 @@
 }
 
 @media (max-width: 1200px) {
+    :root {
+        --site-nav-height: 60px;
+    }
+
     .nav-container {
         padding: 0 1rem;
         height: 60px;
