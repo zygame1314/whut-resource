@@ -11023,7 +11023,7 @@ input#prompt-input {
 
 .oauth-detail-table-wrap {
     flex: 1;
-    overflow-y: auto;
+    overflow: auto;
     max-height: 320px;
 }
 
@@ -11031,6 +11031,38 @@ input#prompt-input {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.8rem;
+}
+
+/* 固定列宽，避免窄弹窗里状态、时间被拆行，Scope 列占据剩余空间 */
+@media (min-width: 769px) {
+    .oauth-detail-table {
+        table-layout: fixed;
+        min-width: 34rem;
+    }
+
+    .oauth-detail-table th:nth-child(1) {
+        width: 20%;
+    }
+
+    .oauth-detail-table th:nth-child(3) {
+        width: 4.25rem;
+    }
+
+    .oauth-detail-table th:nth-child(4) {
+        width: 8rem;
+    }
+
+    .oauth-detail-table th:nth-child(5) {
+        width: 8.5rem;
+    }
+
+    .oauth-detail-table th:nth-child(3),
+    .oauth-detail-table th:nth-child(4),
+    .oauth-detail-table th:nth-child(5),
+    .oauth-detail-table td:nth-child(3),
+    .oauth-detail-table td:nth-child(4) {
+        white-space: nowrap;
+    }
 }
 
 .oauth-detail-table th {
@@ -11068,21 +11100,48 @@ input#prompt-input {
     border: 1px solid var(--border-color);
 }
 
-.oauth-detail-note-ip {
+.oauth-detail-user {
+    display: block;
+    max-width: 10rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.oauth-detail-note-ip,
+.oauth-detail-note-error {
     display: inline-block;
-    max-width: 9.5rem;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     vertical-align: bottom;
 }
 
+.oauth-detail-scopes {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    max-width: 100%;
+    vertical-align: middle;
+}
+
 .oauth-detail-scope {
+    display: inline-block;
+    max-width: 100%;
     font-size: 0.72rem;
     background: rgba(var(--primary-rgb), 0.08);
     color: var(--primary-color);
     padding: 0.1rem 0.4rem;
     border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.oauth-detail-status {
+    white-space: nowrap;
 }
 
 .oauth-detail-time {
@@ -11284,12 +11343,20 @@ input#prompt-input {
     }
 
     .oauth-detail-code,
-    .oauth-detail-scope,
     .oauth-detail-note-ip {
         max-width: 60%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .oauth-detail-scopes,
+    .oauth-detail-user {
+        max-width: 60%;
+    }
+
+    .oauth-detail-scopes {
+        justify-content: flex-end;
     }
 
     .oauth-detail-table tr.oauth-detail-empty-row {

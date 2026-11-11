@@ -1574,13 +1574,18 @@ async function showOauthClientsModal() {
                                 ? d.recentAuthorizations.map(a => {
                                     const st = authzStatusMap[a.status] || { text: a.status || '-', cls: 'oauth-detail-expired' };
                                     const note = a.error_code
-                                        ? `<span title="${escapeHtml(a.error_code)}">${escapeHtml(authzErrorMap[a.error_code] || a.error_code)}</span>`
+                                        ? `<span class="oauth-detail-note-error" title="${escapeHtml(a.error_code)}">${escapeHtml(authzErrorMap[a.error_code] || a.error_code)}</span>`
                                         : (a.ip ? `<code class="oauth-detail-code oauth-detail-note-ip" title="${escapeHtml(a.ip)}">${escapeHtml(shortenIpForDisplay(a.ip))}</code>` : '-');
+                                    const displayName = a.nickname || a.email || '-';
+                                    const scopes = String(a.scope || '').split(/\s+/).filter(Boolean);
+                                    const scopeHtml = scopes.length
+                                        ? scopes.map(s => `<span class="oauth-detail-scope">${escapeHtml(s)}</span>`).join('')
+                                        : '<span class="oauth-detail-scope">-</span>';
                                     return `
                                     <tr>
-                                        <td data-label="用户">${escapeHtml(a.nickname || a.email || '-')}</td>
-                                        <td data-label="Scope"><span class="oauth-detail-scope">${escapeHtml(a.scope || '-')}</span></td>
-                                        <td data-label="状态"><span class="${st.cls}">${st.text}</span></td>
+                                        <td data-label="用户"><span class="oauth-detail-user" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span></td>
+                                        <td data-label="Scope"><span class="oauth-detail-scopes">${scopeHtml}</span></td>
+                                        <td data-label="状态"><span class="oauth-detail-status ${st.cls}">${st.text}</span></td>
                                         <td data-label="时间" class="oauth-detail-time">${formatServerDateTime(a.created_at, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
                                         <td data-label="备注">${note}</td>
                                     </tr>
