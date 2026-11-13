@@ -375,7 +375,8 @@ async function showAdminLogsModal() {
                     detailsHtml += `<div class="admin-log-user-info">子项数量: ${details.child_count}</div>`;
                 }
                 if (details.count) {
-                    detailsHtml += `<div class="admin-log-user-info">上传文件数: ${details.count}${details.names ? ` (${escapeHtml(details.names)})` : ''}</div>`;
+                    const countLabel = log.action === 'batch_delete_start' ? '待删除文件数' : '上传文件数';
+                    detailsHtml += `<div class="admin-log-user-info">${countLabel}: ${details.count}${details.names ? ` (${escapeHtml(details.names)})` : ''}</div>`;
                 }
                 if (details.target_id) {
                     detailsHtml += `<div class="admin-log-user-info">目标ID: ${escapeHtml(details.target_id)}</div>`;
@@ -426,9 +427,13 @@ async function showAdminLogsModal() {
                 delete_folder: 'danger', delete_file: 'danger', delete_link: 'danger',
                 create_file: 'success', create_link: 'success', delete_boost: 'danger',
                 enable_maintenance: 'info', disable_maintenance: 'info', cleanup_logs: 'neutral',
+                batch_delete_start: 'danger', keep_pending: 'warning',
+                sync_start: 'neutral', sync_cleanup_start: 'neutral',
                 sync_init: 'neutral', sync_process: 'neutral', sync_cleanup: 'neutral',
-                sync_repair: 'neutral', reindex: 'neutral', retry_failed: 'neutral',
-                clear_failures: 'neutral', ai_reject: 'warning', ai_ban_user: 'danger',
+                sync_repair: 'neutral', reindex: 'neutral', reindex_async: 'neutral',
+                retry_failed: 'neutral', retry_file_tasks: 'neutral',
+                clear_failures: 'neutral', clear_file_task_failures: 'neutral',
+                ai_reject: 'warning', ai_ban_user: 'danger',
                 ai_delete: 'danger', ai_resolve: 'success',
                 resolve_todo: 'success', unresolve_todo: 'neutral', delete_todo: 'danger', merge_todo: 'info',
                 oauth_client_create: 'success', oauth_client_delete: 'danger',

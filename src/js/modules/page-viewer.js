@@ -14,6 +14,8 @@
 
     const PAGE_HREFS = new Set(PAGE_LIST.map(p => p.href));
     const CACHE = {};
+    const CF_EMAIL_LINK_BASE = '/cdn-cgi/l/email-protection';
+    const CF_EMAIL_LINK_PREFIX = CF_EMAIL_LINK_BASE + '#';
     let isViewerOpen = false;
     let currentHref = null;
     let hostHref = null;
@@ -222,6 +224,50 @@
         return html;
     }
 
+    // Cloudflare 的邮箱混淆会把邮箱替换成占位符，其解码脚本只在整页加载时运行一次，
+    // 动态插入的 HTML 不会触发解码，这里手动还原邮箱与 mailto 链接。
+    function decodeCfEmail(encoded) {
+        if (!encoded || encoded.length < 4 || encoded.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(encoded)) {
+            return '';
+        }
+        var key = parseInt(encoded.slice(0, 2), 16);
+        var bytes = '';
+        for (var i = 2; i < encoded.length; i += 2) {
+            var byte = (parseInt(encoded.slice(i, i + 2), 16) ^ key).toString(16);
+            bytes += '%' + ('0' + byte).slice(-2);
+        }
+        try {
+            return decodeURIComponent(bytes);
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function toMailto(email) {
+        return email.indexOf('mailto:') === 0 ? email : 'mailto:' + email;
+    }
+
+    function decodeProtectedEmails(root) {
+        root.querySelectorAll('[data-cfemail]').forEach(function (el) {
+            var email = decodeCfEmail(el.getAttribute('data-cfemail'));
+            if (!email) return;
+            var link = el.closest('a');
+            if (link && (link.getAttribute('href') || '').indexOf(CF_EMAIL_LINK_BASE) !== -1) {
+                link.setAttribute('href', toMailto(email));
+            }
+            el.textContent = email;
+        });
+
+        root.querySelectorAll('a[href*="/cdn-cgi/l/email-protection#"]').forEach(function (link) {
+            var href = link.getAttribute('href') || '';
+            var index = href.indexOf(CF_EMAIL_LINK_PREFIX);
+            if (index === -1) return;
+            var email = decodeCfEmail(href.slice(index + CF_EMAIL_LINK_PREFIX.length).split(/[?#]/)[0]);
+            if (!email) return;
+            link.setAttribute('href', toMailto(email));
+        });
+    }
+
     function extractContent(html) {
         var parser = new DOMParser();
         var doc = parser.parseFromString(html, 'text/html');
@@ -241,6 +287,7 @@
             }
         }
 
+        decodeProtectedEmails(fragment);
         return fragment;
     }
 

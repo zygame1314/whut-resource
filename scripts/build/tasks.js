@@ -141,6 +141,7 @@ async function processHtmlAndOthers(currentDir, fileHashMap) {
                     const minified = await minifyHtml(content, {
                         collapseWhitespace: true,
                         removeComments: true,
+                        ignoreCustomComments: [/^email_off$/, /^\/email_off$/],
                         minifyCSS: true,
                         minifyJS: true,
                         ignoreCustomFragments: [/<%.*?%>/]
