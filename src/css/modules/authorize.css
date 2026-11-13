@@ -349,22 +349,56 @@
 }
 
 .oauth-consent-hint {
-    font-size: 0.78rem;
-    color: var(--text-secondary);
     margin-top: 1.2rem;
-    padding: 0.6rem 0.8rem;
-    background: rgba(46, 204, 113, 0.06);
-    border: 1px solid rgba(46, 204, 113, 0.12);
-    border-radius: 10px;
-    line-height: 1.5;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
+    padding: 0.75rem 0.9rem;
+    background: var(--background-alt);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 0.78rem;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    text-align: left;
 }
 
-.oauth-consent-hint i {
-    color: var(--success-color, #27AE60);
+.oauth-consent-hint p {
+    margin: 0;
+}
+
+.oauth-consent-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+}
+
+.oauth-consent-main i {
+    color: var(--primary-color);
+    font-size: 0.8rem;
+    margin-top: 0.22rem;
+    flex-shrink: 0;
+}
+
+.oauth-consent-legal {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--border-color);
+}
+
+.oauth-consent-hint a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(var(--primary-rgb), 0.35);
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.oauth-consent-hint a:hover {
+    color: var(--primary-dark);
+    border-bottom-color: var(--primary-dark);
+}
+
+[data-theme="dark"] .oauth-consent-hint a {
+    color: var(--primary-light);
+    border-bottom-color: rgba(var(--primary-rgb), 0.55);
 }
 
 .oauth-shield-row {
