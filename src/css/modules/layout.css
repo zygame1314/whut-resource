@@ -343,14 +343,19 @@
         position: static;
     }
 
+    /* 主题菜单跟随面板内的主题按钮展开，避免固定定位导致的错位 */
+    .nav-actions.active:has(.theme-menu.show) {
+        overflow: visible;
+    }
+
     .nav-actions.active .theme-menu {
-        position: fixed;
-        top: 5rem;
+        position: absolute;
+        top: 64px;
         right: 1rem;
         left: 1rem;
-        margin: 0 auto;
-        max-width: 280px;
-        max-height: calc(100vh - 6rem);
+        margin: 0;
+        max-width: none;
+        max-height: calc(100vh - 10rem);
         overflow-y: auto;
         z-index: 1001;
     }
