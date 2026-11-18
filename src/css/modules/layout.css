@@ -339,22 +339,19 @@
         flex: 1 1 auto;
     }
 
-    .nav-actions.active .theme-switcher {
-        position: static;
-    }
-
-    /* 主题菜单跟随面板内的主题按钮展开，避免固定定位导致的错位 */
-    .nav-actions.active:has(.theme-menu.show) {
-        overflow: visible;
-    }
-
+    /*
+     * 主题菜单固定定位在主题按钮正下方：
+     * fixed 不参与面板滚动，避免隐藏菜单撑出面板滚动条，同时保留展开/收起过渡。
+     * top/right/width 与移动端导航面板的尺寸（导航高 60px、按钮 40px、面板 280px）保持一致。
+     */
     .nav-actions.active .theme-menu {
-        position: absolute;
-        top: 64px;
-        right: 1rem;
-        left: 1rem;
-        margin: 0;
+        position: fixed;
+        top: calc((var(--site-nav-height, 60px) - 40px) / 2 + 40px + 1px + 1rem + 48px);
+        right: calc(2rem + 1px);
+        left: auto;
+        width: calc(280px - 2rem - 2px);
         max-width: none;
+        margin: 0;
         max-height: calc(100vh - 10rem);
         overflow-y: auto;
         z-index: 1001;

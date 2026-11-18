@@ -245,6 +245,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const syncToggleState = () => {
             mobileMenuToggle.classList.toggle('menu-open', navActions.classList.contains('active'));
         };
+        const closeThemeMenu = () => {
+            const themeMenu = document.getElementById('theme-menu');
+            if (themeMenu && themeMenu.classList.contains('show')) {
+                themeMenu.classList.remove('show');
+            }
+        };
+        // 面板收起时同步关闭主题菜单，避免菜单停留在展开状态
+        new MutationObserver(() => {
+            if (!navActions.classList.contains('active')) closeThemeMenu();
+        }).observe(navActions, { attributes: true, attributeFilter: ['class'] });
         mobileMenuToggle.addEventListener('click', (e) => {
             e.stopPropagation();
             navActions.classList.toggle('active');
