@@ -342,9 +342,10 @@
     /*
      * 主题菜单固定定位在主题按钮正下方：
      * fixed 不参与面板滚动，避免隐藏菜单撑出面板滚动条，同时保留展开/收起过渡。
+     * 不依赖 .active，保证面板收起淡出时菜单位置不变、不会瞬移。
      * top/right/width 与移动端导航面板的尺寸（导航高 60px、按钮 40px、面板 280px）保持一致。
      */
-    .nav-actions.active .theme-menu {
+    .nav-actions .theme-menu {
         position: fixed;
         top: calc((var(--site-nav-height, 60px) - 40px) / 2 + 40px + 1px + 1rem + 48px);
         right: calc(2rem + 1px);
