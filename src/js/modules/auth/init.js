@@ -49,6 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.documentElement.setAttribute('data-theme', currentTheme);
     updateElementIcons();
 
+    // 静态页没有主脚本，需要在这里初始化主题粒子；首页主脚本已创建时跳过
+    const particlesContainer = document.getElementById('particles-background');
+    if (particlesContainer && !particlesContainer.childElementCount && typeof createParticleBackground === 'function') {
+        createParticleBackground();
+    }
+
     const themeToggle = document.getElementById('theme-toggle');
     const themeMenu = document.getElementById('theme-menu');
     if (themeToggle && themeMenu) {

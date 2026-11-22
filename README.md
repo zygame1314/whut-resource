@@ -88,7 +88,7 @@
 
 ## 归属
 
-本站由 **毫厘** 与 **zygame1314** 共同维护。源代码以 AGPL-3.0 开源，站内学习资料按 CC BY-NC-SA 4.0 共享；任何一方均无权以“本站官方”名义收费或招商。
+本站由 **毫厘**、**zygame1314** 及全体管理员、贡献者共同维护。源代码以 AGPL-3.0 开源，站内学习资料按 CC BY-NC-SA 4.0 共享；任何一方均无权以“本站官方”名义收费或招商。
 
 ---
 
@@ -421,6 +421,8 @@ wrangler secret put SILICONFLOW_API_KEY --config worker-ai/wrangler.toml
 
 ## 致谢
 
+- 参与站点运营、内容审核与社区维护的全体管理员
+- 参与代码、文档、测试与反馈的各位贡献者
 - 所有上传和分享资源的同学们
 - [Cloudflare](https://www.cloudflare.com/) 提供的 Serverless 基础设施
 - [SiliconFlow](https://siliconflow.cn/) 提供的 AI 模型服务
