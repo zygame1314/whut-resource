@@ -1,4 +1,6 @@
-const API_BASE = 'https://resource.haoli.site';
+const API_BASE = (typeof window !== 'undefined' && window.location && /^https?:$/i.test(window.location.protocol))
+    ? window.location.origin
+    : 'https://resource.haoli.site';
 const API_ENDPOINTS = {
     auth: `${API_BASE}/api/auth`,
     upload: `${API_BASE}/api/upload`,

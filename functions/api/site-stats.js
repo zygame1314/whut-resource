@@ -37,7 +37,7 @@ async function setEdgeCache(request, cacheKey, data, ttl) {
                 'Content-Type': 'application/json',
                 'X-Cached-At': String(Date.now()),
                 'X-Cache-Max-age': String(ttl),
-                'Cache-Control': 'public, max-age=1'
+                'Cache-Control': `public, max-age=${ttl}`
             }
         });
         await cache.put(new Request(cacheKey), response);
@@ -72,7 +72,7 @@ async function fetchLastCommitTime(env) {
     return null;
 }
 
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet({ request, env, waitUntil }) {
     try {
         if (!env.DB) {
             return new Response(JSON.stringify({ success: false, error: '数据库未配置' }), {
@@ -87,17 +87,22 @@ export async function onRequestGet({ request, env }) {
                 headers: addCorsHeaders({ 'Cache-Control': 'public, max-age=60' })
             });
         }
-        const stats = await env.DB.prepare(
-            'SELECT registered_users FROM system_stats WHERE id = 1'
-        ).first();
+        const [stats, lastCommitTime] = await Promise.all([
+            env.DB.prepare('SELECT registered_users FROM system_stats WHERE id = 1').first(),
+            fetchLastCommitTime(env)
+        ]);
         const registeredUsers = stats?.registered_users ?? 0;
-        const lastCommitTime = await fetchLastCommitTime(env);
         const result = {
             registeredUsers,
             uptimeDays: getUptimeDays(),
             lastCommitTime
         };
-        await setEdgeCache(request, STATS_CACHE_KEY, result, STATS_CACHE_TTL);
+        const cacheTask = setEdgeCache(request, STATS_CACHE_KEY, result, STATS_CACHE_TTL);
+        if (waitUntil) {
+            waitUntil(cacheTask);
+        } else {
+            await cacheTask;
+        }
         return new Response(JSON.stringify({ success: true, stats: result }), {
             status: 200,
             headers: addCorsHeaders({ 'Cache-Control': 'public, max-age=60' })

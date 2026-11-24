@@ -69,18 +69,24 @@ document.addEventListener('authSuccess', async () => {
         highlightKey = highlightParam;
     }
     fetchAndDisplayFiles(pathParam || '', '', 1, !!(pathParam || highlightParam));
-    if (typeof checkMaintenanceMode === 'function') checkMaintenanceMode(true);
-    fetchFileStats();
     fetchAndBuildFolderTree();
-    fetchAndRenderHotFolders();
     initDownloadHistoryPanel();
     initFavoritesPanel();
     initSubscriptionsPanel();
-    fetchAndRenderRecentUploads();
     if (typeof checkAdminPermission === 'function') {
         checkAdminPermission();
     }
     if (typeof updateAuthUI === 'function') updateAuthUI();
+    const runSecondaryFetches = () => {
+        fetchFileStats();
+        fetchAndRenderHotFolders();
+        fetchAndRenderRecentUploads();
+    };
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(runSecondaryFetches, { timeout: 300 });
+    } else {
+        setTimeout(runSecondaryFetches, 120);
+    }
     if (!localStorage.getItem('hasSeenTutorial')) {
         setTimeout(async () => {
             if (typeof showConfirmation === 'function') {
@@ -94,24 +100,97 @@ document.addEventListener('authSuccess', async () => {
                     ? PopupQueue.enqueue(showTutorialConfirm, { priority: 10, delay: 1500 })
                     : showTutorialConfirm());
                 localStorage.setItem('hasSeenTutorial', 'true');
-                if (shouldStart && typeof startTutorial === 'function') {
-                    startTutorial();
+                if (shouldStart) {
+                    launchTutorialLazy();
                 }
             }
         }, 1500);
     }
 });
+async function launchTutorialLazy() {
+    if (typeof startTutorial === 'function') {
+        return startTutorial();
+    }
+    const assets = window.__LAZY_ASSETS__ || {};
+    const tutorialSrc = assets.tutorialJs || 'tutorial.js';
+    const tutorialBtn = document.getElementById('tutorial-btn');
+    if (tutorialBtn) {
+        tutorialBtn.disabled = true;
+        tutorialBtn.classList.add('tutorial-loading');
+    }
+    try {
+        if (window.LazyLoader && typeof window.LazyLoader.loadScript === 'function') {
+            await window.LazyLoader.loadScript(tutorialSrc);
+        }
+        if (typeof startTutorial === 'function') {
+            if (tutorialBtn) {
+                tutorialBtn.disabled = false;
+                tutorialBtn.classList.remove('tutorial-loading');
+            }
+            return startTutorial();
+        }
+        throw new Error('教程函数未找到');
+    } catch (e) {
+        console.error('加载教程模块失败:', e);
+        if (tutorialBtn) {
+            tutorialBtn.disabled = false;
+            tutorialBtn.classList.remove('tutorial-loading');
+        }
+        if (typeof showNotification === 'function') {
+            showNotification('无法加载教程，请刷新页面重试。', 'error');
+        }
+    }
+}
+if (typeof window.openKnowledgeGraph !== 'function') {
+    window.openKnowledgeGraph = async function () {
+        const assets = window.__LAZY_ASSETS__ || {};
+        const graphCss = assets.graphCss || 'css/graph.css';
+        const graphJs = assets.graphJs || 'graph.js';
+        const btn = document.getElementById('open-graph-btn');
+        if (btn) btn.disabled = true;
+        try {
+            if (window.LazyLoader) {
+                await Promise.all([
+                    typeof window.LazyLoader.loadCSS === 'function' ? window.LazyLoader.loadCSS(graphCss) : Promise.resolve(),
+                    typeof window.LazyLoader.loadScript === 'function' ? window.LazyLoader.loadScript(graphJs) : Promise.resolve()
+                ]);
+            }
+            if (typeof window.__openKnowledgeGraphImpl === 'function') {
+                window.openKnowledgeGraph = window.__openKnowledgeGraphImpl;
+                window.__openKnowledgeGraphImpl();
+            } else if (typeof openKnowledgeGraph === 'function' && openKnowledgeGraph !== window.openKnowledgeGraph) {
+                openKnowledgeGraph();
+            } else {
+                throw new Error('知识图谱初始化失败');
+            }
+        } catch (e) {
+            console.error('加载知识图谱模块失败:', e);
+            if (typeof showNotification === 'function') {
+                showNotification('知识图谱加载失败，请稍后重试。', 'error');
+            }
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    };
+}
 document.addEventListener('authRestored', () => {
     console.log("恢复验证状态，开始加载根目录文件列表...");
     fetchAndDisplayFiles('', '', 1, false);
-    fetchFileStats();
     fetchAndBuildFolderTree();
-    fetchAndRenderHotFolders();
     initDownloadHistoryPanel();
     initFavoritesPanel();
     initSubscriptionsPanel();
-    fetchAndRenderRecentUploads();
     if (typeof updateAuthUI === 'function') updateAuthUI();
+    const runSecondaryFetches = () => {
+        fetchFileStats();
+        fetchAndRenderHotFolders();
+        fetchAndRenderRecentUploads();
+    };
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(runSecondaryFetches, { timeout: 300 });
+    } else {
+        setTimeout(runSecondaryFetches, 120);
+    }
 });
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -137,12 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tutorialBtn = document.getElementById('tutorial-btn');
     if (tutorialBtn) {
         tutorialBtn.addEventListener('click', () => {
-            if (typeof startTutorial === 'function') {
-                startTutorial();
-            } else {
-                console.error('教程函数未找到');
-                showNotification('无法加载教程，请刷新页面重试。', 'error');
-            }
+            launchTutorialLazy();
         });
     }
     if (fileListElement) {

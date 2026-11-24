@@ -117,6 +117,7 @@
         loadShepherd,
         loadPDFLib,
         loadPDFJS,
-        loadScript: _loadScript
+        loadScript: _loadScript,
+        loadCSS: _loadCSS
     };
 })();

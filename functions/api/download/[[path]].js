@@ -224,7 +224,7 @@ export async function onRequest(context) {
     const filename = key.split('/').pop();
     const rangeHeader = request.headers.get('Range');
     if (rangeHeader) {
-      const object = await env.R2_bucket.get(key);
+      const object = await env.R2_bucket.head(key);
       if (object === null) {
         return new Response(JSON.stringify({ success: false, error: '存储中未找到文件。' }), {
           status: 404,
@@ -289,16 +289,25 @@ export async function onRequest(context) {
       return new Response(rangeObject.body, { status: 206, headers });
     }
     const cache = caches.default;
-    const cacheUrl = new URL(request.url);
-    const cacheKey = new Request(cacheUrl.toString(), {
+    const cacheKeyUrl = new URL(`https://whut-resource-r2-cache.internal/file/${encodeURIComponent(key)}${isInline ? '?inline=1' : ''}`);
+    const cacheKey = new Request(cacheKeyUrl.toString(), {
       method: 'GET',
-      headers: new Headers({
-        'Accept': request.headers.get('Accept') || '*/*',
-      }),
     });
+    let clientCacheControl = 'private, max-age=300';
+    if (isSignedUrl) {
+      let cacheMaxAge = 300;
+      if (expires) {
+        const remainingMs = expires - Date.now();
+        if (remainingMs > 0) {
+          cacheMaxAge = Math.min(Math.floor(remainingMs / 1000), 3600);
+        }
+      }
+      clientCacheControl = `public, max-age=${cacheMaxAge}`;
+    }
     let cachedResponse = await cache.match(cacheKey);
     if (cachedResponse) {
       const responseHeaders = new Headers(cachedResponse.headers);
+      responseHeaders.set('Cache-Control', clientCacheControl);
       const corsHeaders = addCorsHeaders();
       for (const [k, v] of Object.entries(corsHeaders)) {
         responseHeaders.set(k, v);
@@ -330,29 +339,30 @@ export async function onRequest(context) {
       }
     }
     headers.set('etag', object.httpEtag);
+    if (typeof object.size === 'number') {
+      headers.set('Content-Length', String(object.size));
+    }
     headers.set('Accept-Ranges', 'bytes');
     if (isInline) {
       headers.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
     } else {
       headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
     }
-    let cacheMaxAge = 300;
-    if (expires) {
-      const remainingMs = expires - Date.now();
-      if (remainingMs > 0) {
-        cacheMaxAge = Math.min(Math.floor(remainingMs / 1000), 3600);
-      }
-    }
-    headers.set('Cache-Control', `public, max-age=${cacheMaxAge}`);
+    headers.set('Cache-Control', clientCacheControl);
     const corsHeaders = addCorsHeaders();
     for (const [k, v] of Object.entries(corsHeaders)) {
       headers.set(k, v);
     }
-    const response = new Response(object.body, {
+    const [clientStream, cacheStream] = object.body ? object.body.tee() : [null, null];
+    if (cacheStream) {
+      const edgeHeaders = new Headers(headers);
+      edgeHeaders.set('Cache-Control', 'public, max-age=3600');
+      const edgeResponse = new Response(cacheStream, { headers: edgeHeaders });
+      context.waitUntil(cache.put(cacheKey, edgeResponse).catch(() => {}));
+    }
+    return new Response(clientStream, {
       headers,
     });
-    context.waitUntil(cache.put(cacheKey, response.clone()));
-    return response;
   } catch (error) {
     console.error(`提供文件 "${key}" 时出错:`, error);
     return new Response(JSON.stringify({ success: false, error: '内部服务器错误' }), {

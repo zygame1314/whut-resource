@@ -38,8 +38,8 @@
     <link rel="icon" href="favicon.webp" type="image/webp" sizes="64x64 32x32 24x24 16x16">
     <link rel="apple-touch-icon" href="icon-512.jpg" sizes="180x180">
     <link rel="manifest" href="manifest.json">
+    <link rel="preload" href="lib/fontawesome/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/graph.css">
     <link rel="stylesheet" href="lib/fontawesome/css/all.min.css">
     <script src="theme-init.js"></script>
     <script src="page-viewer.js" defer></script>
@@ -860,101 +860,41 @@
         </div>
     </div>
 
-    <script src="browser-guide.js"></script>
-    <script src="config.js"></script>
     <script>
+        window.__LAZY_ASSETS__ = {
+            graphJs: 'graph.js',
+            graphCss: 'css/graph.css',
+            tutorialJs: 'tutorial.js'
+        };
         (function () {
+            window.releaseRequests = function () {};
             const originalFetch = window.fetch;
-            const OriginalXHR = window.XMLHttpRequest;
-            const pendingRequests = [];
-            let isReleased = false;
-
-            window.releaseRequests = function (allowed) {
-                if (isReleased) return;
-                isReleased = true;
-
-                window.fetch = originalFetch;
-                window.XMLHttpRequest = OriginalXHR;
-
-                if (allowed) {
-                    console.log('✅ 维护模式检查通过，释放请求队列');
-                    pendingRequests.forEach(({ type, req, resolve, reject }) => {
-                        if (type === 'fetch') {
-                            originalFetch(req.url, req.options).then(resolve).catch(reject);
-                        } else if (type === 'xhr') {
-                            req.xhr.send(req.body);
-                        }
-                    });
-                } else {
-                    console.warn('⛔ 维护模式生效中，丢弃挂起的请求');
-                    pendingRequests.forEach(({ type, resolve, reject }) => {
-                        if (type === 'fetch') {
-                            resolve(new Response(JSON.stringify({ error: 'Maintenance Mode' }), { status: 503 }));
-                        }
-                    });
-                }
-                pendingRequests.length = 0;
-            };
-
             window.fetch = function (url, options) {
-                if (typeof url === 'string' && (url.includes('/api/auth') || url.includes('/api/maintenance'))) {
-                    return originalFetch(url, options);
-                }
-                if (isReleased) {
-                    return originalFetch(url, options);
-                }
-                return new Promise((resolve, reject) => {
-                    pendingRequests.push({ type: 'fetch', req: { url, options }, resolve, reject });
+                return originalFetch.call(this, url, options).then(function (res) {
+                    if (res && res.status === 503 && typeof showMaintenanceOverlay === 'function') {
+                        res.clone().json().then(function (data) {
+                            if (data && data.maintenance === true) {
+                                showMaintenanceOverlay(data.message);
+                            }
+                        }).catch(function () {});
+                    }
+                    return res;
                 });
             };
-
-            function ProxiedXHR() {
-                this.xhr = new OriginalXHR();
-                this._url = '';
-                const self = this;
-
-                for (let prop in this.xhr) {
-                    if (typeof this.xhr[prop] === 'function') {
-                        if (prop !== 'open' && prop !== 'send') {
-                            this[prop] = (...args) => this.xhr[prop](...args);
-                        }
-                    } else {
-                        Object.defineProperty(this, prop, {
-                            get: () => this.xhr[prop],
-                            set: (val) => this.xhr[prop] = val
-                        });
-                    }
-                }
-            }
-            ProxiedXHR.prototype.open = function (method, url, ...args) {
-                this._url = url;
-                return this.xhr.open(method, url, ...args);
-            };
-            ProxiedXHR.prototype.send = function (body) {
-                if (this._url && (this._url.includes('/api/auth') || this._url.includes('/api/maintenance'))) {
-                    return this.xhr.send(body);
-                }
-                if (isReleased) {
-                    return this.xhr.send(body);
-                }
-                pendingRequests.push({ type: 'xhr', req: { xhr: this.xhr, body } });
-            };
-
-            window.XMLHttpRequest = ProxiedXHR;
         })();
     </script>
-    <script src="tutorial.js"></script>
-    <script src="script.js"></script>
-    <script src="announcements.js"></script>
-    <script src="guestbook.js"></script>
-    <script src="graph.js"></script>
-    <script src="auth.js"></script>
-    <script src="download-manager.js"></script>
-    <script src="download-manager-ui.js"></script>
-    <script src="download-log.js"></script>
-    <script src="site-stats.js"></script>
-    <script src="donation-popup.js"></script>
-    <script src="share-popup.js"></script>
+    <script src="browser-guide.js" defer></script>
+    <script src="config.js" defer></script>
+    <script src="script.js" defer></script>
+    <script src="announcements.js" defer></script>
+    <script src="guestbook.js" defer></script>
+    <script src="auth.js" defer></script>
+    <script src="download-manager.js" defer></script>
+    <script src="download-manager-ui.js" defer></script>
+    <script src="download-log.js" defer></script>
+    <script src="site-stats.js" defer></script>
+    <script src="donation-popup.js" defer></script>
+    <script src="share-popup.js" defer></script>
     <div id="download-history-entry" class="sidebar-float-entry download-history-entry" style="display:none;"
         onclick="showDownloadHistoryModal()" title="下载历史">
         <i class="fas fa-history"></i>

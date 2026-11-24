@@ -164,18 +164,9 @@ async function processHtmlAndOthers(currentDir, fileHashMap) {
 async function processServiceWorker(fileHashMap) {
     const swPath = path.join(srcDir, 'sw.js');
     if (!fs.existsSync(swPath)) return;
-    console.log('正在处理 sw.js (引用替换与版本更新)...');
+    console.log('正在处理 sw.js (版本更新)...');
     try {
         let content = fs.readFileSync(swPath, 'utf8');
-        const hashedAssets = Object.values(fileHashMap);
-        content = content.replace(
-            /const ASSETS_TO_CACHE = (\[[\s\S]*?\]);/,
-            (match, arrStr) => {
-                const staticAssets = JSON.parse(arrStr.replace(/'/g, '"'));
-                const merged = Array.from(new Set([...staticAssets, ...hashedAssets]));
-                return `const ASSETS_TO_CACHE = ${JSON.stringify(merged).replace(/"/g, "'")};`;
-            }
-        );
         for (const [original, hashed] of Object.entries(fileHashMap)) {
             const regex = new RegExp('(?<![a-zA-Z0-9/_-])' + original.replace(/\./g, '\\.'), 'g');
             content = content.replace(regex, hashed);
@@ -187,7 +178,7 @@ async function processServiceWorker(fileHashMap) {
         );
         const minified = await minifyJs(content, { compress: true, mangle: true });
         fs.writeFileSync(path.join(distDir, 'sw.js'), minified.code || content);
-        console.log(`已更新并打包: sw.js (版本: ${timestamp}, 预缓存 ${hashedAssets.length} 个哈希产物)`);
+        console.log(`已更新并打包: sw.js (版本: ${timestamp})`);
     } catch (e) {
         console.error('处理 sw.js 失败:', e);
         fs.copyFileSync(swPath, path.join(distDir, 'sw.js'));

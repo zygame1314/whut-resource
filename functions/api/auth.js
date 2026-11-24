@@ -652,7 +652,10 @@ export async function onRequestGet({ request, env }) {
   if (!payload) {
     return new Response(JSON.stringify({ success: false, error: '令牌无效' }), { status: 401, headers: addCorsHeaders() });
   }
-  const user = await env.DB.prepare('SELECT id, email, nickname, role, quota_limit, quota_used, last_download_date, is_banned FROM users WHERE id = ?').bind(payload.id).first();
+  const [user, maintenanceRow] = await Promise.all([
+    env.DB.prepare('SELECT id, email, nickname, role, quota_limit, quota_used, last_download_date, is_banned FROM users WHERE id = ?').bind(payload.id).first(),
+    env.DB.prepare('SELECT maintenance_mode, maintenance_msg FROM system_stats WHERE id = 1').first().catch(() => null)
+  ]);
   if (user) {
     const today = new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
     if (user.last_download_date !== today) {
@@ -660,7 +663,16 @@ export async function onRequestGet({ request, env }) {
     }
     user.quota_remaining = user.quota_limit - user.quota_used;
   }
-  return new Response(JSON.stringify({ success: true, user }), { status: 200, headers: addCorsHeaders() });
+  const realMaintenance = maintenanceRow?.maintenance_mode === 1 || maintenanceRow?.maintenance_mode === true;
+  const maintenance = realMaintenance && !(user && isAdmin(user));
+  const maintenanceMessage = maintenanceRow?.maintenance_msg || '系统正在进行升级维护，请稍候访问...';
+  return new Response(JSON.stringify({
+    success: true,
+    user,
+    maintenance,
+    real_maintenance: realMaintenance,
+    maintenance_message: maintenanceMessage
+  }), { status: 200, headers: addCorsHeaders() });
 }
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: addCorsHeaders() });

@@ -12,8 +12,18 @@ async function checkAuth() {
         if (data.success) {
             currentUser = data.user;
             window.currentUser = currentUser;
+            if (typeof data.maintenance === 'boolean') {
+                window._maintenanceChecked = true;
+                if (data.maintenance === true) {
+                    showMaintenanceOverlay(data.maintenance_message);
+                    return;
+                }
+                if (window.releaseRequests) window.releaseRequests(true);
+            } else {
+                if (window.releaseRequests) window.releaseRequests(true);
+                checkMaintenanceMode();
+            }
             document.dispatchEvent(new Event('authSuccess'));
-            checkMaintenanceMode();
         } else {
             logout();
             if (window.releaseRequests) window.releaseRequests(true);

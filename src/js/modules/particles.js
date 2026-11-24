@@ -128,7 +128,7 @@
 
         iconEl.style.color = hexToRgba(color, opacity);
         iconEl.style.fontSize = `${size}px`;
-        iconEl.style.textShadow = `0 0 ${Math.round(size * 1.2)}px ${hexToRgba(color, 0.55)}`;
+        wrapper.style.willChange = 'transform';
 
         let motionAnimation = 'particleFloat';
         if (themeCfg.motion === 'drift') motionAnimation = 'particleFloat, particleDrift';
@@ -148,22 +148,44 @@
         container.innerHTML = '';
     }
 
+    let visibilityBound = false;
+    function bindVisibilityPause() {
+        if (visibilityBound) return;
+        visibilityBound = true;
+        document.addEventListener('visibilitychange', () => {
+            const state = document.hidden ? 'paused' : 'running';
+            for (let i = 0; i < particleElements.length; i++) {
+                particleElements[i].el.style.animationPlayState = state;
+            }
+        });
+    }
+
     window.__particleBackgroundImpl = function createParticleBackground() {
         const container = document.getElementById('particles-background');
         if (!container) return;
         removeAll(container);
+        container.style.contain = 'strict';
+
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return;
+        }
 
         const themeName = getThemeName();
         const themeCfg = THEME_CONFIG[themeName] || THEME_CONFIG.light;
+        const isSmallScreen = window.innerWidth <= 768;
         const baseWidth = 1200;
-        const areaFactor = Math.max(0.6, Math.min(2.0, (window.innerWidth * window.innerHeight) / (baseWidth * 800)));
-        const count = Math.max(10, Math.min(50, Math.round(themeCfg.density * areaFactor)));
+        const areaFactor = Math.max(0.5, Math.min(1.5, (window.innerWidth * window.innerHeight) / (baseWidth * 800)));
+        const maxCount = isSmallScreen ? 10 : 24;
+        const count = Math.max(6, Math.min(maxCount, Math.round(themeCfg.density * areaFactor)));
 
+        const frag = document.createDocumentFragment();
         for (let i = 0; i < count; i++) {
             const p = buildParticle(themeCfg);
             particleElements.push(p);
-            container.appendChild(p.el);
+            frag.appendChild(p.el);
         }
+        container.appendChild(frag);
+        bindVisibilityPause();
     };
     window.createParticleBackground = window.__particleBackgroundImpl;
 })();

@@ -1,25 +1,13 @@
-const CACHE_NAME = 'whut-resource-shell-v3';
+const CACHE_NAME = 'whut-resource-shell-v4';
 const ASSETS_TO_CACHE = [
-    './',
-    'index.html',
     'manifest.json',
     'favicon.webp',
-    'favicon.png',
-    'icon-512.jpg',
-    'logo.webp',
-    'about.html',
-    'authorize.html',
-    'download_help.html',
-    'guestbook_rules.html',
-    'how_to_upload.html',
-    'privacy.html',
-    'search_tips.html',
-    'sharing_rules.html',
-    'terms.html',
-    'upload.html'
+    'logo.webp'
 ];
 const SHELL_PAGE_EXTENSIONS = /\.(html|htm|webmanifest)$/i;
 const SHELL_STATIC_EXTENSIONS = /\.(css|js|webp|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i;
+const HASHED_ASSET_PATTERN = /\.[0-9a-f]{8}\.(js|css)$/i;
+const IMMUTABLE_MEDIA_PATTERN = /\.(webp|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i;
 
 function isShellRequest(url) {
     if (url.pathname === '/' || url.pathname.endsWith('/')) {
@@ -33,12 +21,21 @@ function isShellRequest(url) {
     return false;
 }
 
+function isCacheFirstAsset(url) {
+    if (url.pathname.startsWith('/lib/')) return true;
+    if (HASHED_ASSET_PATTERN.test(url.pathname)) return true;
+    if (IMMUTABLE_MEDIA_PATTERN.test(url.pathname)) return true;
+    return false;
+}
+
 self.addEventListener('install', (event) => {
     self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                return cache.addAll(ASSETS_TO_CACHE);
+                return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
+                    console.warn('预缓存部分静态资源失败:', err);
+                });
             })
     );
 });
@@ -70,6 +67,26 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     if (!isShellRequest(url)) {
+        return;
+    }
+    if (isCacheFirstAsset(url)) {
+        event.respondWith(
+            caches.open(CACHE_NAME).then((cache) => {
+                return cache.match(event.request).then((cached) => {
+                    if (cached) {
+                        return cached;
+                    }
+                    return fetch(event.request).then((response) => {
+                        if (response && response.status === 200 && response.type === 'basic') {
+                            cache.put(event.request, response.clone()).catch((err) => {
+                                console.warn('Cache.put 失败:', event.request.url, err);
+                            });
+                        }
+                        return response;
+                    });
+                });
+            })
+        );
         return;
     }
     event.respondWith(

@@ -711,4 +711,5 @@ function openKnowledgeGraph() {
     if (!knowledgeGraph) initKnowledgeGraph();
     knowledgeGraph.open();
 }
-document.addEventListener('DOMContentLoaded', () => { setTimeout(initKnowledgeGraph, 500); });
+window.__openKnowledgeGraphImpl = openKnowledgeGraph;
+window.openKnowledgeGraph = openKnowledgeGraph;
