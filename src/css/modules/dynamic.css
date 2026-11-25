@@ -55,7 +55,9 @@
     display: block;
 }
 
-.u-color-error {\n    color: var(--error);\n}
+.u-color-error {
+    color: var(--error);
+}
 
 .u-loading-spinner-container {
     margin: 20px auto;
