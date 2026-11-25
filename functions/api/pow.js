@@ -255,6 +255,43 @@ function botScorePenaltyBits(cf) {
   return 0;
 }
 
+function resolveClientContext(request, env) {
+  const cf = request.cf || {};
+  let ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  let asn = cf.asn;
+  let botScore = cf.botManagement && cf.botManagement.score;
+
+  const expectedSecret = env && typeof env.PROXY_SECRET === 'string' ? env.PROXY_SECRET : '';
+  const providedSecret = request.headers.get('X-Proxy-Secret') || '';
+  if (expectedSecret && providedSecret.length === expectedSecret.length) {
+    let diff = 0;
+    for (let i = 0; i < expectedSecret.length; i++) {
+      diff |= expectedSecret.charCodeAt(i) ^ providedSecret.charCodeAt(i);
+    }
+    if (diff === 0) {
+      const realIp = request.headers.get('X-Real-Client-IP');
+      if (realIp) ip = realIp.trim();
+      const realAsnHeader = request.headers.get('X-Real-Client-ASN');
+      if (realAsnHeader !== null && /^\d+$/.test(realAsnHeader.trim())) {
+        asn = Number(realAsnHeader.trim());
+      }
+      const realBotHeader = request.headers.get('X-Real-Bot-Score');
+      if (realBotHeader !== null && /^\d+$/.test(realBotHeader.trim())) {
+        botScore = Number(realBotHeader.trim());
+      }
+    }
+  }
+
+  return {
+    ip,
+    cf: {
+      ...cf,
+      asn,
+      botManagement: typeof botScore === 'number' ? { ...(cf.botManagement || {}), score: botScore } : cf.botManagement
+    }
+  };
+}
+
 function buildPenaltyPayload(reasons, rawBits, appliedBits, totalBits) {
   if (!reasons.length) return undefined;
   return {
@@ -380,13 +417,12 @@ export async function onRequestPost({ request, env }) {
       });
     }
 
-    const cf = request.cf || {};
+    const { ip, cf } = resolveClientContext(request, env);
     const asnPenalty = asnPenaltyBits(cf, action);
     const envFallback = body.envFallback === true && ENV_FALLBACK_ACTIONS.includes(action);
 
     await ensurePowSchema(env);
     const floor = (isHighRisk ? HIGH_RISK_MIN_BITS : MIN_BITS) + (envFallback ? ENV_FALLBACK_BITS : 0);
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const ipPenalty = await ipPenaltyInfo(env, ip);
     const botPenalty = botScorePenaltyBits(cf);
     const deviceBits = bitsFromDevice(hashRate, floor);
