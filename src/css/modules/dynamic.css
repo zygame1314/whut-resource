@@ -55,9 +55,7 @@
     display: block;
 }
 
-.u-color-error {
-    color: var(--error);
-}
+.u-color-error {\n    color: var(--error);\n}
 
 .u-loading-spinner-container {
     margin: 20px auto;
@@ -90,3 +88,43 @@
     transform: translateZ(0);
 }
 
+@media (max-width: 768px) {
+    .graph-view-btn {
+        display: none !important;
+    }
+}
+
+.graph-view-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    margin-top: 1rem;
+    background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.15) 0%,
+            rgba(var(--primary-rgb), 0.1) 100%);
+    border: 1px solid rgba(var(--primary-rgb), 0.3);
+    border-radius: 10px;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+.graph-view-btn:hover {
+    background: linear-gradient(135deg,
+            rgba(var(--primary-rgb), 0.25) 0%,
+            rgba(var(--primary-rgb), 0.15) 100%);
+    border-color: var(--primary-color);
+    transform: scale(1.02);
+}
+
+.graph-view-btn i {
+    font-size: 1.1rem;
+}
