@@ -1,4 +1,4 @@
-import { verifyToken, requireJwtSecret, addCorsHeaders, getSignedUrlSecret, computeDownloadSignature, timingSafeEqualString, parseSignedUrlExpiry } from '../../utils.js';
+import { verifyToken, requireJwtSecret, addCorsHeaders, getSignedUrlSecret, computeDownloadSignature, timingSafeEqualString, parseSignedUrlExpiry, getClientIp } from '../../utils.js';
 const INLINE_CONTENT_TYPES = {
   pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp', svg: 'image/svg+xml',
@@ -112,7 +112,7 @@ export async function onRequest(context) {
           if (shouldCountThisDownload) {
             await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
           }
-          const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+          const ip = getClientIp(request, env, 'unknown');
           await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
             .bind(user.id, key, ip, fileSize)
             .run();
@@ -192,7 +192,7 @@ export async function onRequest(context) {
     context.waitUntil((async () => {
       try {
         await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
-        const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+        const ip = getClientIp(request, env, 'unknown');
         await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
           .bind(user.id, key, ip, fileInfo.size)
           .run();

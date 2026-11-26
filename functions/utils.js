@@ -653,8 +653,8 @@ export function checkRateLimit(key, maxCount, windowMs = RL_WINDOW_MS) {
   }
   return true;
 }
-export function getRequestRateLimitKey(request, suffix) {
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+export function getRequestRateLimitKey(request, suffix, env) {
+  const ip = getClientIp(request, env, 'unknown');
   return `${ip}:${suffix}`;
 }
 export function getUserRateLimitKey(user, suffix) {
@@ -1342,8 +1342,41 @@ async function hashOAuthCode(code) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
   return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
 }
-function getClientIp(request) {
-  return request?.headers?.get('CF-Connecting-IP') || null;
+export function resolveClientContext(request, env) {
+  const cf = (request && request.cf) || {};
+  let ip = request?.headers?.get('CF-Connecting-IP') || '';
+  let asn = cf.asn;
+  let botScore = cf.botManagement && cf.botManagement.score;
+
+  const expectedSecret = env && typeof env.PROXY_SECRET === 'string' ? env.PROXY_SECRET : '';
+  const providedSecret = request?.headers?.get('X-Proxy-Secret') || '';
+  if (expectedSecret && timingSafeEqualString(providedSecret, expectedSecret)) {
+    const realIp = request.headers.get('X-Real-Client-IP');
+    if (realIp && realIp.trim()) {
+      ip = realIp.trim();
+    }
+    const realAsnHeader = request.headers.get('X-Real-Client-ASN');
+    if (realAsnHeader !== null && /^\d+$/.test(realAsnHeader.trim())) {
+      asn = Number(realAsnHeader.trim());
+    }
+    const realBotHeader = request.headers.get('X-Real-Bot-Score');
+    if (realBotHeader !== null && /^\d+$/.test(realBotHeader.trim())) {
+      botScore = Number(realBotHeader.trim());
+    }
+  }
+
+  return {
+    ip: ip || null,
+    cf: {
+      ...cf,
+      asn,
+      botManagement: typeof botScore === 'number' ? { ...(cf.botManagement || {}), score: botScore } : cf.botManagement
+    }
+  };
+}
+
+export function getClientIp(request, env, fallback = null) {
+  return resolveClientContext(request, env).ip || fallback;
 }
 
 export async function logOAuthAuthorization(env, request, { clientId, userId, scope, status, errorCode = null, code = null }) {
@@ -1358,7 +1391,7 @@ export async function logOAuthAuthorization(env, request, { clientId, userId, sc
       status,
       errorCode,
       code ? await hashOAuthCode(code) : null,
-      getClientIp(request),
+      getClientIp(request, env),
       (request?.headers?.get('User-Agent') || '').slice(0, 255) || null
     ).run();
   } catch (e) {

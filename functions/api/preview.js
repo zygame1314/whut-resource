@@ -1,4 +1,4 @@
-import { getUserFromRequest, checkRateLimit, getUserRateLimitKey, getSignedUrlSecret, computeDownloadSignature, clampSignedUrlTtl } from '../utils.js';
+import { getUserFromRequest, checkRateLimit, getUserRateLimitKey, getSignedUrlSecret, computeDownloadSignature, clampSignedUrlTtl, getClientIp } from '../utils.js';
 const addCorsHeaders = (headers = {}) => {
   return {
     ...headers,
@@ -111,7 +111,7 @@ export async function onRequest(context) {
           if (shouldCountThisDownload) {
             await env.DB.prepare('UPDATE files SET downloads = downloads + 1 WHERE key = ?').bind(key).run();
           }
-          const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+          const ip = getClientIp(request, env, 'unknown');
           await env.DB.prepare('INSERT INTO downloads (user_id, file_key, ip_address, size) VALUES (?, ?, ?, ?)')
             .bind(user.id, key, ip, object.size)
             .run();

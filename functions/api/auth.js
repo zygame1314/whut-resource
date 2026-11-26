@@ -1,4 +1,4 @@
-import { hashPassword, verifyPasswordHash, passwordNeedsRehash, signToken, verifyToken, requireJwtSecret, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, parseUtcTimestamp } from '../utils.js';
+import { hashPassword, verifyPasswordHash, passwordNeedsRehash, signToken, verifyToken, requireJwtSecret, addCorsHeaders, isAdmin, fetchSiliconFlowChat, getUserFromRequest, checkRateLimit, getUserRateLimitKey, parseUtcTimestamp, getClientIp } from '../utils.js';
 import { verifyWHUTCredentials, refreshSsoCaptcha, verifySsoSmsCode } from './sso-utils.js';
 import { verifyPowSolution, computePowBind, MIN_BITS, MAX_BITS } from './pow.js';
 const HIGH_RISK_MIN_BITS = 18;
@@ -377,7 +377,7 @@ export async function onRequestPost({ request, env }) {
       if (!inputId || !password) {
         return new Response(JSON.stringify({ success: false, error: '学号/卡号和密码不能为空。' }), { status: 400, headers: addCorsHeaders() });
       }
-      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const ip = getClientIp(request, env, 'unknown');
       const now = new Date().toISOString();
       const ipAttempt = await env.DB.prepare(
         'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'
@@ -542,7 +542,7 @@ export async function onRequestPost({ request, env }) {
       if (typeof email !== 'string' || !email.trim() || typeof password !== 'string' || !password) {
         return new Response(JSON.stringify({ success: false, error: '账号和密码不能为空' }), { status: 400, headers: addCorsHeaders() });
       }
-      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const ip = getClientIp(request, env, 'unknown');
       const now = new Date().toISOString();
       const ipAttempt = await env.DB.prepare(
         'SELECT fail_count FROM login_attempts WHERE identifier = ? AND attempt_type = ? AND expires_at > ?'

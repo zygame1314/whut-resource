@@ -333,7 +333,7 @@ export async function onRequest(context) {
             headers: addCorsHeaders({ 'Content-Type': 'application/json' }),
         });
     }
-    const ipKey = getRequestRateLimitKey(request, 'url-safety');
+    const ipKey = getRequestRateLimitKey(request, 'url-safety', env);
     if (!checkRateLimit(ipKey, RL_MAX)) {
         return new Response(JSON.stringify({
             success: false,
